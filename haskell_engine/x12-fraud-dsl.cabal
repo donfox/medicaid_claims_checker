@@ -1,0 +1,60 @@
+cabal-version:      2.4
+name:               x12-fraud-dsl
+version:            0.1.0.0
+synopsis:           DSL for X12 EDI fraud detection rules
+description:        A domain-specific language allowing business analysts to write 
+                    predicate logic rules for examining X12 EDI files to detect fraud.
+license:            BSD-3-Clause
+author:             Your Name
+maintainer:         your.email@example.com
+category:           Language
+build-type:         Simple
+extra-source-files: README.md
+
+common warnings
+    ghc-options: -Wall -O0
+    -- Disable optimizations for faster development builds
+
+library
+    import:           warnings
+    exposed-modules:  X12.DSL.Syntax
+                    , X12.DSL.Parser
+                    , X12.DSL.Evaluator
+                    , X12.DSL.SimpleEvaluator
+                    , X12.DSL.X12Types
+                    , X12.DSL.RuleEngine
+    build-depends:    base ^>=4.16.0.0
+                    , parsec >= 3.1.14
+                    , text >= 1.2.5
+                    , containers >= 0.6.5
+                    , aeson >= 2.0.3
+                    , bytestring >= 0.11.0
+                    , scientific >= 0.3.7
+                    , vector >= 0.12.0
+    hs-source-dirs:   src
+    default-language: Haskell2010
+    ghc-options: -threaded
+
+executable x12-fraud-dsl-server
+    import:           warnings
+    main-is:          Main.hs
+    build-depends:    base ^>=4.16.0.0
+                    , x12-fraud-dsl
+                    , aeson
+                    , text
+                    , bytestring
+                    , warp >= 3.3.0
+                    , wai >= 3.2.0
+                    , http-types >= 0.12.3
+    hs-source-dirs:   app
+    default-language: Haskell2010
+
+test-suite x12-fraud-dsl-test
+    import:           warnings
+    default-language: Haskell2010
+    type:             exitcode-stdio-1.0
+    hs-source-dirs:   test
+    main-is:          Spec.hs
+    build-depends:    base ^>=4.16.0.0
+                    , x12-fraud-dsl
+                    , hspec >= 2.10.0

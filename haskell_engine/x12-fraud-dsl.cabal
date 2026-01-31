@@ -23,7 +23,7 @@ library
                     , X12.DSL.SimpleEvaluator
                     , X12.DSL.X12Types
                     , X12.DSL.RuleEngine
-    build-depends:    base ^>=4.16.0.0
+    build-depends:    base >=4.14 && <5
                     , parsec >= 3.1.14
                     , text >= 1.2.5
                     , containers >= 0.6.5
@@ -38,7 +38,7 @@ library
 executable x12-fraud-dsl-server
     import:           warnings
     main-is:          Main.hs
-    build-depends:    base ^>=4.16.0.0
+    build-depends:    base >=4.14 && <5
                     , x12-fraud-dsl
                     , aeson
                     , text
@@ -55,6 +55,6 @@ test-suite x12-fraud-dsl-test
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
     main-is:          Spec.hs
-    build-depends:    base ^>=4.16.0.0
+    build-depends:    base >=4.14 && <5
                     , x12-fraud-dsl
                     , hspec >= 2.10.0

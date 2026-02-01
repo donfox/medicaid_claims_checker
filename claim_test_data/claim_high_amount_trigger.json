@@ -1,0 +1,152 @@
+{
+    "claim_id": "CLM-HIGH-AMOUNT-001",
+    "submission_type": "healthcare_claim_997",
+    "submission_date": "2026-01-29",
+    "claim": {
+        "amount": 75000,
+        "units": 10,
+        "frequency": "12",
+        "drg_code": "640"
+    },
+    "provider": {
+        "name": "Premium Medical Center",
+        "npi": "1234567890",
+        "tax_id": "12-3456789",
+        "type": "Hospital",
+        "state": "CA",
+        "postal_code": "90001",
+        "tenure_days": 500,
+        "risk_score": 25,
+        "credentialing_date": "2020-06-15",
+        "specialty": "Acute Care Hospital"
+    },
+    "patient": {
+        "name": {
+            "first": "John",
+            "middle": "Robert",
+            "last": "Smith",
+            "suffix": "Jr."
+        },
+        "date_of_birth": "1981-03-15",
+        "gender": "Male",
+        "patient_id": "PAT-001",
+        "ssn": "123-45-6789"
+    },
+    "subscriber": {
+        "subscriber_id": "SUB-123456789",
+        "relationship": "Self",
+        "group_number": "GRP-00001",
+        "plan_id": "PLAN-001"
+    },
+    "payer": {
+        "payer_id": "PAYER001",
+        "payer_name": "Blue Shield Insurance",
+        "state": "CA"
+    },
+    "claim_details": {
+        "admission_date": "2026-01-10",
+        "discharge_date": "2026-01-20",
+        "admission_type": "Emergency",
+        "discharge_status": "Discharged to Home",
+        "service_type": "Hospital Inpatient",
+        "drg_code": "640",
+        "drg_description": "Nutritional and miscellaneous metabolic disorders",
+        "days_stay": 10
+    },
+    "diagnosis_codes": [
+        {
+            "code": "E11.9",
+            "description": "Type 2 diabetes mellitus without complications",
+            "qualifier": "Principal",
+            "present_on_admission": "Y"
+        },
+        {
+            "code": "I10",
+            "description": "Essential hypertension",
+            "qualifier": "Secondary",
+            "present_on_admission": "Y"
+        },
+        {
+            "code": "E78.5",
+            "description": "Hyperlipidemia",
+            "qualifier": "Secondary",
+            "present_on_admission": "N"
+        }
+    ],
+    "authorization_number": "AUTH-123456",
+    "procedure_code": "99213",
+    "total_charge": 75000,
+    "service_lines": [
+        {
+            "service_line_number": 1,
+            "procedure_code": "99213",
+            "description": "Office visit - established patient, low complexity",
+            "units": 5,
+            "unit_rate": 150.00,
+            "line_amount": 750.00,
+            "date_of_service": "2026-01-15",
+            "place_of_service": "11",
+            "diagnosis_pointers": [
+                "1"
+            ]
+        },
+        {
+            "service_line_number": 2,
+            "procedure_code": "80053",
+            "description": "Comprehensive metabolic panel",
+            "units": 1,
+            "unit_rate": 85.00,
+            "line_amount": 85.00,
+            "date_of_service": "2026-01-10",
+            "place_of_service": "22",
+            "diagnosis_pointers": [
+                "1",
+                "2"
+            ]
+        },
+        {
+            "service_line_number": 3,
+            "procedure_code": "85025",
+            "description": "Complete blood count with differential",
+            "units": 2,
+            "unit_rate": 65.00,
+            "line_amount": 130.00,
+            "date_of_service": "2026-01-10",
+            "place_of_service": "22",
+            "diagnosis_pointers": [
+                "1"
+            ]
+        }
+    ],
+    "claim_totals": {
+        "total_submitted": 75000.00,
+        "total_charges": 75000.00,
+        "total_patient_responsibility": 0.00,
+        "total_payer_liability": 75000.00,
+        "total_units": 8
+    },
+    "financial": {
+        "claim_amount": 75000.00,
+        "patient_deductible": 0.00,
+        "patient_coinsurance": 0.00,
+        "patient_copay": 0.00,
+        "coordination_of_benefits": 0.00
+    },
+    "authorization": {
+        "authorization_number": "AUTH-123456",
+        "authorization_date": "2026-01-09",
+        "authorization_period_start": "2026-01-10",
+        "authorization_period_end": "2026-01-20",
+        "authorization_status": "Active",
+        "authorized_amount": 80000.00,
+        "approved_units": 10
+    },
+    "claim_metadata": {
+        "submission_date": "2026-01-29",
+        "claim_frequency": "Original",
+        "claim_received_date": "2026-01-29",
+        "claim_processing_status": "Pending",
+        "test_rule": "high_amount",
+        "expected_result": "FLAG_FRAUD"
+    }
+}

@@ -1,0 +1,86 @@
+{
+    "claim_id": "CLM-URGENT-REVIEW-001",
+    "submission_type": "healthcare_claim_997",
+    "submission_date": "2026-01-29",
+    "claim": {
+        "amount": 15000,
+        "units": 3,
+        "frequency": "12"
+    },
+    "provider": {
+        "name": "Emergency Medical Center",
+        "npi": "1234567894",
+        "tax_id": "12-3456793",
+        "type": "Hospital",
+        "state": "IL",
+        "postal_code": "60601",
+        "tenure_days": 800,
+        "risk_score": 20,
+        "credentialing_date": "2018-03-10",
+        "specialty": "Emergency Medicine"
+    },
+    "patient": {
+        "name": {
+            "first": "Sarah",
+            "middle": "Elizabeth",
+            "last": "Brown",
+            "suffix": ""
+        },
+        "date_of_birth": "1988-02-14",
+        "gender": "Female",
+        "patient_id": "PAT-005",
+        "ssn": "654-32-1098"
+    },
+    "subscriber": {
+        "subscriber_id": "SUB-654321098",
+        "relationship": "Self",
+        "group_number": "GRP-00005",
+        "plan_id": "PLAN-005"
+    },
+    "payer": {
+        "payer_id": "PAYER005",
+        "payer_name": "Illinois Health Plan",
+        "state": "IL"
+    },
+    "claim_details": {
+        "service_date": "2026-01-22",
+        "service_type": "Emergency",
+        "place_of_service": "23",
+        "admission_type": "Emergency"
+    },
+    "authorization_number": "AUTH-456789",
+    "procedure_code": "99285",
+    "total_charge": 15000,
+    "service_lines": [
+        {
+            "service_line_number": 1,
+            "procedure_code": "99285",
+            "description": "Emergency department visit - high severity",
+            "units": 3,
+            "unit_rate": 5000.00,
+            "line_amount": 15000.00,
+            "date_of_service": "2026-01-22",
+            "place_of_service": "23"
+        }
+    ],
+    "claim_totals": {
+        "total_submitted": 15000.00,
+        "total_charges": 15000.00,
+        "total_patient_responsibility": 0.00,
+        "total_payer_liability": 15000.00
+    },
+    "financial": {
+        "claim_amount": 15000.00,
+        "patient_deductible": 0.00,
+        "patient_coinsurance": 0.00,
+        "patient_copay": 0.00
+    },
+    "claim_metadata": {
+        "submission_date": "2026-01-29",
+        "claim_frequency": "Original",
+        "claim_received_date": "2026-01-29",
+        "claim_processing_status": "Pending",
+        "test_rule": "urgent_review",
+        "expected_result": "REQUIRE_REVIEW"
+    }
+}

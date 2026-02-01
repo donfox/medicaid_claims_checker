@@ -1,0 +1,166 @@
+{
+    "submission_type": "healthcare_claim_997",
+    "interchange_header": {
+        "sender_id": "PROVIDER008",
+        "receiver_id": "PAYER008",
+        "timestamp": "2026-01-29T16:15:00Z",
+        "interchange_control_number": "000000008"
+    },
+    "functional_group": {
+        "application_sender": "PROVIDER",
+        "application_receiver": "PAYER",
+        "group_control_number": "8"
+    },
+    "claim_id": "CLM-NORMAL-001",
+    "claim_header": {
+        "claim_control_number": "CLM20260129008",
+        "claim_submission_reason": "Original",
+        "claim_type": "Outpatient",
+        "patient_control_number": "PAT-20260127-008"
+    },
+    "provider": {
+        "name": "Kansas City Medical Center",
+        "npi": "1234567901",
+        "tax_id": "12-3456796",
+        "type": "Clinic",
+        "address": {
+            "street": "6060 Main Street",
+            "city": "Kansas City",
+            "state": "MO",
+            "postal_code": "64105",
+            "country": "USA"
+        },
+        "contact": {
+            "phone": "816-555-1901",
+            "fax": "816-555-1902"
+        },
+        "tenure_days": 800,
+        "risk_score": 25,
+        "credentialing_date": "2015-12-01",
+        "specialty": "Family Medicine"
+    },
+    "billing_provider": {
+        "npi": "1234567901",
+        "name": "Kansas City Medical Center",
+        "address": {
+            "street": "6060 Main Street",
+            "city": "Kansas City",
+            "state": "MO",
+            "postal_code": "64105"
+        }
+    },
+    "patient": {
+        "name": {
+            "first": "Elizabeth",
+            "middle": "Grace",
+            "last": "Wilson",
+            "suffix": ""
+        },
+        "date_of_birth": "1982-10-12",
+        "gender": "Female",
+        "patient_id": "PAT-008",
+        "ssn": "567-89-0123",
+        "address": {
+            "street": "888 Elm Street",
+            "city": "Kansas City",
+            "state": "MO",
+            "postal_code": "64106",
+            "country": "USA"
+        },
+        "contact": {
+            "phone": "816-555-2001",
+            "email": "elizabeth.wilson@email.com"
+        }
+    },
+    "subscriber": {
+        "subscriber_id": "SUB-567890123",
+        "relationship": "Self",
+        "group_number": "GRP-00008",
+        "plan_id": "PLAN-008"
+    },
+    "payer": {
+        "payer_id": "PAYER008",
+        "payer_name": "HealthCare Services Corporation",
+        "address": {
+            "street": "222 Crown Center",
+            "city": "Kansas City",
+            "state": "MO",
+            "postal_code": "64105"
+        },
+        "contact": {
+            "phone": "816-555-2101"
+        }
+    },
+    "claim_details": {
+        "admission_date": "2026-01-27",
+        "discharge_date": "2026-01-27",
+        "admission_type": "Ambulatory",
+        "admission_source": "Walk-in",
+        "discharge_status": "Discharged",
+        "patient_status": "Discharged",
+        "service_type": "Office Visit",
+        "place_of_service": "11"
+    },
+    "diagnosis_codes": [
+        {
+            "code": "Z00.00",
+            "description": "Encounter for general adult medical examination without abnormal findings",
+            "qualifier": "Principal",
+            "present_on_admission": "N"
+        }
+    ],
+    "procedure_codes": [
+        {
+            "code": "99213",
+            "description": "Office visit - established patient, low complexity",
+            "units": 1,
+            "date_performed": "2026-01-27"
+        }
+    ],
+    "service_lines": [
+        {
+            "service_line_number": 1,
+            "procedure_code": "99213",
+            "description": "Office visit - established patient, low complexity",
+            "units": 1,
+            "unit_rate": 150.00,
+            "line_amount": 150.00,
+            "date_of_service": "2026-01-27",
+            "place_of_service": "11",
+            "diagnosis_pointers": [
+                "1"
+            ]
+        }
+    ],
+    "claim_totals": {
+        "total_submitted": 150.00,
+        "total_charges": 150.00,
+        "total_patient_responsibility": 0.00,
+        "total_payer_liability": 150.00,
+        "total_units": 1
+    },
+    "financial": {
+        "claim_amount": 150.00,
+        "patient_deductible": 0.00,
+        "patient_coinsurance": 0.00,
+        "patient_copay": 25.00,
+        "coordination_of_benefits": 0.00
+    },
+    "authorization": {
+        "authorization_number": "AUTH-444444",
+        "authorization_date": "2026-01-27",
+        "authorization_period_start": "2026-01-27",
+        "authorization_period_end": "2026-01-27",
+        "authorization_status": "Active",
+        "authorized_amount": 200.00,
+        "approved_units": 2
+    },
+    "claim_metadata": {
+        "submission_date": "2026-01-29",
+        "claim_frequency": "Original",
+        "claim_received_date": "2026-01-29",
+        "claim_processing_status": "Pending",
+        "test_rule": "multiple",
+        "expected_result": "APPROVED"
+    }
+}

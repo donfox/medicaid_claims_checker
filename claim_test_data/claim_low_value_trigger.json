@@ -1,0 +1,85 @@
+{
+    "claim_id": "CLM-LOW-VALUE-001",
+    "submission_type": "healthcare_claim_997",
+    "submission_date": "2026-01-29",
+    "claim": {
+        "amount": 5,
+        "units": 1,
+        "frequency": "12"
+    },
+    "provider": {
+        "name": "Budget Clinic",
+        "npi": "1234567891",
+        "tax_id": "12-3456790",
+        "type": "Clinic",
+        "state": "TX",
+        "postal_code": "75001",
+        "tenure_days": 200,
+        "risk_score": 45,
+        "credentialing_date": "2024-06-15",
+        "specialty": "General Practice"
+    },
+    "patient": {
+        "name": {
+            "first": "Michael",
+            "middle": "David",
+            "last": "Johnson",
+            "suffix": ""
+        },
+        "date_of_birth": "1990-05-10",
+        "gender": "Male",
+        "patient_id": "PAT-002",
+        "ssn": "456-78-9012"
+    },
+    "subscriber": {
+        "subscriber_id": "SUB-456789012",
+        "relationship": "Self",
+        "group_number": "GRP-00002",
+        "plan_id": "PLAN-002"
+    },
+    "payer": {
+        "payer_id": "PAYER002",
+        "payer_name": "State Health Insurance",
+        "state": "TX"
+    },
+    "claim_details": {
+        "service_date": "2026-01-18",
+        "service_type": "Outpatient",
+        "place_of_service": "11"
+    },
+    "authorization_number": "AUTH-234567",
+    "procedure_code": "90834",
+    "total_charge": 5,
+    "service_lines": [
+        {
+            "service_line_number": 1,
+            "procedure_code": "90834",
+            "description": "Psychological service - minimal",
+            "units": 1,
+            "unit_rate": 5.00,
+            "line_amount": 5.00,
+            "date_of_service": "2026-01-18",
+            "place_of_service": "11"
+        }
+    ],
+    "claim_totals": {
+        "total_submitted": 5.00,
+        "total_charges": 5.00,
+        "total_patient_responsibility": 0.00,
+        "total_payer_liability": 5.00
+    },
+    "financial": {
+        "claim_amount": 5.00,
+        "patient_deductible": 0.00,
+        "patient_coinsurance": 0.00,
+        "patient_copay": 0.00
+    },
+    "claim_metadata": {
+        "submission_date": "2026-01-29",
+        "claim_frequency": "Original",
+        "claim_received_date": "2026-01-29",
+        "claim_processing_status": "Pending",
+        "test_rule": "low_value",
+        "expected_result": "REQUIRE_REVIEW"
+    }
+}

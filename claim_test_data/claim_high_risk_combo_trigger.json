@@ -1,0 +1,85 @@
+{
+    "claim_id": "CLM-HIGH-RISK-COMBO-001",
+    "submission_type": "healthcare_claim_997",
+    "submission_date": "2026-01-29",
+    "claim": {
+        "amount": 35000,
+        "units": 15,
+        "frequency": "12"
+    },
+    "provider": {
+        "name": "New Startup Clinic",
+        "npi": "1234567893",
+        "tax_id": "12-3456792",
+        "type": "Clinic",
+        "state": "FL",
+        "postal_code": "33101",
+        "tenure_days": 45,
+        "risk_score": 55,
+        "credentialing_date": "2025-12-01",
+        "specialty": "Diagnostic Services"
+    },
+    "patient": {
+        "name": {
+            "first": "Robert",
+            "middle": "James",
+            "last": "Williams",
+            "suffix": ""
+        },
+        "date_of_birth": "1965-11-30",
+        "gender": "Male",
+        "patient_id": "PAT-004",
+        "ssn": "321-54-9876"
+    },
+    "subscriber": {
+        "subscriber_id": "SUB-321549876",
+        "relationship": "Self",
+        "group_number": "GRP-00004",
+        "plan_id": "PLAN-004"
+    },
+    "payer": {
+        "payer_id": "PAYER004",
+        "payer_name": "Medicare Plus",
+        "state": "FL"
+    },
+    "claim_details": {
+        "service_date": "2026-01-25",
+        "service_type": "Outpatient",
+        "place_of_service": "22"
+    },
+    "authorization_number": "AUTH-345678",
+    "procedure_code": "99213",
+    "total_charge": 35000,
+    "service_lines": [
+        {
+            "service_line_number": 1,
+            "procedure_code": "99213",
+            "description": "Comprehensive office visit",
+            "units": 15,
+            "unit_rate": 2333.33,
+            "line_amount": 35000.00,
+            "date_of_service": "2026-01-25",
+            "place_of_service": "22"
+        }
+    ],
+    "claim_totals": {
+        "total_submitted": 35000.00,
+        "total_charges": 35000.00,
+        "total_patient_responsibility": 0.00,
+        "total_payer_liability": 35000.00
+    },
+    "financial": {
+        "claim_amount": 35000.00,
+        "patient_deductible": 0.00,
+        "patient_coinsurance": 0.00,
+        "patient_copay": 0.00
+    },
+    "claim_metadata": {
+        "submission_date": "2026-01-29",
+        "claim_frequency": "Original",
+        "claim_received_date": "2026-01-29",
+        "claim_processing_status": "Pending",
+        "test_rule": "high_risk_combo",
+        "expected_result": "FLAG_FRAUD"
+    }
+}

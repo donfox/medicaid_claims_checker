@@ -1,0 +1,96 @@
+{
+    "claim_id": "CLM-COMPLEX-FRAUD-001",
+    "submission_type": "healthcare_claim_997",
+    "submission_date": "2026-01-29",
+    "claim": {
+        "amount": 18000,
+        "units": 60,
+        "frequency": "12"
+    },
+    "provider": {
+        "name": "High-Risk Medical Services",
+        "npi": "1234567897",
+        "tax_id": "12-3456796",
+        "type": "Specialty Clinic",
+        "state": "AZ",
+        "postal_code": "85001",
+        "tenure_days": 300,
+        "risk_score": 82,
+        "credentialing_date": "2024-02-28",
+        "specialty": "Orthopedic Surgery"
+    },
+    "patient": {
+        "name": {
+            "first": "Jennifer",
+            "middle": "Louise",
+            "last": "Garcia",
+            "suffix": ""
+        },
+        "date_of_birth": "1962-04-18",
+        "gender": "Female",
+        "patient_id": "PAT-008",
+        "ssn": "222-33-4444"
+    },
+    "subscriber": {
+        "subscriber_id": "SUB-222334444",
+        "relationship": "Self",
+        "group_number": "GRP-00008",
+        "plan_id": "PLAN-008"
+    },
+    "payer": {
+        "payer_id": "PAYER008",
+        "payer_name": "Southwest Health Plan",
+        "state": "AZ"
+    },
+    "claim_details": {
+        "service_date": "2026-01-27",
+        "service_type": "Outpatient Surgery",
+        "place_of_service": "24",
+        "admission_type": "Scheduled"
+    },
+    "authorization_number": "AUTH-678901",
+    "procedure_code": "20610",
+    "total_charge": 18000,
+    "service_lines": [
+        {
+            "service_line_number": 1,
+            "procedure_code": "20610",
+            "description": "Arthrocentesis, major joint or bursa",
+            "units": 20,
+            "unit_rate": 600.00,
+            "line_amount": 12000.00,
+            "date_of_service": "2026-01-27",
+            "place_of_service": "24"
+        },
+        {
+            "service_line_number": 2,
+            "procedure_code": "20611",
+            "description": "Arthrocentesis - follow-up injection",
+            "units": 40,
+            "unit_rate": 150.00,
+            "line_amount": 6000.00,
+            "date_of_service": "2026-01-27",
+            "place_of_service": "24"
+        }
+    ],
+    "claim_totals": {
+        "total_submitted": 18000.00,
+        "total_charges": 18000.00,
+        "total_patient_responsibility": 0.00,
+        "total_payer_liability": 18000.00
+    },
+    "financial": {
+        "claim_amount": 18000.00,
+        "patient_deductible": 0.00,
+        "patient_coinsurance": 0.00,
+        "patient_copay": 0.00
+    },
+    "claim_metadata": {
+        "submission_date": "2026-01-29",
+        "claim_frequency": "Original",
+        "claim_received_date": "2026-01-29",
+        "claim_processing_status": "Pending",
+        "test_rule": "complex_fraud",
+        "expected_result": "FLAG_FRAUD"
+    }
+}

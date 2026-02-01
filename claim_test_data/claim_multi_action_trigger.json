@@ -1,0 +1,87 @@
+{
+    "claim_id": "CLM-MULTI-ACTION-001",
+    "submission_type": "healthcare_claim_997",
+    "submission_date": "2026-01-29",
+    "claim": {
+        "amount": 750000,
+        "units": 100,
+        "frequency": "12"
+    },
+    "provider": {
+        "name": "Extreme Services Inc",
+        "npi": "1234567896",
+        "tax_id": "12-3456795",
+        "type": "Hospital",
+        "state": "CA",
+        "postal_code": "91001",
+        "tenure_days": 60,
+        "risk_score": 95,
+        "credentialing_date": "2025-11-15",
+        "specialty": "Specialty Hospital"
+    },
+    "patient": {
+        "name": {
+            "first": "Charles",
+            "middle": "Thomas",
+            "last": "Davis",
+            "suffix": ""
+        },
+        "date_of_birth": "1955-12-20",
+        "gender": "Male",
+        "patient_id": "PAT-007",
+        "ssn": "111-22-3333"
+    },
+    "subscriber": {
+        "subscriber_id": "SUB-111223333",
+        "relationship": "Self",
+        "group_number": "GRP-00007",
+        "plan_id": "PLAN-007"
+    },
+    "payer": {
+        "payer_id": "PAYER007",
+        "payer_name": "Premium Health Plus",
+        "state": "CA"
+    },
+    "claim_details": {
+        "service_date": "2026-01-26",
+        "service_type": "Inpatient",
+        "place_of_service": "21",
+        "admission_type": "Emergency",
+        "discharge_status": "Discharged"
+    },
+    "authorization_number": "AUTH-567890",
+    "procedure_code": "99291",
+    "total_charge": 750000,
+    "service_lines": [
+        {
+            "service_line_number": 1,
+            "procedure_code": "99291",
+            "description": "Intensive care consultation - extremely high cost",
+            "units": 100,
+            "unit_rate": 7500.00,
+            "line_amount": 750000.00,
+            "date_of_service": "2026-01-26",
+            "place_of_service": "21"
+        }
+    ],
+    "claim_totals": {
+        "total_submitted": 750000.00,
+        "total_charges": 750000.00,
+        "total_patient_responsibility": 0.00,
+        "total_payer_liability": 750000.00
+    },
+    "financial": {
+        "claim_amount": 750000.00,
+        "patient_deductible": 0.00,
+        "patient_coinsurance": 0.00,
+        "patient_copay": 0.00
+    },
+    "claim_metadata": {
+        "submission_date": "2026-01-29",
+        "claim_frequency": "Original",
+        "claim_received_date": "2026-01-29",
+        "claim_processing_status": "Pending",
+        "test_rule": "multi_action",
+        "expected_result": "FLAG_FRAUD with multiple actions"
+    }
+}

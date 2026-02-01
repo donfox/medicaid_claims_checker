@@ -1,0 +1,88 @@
+{
+    "claim_id": "CLM-INVALID-STATE-001",
+    "submission_type": "healthcare_claim_997",
+    "submission_date": "2026-01-29",
+    "claim": {
+        "amount": 5000,
+        "units": 2,
+        "frequency": "12"
+    },
+    "provider": {
+        "name": "Unknown Provider LLC",
+        "npi": "1234567892",
+        "tax_id": "12-3456791",
+        "type": "Unknown",
+        "state": "XX",
+        "postal_code": "00000",
+        "tenure_days": 100,
+        "risk_score": 30,
+        "credentialing_date": "2025-01-20",
+        "specialty": "Unknown"
+    },
+    "patient": {
+        "name": {
+            "first": "Jane",
+            "middle": "Marie",
+            "last": "Doe",
+            "suffix": ""
+        },
+        "date_of_birth": "1975-07-22",
+        "gender": "Female",
+        "patient_id": "PAT-003",
+        "ssn": "987-65-4321"
+    },
+    "subscriber": {
+        "subscriber_id": "SUB-987654321",
+        "relationship": "Self",
+        "group_number": "GRP-00003",
+        "plan_id": "PLAN-003"
+    },
+    "payer": {
+        "payer_id": "PAYER003",
+        "payer_name": "Regional Health Plan",
+        "state": "NY"
+    },
+    "claim_details": {
+        "service_date": "2026-01-20",
+        "service_type": "Outpatient",
+        "place_of_service": "11",
+        "diagnosis_codes": [
+            "J06.9"
+        ]
+    },
+    "authorization_number": "AUTH-789012",
+    "procedure_code": "99213",
+    "total_charge": 5000,
+    "service_lines": [
+        {
+            "service_line_number": 1,
+            "procedure_code": "99213",
+            "description": "Office visit",
+            "units": 2,
+            "unit_rate": 2500.00,
+            "line_amount": 5000.00,
+            "date_of_service": "2026-01-20",
+            "place_of_service": "11"
+        }
+    ],
+    "claim_totals": {
+        "total_submitted": 5000.00,
+        "total_charges": 5000.00,
+        "total_patient_responsibility": 0.00,
+        "total_payer_liability": 5000.00
+    },
+    "financial": {
+        "claim_amount": 5000.00,
+        "patient_deductible": 0.00,
+        "patient_coinsurance": 0.00,
+        "patient_copay": 0.00
+    },
+    "claim_metadata": {
+        "submission_date": "2026-01-29",
+        "claim_frequency": "Original",
+        "claim_received_date": "2026-01-29",
+        "claim_processing_status": "Pending",
+        "test_rule": "invalid_state",
+        "expected_result": "REJECT"
+    }
+}

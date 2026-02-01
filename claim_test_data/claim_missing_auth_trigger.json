@@ -1,0 +1,85 @@
+{
+    "claim_id": "CLM-MISSING-AUTH-001",
+    "submission_type": "healthcare_claim_997",
+    "submission_date": "2026-01-29",
+    "claim": {
+        "amount": 8000,
+        "units": 4,
+        "frequency": "12"
+    },
+    "provider": {
+        "name": "Suspicious Medical Group",
+        "npi": "1234567895",
+        "tax_id": "12-3456794",
+        "type": "Medical Group",
+        "state": "NV",
+        "postal_code": "89101",
+        "tenure_days": 120,
+        "risk_score": 65,
+        "credentialing_date": "2025-09-15",
+        "specialty": "Multiple"
+    },
+    "patient": {
+        "name": {
+            "first": "Patricia",
+            "middle": "Ann",
+            "last": "Miller",
+            "suffix": ""
+        },
+        "date_of_birth": "1972-08-05",
+        "gender": "Female",
+        "patient_id": "PAT-006",
+        "ssn": "789-01-2345"
+    },
+    "subscriber": {
+        "subscriber_id": "SUB-789012345",
+        "relationship": "Self",
+        "group_number": "GRP-00006",
+        "plan_id": "PLAN-006"
+    },
+    "payer": {
+        "payer_id": "PAYER006",
+        "payer_name": "Nevada Insurance",
+        "state": "NV"
+    },
+    "claim_details": {
+        "service_date": "2026-01-19",
+        "service_type": "Outpatient",
+        "place_of_service": "11"
+    },
+    "authorization_number": null,
+    "procedure_code": "99214",
+    "total_charge": 8000,
+    "service_lines": [
+        {
+            "service_line_number": 1,
+            "procedure_code": "99214",
+            "description": "Office visit - established patient, moderate complexity",
+            "units": 4,
+            "unit_rate": 2000.00,
+            "line_amount": 8000.00,
+            "date_of_service": "2026-01-19",
+            "place_of_service": "11"
+        }
+    ],
+    "claim_totals": {
+        "total_submitted": 8000.00,
+        "total_charges": 8000.00,
+        "total_patient_responsibility": 0.00,
+        "total_payer_liability": 8000.00
+    },
+    "financial": {
+        "claim_amount": 8000.00,
+        "patient_deductible": 0.00,
+        "patient_coinsurance": 0.00,
+        "patient_copay": 0.00
+    },
+    "claim_metadata": {
+        "submission_date": "2026-01-29",
+        "claim_frequency": "Original",
+        "claim_received_date": "2026-01-29",
+        "claim_processing_status": "Pending",
+        "test_rule": "missing_auth",
+        "expected_result": "FLAG_FRAUD"
+    }
+}

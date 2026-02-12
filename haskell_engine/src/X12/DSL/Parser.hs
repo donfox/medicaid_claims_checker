@@ -350,13 +350,15 @@ fieldRef = try loopField <|> try segmentField <|> simpleField
 -- Value and Operator Parsers
 -- ----------------------------------------------------------------------------
 
--- | Parse a literal value (number or string).
+-- | Parse a literal value (number, string, or field reference).
 --
 -- * Numbers: @123@, @45.67@
 -- * Strings: @"hello world"@
+-- * Field refs: @2300.CLM.01@ (for field-to-field comparisons)
 valueParser :: Parser Value
 valueParser =
   try (Syntax.NumberValue <$> numberLiteral)
+    <|> try (Syntax.FieldRefValue <$> fieldRef)
     <|> (Syntax.StringValue . T.pack <$> stringLiteral)
 
 -- | Parse a comparison operator.

@@ -1,0 +1,18 @@
+# macOS
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Haskell build artifacts
+haskell_engine/.stack-work/
+haskell_engine/dist-newstyle/
+
+# Phoenix build artifacts
+phoenix_web/_build/
+phoenix_web/deps/
+
+# IDE
+.vscode/
+*.code-workspace

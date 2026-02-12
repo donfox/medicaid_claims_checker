@@ -23,6 +23,7 @@ library
                     , X12.DSL.SimpleEvaluator
                     , X12.DSL.X12Types
                     , X12.DSL.RuleEngine
+                    , X12.DSL.Compiler
     build-depends:    base >=4.14 && <5
                     , parsec >= 3.1.14
                     , text >= 1.2.5
@@ -31,6 +32,11 @@ library
                     , bytestring >= 0.11.0
                     , scientific >= 0.3.7
                     , vector >= 0.12.0
+                    , stm >= 2.5
+                    , time >= 1.9
+                    , directory >= 1.3
+                    , filepath >= 1.4
+                    , process >= 1.6
     hs-source-dirs:   src
     default-language: Haskell2010
     ghc-options: -threaded
@@ -46,6 +52,9 @@ executable x12-fraud-dsl-server
                     , warp >= 3.3.0
                     , wai >= 3.2.0
                     , http-types >= 0.12.3
+                    , stm >= 2.5
+                    , time >= 1.9
+                    , containers >= 0.6.5
     hs-source-dirs:   app
     default-language: Haskell2010
 

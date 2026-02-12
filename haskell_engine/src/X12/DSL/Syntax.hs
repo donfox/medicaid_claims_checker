@@ -210,6 +210,8 @@ data Value
     -- ^ Date value as text: @"2024-01-15"@ (format depends on document)
   | ListValue [Value]
     -- ^ List of values for IN-style comparisons (future use)
+  | FieldRefValue FieldRef
+    -- ^ Field reference for field-to-field comparisons: @field1 > field2@
   deriving (Show, Eq, Generic)
 
 instance ToJSON Value

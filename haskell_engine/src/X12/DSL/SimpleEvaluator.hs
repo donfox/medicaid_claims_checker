@@ -153,7 +153,7 @@ evaluateRuleSimple doc rule =
 -- Field Comparison Helpers
 -- ----------------------------------------------------------------------------
 
--- | Compare a field's string value against an expected value.
+-- | Compare a field's string value against an expected value or another field.
 compareField
   :: Syntax.FieldRef
   -> Syntax.Value
@@ -163,9 +163,13 @@ compareField
 compareField fieldRef val cmp doc =
   case (lookupJsonField fieldRef doc, val) of
     (Just fieldVal, Syntax.StringValue expectedVal) -> cmp fieldVal expectedVal
+    (Just fieldVal, Syntax.FieldRefValue otherFieldRef) ->
+      case lookupJsonField otherFieldRef doc of
+        Just otherVal -> cmp fieldVal otherVal
+        Nothing -> False
     _ -> False
 
--- | Compare a field's numeric value against an expected value.
+-- | Compare a field's numeric value against an expected value or another field.
 compareNumericField
   :: Syntax.FieldRef
   -> Syntax.Value
@@ -178,6 +182,10 @@ compareNumericField fieldRef val cmp doc =
       case textToDouble fieldVal of
         Just actualVal -> cmp actualVal expectedVal
         Nothing        -> False
+    (Just fieldVal, Syntax.FieldRefValue otherFieldRef) ->
+      case (textToDouble fieldVal, lookupJsonField otherFieldRef doc >>= textToDouble) of
+        (Just actualVal, Just otherVal) -> cmp actualVal otherVal
+        _ -> False
     _ -> False
 
 -- | Compare two integers using a comparison operator.

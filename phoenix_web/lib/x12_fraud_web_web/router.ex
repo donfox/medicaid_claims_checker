@@ -21,10 +21,11 @@ defmodule X12FraudWebWeb.Router do
     live("/rules", RuleLive.Index, :index)
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", X12FraudWebWeb do
-  #   pipe_through :api
-  # end
+  # API routes
+  scope "/api", X12FraudWebWeb do
+    pipe_through :api
+    get "/health", HealthController, :health
+  end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:x12_fraud_web, :dev_routes) do

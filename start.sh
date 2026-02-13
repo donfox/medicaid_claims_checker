@@ -142,10 +142,17 @@ if [[ $FOREGROUND -eq 0 ]]; then
   [[ -n "$BACKEND_PID" ]] && echo "  • Backend API:  PID $BACKEND_PID"
   [[ -n "$FRONTEND_PID" ]] && echo "  • Frontend UI:  PID $FRONTEND_PID"
   echo ""
-  echo "URLs:"
-  [[ -n "$FRONTEND_PID" ]] && echo "  • Frontend:  http://localhost:4000"
-  [[ -n "$BACKEND_PID" ]] && echo "  • Backend:   http://localhost:8080"
-  [[ -n "$BACKEND_PID" ]] && echo "  • Health:    http://localhost:8080/api/health"
+  if [[ -n "$FRONTEND_PID" ]]; then
+    echo "Frontend URLs:"
+    echo "  • UI:      http://localhost:4000"
+    echo "  • Health:  http://localhost:4000/api/health"
+    echo ""
+  fi
+  if [[ -n "$BACKEND_PID" ]]; then
+    echo "Backend URLs:"
+    echo "  • API:     http://localhost:8080"
+    echo "  • Health:  http://localhost:8080/api/health"
+  fi
   echo ""
   echo "Logs:"
   [[ -n "$BACKEND_PID" ]] && echo "  • tail -f $BACKEND_LOG"

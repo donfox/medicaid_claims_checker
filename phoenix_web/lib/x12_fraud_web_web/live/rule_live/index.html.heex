@@ -20,6 +20,7 @@
       </div>
     </div>
 
+    <!-- Top Row: Rule Editor (left) and Claim Document (right) -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Panel 1: Rule Editor -->
       <div class="bg-white shadow-md rounded-lg p-6">
@@ -73,113 +74,112 @@ END"
         </.form>
       </div>
 
-      <!-- Compilation Results (shown when compiled) -->
-      <%= if @compilation_result do %>
-        <div class="lg:col-span-2 bg-white shadow-md rounded-lg p-6 border-l-4 border-indigo-500">
-          <h3 class="text-lg font-semibold text-indigo-900 mb-3">GHC Compilation Result</h3>
-          <div class="flex items-center gap-3 mb-3">
-            <%= if @compilation_result["success"] do %>
-              <span class="px-3 py-1 text-sm bg-green-200 text-green-900 rounded-full font-semibold">COMPILED</span>
-              <span class="text-sm text-gray-700">in <%= Float.round(@compilation_result["compilationTimeMs"] / 1, 0) %>ms</span>
-              <span class="text-sm text-gray-600">Rule: <strong class="text-black"><%= @compilation_result["ruleName"] %></strong></span>
-            <% else %>
-              <span class="px-3 py-1 text-sm bg-red-200 text-red-900 rounded-full font-semibold">COMPILATION FAILED</span>
-              <p class="text-sm text-red-800"><%= @compilation_result["error"] %></p>
-            <% end %>
-          </div>
-          <%= if @compilation_result["generatedSource"] do %>
-            <details class="mt-2">
-              <summary class="text-sm text-indigo-800 cursor-pointer font-medium hover:text-indigo-600">View Generated Haskell Source</summary>
-              <pre class="mt-2 text-xs bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto max-h-96 overflow-y-auto"><code><%= @compilation_result["generatedSource"] %></code></pre>
-            </details>
-          <% end %>
-        </div>
-      <% end %>
-
-      <!-- Panel 2: Evaluation Results -->
+      <!-- Panel 2: Claim Document -->
       <div class="bg-white shadow-md rounded-lg p-6">
-        <h2 class="text-xl font-semibold mb-2 text-black">3. Evaluation Results</h2>
-        <p class="text-sm text-gray-900 mb-4">Shows whether the rule matched the claim and what actions would be triggered.</p>
+        <h2 class="text-xl font-semibold mb-2 text-black">2. Claim Document (JSON)</h2>
+        <p class="text-sm text-gray-900 mb-4">Paste your claim as a JSON object.</p>
 
-        <%= if @evaluation_result do %>
-          <div class="space-y-4">
-            <div class="p-4 bg-blue-100 border border-blue-300 rounded-md">
-              <h3 class="font-semibold text-blue-900">Summary</h3>
-              <p class="text-sm text-blue-900 mt-1">
-                <%= get_in(@evaluation_result, ["report", "summary"]) %>
-              </p>
-            </div>
+        <div class="mb-4" id="claim-textarea-container" phx-update="ignore">
+          <textarea
+            id="claim-textarea"
+            class="w-full h-64 p-2 font-mono text-xs border-2 border-gray-400 rounded-md bg-white text-black placeholder:text-gray-600 focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
+            phx-hook="ClaimTextarea"
+            placeholder="Paste your JSON claim here..."
+          ><%= @claim_json_text %></textarea>
+        </div>
 
-            <div class="p-4 border border-gray-300 rounded-md">
-              <h3 class="font-semibold mb-2 text-black">Overall Risk</h3>
-              <.risk_badge level={get_in(@evaluation_result, ["report", "overallRisk"])} />
-              <%= if Enum.all?(get_in(@evaluation_result, ["report", "results"]) || [], fn r -> !r["resultMatched"] end) do %>
-                <p class="text-sm text-gray-700 mt-2">No fraud indicators detected — rule conditions were not met for this claim.</p>
-              <% end %>
-            </div>
-
-            <div>
-              <h3 class="font-semibold mb-2 text-black">Rule Results</h3>
-              <%= for result <- get_in(@evaluation_result, ["report", "results"]) || [] do %>
-                <div class="mb-2 p-3 border border-gray-300 rounded-md">
-                  <div class="flex items-center justify-between">
-                    <span class="font-medium text-black"><%= result["resultRuleName"] %></span>
-                    <%= if result["resultMatched"] do %>
-                      <span class="px-2 py-1 text-xs bg-yellow-200 text-yellow-900 rounded font-semibold">MATCHED</span>
-                    <% else %>
-                      <span class="px-2 py-1 text-xs bg-gray-200 text-gray-800 rounded">NOT APPLICABLE</span>
-                    <% end %>
-                  </div>
-                  <p class="text-sm text-gray-900 mt-1"><%= result["resultDetails"] %></p>
-                </div>
-              <% end %>
-            </div>
+        <%= if @claim_json_text == "" do %>
+          <div class="mb-4 p-3 bg-gray-100 border border-gray-300 rounded-md">
+            <p class="text-sm text-gray-800">Paste a JSON claim above</p>
           </div>
         <% else %>
-          <div class="text-center py-12 text-gray-800">
-            <p class="font-medium">No evaluation results yet.</p>
-            <p class="text-sm mt-2">Write a valid rule, load a claim, then click "Run Rule Against Claim".</p>
-          </div>
+          <%= if @claim_parse_error do %>
+            <div class="mb-4 p-3 bg-red-100 border border-red-300 rounded-md">
+              <p class="text-sm text-red-900 font-semibold">JSON Error: <%= @claim_parse_error %></p>
+            </div>
+          <% else %>
+            <div class="mb-4 p-3 bg-green-100 border border-green-300 rounded-md">
+              <p class="text-sm text-green-900 font-semibold">✓ Valid JSON</p>
+            </div>
+          <% end %>
         <% end %>
+
+        <div class="flex gap-2">
+          <button type="button" onclick="(function(){var el=document.getElementById('claim-textarea'); el.value=''; el.textContent=''; el.innerText=''; el.innerHTML=''; console.log('Cleared textarea');})()" phx-click="clear_claim" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md text-sm font-medium cursor-pointer">
+            Clear Claim
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- Panel 3: Claim Input -->
-    <div class="mt-6 bg-white shadow-md rounded-lg p-6">
-      <h2 class="text-xl font-semibold mb-2 text-black">2. Claim Document (JSON)</h2>
-      <p class="text-sm text-gray-900 mb-4">Paste your claim as a JSON object.</p>
-
-      <div class="mb-4" id="claim-textarea-container" phx-update="ignore">
-        <textarea
-          id="claim-textarea"
-          class="w-full h-48 p-2 font-mono text-xs border-2 border-gray-400 rounded-md bg-white text-black placeholder:text-gray-600 focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
-          phx-hook="ClaimTextarea"
-          placeholder="Paste your JSON claim here..."
-        ><%= @claim_json_text %></textarea>
+    <!-- Compilation Results (full width, shown when compiled) -->
+    <%= if @compilation_result do %>
+      <div class="mt-6 bg-white shadow-md rounded-lg p-6 border-l-4 border-indigo-500">
+        <h3 class="text-lg font-semibold text-indigo-900 mb-3">GHC Compilation Result</h3>
+        <div class="flex items-center gap-3 mb-3">
+          <%= if @compilation_result["success"] do %>
+            <span class="px-3 py-1 text-sm bg-green-200 text-green-900 rounded-full font-semibold">COMPILED</span>
+            <span class="text-sm text-gray-700">in <%= Float.round(@compilation_result["compilationTimeMs"] / 1, 0) %>ms</span>
+            <span class="text-sm text-gray-600">Rule: <strong class="text-black"><%= @compilation_result["ruleName"] %></strong></span>
+          <% else %>
+            <span class="px-3 py-1 text-sm bg-red-200 text-red-900 rounded-full font-semibold">COMPILATION FAILED</span>
+            <p class="text-sm text-red-800"><%= @compilation_result["error"] %></p>
+          <% end %>
+        </div>
+        <%= if @compilation_result["generatedSource"] do %>
+          <details class="mt-2">
+            <summary class="text-sm text-indigo-800 cursor-pointer font-medium hover:text-indigo-600">View Generated Haskell Source</summary>
+            <pre class="mt-2 text-xs bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto max-h-96 overflow-y-auto"><code><%= @compilation_result["generatedSource"] %></code></pre>
+          </details>
+        <% end %>
       </div>
+    <% end %>
 
-      <%= if @claim_json_text == "" do %>
-        <div class="mb-4 p-3 bg-gray-100 border border-gray-300 rounded-md">
-          <p class="text-sm text-gray-800">Paste a JSON claim above</p>
+    <!-- Panel 3: Evaluation Results (full width) -->
+    <div class="mt-6 bg-white shadow-md rounded-lg p-6">
+      <h2 class="text-xl font-semibold mb-2 text-black">3. Evaluation Results</h2>
+      <p class="text-sm text-gray-900 mb-4">Shows whether the rule matched the claim and what actions would be triggered.</p>
+
+      <%= if @evaluation_result do %>
+        <div class="space-y-4">
+          <div class="p-4 bg-blue-100 border border-blue-300 rounded-md">
+            <h3 class="font-semibold text-blue-900">Summary</h3>
+            <p class="text-sm text-blue-900 mt-1">
+              <%= get_in(@evaluation_result, ["report", "summary"]) %>
+            </p>
+          </div>
+
+          <div class="p-4 border border-gray-300 rounded-md">
+            <h3 class="font-semibold mb-2 text-black">Overall Risk</h3>
+            <.risk_badge level={get_in(@evaluation_result, ["report", "overallRisk"])} />
+            <%= if Enum.all?(get_in(@evaluation_result, ["report", "results"]) || [], fn r -> !r["resultMatched"] end) do %>
+              <p class="text-sm text-gray-700 mt-2">No fraud indicators detected — rule conditions were not met for this claim.</p>
+            <% end %>
+          </div>
+
+          <div>
+            <h3 class="font-semibold mb-2 text-black">Rule Results</h3>
+            <%= for result <- get_in(@evaluation_result, ["report", "results"]) || [] do %>
+              <div class="mb-2 p-3 border border-gray-300 rounded-md">
+                <div class="flex items-center justify-between">
+                  <span class="font-medium text-black"><%= result["resultRuleName"] %></span>
+                  <%= if result["resultMatched"] do %>
+                    <span class="px-2 py-1 text-xs bg-yellow-200 text-yellow-900 rounded font-semibold">MATCHED</span>
+                  <% else %>
+                    <span class="px-2 py-1 text-xs bg-gray-200 text-gray-800 rounded">NOT APPLICABLE</span>
+                  <% end %>
+                </div>
+                <p class="text-sm text-gray-900 mt-1"><%= result["resultDetails"] %></p>
+              </div>
+            <% end %>
+          </div>
         </div>
       <% else %>
-        <%= if @claim_parse_error do %>
-          <div class="mb-4 p-3 bg-red-100 border border-red-300 rounded-md">
-            <p class="text-sm text-red-900 font-semibold">JSON Error: <%= @claim_parse_error %></p>
-          </div>
-        <% else %>
-          <div class="mb-4 p-3 bg-green-100 border border-green-300 rounded-md">
-            <p class="text-sm text-green-900 font-semibold">✓ Valid JSON</p>
-          </div>
-        <% end %>
+        <div class="text-center py-12 text-gray-800">
+          <p class="font-medium">No evaluation results yet.</p>
+          <p class="text-sm mt-2">Write a valid rule, load a claim, then click "Run Rule Against Claim".</p>
+        </div>
       <% end %>
-
-      <div class="flex gap-2">
-
-        <button type="button" onclick="(function(){var el=document.getElementById('claim-textarea'); el.value=''; el.textContent=''; el.innerText=''; el.innerHTML=''; console.log('Cleared textarea');})()" phx-click="clear_claim" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md text-sm font-medium cursor-pointer">
-          Clear Claim
-        </button>
-      </div>
     </div>
 
     <!-- Panel 4: DSL Syntax Reference -->

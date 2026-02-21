@@ -1,14 +1,14 @@
 <div class="px-4 py-10 sm:px-6 sm:py-28 lg:px-8 xl:px-28 xl:py-32">
   <div class="mx-auto max-w-7xl">
-    <%= if live_flash(@flash, :error) do %>
+    <%= if Phoenix.Flash.get(@flash, :error) do %>
       <div class="mb-4 p-4 bg-red-100 border border-red-300 rounded-lg">
-        <p class="text-sm text-red-900 font-semibold"><%= live_flash(@flash, :error) %></p>
+        <p class="text-sm text-red-900 font-semibold"><%= Phoenix.Flash.get(@flash, :error) %></p>
       </div>
     <% end %>
     
-    <%= if live_flash(@flash, :info) do %>
+    <%= if Phoenix.Flash.get(@flash, :info) do %>
       <div class="mb-4 p-4 bg-blue-100 border border-blue-300 rounded-lg">
-        <p class="text-sm text-blue-900"><%= live_flash(@flash, :info) %></p>
+        <p class="text-sm text-blue-900"><%= Phoenix.Flash.get(@flash, :info) %></p>
       </div>
     <% end %>
 

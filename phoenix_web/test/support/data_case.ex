@@ -21,11 +21,15 @@ defmodule X12FraudWeb.DataCase do
   end
 
   def setup_sandbox(tags) do
-    pid =
-      Ecto.Adapters.SQL.Sandbox.start_owner!(X12FraudWeb.Repo,
-        shared: not tags[:async]
-      )
+    if Code.ensure_loaded?(Ecto.Adapters.SQL.Sandbox) and
+         function_exported?(Ecto.Adapters.SQL.Sandbox, :start_owner!, 2) and
+         function_exported?(Ecto.Adapters.SQL.Sandbox, :stop_owner, 1) do
+      pid =
+        apply(Ecto.Adapters.SQL.Sandbox, :start_owner!, [X12FraudWeb.Repo, [shared: not tags[:async]]])
 
-    on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
+      on_exit(fn -> apply(Ecto.Adapters.SQL.Sandbox, :stop_owner, [pid]) end)
+    else
+      :ok
+    end
   end
 end

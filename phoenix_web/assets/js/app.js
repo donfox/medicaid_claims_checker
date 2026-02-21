@@ -20,24 +20,32 @@
 // Include phoenix_html to handle method=PUT/DELETE in forms and buttons.
 import "phoenix_html"
 // Establish Phoenix Socket and LiveView configuration.
-import {Socket} from "phoenix"
-import {LiveSocket} from "phoenix_live_view"
-import {hooks as colocatedHooks} from "phoenix-colocated/x12_fraud_web"
+import { Socket } from "phoenix"
+import { LiveSocket } from "phoenix_live_view"
+import { hooks as colocatedHooks } from "phoenix-colocated/x12_fraud_web"
 import topbar from "../vendor/topbar"
 
 // Custom hooks for textarea management
 const Hooks = {
+  ScrollIntoView: {
+    mounted() {
+      this.el.scrollIntoView({ behavior: "smooth", block: "nearest" })
+    },
+    updated() {
+      this.el.scrollIntoView({ behavior: "smooth", block: "nearest" })
+    }
+  },
   ClaimTextarea: {
     mounted() {
       // Handle server-initiated text updates
-      this.handleEvent("set_claim_text", ({text}) => {
+      this.handleEvent("set_claim_text", ({ text }) => {
         this.el.value = text
       })
 
       // Send value to server on blur or input (debounced)
       let timeout = null
       const sendValue = () => {
-        this.pushEvent("update_claim_text", {text: this.el.value})
+        this.pushEvent("update_claim_text", { text: this.el.value })
       }
 
       this.el.addEventListener("blur", sendValue)
@@ -51,6 +59,29 @@ const Hooks = {
         // Use setTimeout to read value after paste operation completes
         setTimeout(sendValue, 50)
       })
+
+      // Drag-and-drop: accept a JSON file dropped directly onto the textarea
+      this.el.addEventListener("dragover", (e) => {
+        e.preventDefault()
+        this.el.classList.add("border-blue-500", "bg-blue-50")
+      })
+
+      this.el.addEventListener("dragleave", () => {
+        this.el.classList.remove("border-blue-500", "bg-blue-50")
+      })
+
+      this.el.addEventListener("drop", (e) => {
+        e.preventDefault()
+        this.el.classList.remove("border-blue-500", "bg-blue-50")
+        const file = e.dataTransfer.files[0]
+        if (!file) return
+        const reader = new FileReader()
+        reader.onload = (ev) => {
+          this.el.value = ev.target.result
+          sendValue()
+        }
+        reader.readAsText(file)
+      })
     }
   }
 }
@@ -58,12 +89,12 @@ const Hooks = {
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
-  params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, ...Hooks},
+  params: { _csrf_token: csrfToken },
+  hooks: { ...colocatedHooks, ...Hooks },
 })
 
 // Show progress bar on live navigation and form submits
-topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})
+topbar.config({ barColors: { 0: "#29d" }, shadowColor: "rgba(0, 0, 0, .3)" })
 window.addEventListener("phx:page-loading-start", _info => topbar.show(300))
 window.addEventListener("phx:page-loading-stop", _info => topbar.hide())
 
@@ -83,7 +114,7 @@ window.liveSocket = liveSocket
 //     2. click on elements to jump to their definitions in your code editor
 //
 if (process.env.NODE_ENV === "development") {
-  window.addEventListener("phx:live_reload:attached", ({detail: reloader}) => {
+  window.addEventListener("phx:live_reload:attached", ({ detail: reloader }) => {
     // Enable server log streaming to client.
     // Disable with reloader.disableServerLogs()
     reloader.enableServerLogs()
@@ -96,11 +127,11 @@ if (process.env.NODE_ENV === "development") {
     window.addEventListener("keydown", e => keyDown = e.key)
     window.addEventListener("keyup", e => keyDown = null)
     window.addEventListener("click", e => {
-      if(keyDown === "c"){
+      if (keyDown === "c") {
         e.preventDefault()
         e.stopImmediatePropagation()
         reloader.openEditorAtCaller(e.target)
-      } else if(keyDown === "d"){
+      } else if (keyDown === "d") {
         e.preventDefault()
         e.stopImmediatePropagation()
         reloader.openEditorAtDef(e.target)

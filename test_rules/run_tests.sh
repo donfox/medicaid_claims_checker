@@ -5,7 +5,7 @@ API_URL="http://localhost:8080/api/parse-rule"
 VALID_RULES_FILE="$(dirname "$0")/valid_rules.dsl"
 
 echo "=========================================="
-echo "X12 Fraud DSL Parser - Automated Tests"
+echo "JSON Claims Integrity DSL Parser - Automated Tests"
 echo "=========================================="
 echo ""
 

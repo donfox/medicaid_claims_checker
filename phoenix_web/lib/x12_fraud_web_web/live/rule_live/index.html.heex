@@ -5,7 +5,7 @@
         <p class="text-sm text-red-900 font-semibold"><%= Phoenix.Flash.get(@flash, :error) %></p>
       </div>
     <% end %>
-    
+
     <%= if Phoenix.Flash.get(@flash, :info) do %>
       <div class="mb-4 p-4 bg-blue-100 border border-blue-300 rounded-lg">
         <p class="text-sm text-blue-900"><%= Phoenix.Flash.get(@flash, :info) %></p>
@@ -13,222 +13,469 @@
     <% end %>
 
     <div class="mb-6 p-4 bg-white rounded-lg shadow-md">
-      <h1 class="text-3xl font-bold text-gray-900">X12 Fraud Detection Rule Editor</h1>
-      <p class="mt-2 text-base text-gray-800 font-medium">Write and test fraud detection rules using predicate logic for X12 EDI claims</p>
+      <h1 class="text-3xl font-bold text-gray-900">Claims Integrity Engine</h1>
+      <p class="mt-2 text-base text-gray-800 font-medium">Write and test integrity rules using predicate logic against healthcare claims</p>
       <div class="mt-3 p-3 bg-blue-100 border border-blue-300 rounded-md">
-        <p class="text-sm text-blue-900 font-medium"><strong>Workflow:</strong> 1) Write a rule in the DSL syntax below. 2) Paste a claim (JSON) in the Claim Document panel. 3) Click "Run Rule Against Claim" to evaluate.</p>
+        <p class="text-sm text-blue-900 font-medium"><strong>Workflow:</strong> 1) Write one or more Business Rules. 2) Upload one or more claim JSON files. 3) Click "Run Claims" to evaluate all claims against the same rule set.</p>
       </div>
     </div>
 
-    <!-- Top Row: Rule Editor (left) and Claim Document (right) -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Panel 1: Rule Editor -->
-      <div class="bg-white shadow-md rounded-lg p-6">
-        <h2 class="text-xl font-semibold mb-2 text-black">1. Rule Editor</h2>
-        <p class="text-sm text-gray-900 mb-4">Write or paste a fraud detection rule using DSL syntax. Syntax is checked automatically as you type.</p>
+    <div class="mb-6 p-4 bg-white rounded-lg shadow-md">
+      <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Business Rule Catalog</h2>
+      <p class="mt-1 text-sm text-gray-800">Save reusable rules for BA teams, activate/deactivate them, and apply active rules automatically during claim processing.</p>
 
-        <.form for={%{}} phx-change="validate_rule" phx-submit="evaluate_rule" id={"rule-form-#{@rule_form_version}"}>
-          <div class="mb-4">
-            <textarea
-              name="rule[text]"
-              class="w-full h-64 p-2 font-mono text-sm border-2 border-gray-400 rounded-md bg-white text-black placeholder:text-gray-600 focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
-              phx-debounce="500"
-              placeholder="RULE rule_name
-DESCRIPTION &quot;Description&quot;
-WHEN 2300.CLM.02 > 50000
-THEN FLAG_FRAUD &quot;High amount&quot;
-END"
-            ><%= @rule_text %></textarea>
+      <.form for={%{}} phx-change="update_catalog_rule" phx-submit="save_catalog_rule" id="catalog-rule-form" class="mt-4">
+        <%= if @selected_catalog_rule_id do %>
+          <div class="mb-3 p-3 bg-blue-100 border border-blue-300 rounded-md">
+            <p class="text-sm text-blue-900 font-medium">Editing selected saved rule</p>
           </div>
+        <% end %>
 
-          <%= if @parse_error do %>
-            <div class="mb-4 p-3 bg-red-100 border border-red-300 rounded-md">
-              <p class="text-sm text-red-900 font-semibold">Syntax Error:</p>
-              <pre class="text-xs text-red-800 mt-1 whitespace-pre-wrap"><%= @parse_error %></pre>
+        <div>
+          <label class="block text-sm font-medium text-gray-900 mb-1">Rule Name</label>
+          <input name="catalog[name]" value={@catalog_rule_name} class="w-full px-3 py-2 border border-gray-400 rounded-md text-sm text-gray-900 bg-white dark:bg-gray-800 dark:text-gray-100" placeholder="e.g., HighValueReview" />
+        </div>
+
+        <div class="mt-3">
+          <label class="block text-sm font-medium text-gray-900 mb-1">Rule Text</label>
+          <textarea
+            name="catalog[text]"
+            class="w-full h-40 p-2 font-mono text-xs border border-gray-400 rounded-md text-gray-900 bg-white dark:bg-gray-800 dark:text-gray-100"
+            placeholder="Paste one or more RULE...END blocks"
+            phx-debounce="300"
+          ><%= @catalog_rule_text %></textarea>
+        </div>
+
+        <%= if @catalog_rule_text != "" do %>
+          <%= if @catalog_parse_error do %>
+            <div class="mt-3 p-3 bg-red-100 border border-red-300 rounded-md">
+              <p class="text-sm text-red-900 font-semibold">Rule syntax issue</p>
+              <p class="text-xs text-red-800 mt-1 whitespace-pre-wrap"><%= @catalog_parse_error %></p>
             </div>
-          <% end %>
-
-          <%= if @parsed_rule do %>
-            <div class="mb-4 p-3 bg-green-100 border border-green-300 rounded-md">
+          <% else %>
+            <div class="mt-3 p-3 bg-green-100 border border-green-300 rounded-md">
               <p class="text-sm text-green-900 font-semibold">✓ Rule syntax is valid</p>
             </div>
           <% end %>
+        <% end %>
 
-          <%= if @parse_error == nil && @parsed_rule == nil do %>
-            <div class="mb-4 p-3 bg-gray-100 border border-gray-300 rounded-md">
-              <p class="text-sm text-gray-800">Enter a rule to check syntax...</p>
-            </div>
-          <% end %>
+        <%= if @catalog_error do %>
+          <div class="mt-3 p-3 bg-red-100 border border-red-300 rounded-md">
+            <p class="text-sm text-red-900"><%= @catalog_error %></p>
+          </div>
+        <% end %>
 
-          <div class="flex gap-2 flex-wrap">
-            <.button type="submit" disabled={@parse_error != nil || @parsed_rule == nil || @claim_json_text == "" || @claim_parse_error != nil}>
-              Run Rule Against Claim
-            </.button>
-            <button type="button" phx-click="compile_rule" disabled={@parse_error != nil || @parsed_rule == nil} class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
-              Compile Rule (GHC)
+        <div class="mt-3 flex gap-2">
+          <%= if @selected_catalog_rule_id do %>
+            <button
+              type="submit"
+              disabled={@catalog_rule_name == "" || @catalog_rule_text == "" || @catalog_parse_error != nil}
+              class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              Save Edits
             </button>
-            <.button type="button" phx-click="clear" class="bg-gray-600 hover:bg-gray-700">
-              Clear Rule
-            </.button>
-          </div>
-        </.form>
-      </div>
-
-      <!-- Panel 2: Claim Document -->
-      <div class="bg-white shadow-md rounded-lg p-6">
-        <h2 class="text-xl font-semibold mb-2 text-black">2. Claim Document (JSON)</h2>
-        <p class="text-sm text-gray-900 mb-4">Paste your claim as a JSON object.</p>
-
-        <div class="mb-4" id="claim-textarea-container" phx-update="ignore">
-          <textarea
-            id="claim-textarea"
-            class="w-full h-64 p-2 font-mono text-xs border-2 border-gray-400 rounded-md bg-white text-black placeholder:text-gray-600 focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
-            phx-hook="ClaimTextarea"
-            placeholder="Paste your JSON claim here..."
-          ><%= @claim_json_text %></textarea>
+            <button
+              type="button"
+              phx-click="dismiss_selected_catalog_rule"
+              class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md text-sm font-medium cursor-pointer"
+            >
+              Dismiss
+            </button>
+          <% else %>
+            <button
+              type="submit"
+              disabled={@catalog_rule_name == "" || @catalog_rule_text == "" || @catalog_parse_error != nil}
+              class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              Save Rule to Catalog
+            </button>
+          <% end %>
         </div>
+      </.form>
 
-        <%= if @claim_json_text == "" do %>
-          <div class="mb-4 p-3 bg-gray-100 border border-gray-300 rounded-md">
-            <p class="text-sm text-gray-800">Paste a JSON claim above</p>
-          </div>
+      <details class="mt-4 border border-gray-300 rounded-md">
+        <summary class="px-3 py-2 bg-gray-100 border-b border-gray-300 text-sm font-semibold text-gray-900 cursor-pointer select-none">
+          Saved Rules
+        </summary>
+
+        <%= if @catalog_rules == [] do %>
+          <div class="p-3 text-sm text-gray-700">No catalog rules saved yet.</div>
         <% else %>
-          <%= if @claim_parse_error do %>
-            <div class="mb-4 p-3 bg-red-100 border border-red-300 rounded-md">
-              <p class="text-sm text-red-900 font-semibold">JSON Error: <%= @claim_parse_error %></p>
-            </div>
-          <% else %>
-            <div class="mb-4 p-3 bg-green-100 border border-green-300 rounded-md">
-              <p class="text-sm text-green-900 font-semibold">✓ Valid JSON</p>
-            </div>
-          <% end %>
-        <% end %>
+          <div class="divide-y divide-gray-200">
+            <%= for rule <- @catalog_rules do %>
+              <div
+                id={"catalog-rule-#{rule.id}"}
+                phx-hook={if @selected_catalog_rule_id == rule.id, do: "ScrollIntoView", else: nil}
+                class={"p-3 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 #{if @selected_catalog_rule_id == rule.id, do: "bg-blue-50", else: ""}"}
+              >
+                <button type="button" phx-click="select_catalog_rule" phx-value-id={rule.id} class="text-left w-full">
+                  <div class="flex items-center gap-2">
+                    <p class="text-sm font-semibold text-gray-900 dark:text-gray-100"><%= rule.name %></p>
+                    <%= if rule.active do %>
+                      <span class="px-2 py-0.5 text-xs bg-green-200 text-green-900 rounded">ACTIVE</span>
+                    <% else %>
+                      <span class="px-2 py-0.5 text-xs bg-gray-200 text-gray-800 rounded">INACTIVE</span>
+                    <% end %>
+                    <%= if @selected_catalog_rule_id == rule.id do %>
+                      <span class="px-2 py-0.5 text-xs bg-blue-200 text-blue-900 rounded">SELECTED</span>
+                    <% end %>
+                  </div>
+                  <p class="mt-1 text-xs text-gray-700"><%= String.slice(rule.rule_text || "", 0, 180) %><%= if String.length(rule.rule_text || "") > 180, do: "...", else: "" %></p>
+                </button>
 
-        <div class="flex gap-2">
-          <button type="button" onclick="(function(){var el=document.getElementById('claim-textarea'); el.value=''; el.textContent=''; el.innerText=''; el.innerHTML=''; console.log('Cleared textarea');})()" phx-click="clear_claim" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md text-sm font-medium cursor-pointer">
-            Clear Claim
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Compilation Results (full width, shown when compiled) -->
-    <%= if @compilation_result do %>
-      <div class="mt-6 bg-white shadow-md rounded-lg p-6 border-l-4 border-indigo-500">
-        <h3 class="text-lg font-semibold text-indigo-900 mb-3">GHC Compilation Result</h3>
-        <div class="flex items-center gap-3 mb-3">
-          <%= if @compilation_result["success"] do %>
-            <span class="px-3 py-1 text-sm bg-green-200 text-green-900 rounded-full font-semibold">COMPILED</span>
-            <span class="text-sm text-gray-700">in <%= Float.round(@compilation_result["compilationTimeMs"] / 1, 0) %>ms</span>
-            <span class="text-sm text-gray-600">Rule: <strong class="text-black"><%= @compilation_result["ruleName"] %></strong></span>
-          <% else %>
-            <span class="px-3 py-1 text-sm bg-red-200 text-red-900 rounded-full font-semibold">COMPILATION FAILED</span>
-            <p class="text-sm text-red-800"><%= @compilation_result["error"] %></p>
-          <% end %>
-        </div>
-        <%= if @compilation_result["generatedSource"] do %>
-          <details class="mt-2">
-            <summary class="text-sm text-indigo-800 cursor-pointer font-medium hover:text-indigo-600">View Generated Haskell Source</summary>
-            <pre class="mt-2 text-xs bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto max-h-96 overflow-y-auto"><code><%= @compilation_result["generatedSource"] %></code></pre>
-          </details>
-        <% end %>
-      </div>
-    <% end %>
-
-    <!-- Panel 3: Evaluation Results (full width) -->
-    <div class="mt-6 bg-white shadow-md rounded-lg p-6">
-      <h2 class="text-xl font-semibold mb-2 text-black">3. Evaluation Results</h2>
-      <p class="text-sm text-gray-900 mb-4">Shows whether the rule matched the claim and what actions would be triggered.</p>
-
-      <%= if @evaluation_result do %>
-        <div class="space-y-4">
-          <div class="p-4 bg-blue-100 border border-blue-300 rounded-md">
-            <h3 class="font-semibold text-blue-900">Summary</h3>
-            <p class="text-sm text-blue-900 mt-1">
-              <%= get_in(@evaluation_result, ["report", "summary"]) %>
-            </p>
-          </div>
-
-          <div class="p-4 border border-gray-300 rounded-md">
-            <h3 class="font-semibold mb-2 text-black">Overall Risk</h3>
-            <.risk_badge level={get_in(@evaluation_result, ["report", "overallRisk"])} />
-            <%= if Enum.all?(get_in(@evaluation_result, ["report", "results"]) || [], fn r -> !r["resultMatched"] end) do %>
-              <p class="text-sm text-gray-700 mt-2">No fraud indicators detected — rule conditions were not met for this claim.</p>
-            <% end %>
-          </div>
-
-          <div>
-            <h3 class="font-semibold mb-2 text-black">Rule Results</h3>
-            <%= for result <- get_in(@evaluation_result, ["report", "results"]) || [] do %>
-              <div class="mb-2 p-3 border border-gray-300 rounded-md">
-                <div class="flex items-center justify-between">
-                  <span class="font-medium text-black"><%= result["resultRuleName"] %></span>
-                  <%= if result["resultMatched"] do %>
-                    <span class="px-2 py-1 text-xs bg-yellow-200 text-yellow-900 rounded font-semibold">MATCHED</span>
-                  <% else %>
-                    <span class="px-2 py-1 text-xs bg-gray-200 text-gray-800 rounded">NOT APPLICABLE</span>
-                  <% end %>
+                <div class="flex gap-2">
+                  <button type="button" phx-click="toggle_catalog_rule_active" phx-value-id={rule.id} class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-medium cursor-pointer">
+                    <%= if rule.active, do: "Deactivate", else: "Activate" %>
+                  </button>
+                  <button type="button" phx-click="delete_catalog_rule" phx-value-id={rule.id} class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-medium cursor-pointer">
+                    Remove
+                  </button>
                 </div>
-                <p class="text-sm text-gray-900 mt-1"><%= result["resultDetails"] %></p>
               </div>
             <% end %>
           </div>
-        </div>
-      <% else %>
-        <div class="text-center py-12 text-gray-800">
-          <p class="font-medium">No evaluation results yet.</p>
-          <p class="text-sm mt-2">Write a valid rule, load a claim, then click "Run Rule Against Claim".</p>
-        </div>
-      <% end %>
+        <% end %>
+      </details>
     </div>
+
+    <div class="flex flex-col">
 
     <!-- Panel 4: DSL Syntax Reference -->
-    <div class="mt-8 bg-gray-100 shadow-md rounded-lg p-6">
-      <h2 class="text-xl font-semibold mb-4 text-black">DSL Syntax Reference</h2>
+    <details class="order-2 mt-8 bg-gray-100 shadow-md rounded-lg" id="dsl-reference">
+      <summary class="px-6 py-4 text-xl font-semibold text-gray-900 dark:text-gray-100 cursor-pointer select-none">
+        Business Rules Quick Reference
+      </summary>
+
+      <div class="px-6 pb-6">
+        <div class="flex items-center justify-end mb-4">
+          <a href={~p"/docs/BA_Business_Rules_Guide.pdf"} target="_blank" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md">
+            Full Business Rules Guide
+          </a>
+        </div>
+
+      <p class="text-sm text-gray-800 mb-4">Every rule follows the same pattern: give it a name, describe what it does, set the conditions, and choose what happens.</p>
+
+      <div class="mb-4 p-3 bg-white border border-gray-300 rounded-md">
+        <p class="text-sm font-semibold text-gray-900">Current Rule Capabilities</p>
+        <ul class="mt-2 space-y-1 text-xs text-gray-900 list-disc pl-5">
+          <li>Use one or more <span class="font-mono">RULE...END</span> blocks as a rule set.</li>
+          <li>Add plain-English comments with <span class="font-mono">--</span> at the start of a line.</li>
+          <li>Use quantifiers like <span class="font-mono">EXISTS</span>, <span class="font-mono">FORALL</span>, and <span class="font-mono">COUNT(...)</span>.</li>
+        </ul>
+      </div>
+
+      <div class="mb-4 p-3 bg-white border border-gray-300 rounded-md">
+        <p class="text-sm font-semibold text-gray-900">Advanced Features (Optional)</p>
+        <p class="mt-1 text-xs text-gray-800">These advanced options are intended for occasional use in specialized scenarios.</p>
+        <ul class="mt-2 space-y-1 text-xs text-gray-900 list-disc pl-5">
+          <li><span class="font-semibold">Variable binding</span>: define reusable aliases to avoid repeating long field paths.</li>
+          <li><span class="font-semibold">Helper functions (planned)</span>: package complex checks into reusable named expressions.</li>
+        </ul>
+      </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Rule Template -->
         <div>
-          <h3 class="font-semibold text-sm text-black mb-2">Basic Structure</h3>
-          <pre class="text-xs bg-white p-3 rounded border border-gray-400 overflow-x-auto text-black"><code>RULE rule_name
-DESCRIPTION "Description"
-WHEN &lt;predicate&gt;
-THEN &lt;action&gt;
+          <h3 class="font-semibold text-sm text-gray-900 dark:text-gray-100 mb-2">Rule Template</h3>
+          <pre class="text-xs bg-white dark:bg-gray-800 p-3 rounded border border-gray-400 overflow-x-auto text-gray-900 dark:text-gray-100"><code>RULE RuleName
+DESCRIPTION "What this rule checks"
+WHEN
+  <em>conditions go here</em>
+THEN
+  <em>action goes here</em>
 END</code></pre>
-          <p class="text-xs text-gray-800 mt-1">Or compact: <code class="text-black">RULE name "desc" WHEN ... THEN ...;</code></p>
         </div>
 
+        <!-- Quick Example -->
         <div>
-          <h3 class="font-semibold text-sm text-black mb-2">Predicates</h3>
-          <ul class="text-xs space-y-1 bg-white p-3 rounded border border-gray-400 text-black">
-            <li><code>field = value</code> - Equality</li>
-            <li><code>field &gt; value</code> - Greater than</li>
-            <li><code>field IS NULL</code> - Null check</li>
-            <li><code>pred1 AND pred2</code> - Conjunction</li>
-            <li><code>EXISTS loop WHERE pred</code> - Existential</li>
-            <li><code>COUNT(loop) &gt; n</code> - Count check</li>
-          </ul>
+          <h3 class="font-semibold text-sm text-gray-900 dark:text-gray-100 mb-2">Example</h3>
+          <pre class="text-xs bg-white dark:bg-gray-800 p-3 rounded border border-gray-400 overflow-x-auto text-gray-900 dark:text-gray-100"><code>RULE HighValueReview
+DESCRIPTION "Flag high-value claims"
+WHEN
+  claim.amount &gt; 50000
+THEN
+  REQUIRE_REVIEW "Exceeds threshold"
+END</code></pre>
         </div>
 
+        <!-- Conditions -->
         <div>
-          <h3 class="font-semibold text-sm text-black mb-2">Field References</h3>
-          <ul class="text-xs space-y-1 bg-white p-3 rounded border border-gray-400 text-black">
-            <li><code>CLM.01</code> - Segment.element position</li>
-            <li><code>2300.CLM.02</code> - Loop.segment.element</li>
-            <li><code>NM1.03</code> - Name (element 3)</li>
-          </ul>
+          <h3 class="font-semibold text-sm text-gray-900 dark:text-gray-100 mb-2">Conditions (WHEN)</h3>
+          <table class="text-xs w-full bg-white rounded border border-gray-400">
+            <tbody>
+              <tr class="border-b border-gray-200">
+                <td class="p-2 font-mono text-gray-900 dark:text-gray-100">claim.amount &gt; 50000</td>
+                <td class="p-2 text-gray-800">Check claim dollar amount</td>
+              </tr>
+              <tr class="border-b border-gray-200">
+                <td class="p-2 font-mono text-gray-900 dark:text-gray-100">claim.type = "Inpatient"</td>
+                <td class="p-2 text-gray-800">Check claim type</td>
+              </tr>
+              <tr class="border-b border-gray-200">
+                <td class="p-2 font-mono text-gray-900 dark:text-gray-100">claim.place_of_service = "23"</td>
+                <td class="p-2 text-gray-800">Check place of service code</td>
+              </tr>
+              <tr class="border-b border-gray-200">
+                <td class="p-2 font-mono text-gray-900 dark:text-gray-100">claim.has_diagnosis "S06"</td>
+                <td class="p-2 text-gray-800">Check for a diagnosis code</td>
+              </tr>
+              <tr>
+                <td class="p-2 font-mono text-gray-900 dark:text-gray-100">claim.has_procedure "99221"</td>
+                <td class="p-2 text-gray-800">Check for a procedure code</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="text-xs text-gray-700 mt-2">Combine conditions with <strong>AND</strong>, <strong>OR</strong>, and <strong>NOT</strong></p>
         </div>
 
+        <!-- Actions -->
         <div>
-          <h3 class="font-semibold text-sm text-black mb-2">Actions</h3>
-          <ul class="text-xs space-y-1 bg-white p-3 rounded border border-gray-400 text-black">
-            <li><code>FLAG_FRAUD "reason"</code></li>
-            <li><code>REJECT "reason"</code></li>
-            <li><code>REQUIRE_REVIEW "note"</code></li>
-            <li><code>RISK_SCORE n</code> (0-100)</li>
-            <li><code>[action1, action2]</code> - Multiple</li>
-          </ul>
+          <h3 class="font-semibold text-sm text-gray-900 dark:text-gray-100 mb-2">Actions (THEN)</h3>
+          <table class="text-xs w-full bg-white rounded border border-gray-400">
+            <tbody>
+              <tr class="border-b border-gray-200">
+                <td class="p-2 font-mono text-gray-900 dark:text-gray-100">APPROVE</td>
+                <td class="p-2 text-gray-800">Automatically approve the claim</td>
+              </tr>
+              <tr class="border-b border-gray-200">
+                <td class="p-2 font-mono text-gray-900 dark:text-gray-100">REJECT "reason"</td>
+                <td class="p-2 text-gray-800">Reject with an explanation</td>
+              </tr>
+              <tr>
+                <td class="p-2 font-mono text-gray-900 dark:text-gray-100">REQUIRE_REVIEW "note"</td>
+                <td class="p-2 text-gray-800">Flag for manual review</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="text-xs text-gray-700 mt-2">Comparisons: <strong>=</strong> &nbsp; <strong>&gt;</strong> &nbsp; <strong>&lt;</strong> &nbsp; <strong>&gt;=</strong> &nbsp; <strong>&lt;=</strong> &nbsp; <strong>BETWEEN</strong></p>
+        </div>
+
+        <!-- Quantifier Usage -->
+        <div class="md:col-span-2">
+          <h3 class="font-semibold text-sm text-gray-900 dark:text-gray-100 mb-2">Quantifier Usage</h3>
+          <div class="bg-white rounded border border-gray-400 p-3">
+            <ul class="text-xs text-gray-900 space-y-2">
+              <li>
+                <span class="font-mono text-gray-900 dark:text-gray-100">EXISTS 2400.SV1 WHERE 2400.SV1.procedure_code = "99215"</span>
+                <span class="text-gray-800"> — true when at least one matching service line exists.</span>
+              </li>
+              <li>
+                <span class="font-mono text-gray-900 dark:text-gray-100">FORALL 2400 WHERE 2400.SV1.line_charge &gt; 0</span>
+                <span class="text-gray-800"> — true only when every service line meets the condition.</span>
+              </li>
+              <li>
+                <span class="font-mono text-gray-900 dark:text-gray-100">COUNT(2400) &gt; 5</span>
+                <span class="text-gray-800"> — compares the number of entries in a loop.</span>
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
+      </div>
+    </details>
+
+    <!-- ── CLAIM PROCESSING ── -->
+    <div class="order-1">
+
+      <!-- File Upload Panel -->
+      <div class="mb-6">
+        <div class="bg-white shadow-md rounded-lg p-6">
+          <h2 class="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">Upload Claims</h2>
+          <p class="text-sm text-gray-900 mb-4">Select one or more <code class="font-mono bg-gray-100 px-1 rounded">.json</code> claim files (up to 100 files, 10 MB each).</p>
+
+          <.form for={%{}} phx-change="validate_uploads" phx-submit="process_batch" id="batch-upload-form">
+            <div
+              class="border-2 border-dashed border-gray-400 rounded-lg p-6 text-center bg-gray-50 hover:bg-gray-100 transition-colors mb-4"
+              phx-drop-target={@uploads.claim_files.ref}
+            >
+              <p class="text-sm text-gray-900 mb-3">Drag & drop claim JSON files here, or click to select</p>
+              <.live_file_input upload={@uploads.claim_files} class="block mx-auto text-sm text-gray-900 file:mr-3 file:px-4 file:py-2 file:rounded file:border-0 file:text-sm file:font-medium file:bg-blue-100 file:text-blue-800 hover:file:bg-blue-200 cursor-pointer" />
+            </div>
+
+            <%= if @uploads.claim_files.entries != [] do %>
+              <div class="mb-4">
+                <p class="text-sm font-medium text-gray-900 mb-2">Selected files (<%= length(@uploads.claim_files.entries) %>):</p>
+                <ul class="text-xs text-gray-900 space-y-1 max-h-32 overflow-y-auto">
+                  <%= for entry <- @uploads.claim_files.entries do %>
+                    <li class="flex items-center gap-2">
+                      <span class="w-2 h-2 rounded-full bg-blue-500 inline-block"></span>
+                      <%= entry.client_name %>
+                      <span class="text-gray-500">(<%= Float.round(entry.client_size / 1024, 1) %> KB)</span>
+                      <%= if entry.valid? do %>
+                        <span class="text-green-700">✓</span>
+                      <% else %>
+                        <span class="text-red-700">✗</span>
+                      <% end %>
+                    </li>
+                  <% end %>
+                </ul>
+              </div>
+            <% end %>
+
+            <div class="flex gap-2">
+              <button
+                type="submit"
+                disabled={@batch_status == :processing || @uploads.claim_files.entries == []}
+                class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <%= if @batch_status == :processing, do: "Processing...", else: "Run Claims" %>
+              </button>
+
+              <button
+                type="button"
+                phx-click="clear_claim_uploads"
+                disabled={@batch_status == :processing || @uploads.claim_files.entries == []}
+                class="px-5 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              >
+                Clear Selected Claims
+              </button>
+            </div>
+          </.form>
+        </div>
+      </div>
+
+      <!-- Processing Indicator -->
+      <%= if @batch_status == :processing do %>
+        <div class="mb-6 p-4 bg-blue-100 border border-blue-300 rounded-lg flex items-center gap-3">
+          <svg class="animate-spin h-5 w-5 text-blue-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+          <p class="text-sm font-medium text-blue-900">Processing claims — evaluating all claims against rules...</p>
+        </div>
+      <% end %>
+
+      <!-- Error Panel -->
+      <%= if @batch_status == :error do %>
+        <div class="mb-6 p-4 bg-red-100 border border-red-300 rounded-lg">
+          <p class="text-sm font-semibold text-red-900">Claim processing failed</p>
+          <p class="text-xs text-red-800 mt-1"><%= @batch_error %></p>
+        </div>
+      <% end %>
+
+      <!-- Results -->
+      <%= if @batch_status == :done && @batch_results != [] do %>
+        <div class="mb-4 flex items-center justify-end">
+          <button
+            type="button"
+            phx-click="toggle_batch_matched_only"
+            class="px-3 py-1.5 text-xs font-medium rounded-md border border-gray-400 bg-white hover:bg-gray-50 text-gray-900"
+          >
+            <%= if @batch_show_matched_only, do: "Showing: Matched Rules Only", else: "Showing: All Rules" %>
+          </button>
+        </div>
+
+        <div class="mb-6 bg-white shadow-md rounded-lg overflow-hidden">
+          <div class="px-4 py-3 bg-gray-100 border-b border-gray-300">
+            <h3 class="text-sm font-semibold text-gray-900">Rule Coverage Across Claims</h3>
+            <p class="text-xs text-gray-900 mt-1">Track how each DSL rule performed across all uploaded claims.</p>
+          </div>
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th class="px-4 py-2 text-left font-semibold text-gray-800">Rule Name</th>
+                <th class="px-4 py-2 text-left font-semibold text-gray-800">Matched Claims</th>
+                <th class="px-4 py-2 text-left font-semibold text-gray-800">Not Matched</th>
+                <th class="px-4 py-2 text-left font-semibold text-gray-800">Match Rate</th>
+              </tr>
+            </thead>
+            <tbody>
+              <%= for item <- batch_rule_overview(@batch_results) do %>
+                <tr class="border-b border-gray-200">
+                  <td class="px-4 py-2 text-gray-900 font-medium"><%= item.name %></td>
+                  <td class="px-4 py-2 text-gray-800"><%= item.matched_claims %></td>
+                  <td class="px-4 py-2 text-gray-900"><%= item.not_matched_claims %></td>
+                  <td class="px-4 py-2 text-gray-900"><%= item.match_rate %>%</td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Summary Bar -->
+        <div class="mb-6 grid grid-cols-2 sm:grid-cols-5 gap-4">
+          <div class="bg-white shadow rounded-lg p-4 text-center">
+            <p class="text-2xl font-bold text-gray-900"><%= @batch_summary.total %></p>
+            <p class="text-xs text-gray-800 mt-1">Total Claims</p>
+          </div>
+          <div class="bg-white shadow rounded-lg p-4 text-center">
+            <p class="text-2xl font-bold text-green-700"><%= @batch_summary.clean %></p>
+            <p class="text-xs text-gray-800 mt-1">Clean</p>
+          </div>
+          <div class="bg-white shadow rounded-lg p-4 text-center">
+            <p class="text-2xl font-bold text-yellow-700"><%= @batch_summary.matched %></p>
+            <p class="text-xs text-gray-800 mt-1">Rules Matched</p>
+          </div>
+          <div class="bg-white shadow rounded-lg p-4 text-center">
+            <p class="text-2xl font-bold text-orange-700"><%= @batch_summary.high %></p>
+            <p class="text-xs text-gray-800 mt-1">High Risk</p>
+          </div>
+          <div class="bg-white shadow rounded-lg p-4 text-center">
+            <p class="text-2xl font-bold text-red-700"><%= @batch_summary.critical %></p>
+            <p class="text-xs text-gray-800 mt-1">Critical</p>
+          </div>
+        </div>
+
+        <!-- Results Table -->
+        <div class="bg-white shadow-md rounded-lg overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-100 border-b border-gray-300">
+              <tr>
+                <th class="px-4 py-3 text-left font-semibold text-gray-800">#</th>
+                <th class="px-4 py-3 text-left font-semibold text-gray-800">Claim ID</th>
+                <th class="px-4 py-3 text-left font-semibold text-gray-800">Risk Level</th>
+                <th class="px-4 py-3 text-left font-semibold text-gray-800">Rules Matched</th>
+                <th class="px-4 py-3 text-left font-semibold text-gray-800">Summary</th>
+                <th class="px-4 py-3 text-left font-semibold text-gray-800">Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              <%= for result <- @batch_results do %>
+                <tr class="border-b border-gray-200 hover:bg-gray-50">
+                  <td class="px-4 py-3 text-gray-800 text-xs"><%= result["claimIndex"] + 1 %></td>
+                  <td class="px-4 py-3 font-mono text-xs text-gray-900" title={result["claimId"]}>
+                    <%= String.slice(result["claimId"] || "", 0, 8) %>…
+                  </td>
+                  <td class="px-4 py-3">
+                    <.risk_badge level={result["report"]["overallRisk"]} />
+                  </td>
+                  <td class="px-4 py-3 text-gray-800">
+                    <%= result["report"]["matchedRules"] %> / <%= result["report"]["totalRules"] %>
+                  </td>
+                  <td class="px-4 py-3 text-gray-900 text-xs"><%= result["report"]["summary"] %></td>
+                  <td class="px-4 py-3 text-xs text-gray-900 align-top">
+                    <details>
+                      <summary class="cursor-pointer text-gray-900 hover:text-black font-medium">View</summary>
+                      <div class="mt-2 space-y-2 max-h-48 overflow-y-auto pr-1">
+                        <%= for rule_result <- batch_rule_results(result["report"], @batch_show_matched_only) do %>
+                          <div class="border border-gray-200 rounded p-2 bg-gray-50">
+                            <div class="flex items-center justify-between gap-2">
+                              <p class="font-medium text-gray-900"><%= rule_result["resultRuleName"] %></p>
+                              <%= if rule_result["resultMatched"] do %>
+                                <span class="px-2 py-0.5 text-[10px] bg-yellow-200 text-yellow-900 rounded font-semibold">MATCHED</span>
+                              <% else %>
+                                <span class="px-2 py-0.5 text-[10px] bg-gray-200 text-gray-700 rounded">NOT MATCHED</span>
+                              <% end %>
+                            </div>
+                            <p class="mt-1 text-[11px] text-gray-900"><%= rule_result["resultDetails"] %></p>
+                          </div>
+                        <% end %>
+                        <%= if batch_rule_results(result["report"], @batch_show_matched_only) == [] do %>
+                          <p class="text-[11px] text-gray-800">No matched rules for this claim.</p>
+                        <% end %>
+                      </div>
+                    </details>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% end %>
+
+    </div><!-- end claims processing -->
+
     </div>
+
   </div>
 </div>

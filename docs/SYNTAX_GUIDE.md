@@ -1,12 +1,37 @@
-# DSL Syntax Documentation
+# Business Rules Syntax Documentation
 
-## Business Analyst Guide to X12 Fraud Detection Rules
+## Business Analyst Guide to JSON Claims Integrity Rules
 
-This document provides a comprehensive guide for business analysts to write fraud detection rules using our Domain-Specific Language (DSL).
+This document provides a comprehensive guide for business analysts to write claims integrity and risk review rules using our Domain-Specific Language (DSL).
 
-## Rule Structure
+## Current Rule Capabilities
 
-Every rule follows this basic structure:
+- Use one or more `RULE ... END` blocks as a rule set in a single editor run.
+- Add plain-English comments with `--` at the start of a line.
+- Use quantifiers like `EXISTS`, `FORALL`, and `COUNT(...)`.
+
+## Available Advanced Features
+
+These features are currently supported by the engine.
+
+- **Variable binding (`LET`)**: define reusable aliases for long or repeated field paths.
+- **Built-in helper calls**: use helper predicates such as `is_weekend(...)`, `is_high_amount(...)`, `starts_with(...)`, and `in_list(...)`.
+
+## Rule Block Styles
+
+The engine currently accepts both of these rule block styles:
+
+### Style A (recommended)
+
+```
+RULE <rule_name>
+DESCRIPTION "<description>"
+WHEN <predicate>
+THEN <action>
+END
+```
+
+### Style B (legacy shorthand)
 
 ```
 RULE <rule_name> "<description>"
@@ -14,14 +39,34 @@ WHEN <predicate>
 THEN <action>;
 ```
 
+## Rule Structure
+
+Every rule follows this basic structure:
+
+```
+RULE <rule_name>
+DESCRIPTION "<description>"
+WHEN <predicate>
+THEN <action>
+END
+```
+
 - **RULE**: Keyword that starts a rule definition
 - **rule_name**: Unique identifier for the rule (letters, numbers, underscores)
-- **description**: Human-readable description in quotes
+- **DESCRIPTION**: Human-readable description in quotes
 - **WHEN**: Introduces the condition to check
 - **predicate**: Logical expression that evaluates to true or false
 - **THEN**: Introduces the action to take when condition is true
 - **action**: What to do when the rule matches
-- **;**: Semicolon ends the rule
+- **END**: Ends the rule block
+
+### Comments
+
+Use comments for plain-English notes:
+
+```
+-- Check for unusually high claim amounts
+```
 
 ## Predicates (Conditions)
 
@@ -62,24 +107,25 @@ COUNT(loop.segment) > n                  # Number of items comparison
 ### String Operations
 
 ```
-field CONTAINS "text"        # Field contains the text
-field MATCHES "pattern"      # Field matches regex pattern (future)
+starts_with(field, "pre")    # Helper call: text prefix check
+in_list(field, ["A", "B"])  # Helper call: membership check
 ```
+
+Note: parser-level operators like `CONTAINS` and `MATCHES` are not currently part of the public DSL grammar.
 
 ## Field References
 
-### X12 837P Structure
+### Claim JSON Structure
 
-The X12 837P claim has a hierarchical structure:
-- **Interchange** → **Functional Group** → **Transaction** → **Loops** → **Segments** → **Elements**
+Claims are represented as hierarchical JSON paths. Some legacy examples still use loop/segment labels as field-key conventions.
 
-Common loops in 837P:
+Common legacy-style loop labels:
 - `2300`: Claim Information
 - `2400`: Service Line
 - `2010`: Provider/Patient Name
 - `2320`: Other Subscriber Information
 
-Common segments:
+Common legacy-style segment labels:
 - `CLM`: Claim segment
 - `SV1`: Professional Service
 - `DTP`: Date/Time Period
@@ -92,6 +138,20 @@ Common segments:
 field_name                   # Simple field reference
 CLM.claim_amount             # Segment.field
 2300.CLM.claim_amount        # Loop.segment.field
+```
+
+### Variable Binding with `LET`
+
+Use `LET` lines between `DESCRIPTION` and `WHEN` to bind reusable field references:
+
+```
+RULE high_value_er
+DESCRIPTION "ER high-value claim"
+LET amount = 2300.CLM.claim_amount
+LET place = 2400.SV1.place_of_service
+WHEN place = "23" AND amount > 5000
+THEN REQUIRE_REVIEW "ER high amount"
+END
 ```
 
 ## Values
@@ -279,14 +339,14 @@ THEN REJECT "Provider is not eligible to submit claims";
 - Check parentheses are matched
 
 ### Runtime Errors
-- Verify field names match X12 structure
+- Verify field names match your claim JSON structure
 - Ensure numeric comparisons use numbers, not strings
 - Check loop IDs are correct (2300, 2400, etc.)
 
 ## Need Help?
 
-Contact the development team for:
+Contact the project owner for:
 - Custom field mappings
 - New operators or functions
 - Performance issues
-- Questions about X12 structure
+- Questions about claim JSON structure

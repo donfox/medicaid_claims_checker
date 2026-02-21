@@ -19,6 +19,15 @@ config :logger, level: :warning
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime
 
+# Configure database for tests
+config :x12_fraud_web, X12FraudWeb.Repo,
+  username: "postgres",
+  password: "postgres",
+  hostname: "localhost",
+  database: "x12_fraud_web_test#{System.get_env("MIX_TEST_PARTITION")}",
+  pool: Ecto.Adapters.SQL.Sandbox,
+  pool_size: 10
+
 # Enable helpful, but potentially expensive runtime checks
 config :phoenix_live_view,
   enable_expensive_runtime_checks: true

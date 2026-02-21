@@ -3,7 +3,35 @@
 # For more information, please see the documentation at:
 #   https://docs.haskellstack.org/en/stable/topics/lock_files
 
-packages: []
+packages:
+- completed:
+    hackage: hspec-2.11.11@sha256:e119b678c8857548eddc9cfcf3691001d99afb8b71bf48e6c69d7b061ac084c3,1766
+    pantry-tree:
+      sha256: f6472ae66e51131e069403afb3aaec3458d595e1d774b2932f8d6139a0c42c86
+      size: 584
+  original:
+    hackage: hspec-2.11.11@sha256:e119b678c8857548eddc9cfcf3691001d99afb8b71bf48e6c69d7b061ac084c3,1766
+- completed:
+    hackage: hspec-core-2.11.11@sha256:5e1a53255580f7fcbe2cdc87399ea0dec3249ef2a2ecf0a0a31a24c07cf8af46,7498
+    pantry-tree:
+      sha256: 7b814d36a4915cee6f5995cb80297d4d0f82163aa500c9f504ed5b4352478791
+      size: 6935
+  original:
+    hackage: hspec-core-2.11.11@sha256:5e1a53255580f7fcbe2cdc87399ea0dec3249ef2a2ecf0a0a31a24c07cf8af46,7498
+- completed:
+    hackage: hspec-discover-2.11.11@sha256:6efb10267953db84e6e73e22da78ed407d9149e497713d320eb54395165bd546,2171
+    pantry-tree:
+      sha256: 56b0dcaa645554f2815874368fb4c3ba76b9b571f30f78544278966835b3188f
+      size: 829
+  original:
+    hackage: hspec-discover-2.11.11@sha256:6efb10267953db84e6e73e22da78ed407d9149e497713d320eb54395165bd546,2171
+- completed:
+    hackage: hspec-expectations-0.8.4@sha256:4237f094a7931202ff57ac6475542b0b314b50a7024550e2b6eb87cfb0d4ff93,1702
+    pantry-tree:
+      sha256: 87681840d430b84686f83f1ab8b5873b09c349775698665233443914acf9ba2b
+      size: 741
+  original:
+    hackage: hspec-expectations-0.8.4@sha256:4237f094a7931202ff57ac6475542b0b314b50a7024550e2b6eb87cfb0d4ff93,1702
 snapshots:
 - completed:
     sha256: 5a59b2a405b3aba3c00188453be172b85893cab8ebc352b1ef58b0eae5d248a2

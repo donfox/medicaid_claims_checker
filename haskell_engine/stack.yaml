@@ -3,4 +3,8 @@ resolver: lts-20.26
 packages:
   - .
 
-extra-deps: []
+extra-deps:
+  - hspec-2.11.11@sha256:e119b678c8857548eddc9cfcf3691001d99afb8b71bf48e6c69d7b061ac084c3,1766
+  - hspec-core-2.11.11@sha256:5e1a53255580f7fcbe2cdc87399ea0dec3249ef2a2ecf0a0a31a24c07cf8af46,7498
+  - hspec-discover-2.11.11@sha256:6efb10267953db84e6e73e22da78ed407d9149e497713d320eb54395165bd546,2171
+  - hspec-expectations-0.8.4@sha256:4237f094a7931202ff57ac6475542b0b314b50a7024550e2b6eb87cfb0d4ff93,1702

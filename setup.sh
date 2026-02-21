@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# JSON Claims Integrity DSL - Quick Start Script
+# X12 Fraud Detection DSL - Quick Start Script
 
 set -e
 
-echo "=== JSON Claims Integrity DSL Setup ==="
+echo "=== X12 Fraud Detection DSL Setup ==="
 echo
 
 # Check prerequisites

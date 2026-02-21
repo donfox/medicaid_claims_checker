@@ -16,11 +16,3 @@ Ready to run in production? Please [check our deployment guides](https://hexdocs
 * Docs: https://hexdocs.pm/phoenix
 * Forum: https://elixirforum.com/c/phoenix-forum
 * Source: https://github.com/phoenixframework/phoenix
-
-## License
-
-Proprietary — All rights reserved.
-
-No permission is granted to use, copy, modify, or distribute this software without prior written consent from the copyright owner.
-
-See the repository root LICENSE file for full terms.

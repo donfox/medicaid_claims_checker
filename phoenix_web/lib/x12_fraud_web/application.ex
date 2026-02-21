@@ -1,6 +1,4 @@
 defmodule X12FraudWeb.Application do
-  # Copyright (c) 2024-2026 Don Fox. All rights reserved.
-
   # See https://hexdocs.pm/elixir/Application.html
   # for more information on OTP Applications
   @moduledoc false
@@ -13,7 +11,8 @@ defmodule X12FraudWeb.Application do
       X12FraudWebWeb.Telemetry,
       {DNSCluster, query: Application.get_env(:x12_fraud_web, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: X12FraudWeb.PubSub},
-      X12FraudWeb.Repo,
+      # Start a worker by calling: X12FraudWeb.Worker.start_link(arg)
+      # {X12FraudWeb.Worker, arg},
       # Start to serve requests, typically the last entry
       X12FraudWebWeb.Endpoint
     ]

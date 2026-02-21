@@ -6,7 +6,7 @@ API_URL="http://localhost:8080/api/parse-rule"
 FAULTY_RULES_FILE="$(dirname "$0")/faulty_rules.dsl"
 
 echo "=========================================="
-echo "JSON Claims Integrity DSL Parser - Faulty Rule Tests"
+echo "X12 Fraud DSL Parser - Faulty Rule Tests"
 echo "=========================================="
 echo "These rules should FAIL to parse"
 echo ""

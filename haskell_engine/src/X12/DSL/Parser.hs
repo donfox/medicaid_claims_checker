@@ -1,100 +1,98 @@
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE OverloadedStrings #-}
 
--- |
--- Module      : X12.DSL.Parser
--- Description : Parsec-based parser for the X12 fraud detection DSL
--- Stability   : experimental
---
--- This module provides a parser for the fraud detection domain-specific language (DSL).
--- Rules are parsed from text into an abstract syntax tree (AST) defined in "X12.DSL.Syntax".
---
--- == Grammar Overview
---
--- The DSL follows this structure:
---
--- @
--- RULE \<name\> \<description\>
--- WHEN \<predicate\>
--- THEN \<action\>;
--- @
---
--- Where:
---
--- * @\<name\>@ is an identifier (alphanumeric, may start with digit for X12 loop IDs like @2300@)
--- * @\<description\>@ is a quoted string, optionally preceded by @DESCRIPTION@ keyword
--- * @\<predicate\>@ is a boolean expression (see below)
--- * @\<action\>@ is one of: @FLAG_FRAUD@, @RISK_SCORE@, @REQUIRE_REVIEW@, @REJECT@
--- * Rules can end with @;@ or @END@
---
--- == Predicate Syntax
---
--- Predicates support:
---
--- * __Comparisons__: @field = value@, @field != value@, @field > value@, @field < value@, @field >= value@, @field <= value@
--- * __Null checks__: @field IS NULL@, @field IS NOT NULL@
--- * __Boolean logic__: @AND@, @OR@, @NOT@, parentheses for grouping
--- * __Quantifiers__: @EXISTS path WHERE predicate@, @FORALL path WHERE predicate@
--- * __Counting__: @COUNT(path) > n@
---
--- == Field References
---
--- Fields can be referenced in three ways:
---
--- * Simple: @amount@ (direct field name)
--- * Segment-qualified: @CLM.amount@ (segment.field)
--- * Loop-qualified: @2300.CLM.amount@ (loop.segment.field)
---
--- == Example Rules
---
--- @
--- -- Flag high-value claims
--- RULE high_amount "Flag claims over $10,000"
--- WHEN CLM.amount > 10000
--- THEN FLAG_FRAUD "Unusually high claim amount";
---
--- -- Require review for specific providers
--- RULE provider_check "Review claims from flagged providers"
--- WHEN provider_npi = "1234567890" AND claim_status != "denied"
--- THEN REQUIRE_REVIEW "Provider under investigation";
---
--- -- Multiple actions
--- RULE complex_rule "Multiple fraud indicators"
--- WHEN amount > 5000 AND COUNT(2400.SV1) > 10
--- THEN [FLAG_FRAUD "Multiple indicators", RISK_SCORE 85];
--- @
---
--- == Usage
---
--- @
--- import X12.DSL.Parser
--- import qualified Data.Text as T
---
--- main :: IO ()
--- main = do
---     let ruleText = T.pack "RULE test \"A test rule\" WHEN amount > 100 THEN FLAG_FRAUD \"High amount\";"
---     case parseRule ruleText of
---         Left err   -> putStrLn $ "Parse error: " ++ show err
---         Right rule -> print rule
--- @
+{- |
+Module      : X12.DSL.Parser
+Description : Parsec-based parser for the X12 fraud detection DSL
+Stability   : experimental
+
+This module provides a parser for the fraud detection domain-specific language (DSL).
+Rules are parsed from text into an abstract syntax tree (AST) defined in "X12.DSL.Syntax".
+
+== Grammar Overview
+
+The DSL follows this structure:
+
+@
+RULE \<name\> \<description\>
+WHEN \<predicate\>
+THEN \<action\>;
+@
+
+Where:
+
+* @\<name\>@ is an identifier (alphanumeric, may start with digit for X12 loop IDs like @2300@)
+* @\<description\>@ is a quoted string, optionally preceded by @DESCRIPTION@ keyword
+* @\<predicate\>@ is a boolean expression (see below)
+* @\<action\>@ is one of: @FLAG_FRAUD@, @RISK_SCORE@, @REQUIRE_REVIEW@, @REJECT@
+* Rules can end with @;@ or @END@
+
+== Predicate Syntax
+
+Predicates support:
+
+* __Comparisons__: @field = value@, @field != value@, @field > value@, @field < value@, @field >= value@, @field <= value@
+* __Null checks__: @field IS NULL@, @field IS NOT NULL@
+* __Boolean logic__: @AND@, @OR@, @NOT@, parentheses for grouping
+* __Quantifiers__: @EXISTS path WHERE predicate@, @FORALL path WHERE predicate@
+* __Counting__: @COUNT(path) > n@
+
+== Field References
+
+Fields can be referenced in three ways:
+
+* Simple: @amount@ (direct field name)
+* Segment-qualified: @CLM.amount@ (segment.field)
+* Loop-qualified: @2300.CLM.amount@ (loop.segment.field)
+
+== Example Rules
+
+@
+-- Flag high-value claims
+RULE high_amount "Flag claims over $10,000"
+WHEN CLM.amount > 10000
+THEN FLAG_FRAUD "Unusually high claim amount";
+
+-- Require review for specific providers
+RULE provider_check "Review claims from flagged providers"
+WHEN provider_npi = "1234567890" AND claim_status != "denied"
+THEN REQUIRE_REVIEW "Provider under investigation";
+
+-- Multiple actions
+RULE complex_rule "Multiple fraud indicators"
+WHEN amount > 5000 AND COUNT(2400.SV1) > 10
+THEN [FLAG_FRAUD "Multiple indicators", RISK_SCORE 85];
+@
+
+== Usage
+
+@
+import X12.DSL.Parser
+import qualified Data.Text as T
+
+main :: IO ()
+main = do
+    let ruleText = T.pack "RULE test \"A test rule\" WHEN amount > 100 THEN FLAG_FRAUD \"High amount\";"
+    case parseRule ruleText of
+        Left err   -> putStrLn $ "Parse error: " ++ show err
+        Right rule -> print rule
+@
+-}
 module X12.DSL.Parser
   ( -- * Parsing Functions
     parseRule,
     parseRules,
-
     -- * Error Type
     ParseError,
   )
 where
 
 import Control.Applicative ((<|>))
-import Control.Monad (void)
-import Data.List (nub)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Text.Parsec hiding ((<|>))
 import Text.Parsec.Text
-import X12.DSL.Syntax (Action, Binding, FieldRef, Predicate, Rule, SegmentPath, Value)
+import X12.DSL.Syntax (Action, FieldRef, Predicate, Rule, SegmentPath, Value)
 import X12.DSL.Syntax qualified as Syntax
 
 -- ----------------------------------------------------------------------------
@@ -135,11 +133,7 @@ parseRules = parse rulesParser "rules"
 
 -- | Skip whitespace characters including spaces, tabs, and newlines.
 whitespace :: Parser ()
-whitespace = skipMany (simpleSpace <|> lineComment)
-  where
-    simpleSpace = void $ oneOf " \t\n\r"
-    lineComment =
-      void $ try (string "--" *> manyTill anyChar (void newline <|> eof))
+whitespace = skipMany (oneOf " \t\n\r")
 
 -- | Match a keyword ensuring it's not part of a larger identifier.
 --
@@ -176,58 +170,12 @@ ruleParser = do
   kw "RULE"
   name <- lexeme identifier
   desc <- lexeme descriptionPart
-  bindings <- many (try (lexeme bindingParser))
-  let bindingNames = map Syntax.bindingName bindings
-  if length bindingNames /= length (nub bindingNames)
-    then fail "Duplicate LET name in rule"
-    else pure ()
   kw "WHEN"
   cond <- lexeme predicateParser
   kw "THEN"
   act <- lexeme actionParser
   lexeme (char ';' $> () <|> keyword "END")
-  pure $ Syntax.Rule (T.pack name) (T.pack desc) bindings cond act
-
--- | Parse a local LET binding used within a rule.
---
--- Example: @LET amount = 2300.CLM.claim_amount@
-bindingParser :: Parser Binding
-bindingParser = do
-  kw "LET"
-  name <- lexeme bindingIdentifier
-  _ <- lexeme (char '=')
-  ref <- lexeme fieldRef
-  pure $ Syntax.Binding (T.pack name) ref
-
--- | Parse an identifier for LET bindings.
---
--- LET variable names must start with a letter or underscore.
-bindingIdentifier :: Parser String
-bindingIdentifier = do
-  first <- letter <|> char '_'
-  rest <- many (alphaNum <|> char '_')
-  let ident = first : rest
-  if ident `elem` reservedKeywords
-    then fail $ "Identifier cannot be a keyword: " ++ ident
-    else pure ident
-  where
-    reservedKeywords =
-      [ "RULE",
-        "WHEN",
-        "THEN",
-        "TRUE",
-        "FALSE",
-        "AND",
-        "OR",
-        "NOT",
-        "WHERE",
-        "EXISTS",
-        "FORALL",
-        "COUNT",
-        "LET",
-        "IS",
-        "NULL"
-      ]
+  pure $ Syntax.Rule (T.pack name) (T.pack desc) cond act
 
 -- | Parse rule description: either a direct string literal or @DESCRIPTION "..."@.
 descriptionPart :: Parser String
@@ -272,46 +220,14 @@ notExpr = (Syntax.Not <$> (kw "NOT" *> atomicPredicate)) <|> atomicPredicate
 atomicPredicate :: Parser Predicate
 atomicPredicate =
   choice
-    [ try existsPred,
-      try forAllPred,
-      try countPred,
-      try helperCallPred,
-      try comparisonPred,
-      try nullCheckPred,
-      parenPredicate,
-      boolLiteral
+    [ try existsPred
+    , try forAllPred
+    , try countPred
+    , try comparisonPred
+    , try nullCheckPred
+    , parenPredicate
+    , boolLiteral
     ]
-
--- | Parse helper function predicate calls.
---
--- Examples:
--- * @is_weekend(claim.service_date)@
--- * @is_high_amount(claim.amount, 50000)@
-helperCallPred :: Parser Predicate
-helperCallPred = do
-  helperName <- identifier
-  args <-
-    between
-      (char '(' *> spaces)
-      (spaces *> char ')')
-      (sepBy helperArgParser (spaces *> char ',' *> spaces))
-  pure $ Syntax.HelperCall (T.pack helperName) args
-
-helperArgParser :: Parser Value
-helperArgParser = try listValueParser <|> valueParser
-
-listValueParser :: Parser Value
-listValueParser =
-  Syntax.ListValue
-    <$> between
-      (char '[' *> spaces)
-      (spaces *> char ']')
-      (sepBy listScalarValue (spaces *> char ',' *> spaces))
-
-listScalarValue :: Parser Value
-listScalarValue =
-  try (Syntax.NumberValue <$> numberLiteral)
-    <|> (Syntax.StringValue . T.pack <$> stringLiteral)
 
 -- | Parse parenthesized predicate for explicit grouping.
 --
@@ -367,10 +283,10 @@ comparisonPred = do
   val <- valueParser
   pure $ opToPredicate op field val
   where
-    opToPredicate Syntax.EQ = Syntax.Equals
-    opToPredicate Syntax.NE = Syntax.NotEquals
-    opToPredicate Syntax.GT = Syntax.GreaterThan
-    opToPredicate Syntax.LT = Syntax.LessThan
+    opToPredicate Syntax.EQ  = Syntax.Equals
+    opToPredicate Syntax.NE  = Syntax.NotEquals
+    opToPredicate Syntax.GT  = Syntax.GreaterThan
+    opToPredicate Syntax.LT  = Syntax.LessThan
     opToPredicate Syntax.GTE = Syntax.GreaterThanOrEqual
     opToPredicate Syntax.LTE = Syntax.LessThanOrEqual
 
@@ -442,7 +358,6 @@ fieldRef = try loopField <|> try segmentField <|> simpleField
 valueParser :: Parser Value
 valueParser =
   try (Syntax.NumberValue <$> numberLiteral)
-    <|> try listValueParser
     <|> try (Syntax.FieldRefValue <$> fieldRef)
     <|> (Syntax.StringValue . T.pack <$> stringLiteral)
 
@@ -462,12 +377,12 @@ valueParser =
 compOperator :: Parser Syntax.CompOp
 compOperator =
   choice
-    [ Syntax.GTE <$ try (string ">="),
-      Syntax.LTE <$ try (string "<="),
-      Syntax.NE <$ try (string "!="),
-      Syntax.EQ <$ char '=',
-      Syntax.GT <$ char '>',
-      Syntax.LT <$ char '<'
+    [ Syntax.GTE <$ try (string ">=")
+    , Syntax.LTE <$ try (string "<=")
+    , Syntax.NE  <$ try (string "!=")
+    , Syntax.EQ  <$ char '='
+    , Syntax.GT  <$ char '>'
+    , Syntax.LT  <$ char '<'
     ]
 
 -- ----------------------------------------------------------------------------
@@ -492,10 +407,10 @@ actionParser = compositeAction <|> singleAction
 
     singleAction =
       choice
-        [ try $ stringAction "FLAG_FRAUD" Syntax.FlagFraud,
-          try $ stringAction "REQUIRE_REVIEW" Syntax.RequireReview,
-          try $ stringAction "REJECT" Syntax.RejectClaim,
-          Syntax.AssignRiskScore <$> (string "RISK_SCORE" *> spaces *> intLiteral)
+        [ try $ stringAction "FLAG_FRAUD" Syntax.FlagFraud
+        , try $ stringAction "REQUIRE_REVIEW" Syntax.RequireReview
+        , try $ stringAction "REJECT" Syntax.RejectClaim
+        , Syntax.AssignRiskScore <$> (string "RISK_SCORE" *> spaces *> intLiteral)
         ]
 
     -- Helper for actions that take a string argument
@@ -524,21 +439,9 @@ identifier = do
     else pure ident
   where
     reservedKeywords =
-      [ "RULE",
-        "WHEN",
-        "THEN",
-        "TRUE",
-        "FALSE",
-        "AND",
-        "OR",
-        "NOT",
-        "WHERE",
-        "EXISTS",
-        "FORALL",
-        "COUNT",
-        "LET",
-        "IS",
-        "NULL"
+      [ "RULE", "WHEN", "THEN", "TRUE", "FALSE"
+      , "AND", "OR", "NOT", "WHERE"
+      , "EXISTS", "FORALL", "COUNT", "IS", "NULL"
       ]
 
 -- | Parse a double-quoted string literal.
@@ -573,7 +476,6 @@ numberLiteral = do
 
 -- | Replace a parser's result with a constant value.
 -- (Re-exported from Data.Functor in base >= 4.7, but defined here for compatibility)
-($>) :: (Functor f) => f a -> b -> f b
+($>) :: Functor f => f a -> b -> f b
 ($>) = flip (<$)
-
 infixl 4 $>

@@ -8,7 +8,6 @@
 import Config
 
 config :x12_fraud_web,
-  ecto_repos: [X12FraudWeb.Repo],
   generators: [timestamp_type: :utc_datetime]
 
 # Configures the endpoint

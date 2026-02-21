@@ -1,0 +1,21 @@
+# VCS
+.git/
+
+# Root logs
+logs/
+*.log
+
+# Haskell generated/build output
+haskell_engine/.stack-work/
+haskell_engine/dist-newstyle/
+
+# Phoenix generated/build output and vendored deps
+phoenix_web/_build/
+phoenix_web/deps/
+phoenix_web/assets/node_modules/
+phoenix_web/priv/static/assets/
+
+# Common editor/OS noise
+**/.DS_Store
+**/*.swp
+**/*~

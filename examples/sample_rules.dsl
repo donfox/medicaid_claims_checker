@@ -1,4 +1,4 @@
--- Example fraud detection rules for X12 837P claims
+-- Example fraud detection rules for JSON healthcare claims
 
 -- Rule 1: Unusually high claim amount
 RULE high_claim_amount "Flag claims with unusually high amounts"

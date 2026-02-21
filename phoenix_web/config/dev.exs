@@ -74,5 +74,15 @@ config :phoenix_live_view,
   # Enable helpful, but potentially expensive runtime checks
   enable_expensive_runtime_checks: true
 
+# Configure database
+config :x12_fraud_web, X12FraudWeb.Repo,
+  username: "postgres",
+  password: "postgres",
+  hostname: "localhost",
+  database: "x12_fraud_web_dev",
+  stacktrace: true,
+  show_sensitive_data_on_connection_error: true,
+  pool_size: 10
+
 # Disable swoosh api client as it is only required for production adapters.
 config :swoosh, :api_client, false

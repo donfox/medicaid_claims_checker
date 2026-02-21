@@ -1,11 +1,11 @@
-# X12 Fraud Detection DSL
+# JSON Claims Integrity
 
-A Haskell-based Domain-Specific Language (DSL) for writing fraud detection rules for X12 EDI healthcare claims (837P), with a Phoenix/LiveView web frontend.
+A Haskell-based Domain-Specific Language (DSL) system for fraud/integrity rule evaluation on JSON healthcare claim payloads, with a Phoenix/LiveView web frontend. Some internal module and package names still include X12 for historical reasons.
 
 ## Project Structure
 
 ```
-x12_fraud_dsi_poc/
+JSON_claims_integrity/
 ├── haskell_engine/       # Haskell DSL engine and HTTP server (port 8080)
 │   ├── src/
 │   │   └── X12/DSL/
@@ -23,7 +23,7 @@ x12_fraud_dsi_poc/
 │   └── lib/x12_fraud_web_web/live/rule_live/
 │       ├── index.ex                # LiveView module
 │       └── index.html.heex         # Template
-├── claim_test_data/      # Sample X12 claim JSON files for testing
+├── claim_test_data/      # Sample claim JSON files for testing
 └── docs/
 ```
 

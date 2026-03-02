@@ -1,0 +1,37 @@
+{
+    "claim_id": "REDUN-PROV-SUB-001",
+    "2300": {
+        "CLM": {
+            "claim_amount": 2500,
+            "facility_type": "Outpatient",
+            "claim_type": "Professional",
+            "authorization_number": "AUTH-RED-005"
+        },
+        "HI": {
+            "diagnosis_code": "J06.9"
+        }
+    },
+    "2010": {
+        "NM1": {
+            "provider_tenure_days": 20,
+            "provider_specialty": "family_medicine",
+            "provider_risk_score": 45
+        }
+    },
+    "2400": [
+        {
+            "SV1": {
+                "place_of_service": "11",
+                "procedure_code": "99214",
+                "line_charge": 2500,
+                "modifier_1": "",
+                "modifier_2": "",
+                "procedure_type": "office_visit"
+            },
+            "DTP": {
+                "service_day_of_week": "TUE"
+            }
+        }
+    ],
+    "_test_notes": "Triggers: very_new_provider_30 (20 < 30), new_provider_90 (20 < 90), new_provider_reject (20 < 60), provider_probation (20 in 0-120). Demonstrates Level 2 (very_new_provider_30 subsumed by new_provider_90 — same FLAG_FRAUD), Level 3 (new_provider_reject shadowed — REJECT vs FLAG_FRAUD), Level 4 (provider_probation overlaps). Low amount so no amount rules fire."
+}

@@ -1,0 +1,50 @@
+{
+    "claim_id": "REDUN-SUBSUME-001",
+    "2300": {
+        "CLM": {
+            "claim_amount": 150000,
+            "facility_type": "Inpatient",
+            "claim_type": "Institutional",
+            "authorization_number": "AUTH-RED-002"
+        },
+        "HI": {
+            "diagnosis_code": "I21.0"
+        }
+    },
+    "2010": {
+        "NM1": {
+            "provider_tenure_days": 600,
+            "provider_specialty": "cardiac_surgery",
+            "provider_risk_score": 15
+        }
+    },
+    "2400": [
+        {
+            "SV1": {
+                "place_of_service": "21",
+                "procedure_code": "33533",
+                "line_charge": 120000,
+                "modifier_1": "",
+                "modifier_2": "",
+                "procedure_type": "surgical"
+            },
+            "DTP": {
+                "service_day_of_week": "WED"
+            }
+        },
+        {
+            "SV1": {
+                "place_of_service": "21",
+                "procedure_code": "36556",
+                "line_charge": 30000,
+                "modifier_1": "",
+                "modifier_2": "",
+                "procedure_type": "surgical"
+            },
+            "DTP": {
+                "service_day_of_week": "WED"
+            }
+        }
+    ],
+    "_test_notes": "Triggers: extreme_amount_100k (150k > 100k) which is SUBSUMED by high_amount_50k (Level 2 — both FLAG_FRAUD). Also triggers high_amount_reject (150k > 75k, Level 3 — Shadowed, REJECT vs FLAG_FRAUD). Established provider, non-ER."
+}

@@ -4,22 +4,9 @@
 
 This document provides a comprehensive guide for business analysts to write claims integrity and risk review rules using our Domain-Specific Language (DSL).
 
-## Current Rule Capabilities
-
-- Use one or more `RULE ... END` blocks as a rule set in a single editor run.
-- Add plain-English comments with `--` at the start of a line.
-- Use quantifiers like `EXISTS`, `FORALL`, and `COUNT(...)`.
-
-## Available Advanced Features
-
-These features are currently supported by the engine.
-
-- **Variable binding (`LET`)**: define reusable aliases for long or repeated field paths.
-- **Built-in helper calls**: use helper predicates such as `is_weekend(...)`, `is_high_amount(...)`, `starts_with(...)`, and `in_list(...)`.
-
 ## Rule Block Styles
 
-The engine currently accepts both of these rule block styles:
+The engine currently accepts both of these rule block styles.
 
 ### Style A (recommended)
 
@@ -39,17 +26,7 @@ WHEN <predicate>
 THEN <action>;
 ```
 
-## Rule Structure
-
-Every rule follows this basic structure:
-
-```
-RULE <rule_name>
-DESCRIPTION "<description>"
-WHEN <predicate>
-THEN <action>
-END
-```
+### Keywords
 
 - **RULE**: Keyword that starts a rule definition
 - **rule_name**: Unique identifier for the rule (letters, numbers, underscores)
@@ -96,6 +73,26 @@ predicate1 OR predicate2     # At least one must be true
 NOT predicate                # Negates the predicate
 ```
 
+### Range Check
+
+```
+field BETWEEN low AND high               # Inclusive range: low <= field <= high
+```
+
+Example:
+```
+financial.claim_amount BETWEEN 1000 AND 50000
+```
+
+### Domain Predicates
+
+```
+claim.has_diagnosis "code"               # Diagnosis code present in claim
+claim.has_procedure "code"               # Procedure code present in claim
+```
+
+These search standard claim arrays (`diagnosis_codes[*].code`, `procedure_codes[*].code`, `service_lines[*].procedure_code`) without needing explicit `EXISTS` quantifiers.
+
 ### Quantifiers
 
 ```
@@ -103,6 +100,19 @@ EXISTS loop.segment WHERE predicate      # At least one matching item exists
 FORALL loop.segment WHERE predicate      # All items match the predicate
 COUNT(loop.segment) > n                  # Number of items comparison
 ```
+
+### Named Quantifier Variables
+
+You can bind each element to a named variable using the `EXISTS x IN path WHERE ...` syntax. This is especially useful when nesting quantifiers, as the outer variable remains accessible inside the inner body.
+
+```
+EXISTS x IN path WHERE x.field = "value"              # Named binding
+FORALL x IN path WHERE x.field > 100                  # Named binding with FORALL
+EXISTS x IN lines WHERE x.code = "99213"              # Each line is bound to x
+  AND EXISTS y IN lines WHERE y.code = "99214"        # y is a different element
+```
+
+The unnamed form (`EXISTS path WHERE ...`) still works — it shifts the evaluation context to each array element, but nested quantifiers lose access to the outer element.
 
 ### String Operations
 
@@ -200,6 +210,12 @@ Assign a risk score from 0 to 100.
 RISK_SCORE 75
 ```
 
+### APPROVE
+Approve the claim with a reason. This is the least-severe action — it does not elevate risk level and does not override REJECT from another rule.
+```
+APPROVE "Reason for approval"
+```
+
 ### Multiple Actions
 Combine multiple actions with brackets and commas.
 ```
@@ -292,12 +308,41 @@ THEN [FLAG_FRAUD "Multiple issues", RISK_SCORE 90];
 
 ## Common Patterns
 
-### Pattern: Range Check
+### Pattern: Range Check (OR style)
 ```
 RULE amount_range "Amount outside normal range"
-WHEN 2300.CLM.claim_amount < 10.0 
+WHEN 2300.CLM.claim_amount < 10.0
      OR 2300.CLM.claim_amount > 100000.0
 THEN REQUIRE_REVIEW "Unusual claim amount";
+```
+
+### Pattern: Range Check (BETWEEN style)
+```
+RULE normal_amount
+DESCRIPTION "Approve claims in normal range"
+WHEN financial.claim_amount BETWEEN 100 AND 10000
+THEN APPROVE "Claim amount within normal range"
+END
+```
+
+### Pattern: Diagnosis-Based Check
+```
+RULE diabetes_review
+DESCRIPTION "Review claims with diabetes diagnosis"
+WHEN claim.has_diagnosis "E11.9"
+     AND financial.claim_amount > 5000
+THEN REQUIRE_REVIEW "High-cost diabetes claim"
+END
+```
+
+### Pattern: Cross-Line Correlation (Named Quantifiers)
+```
+RULE unbundling_named
+DESCRIPTION "Detect unbundled E&M codes using named variables"
+WHEN EXISTS x IN service_lines WHERE x.procedure_code = "99213"
+     AND EXISTS y IN service_lines WHERE y.procedure_code = "99214"
+THEN FLAG_FRAUD "Possible unbundling of E&M services"
+END
 ```
 
 ### Pattern: Duplicate Detection

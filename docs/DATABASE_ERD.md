@@ -7,6 +7,7 @@ Current Ecto/PostgreSQL schema used by the Phoenix app (`X12FraudWeb.Claims`).
 ```mermaid
 erDiagram
     batches ||--o{ edi_files : "has many"
+    rule_catalogue ||--o| business_rules : "name matches (no FK)"
 
     batches {
         bigint id PK
@@ -34,6 +35,20 @@ erDiagram
         utc_datetime updated_at
     }
 
+    rule_catalogue {
+        bigint id PK
+        string name UK "NOT NULL"
+        text description "nullable"
+        string entry_type "NOT NULL: Default Rule|BA Rule|ML Model"
+        string status "NOT NULL, default Active: Active|Inactive"
+        boolean editable "NOT NULL, default false"
+        boolean removable "NOT NULL, default false"
+        boolean redundant "NOT NULL, default false"
+        boolean db_access "NOT NULL, default false"
+        utc_datetime inserted_at
+        utc_datetime updated_at
+    }
+
     business_rules {
         bigint id PK
         string name UK "NOT NULL"
@@ -47,12 +62,15 @@ erDiagram
 ## Relationship Notes
 
 - `batches` → `edi_files` is the only foreign-key relationship currently in use.
-- `business_rules` is actively used by the app but is currently standalone (no FK relationship).
+- `rule_catalogue` → `business_rules`: linked by matching `name` field (no database FK). A `rule_catalogue` entry with `entry_type = "BA Rule"` corresponds to a `business_rules` row with the same name.
+- `rule_catalogue` is the authoritative registry for all rule types (Default Rule, BA Rule, ML Model). `business_rules` stores the DSL text only for BA Rules.
 
-## Status Domains (from app changesets)
+## Status and Enum Domains (from app changesets)
 
 - `batches.status`: `pending`, `processing`, `completed`, `failed`
 - `edi_files.status`: `pending`, `translated`, `syntax_error`, `fraudulent`
+- `rule_catalogue.status`: `Active`, `Inactive`
+- `rule_catalogue.entry_type`: `Default Rule`, `BA Rule`, `ML Model`
 
 ## Future Expansion (Only If Needed)
 

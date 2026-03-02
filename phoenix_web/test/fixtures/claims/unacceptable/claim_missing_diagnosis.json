@@ -1,0 +1,158 @@
+{
+    "submission_type": "healthcare_claim_997",
+    "interchange_header": {
+        "sender_id": "PROVIDER203",
+        "receiver_id": "PAYER203",
+        "timestamp": "2026-02-26T10:30:00Z",
+        "interchange_control_number": "000000203"
+    },
+    "functional_group": {
+        "application_sender": "PROVIDER",
+        "application_receiver": "PAYER",
+        "group_control_number": "203"
+    },
+    "claim_id": "CLM-NODX-001",
+    "claim_header": {
+        "claim_control_number": "CLM20260226203",
+        "claim_submission_reason": "Original",
+        "claim_type": "Outpatient",
+        "patient_control_number": "PAT-20260225-203"
+    },
+    "provider": {
+        "name": "Westfield Urgent Care",
+        "npi": "1357924680",
+        "tax_id": "44-5566778",
+        "type": "Urgent Care",
+        "address": {
+            "street": "22 Commerce Boulevard",
+            "city": "Atlanta",
+            "state": "GA",
+            "postal_code": "30301",
+            "country": "USA"
+        },
+        "contact": {
+            "phone": "404-555-0203",
+            "fax": "404-555-0204"
+        },
+        "tenure_days": 730,
+        "risk_score": 22,
+        "credentialing_date": "2024-02-25",
+        "specialty": "Urgent Care"
+    },
+    "billing_provider": {
+        "npi": "1357924680",
+        "name": "Westfield Urgent Care",
+        "address": {
+            "street": "22 Commerce Boulevard",
+            "city": "Atlanta",
+            "state": "GA",
+            "postal_code": "30301"
+        }
+    },
+    "patient": {
+        "name": {
+            "first": "Angela",
+            "middle": "R",
+            "last": "Brooks",
+            "suffix": ""
+        },
+        "date_of_birth": "1985-11-07",
+        "gender": "Female",
+        "patient_id": "PAT-203",
+        "ssn": "777-88-9999",
+        "address": {
+            "street": "88 Peachtree Street",
+            "city": "Atlanta",
+            "state": "GA",
+            "postal_code": "30302",
+            "country": "USA"
+        },
+        "contact": {
+            "phone": "404-555-3001",
+            "email": "a.brooks@email.com"
+        }
+    },
+    "subscriber": {
+        "subscriber_id": "SUB-777889999",
+        "relationship": "Self",
+        "group_number": "GRP-00203",
+        "plan_id": "PLAN-203"
+    },
+    "payer": {
+        "payer_id": "PAYER203",
+        "payer_name": "Anthem Blue Cross",
+        "address": {
+            "street": "120 Monument Circle",
+            "city": "Indianapolis",
+            "state": "IN",
+            "postal_code": "46204"
+        },
+        "contact": {
+            "phone": "317-555-0003"
+        }
+    },
+    "claim_details": {
+        "admission_date": "2026-02-25",
+        "discharge_date": "2026-02-25",
+        "admission_type": "Ambulatory",
+        "admission_source": "Walk-in",
+        "discharge_status": "Discharged",
+        "patient_status": "Discharged",
+        "service_type": "Office Visit",
+        "place_of_service": "20"
+    },
+    "diagnosis_codes": [],
+    "procedure_codes": [
+        {
+            "code": "99213",
+            "description": "Office visit — established patient, low complexity",
+            "units": 1,
+            "date_performed": "2026-02-25"
+        }
+    ],
+    "service_lines": [
+        {
+            "service_line_number": 1,
+            "procedure_code": "99213",
+            "description": "Office visit — established patient, low complexity",
+            "units": 1,
+            "unit_rate": 300.00,
+            "line_amount": 300.00,
+            "date_of_service": "2026-02-25",
+            "place_of_service": "20",
+            "diagnosis_pointers": []
+        }
+    ],
+    "claim_totals": {
+        "total_submitted": 300.00,
+        "total_charges": 300.00,
+        "total_patient_responsibility": 40.00,
+        "total_payer_liability": 260.00,
+        "total_units": 1
+    },
+    "financial": {
+        "claim_amount": 300.00,
+        "patient_deductible": 0.00,
+        "patient_coinsurance": 0.00,
+        "patient_copay": 40.00,
+        "coordination_of_benefits": 0.00
+    },
+    "authorization": {
+        "authorization_number": "AUTH-203001",
+        "authorization_date": "2026-02-25",
+        "authorization_period_start": "2026-02-25",
+        "authorization_period_end": "2026-02-25",
+        "authorization_status": "Active",
+        "authorized_amount": 350.00,
+        "approved_units": 1
+    },
+    "claim_metadata": {
+        "submission_date": "2026-02-26",
+        "claim_frequency": "Original",
+        "claim_received_date": "2026-02-26",
+        "claim_processing_status": "Pending",
+        "test_rule": "MissingDiagnosisCodes",
+        "expected_result": "REJECT",
+        "notes": "diagnosis_codes array is empty. Triggers MissingDiagnosisCodes default rule."
+    }
+}

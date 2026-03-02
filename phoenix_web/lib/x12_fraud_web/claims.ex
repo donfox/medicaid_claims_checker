@@ -4,7 +4,7 @@ defmodule X12FraudWeb.Claims do
   """
   import Ecto.Query
   alias X12FraudWeb.Repo
-  alias X12FraudWeb.Claims.{Batch, EdiFile, BusinessRule}
+  alias X12FraudWeb.Claims.{Batch, EdiFile, BusinessRule, RuleCatalogue}
 
   # --- Batch operations ---
 
@@ -106,7 +106,57 @@ defmodule X12FraudWeb.Claims do
 
   def get_business_rule(id), do: Repo.get(BusinessRule, id)
 
+  def get_business_rule_by_name(name), do: Repo.get_by(BusinessRule, name: name)
+
   def toggle_business_rule_active(%BusinessRule{} = business_rule) do
     update_business_rule(business_rule, %{active: !business_rule.active})
+  end
+
+  # --- Rule Catalogue operations ---
+
+  def list_catalogue_entries do
+    RuleCatalogue
+    |> order_by([c], asc: c.entry_type, asc: c.name)
+    |> Repo.all()
+  end
+
+  def get_catalogue_entry(id), do: Repo.get(RuleCatalogue, id)
+
+  def get_catalogue_entry_by_name(name) do
+    Repo.get_by(RuleCatalogue, name: name)
+  end
+
+  def create_catalogue_entry(attrs) do
+    %RuleCatalogue{}
+    |> RuleCatalogue.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def update_catalogue_entry(%RuleCatalogue{} = entry, attrs) do
+    entry
+    |> RuleCatalogue.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def delete_catalogue_entry(%RuleCatalogue{} = entry) do
+    Repo.delete(entry)
+  end
+
+  def toggle_catalogue_status(%RuleCatalogue{} = entry) do
+    new_status = if entry.status == "Active", do: "Inactive", else: "Active"
+    update_catalogue_entry(entry, %{status: new_status})
+  end
+
+  # Returns catalogue entries whose names are similar to the given name (Jaro distance > 0.85),
+  # excluding any exact case-insensitive match (which would be a conflict, not redundancy).
+  def find_similar_catalogue_entries(name) do
+    name_lower = String.downcase(String.trim(name))
+
+    RuleCatalogue
+    |> Repo.all()
+    |> Enum.filter(fn entry ->
+      entry_lower = String.downcase(entry.name)
+      entry_lower != name_lower and String.jaro_distance(name_lower, entry_lower) > 0.85
+    end)
   end
 end

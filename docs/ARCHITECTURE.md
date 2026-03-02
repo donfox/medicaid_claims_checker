@@ -7,7 +7,7 @@ The system has two runtime services:
 - Phoenix LiveView frontend on port 4000
 - Haskell DSL engine on port 8080
 
-The frontend sends rule text + claim payloads to the backend over HTTP/JSON for parsing, evaluation, and compilation operations.
+The frontend sends rule text + claim payloads to the backend over HTTP/JSON for parsing and evaluation.
 
 ## Backend API Surface
 
@@ -17,19 +17,18 @@ The frontend sends rule text + claim payloads to the backend over HTTP/JSON for 
 | `/api/parse-rule` | POST | Parse DSL text and return AST/errors |
 | `/api/evaluate` | POST | Evaluate rules against one claim payload |
 | `/api/batch-evaluate` | POST | Evaluate one ruleset against many claim payloads |
-| `/api/compile-rules` | POST | Compile a full ruleset and cache successful rules |
-| `/api/compile-rule` | POST | Compile one rule and return generated source |
-| `/api/evaluate-compiled` | POST | Evaluate with a previously compiled rule |
-| `/api/compiled-rules` | GET | List compiled-rule cache entries |
+| `/api/compile-rules` | POST | Parse a full ruleset, cache ASTs, return preflight counts |
 
 ## Core Engine Modules
 
-- `Syntax.hs`: DSL AST and shared core types
+- `Syntax.hs`: DSL AST, shared core types, and evaluation result types
 - `Parser.hs`: Parsec parser (`RULE ... END` and shorthand form)
 - `SimpleEvaluator.hs`: JSON-first predicate evaluator used by UI/API flows
-- `Evaluator.hs`: typed legacy evaluator path
 - `RuleEngine.hs`: multi-rule orchestration and reporting
-- `Compiler.hs`: AST-to-Haskell generation + GHC compile validation
+- `RuleCache.hs`: thread-safe STM cache of parsed rule ASTs, keyed by rule name
+- `PolicyCombiner.hs`: merges DSL results with ML scoring into a combined policy envelope
+- `RedundancyChecker.hs`: detects redundant rules (exact duplicates, condition overlap, subsumption)
+- `MLClient.hs`: HTTP client for external ML scoring service
 - `Main.hs`: WAI/Warp HTTP server and endpoint handlers
 
 ## Primary Data Flows
@@ -40,19 +39,18 @@ The frontend sends rule text + claim payloads to the backend over HTTP/JSON for 
 2. Backend parses rules and evaluates predicates/actions
 3. Backend returns evaluation report (and combined policy envelope where configured)
 
-### Compile Flow
+### Preflight / Cache Flow
 
-1. Frontend submits rule text to `/api/compile-rule`
-2. Backend parses rule, generates standalone Haskell source
-3. Backend validates source via `stack exec -- ghc -c`
-4. Backend returns compile status + generated source
+1. Frontend submits `rulesText` to `/api/compile-rules`
+2. Backend parses all rules and caches ASTs in the STM rule cache
+3. Backend returns parse success status and rule count
 
 ## Design Constraints
 
 - Deterministic DSL behavior remains policy source of truth
 - JSON payload evaluation is the primary active path
 - Compiled rule cache is process-local and thread-safe (STM)
-- Internal naming still includes legacy `X12` module prefixes
+- Module namespace is `X12.DSL.*` (retained from original X12 EDI scope; now JSON-first)
 
 ## Operational Notes
 

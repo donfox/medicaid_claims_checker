@@ -20,14 +20,13 @@ library
     import:           warnings
     exposed-modules:  X12.DSL.Syntax
                     , X12.DSL.Parser
-                    , X12.DSL.Evaluator
                     , X12.DSL.SimpleEvaluator
-                    , X12.DSL.X12Types
                     , X12.DSL.RuleEngine
-                    , X12.DSL.Compiler
+                    , X12.DSL.RuleCache
                     , X12.DSL.PolicyCombiner
                     , X12.DSL.MLClient
                     , X12.DSL.EvaluationContract
+                    , X12.DSL.RedundancyChecker
     build-depends:    base >=4.14 && <5
                     , parsec >= 3.1.14
                     , text >= 1.2.5
@@ -38,9 +37,6 @@ library
                     , vector >= 0.12.0
                     , stm >= 2.5
                     , time >= 1.9
-                    , directory >= 1.3
-                    , filepath >= 1.4
-                    , process >= 1.6
                     , http-conduit >= 2.3
                     , http-client >= 0.7
                     , http-types >= 0.12.3
@@ -64,6 +60,7 @@ executable x12-fraud-dsl-server
                     , containers >= 0.6.5
     hs-source-dirs:   app
     default-language: Haskell2010
+    ghc-options:      -threaded
 
 test-suite x12-fraud-dsl-test
     import:           warnings
@@ -75,3 +72,4 @@ test-suite x12-fraud-dsl-test
                     , x12-fraud-dsl
                     , hspec >= 2.9.0 && < 2.12
                     , aeson
+                    , time >= 1.9

@@ -1,0 +1,37 @@
+{
+    "claim_id": "REDUN-OVERLAP-001",
+    "2300": {
+        "CLM": {
+            "claim_amount": 55000,
+            "facility_type": "Outpatient",
+            "claim_type": "Professional",
+            "authorization_number": "AUTH-RED-004"
+        },
+        "HI": {
+            "diagnosis_code": "M54.5"
+        }
+    },
+    "2010": {
+        "NM1": {
+            "provider_tenure_days": 300,
+            "provider_specialty": "orthopedics",
+            "provider_risk_score": 18
+        }
+    },
+    "2400": [
+        {
+            "SV1": {
+                "place_of_service": "22",
+                "procedure_code": "27447",
+                "line_charge": 55000,
+                "modifier_1": "",
+                "modifier_2": "",
+                "procedure_type": "surgical"
+            },
+            "DTP": {
+                "service_day_of_week": "THU"
+            }
+        }
+    ],
+    "_test_notes": "Triggers: high_amount_50k AND high_amount_50k_dup (55k > 50k), AND mid_range_review (55k is within 40k-60k). This is the Level 4 — Condition Overlap sweet spot where both the > 50k rules and the BETWEEN 40k-60k rule fire simultaneously. Also triggers moderate_amount_newer_provider? No — provider tenure is 300 days, not < 120."
+}

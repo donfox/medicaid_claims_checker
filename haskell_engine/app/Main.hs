@@ -8,25 +8,13 @@ import Data.Aeson (FromJSON, ToJSON, decode, encode, object, (.=))
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Types qualified as AesonTypes
 import Data.Text qualified as T
-import Data.Time.Clock (diffUTCTime, getCurrentTime)
+import Data.Time.Clock (getCurrentTime, utctDay)
 import Data.Time.Format (defaultTimeLocale, formatTime)
 import Network.HTTP.Types (Status, status200, status400)
 import Network.Wai
 import Network.Wai.Handler.Warp (run)
 import System.Environment (lookupEnv)
 import Text.Read (readMaybe)
-import X12.DSL.Compiler
-  ( CompilationResult (..),
-    CompiledRule (..),
-    CompiledRuleCache,
-    cacheCompiledRule,
-    compileRule,
-    compileRules,
-    generateRuleCode,
-    getCacheStats,
-    lookupCompiledRule,
-    newCompiledRuleCache,
-  )
 import X12.DSL.EvaluationContract (EvaluationRequest (..))
 import X12.DSL.MLClient (MLClientConfig (..), scoreClaimWithMl)
 import X12.DSL.Parser
@@ -41,8 +29,15 @@ import X12.DSL.PolicyCombiner
     mlErrorResult,
     mlStubResult,
   )
+import X12.DSL.RuleCache
+  ( CompilationResult (..),
+    CompiledRuleCache,
+    cacheCompiledRule,
+    compileRules,
+    newCompiledRuleCache,
+  )
+import X12.DSL.RedundancyChecker (checkRedundancy)
 import X12.DSL.RuleEngine (EvaluationReport (..), evaluateSimpleJson, loadRules)
-import X12.DSL.Syntax qualified as Syntax
 
 main :: IO ()
 main = do
@@ -57,9 +52,7 @@ app cache request respond = do
     ["api", "batch-evaluate"] -> handleBatchEvaluate request respond
     ["api", "compile-rules"] -> handleCompileRules cache request respond
     ["api", "parse-rule"] -> handleParseRule request respond
-    ["api", "compile-rule"] -> handleCompileRule cache request respond
-    ["api", "evaluate-compiled"] -> handleEvaluateCompiled cache request respond
-    ["api", "compiled-rules"] -> handleListCompiled cache respond
+    ["api", "check-redundancy"] -> handleCheckRedundancy request respond
     ["api", "health"] -> handleHealth respond
     _ -> respond $ responseLBS status400 [] "Not found"
 
@@ -113,13 +106,14 @@ handleBatchEvaluate request respond = do
             jsonResponse status400 $
               object ["error" .= err]
         Right engine -> do
+          today <- utctDay <$> getCurrentTime
           let claims = batchClaims req
               results =
                 zipWith
                   ( \i doc ->
                       object
                         [ "claimIndex" .= (i :: Int),
-                          "report" .= reportToJSON (evaluateSimpleJson engine doc)
+                          "report" .= reportToJSON (evaluateSimpleJson engine today doc)
                         ]
                   )
                   [0 ..]
@@ -131,7 +125,7 @@ handleBatchEvaluate request respond = do
                   "totalClaims" .= length claims
                 ]
 
--- | Compile a full DSL rule set and return preflight results.
+-- | Parse a DSL rule set, cache the ASTs, and return preflight results.
 handleCompileRules :: CompiledRuleCache -> Request -> (Response -> IO ResponseReceived) -> IO ResponseReceived
 handleCompileRules cache request respond = do
   body <- strictRequestBody request
@@ -148,116 +142,15 @@ handleCompileRules cache request respond = do
               object ["error" .= show err, "success" .= False]
         Right rules -> do
           results <- compileRules rules
-          let indexed = zip rules results
-              failures =
-                [ object
-                    [ "ruleName" .= Syntax.ruleName r,
-                      "error" .= err
-                    ]
-                | (r, CompilationError err) <- indexed
-                ]
-              successes =
-                [ compiled
-                | (_r, CompilationSuccess compiled) <- indexed
-                ]
-
+          let successes = [c | CompilationSuccess c <- results]
           mapM_ (cacheCompiledRule cache) successes
-
-          if null failures
-            then
-              respond $
-                jsonResponse status200 $
-                  object
-                    [ "success" .= True,
-                      "compiledCount" .= length successes,
-                      "totalRules" .= length rules
-                    ]
-            else
-              respond $
-                jsonResponse status200 $
-                  object
-                    [ "success" .= False,
-                      "compiledCount" .= length successes,
-                      "totalRules" .= length rules,
-                      "failures" .= failures
-                    ]
-
--- | Compile a DSL rule to a native Haskell function via GHC.
-handleCompileRule :: CompiledRuleCache -> Request -> (Response -> IO ResponseReceived) -> IO ResponseReceived
-handleCompileRule cache request respond = do
-  body <- strictRequestBody request
-  case decode body of
-    Nothing ->
-      respond $
-        jsonResponse status400 $
-          object ["error" .= ("Invalid JSON" :: String), "success" .= False]
-    Just parseReq -> do
-      case parseRule (parseRuleText parseReq) of
-        Left err ->
-          respond $
-            jsonResponse status400 $
-              object ["error" .= show err, "success" .= False]
-        Right rule -> do
-          startTime <- getCurrentTime
-          result <- compileRule rule
-          endTime <- getCurrentTime
-          let elapsedMs = realToFrac (diffUTCTime endTime startTime) * 1000 :: Double
-          case result of
-            CompilationSuccess compiled -> do
-              cacheCompiledRule cache compiled
-              respond $
-                jsonResponse status200 $
-                  object
-                    [ "success" .= True,
-                      "ruleName" .= compiledRuleName compiled,
-                      "generatedSource" .= compiledSource compiled,
-                      "compilationTimeMs" .= elapsedMs,
-                      "message" .= ("Rule compiled successfully" :: String)
-                    ]
-            CompilationError err -> do
-              let source = generateRuleCode rule
-              respond $
-                jsonResponse status200 $
-                  object
-                    [ "success" .= False,
-                      "error" .= err,
-                      "generatedSource" .= source
-                    ]
-
--- | Evaluate a claim using a previously compiled rule.
-handleEvaluateCompiled :: CompiledRuleCache -> Request -> (Response -> IO ResponseReceived) -> IO ResponseReceived
-handleEvaluateCompiled cache request respond = do
-  body <- strictRequestBody request
-  case decode body of
-    Nothing ->
-      respond $
-        jsonResponse status400 $
-          object ["error" .= ("Invalid JSON" :: String)]
-    Just req -> do
-      let name = compiledEvalRuleName req
-          doc = compiledEvalDocument req
-      mCompiled <- lookupCompiledRule cache name
-      case mCompiled of
-        Nothing ->
-          respond $
-            jsonResponse status400 $
-              object ["error" .= ("Rule not compiled: " <> name)]
-        Just compiled -> do
-          let result = compiledFunction compiled doc
           respond $
             jsonResponse status200 $
-              object ["result" .= result, "mode" .= ("compiled" :: String)]
-
--- | List all currently compiled rules in the cache.
-handleListCompiled :: CompiledRuleCache -> (Response -> IO ResponseReceived) -> IO ResponseReceived
-handleListCompiled cache respond = do
-  (count, names) <- getCacheStats cache
-  respond $
-    jsonResponse status200 $
-      object
-        [ "compiledRules" .= names,
-          "totalCount" .= count
-        ]
+              object
+                [ "success" .= True,
+                  "compiledCount" .= length successes,
+                  "totalRules" .= length rules
+                ]
 
 handleParseRule :: Request -> (Response -> IO ResponseReceived) -> IO ResponseReceived
 handleParseRule request respond = do
@@ -343,18 +236,6 @@ instance FromJSON CompileRulesRequest where
   parseJSON = Aeson.withObject "CompileRulesRequest" $ \v ->
     CompileRulesRequest <$> v Aeson..: "rulesText"
 
-data CompiledEvalRequest = CompiledEvalRequest
-  { compiledEvalRuleName :: T.Text,
-    compiledEvalDocument :: Aeson.Value
-  }
-  deriving (Show)
-
-instance FromJSON CompiledEvalRequest where
-  parseJSON = Aeson.withObject "CompiledEvalRequest" $ \v ->
-    CompiledEvalRequest
-      <$> v Aeson..: "ruleName"
-      <*> v Aeson..: "document"
-
 -- Business logic
 
 processEvaluation :: EvaluationRequest -> IO (Either String EvaluationResponse)
@@ -362,8 +243,9 @@ processEvaluation req = do
   case loadRules (evalRulesText req) of
     Left err -> return $ Left err
     Right engine -> do
-      let report = evaluateSimpleJson engine (evalDocument req)
       now <- getCurrentTime
+      let today = utctDay now
+          report = evaluateSimpleJson engine today (evalDocument req)
       let evaluatedAt = T.pack (formatTime defaultTimeLocale "%Y-%m-%dT%H:%M:%SZ" now)
       mlResult <- selectMlResult req
       let combined =
@@ -416,3 +298,57 @@ parseRuleRequest req =
   case parseRules (parseRuleText req) of
     Left err -> Left $ show err
     Right rules -> Right $ Aeson.toJSON rules
+
+-- ----------------------------------------------------------------------------
+-- Redundancy checking
+-- ----------------------------------------------------------------------------
+
+data CheckRedundancyRequest = CheckRedundancyRequest
+  { candidateRuleText :: T.Text,
+    existingRulesTexts :: [T.Text]
+  }
+  deriving (Show)
+
+instance FromJSON CheckRedundancyRequest where
+  parseJSON = Aeson.withObject "CheckRedundancyRequest" $ \v ->
+    CheckRedundancyRequest
+      <$> v Aeson..: "candidateRuleText"
+      <*> v Aeson..: "existingRulesTexts"
+
+handleCheckRedundancy :: Request -> (Response -> IO ResponseReceived) -> IO ResponseReceived
+handleCheckRedundancy request respond = do
+  body <- strictRequestBody request
+  case decode body of
+    Nothing ->
+      respond $
+        jsonResponse status400 $
+          object ["error" .= ("Invalid JSON" :: String), "success" .= False]
+    Just req ->
+      case parseRules (candidateRuleText req) of
+        Left err ->
+          respond $
+            jsonResponse status400 $
+              object
+                [ "error" .= ("Could not parse candidate rule: " ++ show err),
+                  "success" .= False
+                ]
+        Right [] ->
+          respond $
+            jsonResponse status400 $
+              object
+                [ "error" .= ("No rules found in candidate text" :: String),
+                  "success" .= False
+                ]
+        Right (candidate : _) ->
+          let existingRules = concatMap parseExistingRule (existingRulesTexts req)
+              matches = checkRedundancy candidate existingRules
+           in respond $
+                jsonResponse status200 $
+                  object
+                    [ "success" .= True,
+                      "matches" .= matches
+                    ]
+  where
+    parseExistingRule txt = case parseRules txt of
+      Right rules -> rules
+      Left _ -> []

@@ -3,7 +3,6 @@
 This checklist turns the policy contract into executable work items.
 
 Primary reference: `ML_DSL_POLICY_CONTRACT.md`.
-Cross-repo reuse map: `ML_IMPORT_PLAN_FROM_X12_POC.md`.
 
 ## Delivery Model
 

@@ -1,0 +1,37 @@
+{
+    "claim_id": "REDUN-CONTROL-001",
+    "2300": {
+        "CLM": {
+            "claim_amount": 350,
+            "facility_type": "Outpatient",
+            "claim_type": "Professional",
+            "authorization_number": "AUTH-RED-007"
+        },
+        "HI": {
+            "diagnosis_code": "J06.9"
+        }
+    },
+    "2010": {
+        "NM1": {
+            "provider_tenure_days": 800,
+            "provider_specialty": "family_medicine",
+            "provider_risk_score": 8
+        }
+    },
+    "2400": [
+        {
+            "SV1": {
+                "place_of_service": "11",
+                "procedure_code": "99213",
+                "line_charge": 350,
+                "modifier_1": "",
+                "modifier_2": "",
+                "procedure_type": "office_visit"
+            },
+            "DTP": {
+                "service_day_of_week": "WED"
+            }
+        }
+    ],
+    "_test_notes": "NEGATIVE CONTROL — should trigger ZERO rules. Amount $350 (below all thresholds), established provider (800 days), office visit POS=11 (not ER). Use this to confirm no false positives."
+}

@@ -1,0 +1,50 @@
+{
+    "claim_id": "REDUN-SHADOW-001",
+    "2300": {
+        "CLM": {
+            "claim_amount": 8500,
+            "facility_type": "Outpatient",
+            "claim_type": "Professional",
+            "authorization_number": "AUTH-RED-003"
+        },
+        "HI": {
+            "diagnosis_code": "S06.0"
+        }
+    },
+    "2010": {
+        "NM1": {
+            "provider_tenure_days": 500,
+            "provider_specialty": "emergency_medicine",
+            "provider_risk_score": 30
+        }
+    },
+    "2400": [
+        {
+            "SV1": {
+                "place_of_service": "23",
+                "procedure_code": "99285",
+                "line_charge": 5000,
+                "modifier_1": "25",
+                "modifier_2": "",
+                "procedure_type": "emergency"
+            },
+            "DTP": {
+                "service_day_of_week": "SAT"
+            }
+        },
+        {
+            "SV1": {
+                "place_of_service": "23",
+                "procedure_code": "70553",
+                "line_charge": 3500,
+                "modifier_1": "",
+                "modifier_2": "",
+                "procedure_type": "radiology"
+            },
+            "DTP": {
+                "service_day_of_week": "SAT"
+            }
+        }
+    ],
+    "_test_notes": "Triggers: er_visit_flag AND er_visit_flag_copy (Level 1 — Exact Duplicate, POS=23). Also triggers er_visit_reject (Level 3 — Shadowed, same condition but REJECT instead of FLAG_FRAUD). Amount is low so no amount-based rules fire."
+}

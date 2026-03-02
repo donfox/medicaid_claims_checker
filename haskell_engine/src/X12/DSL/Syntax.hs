@@ -7,8 +7,9 @@
 --
 -- This module defines the core abstract syntax tree (AST) types for the fraud
 -- detection domain-specific language. These types represent the structure of
--- parsed rules and are used by both the parser ("X12.DSL.Parser") and evaluators
--- ("X12.DSL.Evaluator", "X12.DSL.SimpleEvaluator").
+-- parsed rules and are used by both the parser ("X12.DSL.Parser") and the
+-- evaluator ("X12.DSL.SimpleEvaluator"). Evaluation result types ('RuleResult',
+-- 'Action'') are also defined here.
 --
 -- == Type Hierarchy
 --
@@ -24,8 +25,10 @@
 --  ├── Comparisons: Equals, NotEquals, GreaterThan, LessThan, ...
 --  ├── Null checks: IsNull, IsNotNull
 --  ├── String ops:  Contains, Matches
+--  ├── Range:       Between
+--  ├── Domain:      HasDiagnosis, HasProcedure
 --  ├── Logic:       And, Or, Not
---  └── Quantifiers: Exists, ForAll, Count
+--  └── Quantifiers: Exists (Maybe var), ForAll (Maybe var), Count
 --
 -- FieldRef (document field references)
 --  ├── Field         "amount"           (simple)
@@ -33,7 +36,7 @@
 --  └── LoopField     "2300" "CLM" "01"  (loop.segment.field)
 --
 -- Action (responses to matched rules)
---  ├── FlagFraud, AssignRiskScore, RequireReview, RejectClaim
+--  ├── FlagFraud, AssignRiskScore, RequireReview, RejectClaim, ApproveClaim
 --  └── CompositeAction [Action]
 -- @
 --
@@ -55,6 +58,10 @@ module X12.DSL.Syntax
     -- * Values and Operators
     Value (..),
     CompOp (..),
+
+    -- * Evaluation Results
+    RuleResult (..),
+    Action' (..),
   )
 where
 
@@ -93,7 +100,7 @@ data Rule = Rule
     -- | Action to take when condition is true
     ruleAction :: Action
   }
-  deriving (Show, Eq, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 instance ToJSON Rule
 
@@ -106,7 +113,7 @@ data Binding = Binding
   { bindingName :: Text,
     bindingField :: FieldRef
   }
-  deriving (Show, Eq, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 instance ToJSON Binding
 
@@ -156,14 +163,28 @@ data Predicate
     Or Predicate Predicate
   | -- | Logical negation: @NOT pred@
     Not Predicate
+  | -- | Inclusive range check: @field BETWEEN lo AND hi@
+    --
+    -- Equivalent to @field >= lo AND field <= hi@.
+    Between FieldRef Value Value
+  | -- | Check whether the claim carries a diagnosis code.
+    --
+    -- @claim.has_diagnosis "E11.9"@
+    HasDiagnosis Value
+  | -- | Check whether the claim carries a procedure code.
+    --
+    -- @claim.has_procedure "99213"@
+    HasProcedure Value
   | -- | Existential quantifier: true if any element in path satisfies predicate
     --
     -- @EXISTS 2400 WHERE SV1.amount > 1000@
-    Exists SegmentPath Predicate
+    -- @EXISTS line IN service_lines WHERE line.charge > 5000@
+    Exists (Maybe Text) SegmentPath Predicate
   | -- | Universal quantifier: true if all elements in path satisfy predicate
     --
     -- @FORALL 2400 WHERE SV1.amount < 5000@
-    ForAll SegmentPath Predicate
+    -- @FORALL line IN service_lines WHERE line.charge > 0@
+    ForAll (Maybe Text) SegmentPath Predicate
   | -- | Count elements in path and compare: @COUNT(2400) > 10@
     Count SegmentPath CompOp Int
   | -- | Built-in helper function call returning boolean.
@@ -171,7 +192,7 @@ data Predicate
     -- @is_weekend(claim.service_date)@
     -- @is_high_amount(claim.amount, 50000)@
     HelperCall Text [Value]
-  deriving (Show, Eq, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 instance ToJSON Predicate
 
@@ -203,7 +224,7 @@ data FieldRef
     --
     -- For advanced X12 access like @CLM01-1@ (not commonly used with JSON).
     ElementPosition Int Int Int
-  deriving (Show, Eq, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 instance ToJSON FieldRef
 
@@ -223,7 +244,7 @@ instance FromJSON FieldRef
 data SegmentPath
   = -- | Loop ID and optional segment path within the loop
     SegmentPath Text [Text]
-  deriving (Show, Eq, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 instance ToJSON SegmentPath
 
@@ -245,7 +266,7 @@ data Value
     ListValue [Value]
   | -- | Field reference for field-to-field comparisons: @field1 > field2@
     FieldRefValue FieldRef
-  deriving (Show, Eq, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 instance ToJSON Value
 
@@ -272,7 +293,7 @@ data CompOp
     GTE
   | -- | Less than or equal
     LTE
-  deriving (Show, Eq, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 instance ToJSON CompOp
 
@@ -303,12 +324,47 @@ data Action
     --
     -- @RejectClaim "Duplicate submission"@
     RejectClaim Text
+  | -- | Explicitly approve the claim with a reason.
+    --
+    -- @ApproveClaim "Low-value auto-approve"@
+    ApproveClaim Text
   | -- | Execute multiple actions together.
     --
     -- @CompositeAction [FlagFraud "reason", AssignRiskScore 80]@
     CompositeAction [Action]
-  deriving (Show, Eq, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 instance ToJSON Action
 
 instance FromJSON Action
+
+-- ----------------------------------------------------------------------------
+-- Evaluation Results
+-- ----------------------------------------------------------------------------
+
+-- | Result of evaluating a single rule against a document.
+data RuleResult = RuleResult
+  { resultRuleName :: Text
+  , resultMatched  :: Bool
+  , resultAction   :: Maybe Action'
+  , resultDetails  :: Text
+  } deriving (Show, Eq, Generic)
+
+instance ToJSON RuleResult
+instance FromJSON RuleResult
+
+-- | Runtime action produced by a matched rule.
+--
+-- Mirrors 'Action' but uses primed constructors to distinguish DSL-level
+-- actions (used during parsing) from runtime results (produced by evaluation).
+data Action'
+  = FlagFraud' Text
+  | AssignRiskScore' Int
+  | RequireReview' Text
+  | RejectClaim' Text
+  | ApproveClaim' Text
+  | CompositeAction' [Action']
+  deriving (Show, Eq, Generic)
+
+instance ToJSON Action'
+instance FromJSON Action'

@@ -1,0 +1,165 @@
+{
+    "submission_type": "healthcare_claim_997",
+    "interchange_header": {
+        "sender_id": "PROVIDER104",
+        "receiver_id": "PAYER104",
+        "timestamp": "2026-02-24T14:00:00Z",
+        "interchange_control_number": "000000104"
+    },
+    "functional_group": {
+        "application_sender": "PROVIDER",
+        "application_receiver": "PAYER",
+        "group_control_number": "104"
+    },
+    "claim_id": "CLM-LAB-001",
+    "claim_header": {
+        "claim_control_number": "CLM20260224104",
+        "claim_submission_reason": "Original",
+        "claim_type": "Outpatient",
+        "patient_control_number": "PAT-20260223-104"
+    },
+    "provider": {
+        "name": "Midwest Diagnostics Laboratory",
+        "npi": "1555666777",
+        "tax_id": "77-8899001",
+        "type": "Laboratory",
+        "address": {
+            "street": "300 Science Park",
+            "city": "Columbus",
+            "state": "OH",
+            "postal_code": "43215",
+            "country": "USA"
+        },
+        "contact": {
+            "phone": "614-555-0401",
+            "fax": "614-555-0402"
+        },
+        "tenure_days": 4380,
+        "risk_score": 4,
+        "credentialing_date": "2014-02-24",
+        "specialty": "Clinical Pathology"
+    },
+    "billing_provider": {
+        "npi": "1555666777",
+        "name": "Midwest Diagnostics Laboratory",
+        "address": {
+            "street": "300 Science Park",
+            "city": "Columbus",
+            "state": "OH",
+            "postal_code": "43215"
+        }
+    },
+    "patient": {
+        "name": {
+            "first": "David",
+            "middle": "K",
+            "last": "Okafor",
+            "suffix": ""
+        },
+        "date_of_birth": "1955-06-18",
+        "gender": "Male",
+        "patient_id": "PAT-104",
+        "ssn": "444-55-6666",
+        "address": {
+            "street": "77 Broad Street",
+            "city": "Columbus",
+            "state": "OH",
+            "postal_code": "43216",
+            "country": "USA"
+        },
+        "contact": {
+            "phone": "614-555-4001",
+            "email": "d.okafor@email.com"
+        }
+    },
+    "subscriber": {
+        "subscriber_id": "SUB-444556666",
+        "relationship": "Self",
+        "group_number": "GRP-00104",
+        "plan_id": "PLAN-104"
+    },
+    "payer": {
+        "payer_id": "PAYER104",
+        "payer_name": "Cigna Health",
+        "address": {
+            "street": "900 Cottage Grove Road",
+            "city": "Bloomfield",
+            "state": "CT",
+            "postal_code": "06002"
+        },
+        "contact": {
+            "phone": "860-555-0004"
+        }
+    },
+    "claim_details": {
+        "admission_date": "2026-02-23",
+        "discharge_date": "2026-02-23",
+        "admission_type": "Ambulatory",
+        "admission_source": "Physician Order",
+        "discharge_status": "Discharged",
+        "patient_status": "Discharged",
+        "service_type": "Laboratory",
+        "place_of_service": "81"
+    },
+    "diagnosis_codes": [
+        {
+            "code": "Z13.220",
+            "description": "Encounter for screening for lipoid disorders",
+            "qualifier": "Principal",
+            "present_on_admission": "N"
+        }
+    ],
+    "procedure_codes": [
+        {
+            "code": "85025",
+            "description": "Complete CBC with automated differential",
+            "units": 1,
+            "date_performed": "2026-02-23"
+        }
+    ],
+    "service_lines": [
+        {
+            "service_line_number": 1,
+            "procedure_code": "85025",
+            "description": "Complete CBC with automated differential",
+            "units": 1,
+            "unit_rate": 85.00,
+            "line_amount": 85.00,
+            "date_of_service": "2026-02-23",
+            "place_of_service": "81",
+            "diagnosis_pointers": ["1"]
+        }
+    ],
+    "claim_totals": {
+        "total_submitted": 85.00,
+        "total_charges": 85.00,
+        "total_patient_responsibility": 0.00,
+        "total_payer_liability": 85.00,
+        "total_units": 1
+    },
+    "financial": {
+        "claim_amount": 85.00,
+        "patient_deductible": 0.00,
+        "patient_coinsurance": 0.00,
+        "patient_copay": 0.00,
+        "coordination_of_benefits": 0.00
+    },
+    "authorization": {
+        "authorization_number": "AUTH-104001",
+        "authorization_date": "2026-02-23",
+        "authorization_period_start": "2026-02-23",
+        "authorization_period_end": "2026-02-23",
+        "authorization_status": "Active",
+        "authorized_amount": 100.00,
+        "approved_units": 1
+    },
+    "claim_metadata": {
+        "submission_date": "2026-02-24",
+        "claim_frequency": "Original",
+        "claim_received_date": "2026-02-24",
+        "claim_processing_status": "Pending",
+        "test_rule": "none",
+        "expected_result": "APPROVED",
+        "notes": "Routine outpatient lab. Low amount, established lab provider, valid diagnosis. Passes all rules."
+    }
+}

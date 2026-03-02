@@ -1,0 +1,171 @@
+{
+    "submission_type": "healthcare_claim_997",
+    "interchange_header": {
+        "sender_id": "PROVIDER202",
+        "receiver_id": "PAYER202",
+        "timestamp": "2026-02-26T10:00:00Z",
+        "interchange_control_number": "000000202"
+    },
+    "functional_group": {
+        "application_sender": "PROVIDER",
+        "application_receiver": "PAYER",
+        "group_control_number": "202"
+    },
+    "claim_id": "CLM-EXTREME-001",
+    "claim_header": {
+        "claim_control_number": "CLM20260226202",
+        "claim_submission_reason": "Original",
+        "claim_type": "Inpatient",
+        "patient_control_number": "PAT-20260210-202"
+    },
+    "provider": {
+        "name": "Metro Regional Hospital",
+        "npi": "1098765432",
+        "tax_id": "22-3344556",
+        "type": "Hospital",
+        "address": {
+            "street": "1 Hospital Drive",
+            "city": "New York",
+            "state": "NY",
+            "postal_code": "10001",
+            "country": "USA"
+        },
+        "contact": {
+            "phone": "212-555-0202",
+            "fax": "212-555-0203"
+        },
+        "tenure_days": 5000,
+        "risk_score": 20,
+        "credentialing_date": "2012-06-01",
+        "specialty": "Cardiothoracic Surgery"
+    },
+    "billing_provider": {
+        "npi": "1098765432",
+        "name": "Metro Regional Hospital",
+        "address": {
+            "street": "1 Hospital Drive",
+            "city": "New York",
+            "state": "NY",
+            "postal_code": "10001"
+        }
+    },
+    "patient": {
+        "name": {
+            "first": "Patricia",
+            "middle": "M",
+            "last": "Sullivan",
+            "suffix": ""
+        },
+        "date_of_birth": "1952-09-30",
+        "gender": "Female",
+        "patient_id": "PAT-202",
+        "ssn": "666-77-8888",
+        "address": {
+            "street": "500 Park Avenue",
+            "city": "New York",
+            "state": "NY",
+            "postal_code": "10022",
+            "country": "USA"
+        },
+        "contact": {
+            "phone": "212-555-2002",
+            "email": "p.sullivan@email.com"
+        }
+    },
+    "subscriber": {
+        "subscriber_id": "SUB-666778888",
+        "relationship": "Self",
+        "group_number": "GRP-00202",
+        "plan_id": "PLAN-202"
+    },
+    "payer": {
+        "payer_id": "PAYER202",
+        "payer_name": "Empire Blue Cross",
+        "address": {
+            "street": "1 Liberty Plaza",
+            "city": "New York",
+            "state": "NY",
+            "postal_code": "10006"
+        },
+        "contact": {
+            "phone": "212-555-0022"
+        }
+    },
+    "claim_details": {
+        "admission_date": "2026-02-10",
+        "discharge_date": "2026-02-20",
+        "admission_type": "Emergency",
+        "admission_source": "Emergency Room",
+        "discharge_status": "Discharged to Skilled Nursing",
+        "patient_status": "Transferred",
+        "service_type": "Inpatient Surgery",
+        "place_of_service": "21"
+    },
+    "diagnosis_codes": [
+        {
+            "code": "I25.10",
+            "description": "Atherosclerotic heart disease of native coronary artery without angina pectoris",
+            "qualifier": "Principal",
+            "present_on_admission": "Y"
+        },
+        {
+            "code": "I50.9",
+            "description": "Heart failure, unspecified",
+            "qualifier": "Secondary",
+            "present_on_admission": "Y"
+        }
+    ],
+    "procedure_codes": [
+        {
+            "code": "33533",
+            "description": "Coronary artery bypass — arterial graft, single",
+            "units": 1,
+            "date_performed": "2026-02-11"
+        }
+    ],
+    "service_lines": [
+        {
+            "service_line_number": 1,
+            "procedure_code": "33533",
+            "description": "Coronary artery bypass — arterial graft, single",
+            "units": 1,
+            "unit_rate": 850000.00,
+            "line_amount": 850000.00,
+            "date_of_service": "2026-02-11",
+            "place_of_service": "21",
+            "diagnosis_pointers": ["1", "2"]
+        }
+    ],
+    "claim_totals": {
+        "total_submitted": 850000.00,
+        "total_charges": 850000.00,
+        "total_patient_responsibility": 0.00,
+        "total_payer_liability": 850000.00,
+        "total_units": 1
+    },
+    "financial": {
+        "claim_amount": 850000.00,
+        "patient_deductible": 0.00,
+        "patient_coinsurance": 0.00,
+        "patient_copay": 0.00,
+        "coordination_of_benefits": 0.00
+    },
+    "authorization": {
+        "authorization_number": "AUTH-202001",
+        "authorization_date": "2026-02-10",
+        "authorization_period_start": "2026-02-10",
+        "authorization_period_end": "2026-02-20",
+        "authorization_status": "Active",
+        "authorized_amount": 500000.00,
+        "approved_units": 1
+    },
+    "claim_metadata": {
+        "submission_date": "2026-02-26",
+        "claim_frequency": "Original",
+        "claim_received_date": "2026-02-26",
+        "claim_processing_status": "Pending",
+        "test_rule": "ExcessiveTotalCharges",
+        "expected_result": "FLAG_FRAUD",
+        "notes": "Total charges $850,000 exceed the $750,000 ExcessiveTotalCharges threshold."
+    }
+}

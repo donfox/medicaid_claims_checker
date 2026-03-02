@@ -1,0 +1,65 @@
+{
+  "rulesText": "RULE high_value_review \"Flag high-value claims for manual review\" WHEN 2300.CLM.claim_amount > 50000 THEN REQUIRE_REVIEW \"Exceeds high-value threshold\"; RULE weekend_office_visit \"Office visit on weekend with elevated amount\" WHEN 2400.SV1.place_of_service = \"11\" AND 2400.DTP.service_day_of_week = \"SAT\" AND 2300.CLM.claim_amount > 500 THEN REQUIRE_REVIEW \"Weekend office visit requires verification\"; RULE inpatient_mismatch \"Outpatient POS with inpatient billing\" WHEN 2400.SV1.place_of_service = \"22\" AND 2300.CLM.facility_type = \"Inpatient\" AND 2300.CLM.claim_amount > 10000 THEN REJECT \"Inpatient/outpatient mismatch detected\"; RULE extreme_amount \"Flag extreme billing amounts\" WHEN 2300.CLM.claim_amount > 1000000 THEN FLAG_FRAUD \"Extreme billing amount exceeds $1M\"; RULE suspicious_dx \"Flag diagnosis codes associated with fraud\" WHEN in_list(claim.dx_code, [\"Z76.89\", \"Z09\", \"Z00.00\", \"T78.40XA\"]) THEN FLAG_FRAUD \"Suspicious diagnosis code\"; RULE weekend_service_date \"Flag elevated weekend service claims\" WHEN is_weekend(claim.service_date) AND 2300.CLM.claim_amount > 1000 THEN REQUIRE_REVIEW \"Weekend service date with elevated amount\"; RULE invalid_npi_prefix \"NPI cannot start with zero\" WHEN starts_with(provider.npi, \"0\") THEN FLAG_FRAUD \"Invalid NPI: leading zero\"; RULE half_million_composite \"Composite flag for claims over $500k\" WHEN 2300.CLM.claim_amount > 500000 THEN [FLAG_FRAUD \"Half-million dollar claim\", RISK_SCORE 85]; RULE unapproved_state \"Provider state not in approved network\" WHEN NOT in_list(claim.state, [\"TX\", \"CA\", \"NY\", \"FL\", \"WA\"]) THEN REQUIRE_REVIEW \"Provider not in approved network states\"; RULE medium_value_range \"Medium-value range requiring review\" LET claim_amt = 2300.CLM.claim_amount WHEN claim_amt > 25000 AND claim_amt < 50000 THEN REQUIRE_REVIEW \"Medium-value claim 25k-50k\";",
+  "claims": [
+    {
+      "_id": "CLM016",
+      "_desc": "Suspicious dx code (Z76.89, $3k, Tue, TX) — suspicious_dx only",
+      "_expect_matched": 1,
+      "_expect_risk": "CriticalRisk",
+      "claim": { "dx_code": "Z76.89", "service_date": "2026-02-24", "state": "TX" },
+      "2300": { "CLM": { "claim_amount": 3000, "facility_type": "Outpatient" } },
+      "2400": { "SV1": { "place_of_service": "11" }, "DTP": { "service_day_of_week": "TUE" } },
+      "provider": { "npi": "1234567890" }
+    },
+    {
+      "_id": "CLM017",
+      "_desc": "Weekend service_date (2026-02-21 Sat), DTP field says TUE — weekend_service_date only",
+      "_expect_matched": 1,
+      "_expect_risk": "LowRisk",
+      "claim": { "dx_code": "M54.5", "service_date": "2026-02-21", "state": "TX" },
+      "2300": { "CLM": { "claim_amount": 2500, "facility_type": "Outpatient" } },
+      "2400": { "SV1": { "place_of_service": "11" }, "DTP": { "service_day_of_week": "TUE" } },
+      "provider": { "npi": "1234567890" }
+    },
+    {
+      "_id": "CLM018",
+      "_desc": "Invalid NPI prefix (starts with 0, $8k, Tue, TX) — invalid_npi_prefix only",
+      "_expect_matched": 1,
+      "_expect_risk": "CriticalRisk",
+      "claim": { "dx_code": "M54.5", "service_date": "2026-02-24", "state": "TX" },
+      "2300": { "CLM": { "claim_amount": 8000, "facility_type": "Outpatient" } },
+      "2400": { "SV1": { "place_of_service": "11" }, "DTP": { "service_day_of_week": "TUE" } },
+      "provider": { "npi": "0123456789" }
+    },
+    {
+      "_id": "CLM019",
+      "_desc": "Half-million ($750k, Tue, TX) — half_million_composite + high_value_review",
+      "_expect_matched": 2,
+      "_expect_risk": "CriticalRisk",
+      "claim": { "dx_code": "M54.5", "service_date": "2026-02-24", "state": "TX" },
+      "2300": { "CLM": { "claim_amount": 750000, "facility_type": "Outpatient" } },
+      "2400": { "SV1": { "place_of_service": "11" }, "DTP": { "service_day_of_week": "TUE" } },
+      "provider": { "npi": "1234567890" }
+    },
+    {
+      "_id": "CLM020",
+      "_desc": "Unapproved state (MT, $4k, Tue) — unapproved_state only",
+      "_expect_matched": 1,
+      "_expect_risk": "LowRisk",
+      "claim": { "dx_code": "M54.5", "service_date": "2026-02-24", "state": "MT" },
+      "2300": { "CLM": { "claim_amount": 4000, "facility_type": "Outpatient" } },
+      "2400": { "SV1": { "place_of_service": "11" }, "DTP": { "service_day_of_week": "TUE" } },
+      "provider": { "npi": "1234567890" }
+    },
+    {
+      "_id": "CLM021",
+      "_desc": "Medium value ($35k, Tue, TX, LET binding) — medium_value_range only",
+      "_expect_matched": 1,
+      "_expect_risk": "LowRisk",
+      "claim": { "dx_code": "M54.5", "service_date": "2026-02-24", "state": "TX" },
+      "2300": { "CLM": { "claim_amount": 35000, "facility_type": "Outpatient" } },
+      "2400": { "SV1": { "place_of_service": "11" }, "DTP": { "service_day_of_week": "TUE" } },
+      "provider": { "npi": "1234567890" }
+    }
+  ]
+}

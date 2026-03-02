@@ -19,6 +19,7 @@ defmodule X12FraudWebWeb.Router do
 
     live("/", RuleLive.Index, :index)
     live("/rules", RuleLive.Index, :index)
+    live("/catalogue", RuleCatalogueLive.Index, :index)
   end
 
   # API routes

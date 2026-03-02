@@ -1,0 +1,65 @@
+{
+  "rulesText": "RULE high_value_review \"Flag high-value claims for manual review\" WHEN 2300.CLM.claim_amount > 50000 THEN REQUIRE_REVIEW \"Exceeds high-value threshold\"; RULE weekend_office_visit \"Office visit on weekend with elevated amount\" WHEN 2400.SV1.place_of_service = \"11\" AND 2400.DTP.service_day_of_week = \"SAT\" AND 2300.CLM.claim_amount > 500 THEN REQUIRE_REVIEW \"Weekend office visit requires verification\"; RULE inpatient_mismatch \"Outpatient POS with inpatient billing\" WHEN 2400.SV1.place_of_service = \"22\" AND 2300.CLM.facility_type = \"Inpatient\" AND 2300.CLM.claim_amount > 10000 THEN REJECT \"Inpatient/outpatient mismatch detected\"; RULE extreme_amount \"Flag extreme billing amounts\" WHEN 2300.CLM.claim_amount > 1000000 THEN FLAG_FRAUD \"Extreme billing amount exceeds $1M\";",
+  "claims": [
+    {
+      "_id": "CLM001",
+      "_desc": "Valid claim — no rules should fire",
+      "2300": { "CLM": { "claim_amount": 1500, "facility_type": "Outpatient" } },
+      "2400": { "SV1": { "place_of_service": "11" }, "DTP": { "service_day_of_week": "TUE" } }
+    },
+    {
+      "_id": "CLM002",
+      "_desc": "High value ($75k, weekday) — high_value_review",
+      "2300": { "CLM": { "claim_amount": 75000, "facility_type": "Outpatient" } },
+      "2400": { "SV1": { "place_of_service": "11" }, "DTP": { "service_day_of_week": "TUE" } }
+    },
+    {
+      "_id": "CLM003",
+      "_desc": "Weekend office visit ($800, pos=11, SAT) — weekend_office_visit",
+      "2300": { "CLM": { "claim_amount": 800, "facility_type": "Outpatient" } },
+      "2400": { "SV1": { "place_of_service": "11" }, "DTP": { "service_day_of_week": "SAT" } }
+    },
+    {
+      "_id": "CLM004",
+      "_desc": "Inpatient mismatch ($15k, pos=22, Inpatient) — REJECT",
+      "2300": { "CLM": { "claim_amount": 15000, "facility_type": "Inpatient" } },
+      "2400": { "SV1": { "place_of_service": "22" }, "DTP": { "service_day_of_week": "MON" } }
+    },
+    {
+      "_id": "CLM005",
+      "_desc": "Extreme amount ($1.5M) — FLAG_FRAUD + high_value_review",
+      "2300": { "CLM": { "claim_amount": 1500000, "facility_type": "Outpatient" } },
+      "2400": { "SV1": { "place_of_service": "11" }, "DTP": { "service_day_of_week": "MON" } }
+    },
+    {
+      "_id": "CLM006",
+      "_desc": "High value + weekend office ($60k, pos=11, SAT) — two rules",
+      "2300": { "CLM": { "claim_amount": 60000, "facility_type": "Outpatient" } },
+      "2400": { "SV1": { "place_of_service": "11" }, "DTP": { "service_day_of_week": "SAT" } }
+    },
+    {
+      "_id": "CLM007",
+      "_desc": "Weekend but wrong POS code (pos=21, SAT, $800) — no match",
+      "2300": { "CLM": { "claim_amount": 800, "facility_type": "Outpatient" } },
+      "2400": { "SV1": { "place_of_service": "21" }, "DTP": { "service_day_of_week": "SAT" } }
+    },
+    {
+      "_id": "CLM008",
+      "_desc": "Inpatient low amount ($5k, pos=22) — below $10k threshold, no match",
+      "2300": { "CLM": { "claim_amount": 5000, "facility_type": "Inpatient" } },
+      "2400": { "SV1": { "place_of_service": "22" }, "DTP": { "service_day_of_week": "MON" } }
+    },
+    {
+      "_id": "CLM009",
+      "_desc": "High value + inpatient mismatch ($75k, pos=22, Inpatient) — REJECT wins",
+      "2300": { "CLM": { "claim_amount": 75000, "facility_type": "Inpatient" } },
+      "2400": { "SV1": { "place_of_service": "22" }, "DTP": { "service_day_of_week": "MON" } }
+    },
+    {
+      "_id": "CLM010",
+      "_desc": "Triple violation ($1.2M, pos=22, Inpatient) — extreme + high_value + inpatient",
+      "2300": { "CLM": { "claim_amount": 1200000, "facility_type": "Inpatient" } },
+      "2400": { "SV1": { "place_of_service": "22" }, "DTP": { "service_day_of_week": "MON" } }
+    }
+  ]
+}

@@ -1,0 +1,171 @@
+{
+    "submission_type": "healthcare_claim_997",
+    "interchange_header": {
+        "sender_id": "PROVIDER102",
+        "receiver_id": "PAYER102",
+        "timestamp": "2026-02-21T09:30:00Z",
+        "interchange_control_number": "000000102"
+    },
+    "functional_group": {
+        "application_sender": "PROVIDER",
+        "application_receiver": "PAYER",
+        "group_control_number": "102"
+    },
+    "claim_id": "CLM-SPECIALIST-001",
+    "claim_header": {
+        "claim_control_number": "CLM20260221102",
+        "claim_submission_reason": "Original",
+        "claim_type": "Outpatient",
+        "patient_control_number": "PAT-20260220-102"
+    },
+    "provider": {
+        "name": "Capitol Orthopedic Specialists",
+        "npi": "1987654321",
+        "tax_id": "55-9876543",
+        "type": "Specialist Practice",
+        "address": {
+            "street": "800 Medical Center Drive",
+            "city": "Austin",
+            "state": "TX",
+            "postal_code": "78701",
+            "country": "USA"
+        },
+        "contact": {
+            "phone": "512-555-0201",
+            "fax": "512-555-0202"
+        },
+        "tenure_days": 2190,
+        "risk_score": 8,
+        "credentialing_date": "2020-02-20",
+        "specialty": "Orthopedic Surgery"
+    },
+    "billing_provider": {
+        "npi": "1987654321",
+        "name": "Capitol Orthopedic Specialists",
+        "address": {
+            "street": "800 Medical Center Drive",
+            "city": "Austin",
+            "state": "TX",
+            "postal_code": "78701"
+        }
+    },
+    "patient": {
+        "name": {
+            "first": "Robert",
+            "middle": "J",
+            "last": "Chambers",
+            "suffix": ""
+        },
+        "date_of_birth": "1965-08-14",
+        "gender": "Male",
+        "patient_id": "PAT-102",
+        "ssn": "222-33-4444",
+        "address": {
+            "street": "200 Pecan Street",
+            "city": "Austin",
+            "state": "TX",
+            "postal_code": "78702",
+            "country": "USA"
+        },
+        "contact": {
+            "phone": "512-555-2001",
+            "email": "r.chambers@email.com"
+        }
+    },
+    "subscriber": {
+        "subscriber_id": "SUB-222334444",
+        "relationship": "Self",
+        "group_number": "GRP-00102",
+        "plan_id": "PLAN-102"
+    },
+    "payer": {
+        "payer_id": "PAYER102",
+        "payer_name": "Aetna Health",
+        "address": {
+            "street": "300 Aetna Way",
+            "city": "Hartford",
+            "state": "CT",
+            "postal_code": "06103"
+        },
+        "contact": {
+            "phone": "860-555-0002"
+        }
+    },
+    "claim_details": {
+        "admission_date": "2026-02-20",
+        "discharge_date": "2026-02-20",
+        "admission_type": "Scheduled",
+        "admission_source": "Referral",
+        "discharge_status": "Discharged",
+        "patient_status": "Discharged",
+        "service_type": "Specialist Consultation",
+        "place_of_service": "11"
+    },
+    "diagnosis_codes": [
+        {
+            "code": "M54.50",
+            "description": "Low back pain, unspecified",
+            "qualifier": "Principal",
+            "present_on_admission": "Y"
+        },
+        {
+            "code": "M51.16",
+            "description": "Intervertebral disc degeneration, lumbar region",
+            "qualifier": "Secondary",
+            "present_on_admission": "Y"
+        }
+    ],
+    "procedure_codes": [
+        {
+            "code": "99244",
+            "description": "Office consultation — moderate complexity",
+            "units": 1,
+            "date_performed": "2026-02-20"
+        }
+    ],
+    "service_lines": [
+        {
+            "service_line_number": 1,
+            "procedure_code": "99244",
+            "description": "Office consultation — moderate complexity",
+            "units": 1,
+            "unit_rate": 350.00,
+            "line_amount": 350.00,
+            "date_of_service": "2026-02-20",
+            "place_of_service": "11",
+            "diagnosis_pointers": ["1", "2"]
+        }
+    ],
+    "claim_totals": {
+        "total_submitted": 350.00,
+        "total_charges": 350.00,
+        "total_patient_responsibility": 50.00,
+        "total_payer_liability": 300.00,
+        "total_units": 1
+    },
+    "financial": {
+        "claim_amount": 350.00,
+        "patient_deductible": 0.00,
+        "patient_coinsurance": 0.00,
+        "patient_copay": 50.00,
+        "coordination_of_benefits": 0.00
+    },
+    "authorization": {
+        "authorization_number": "AUTH-102001",
+        "authorization_date": "2026-02-18",
+        "authorization_period_start": "2026-02-20",
+        "authorization_period_end": "2026-02-20",
+        "authorization_status": "Active",
+        "authorized_amount": 400.00,
+        "approved_units": 1
+    },
+    "claim_metadata": {
+        "submission_date": "2026-02-21",
+        "claim_frequency": "Original",
+        "claim_received_date": "2026-02-21",
+        "claim_processing_status": "Pending",
+        "test_rule": "none",
+        "expected_result": "APPROVED",
+        "notes": "Specialist consultation with valid referral auth. Below high-value threshold. Passes all rules."
+    }
+}

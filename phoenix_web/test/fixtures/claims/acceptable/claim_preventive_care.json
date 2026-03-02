@@ -1,0 +1,165 @@
+{
+    "submission_type": "healthcare_claim_997",
+    "interchange_header": {
+        "sender_id": "PROVIDER103",
+        "receiver_id": "PAYER103",
+        "timestamp": "2026-02-22T08:00:00Z",
+        "interchange_control_number": "000000103"
+    },
+    "functional_group": {
+        "application_sender": "PROVIDER",
+        "application_receiver": "PAYER",
+        "group_control_number": "103"
+    },
+    "claim_id": "CLM-PREVENTIVE-001",
+    "claim_header": {
+        "claim_control_number": "CLM20260222103",
+        "claim_submission_reason": "Original",
+        "claim_type": "Outpatient",
+        "patient_control_number": "PAT-20260221-103"
+    },
+    "provider": {
+        "name": "Northside Primary Care",
+        "npi": "1122334455",
+        "tax_id": "33-4455667",
+        "type": "Clinic",
+        "address": {
+            "street": "55 Wellness Way",
+            "city": "Denver",
+            "state": "CO",
+            "postal_code": "80202",
+            "country": "USA"
+        },
+        "contact": {
+            "phone": "303-555-0301",
+            "fax": "303-555-0302"
+        },
+        "tenure_days": 3650,
+        "risk_score": 5,
+        "credentialing_date": "2016-02-22",
+        "specialty": "Internal Medicine"
+    },
+    "billing_provider": {
+        "npi": "1122334455",
+        "name": "Northside Primary Care",
+        "address": {
+            "street": "55 Wellness Way",
+            "city": "Denver",
+            "state": "CO",
+            "postal_code": "80202"
+        }
+    },
+    "patient": {
+        "name": {
+            "first": "Susan",
+            "middle": "A",
+            "last": "Park",
+            "suffix": ""
+        },
+        "date_of_birth": "1970-12-03",
+        "gender": "Female",
+        "patient_id": "PAT-103",
+        "ssn": "333-44-5555",
+        "address": {
+            "street": "910 Cherry Creek Drive",
+            "city": "Denver",
+            "state": "CO",
+            "postal_code": "80203",
+            "country": "USA"
+        },
+        "contact": {
+            "phone": "303-555-3001",
+            "email": "s.park@email.com"
+        }
+    },
+    "subscriber": {
+        "subscriber_id": "SUB-333445555",
+        "relationship": "Self",
+        "group_number": "GRP-00103",
+        "plan_id": "PLAN-103"
+    },
+    "payer": {
+        "payer_id": "PAYER103",
+        "payer_name": "UnitedHealthcare",
+        "address": {
+            "street": "9900 Bren Road East",
+            "city": "Minnetonka",
+            "state": "MN",
+            "postal_code": "55343"
+        },
+        "contact": {
+            "phone": "952-555-0003"
+        }
+    },
+    "claim_details": {
+        "admission_date": "2026-02-21",
+        "discharge_date": "2026-02-21",
+        "admission_type": "Ambulatory",
+        "admission_source": "Walk-in",
+        "discharge_status": "Discharged",
+        "patient_status": "Discharged",
+        "service_type": "Preventive Care",
+        "place_of_service": "11"
+    },
+    "diagnosis_codes": [
+        {
+            "code": "Z00.00",
+            "description": "Encounter for general adult medical examination without abnormal findings",
+            "qualifier": "Principal",
+            "present_on_admission": "N"
+        }
+    ],
+    "procedure_codes": [
+        {
+            "code": "G0438",
+            "description": "Annual wellness visit — initial visit",
+            "units": 1,
+            "date_performed": "2026-02-21"
+        }
+    ],
+    "service_lines": [
+        {
+            "service_line_number": 1,
+            "procedure_code": "G0438",
+            "description": "Annual wellness visit — initial visit",
+            "units": 1,
+            "unit_rate": 200.00,
+            "line_amount": 200.00,
+            "date_of_service": "2026-02-21",
+            "place_of_service": "11",
+            "diagnosis_pointers": ["1"]
+        }
+    ],
+    "claim_totals": {
+        "total_submitted": 200.00,
+        "total_charges": 200.00,
+        "total_patient_responsibility": 0.00,
+        "total_payer_liability": 200.00,
+        "total_units": 1
+    },
+    "financial": {
+        "claim_amount": 200.00,
+        "patient_deductible": 0.00,
+        "patient_coinsurance": 0.00,
+        "patient_copay": 0.00,
+        "coordination_of_benefits": 0.00
+    },
+    "authorization": {
+        "authorization_number": "AUTH-103001",
+        "authorization_date": "2026-02-21",
+        "authorization_period_start": "2026-02-21",
+        "authorization_period_end": "2026-02-21",
+        "authorization_status": "Active",
+        "authorized_amount": 200.00,
+        "approved_units": 1
+    },
+    "claim_metadata": {
+        "submission_date": "2026-02-22",
+        "claim_frequency": "Original",
+        "claim_received_date": "2026-02-22",
+        "claim_processing_status": "Pending",
+        "test_rule": "none",
+        "expected_result": "APPROVED",
+        "notes": "Annual wellness visit. No-cost preventive benefit, well-established provider. Passes all rules."
+    }
+}

@@ -1,0 +1,63 @@
+{
+    "claim_id": "REDUN-COMPOUND-001",
+    "2300": {
+        "CLM": {
+            "claim_amount": 80000,
+            "facility_type": "Inpatient",
+            "claim_type": "Institutional",
+            "authorization_number": "AUTH-RED-006"
+        },
+        "HI": {
+            "diagnosis_code": "S72.001"
+        }
+    },
+    "2010": {
+        "NM1": {
+            "provider_tenure_days": 45,
+            "provider_specialty": "orthopedic_surgery",
+            "provider_risk_score": 55
+        }
+    },
+    "2400": [
+        {
+            "SV1": {
+                "place_of_service": "23",
+                "procedure_code": "27236",
+                "line_charge": 60000,
+                "modifier_1": "",
+                "modifier_2": "",
+                "procedure_type": "surgical"
+            },
+            "DTP": {
+                "service_day_of_week": "SUN"
+            }
+        },
+        {
+            "SV1": {
+                "place_of_service": "21",
+                "procedure_code": "99223",
+                "line_charge": 15000,
+                "modifier_1": "",
+                "modifier_2": "",
+                "procedure_type": "inpatient"
+            },
+            "DTP": {
+                "service_day_of_week": "SUN"
+            }
+        },
+        {
+            "SV1": {
+                "place_of_service": "21",
+                "procedure_code": "20680",
+                "line_charge": 5000,
+                "modifier_1": "59",
+                "modifier_2": "",
+                "procedure_type": "surgical"
+            },
+            "DTP": {
+                "service_day_of_week": "MON"
+            }
+        }
+    ],
+    "_test_notes": "THE KITCHEN SINK — triggers rules from every group: GROUP A: high_amount_50k + dup (80k > 50k), high_amount_reject (80k > 75k). GROUP B: new_provider_90 (45 < 90), new_provider_reject (45 < 60), provider_probation (45 in 0-120). GROUP C: er_visit_flag + copy + reject (POS=23 on line 1). GROUP D: high_amount_new_provider (80k > 50k AND 45 < 90), moderate_amount_newer_provider (80k > 30k AND 45 < 120). Demonstrates all four redundancy levels firing concurrently."
+}

@@ -7,24 +7,26 @@ Haskell-based engine for parsing, evaluating, and compiling fraud detection rule
 - Domain-Specific Language (DSL) for fraud detection rules
 - Parser for business-analyst-friendly syntax
 - Predicate evaluator for rule matching against JSON claim documents
-- GHC compilation pipeline: DSL rules are code-generated into self-contained Haskell modules and verified by GHC
-- Compiled rule cache (thread-safe via STM)
-- HTTP API server for rule parsing, evaluation, and compilation
-- Support for complex predicates (AND, OR, NOT, EXISTS, FORALL, COUNT)
+- Parsed rule cache (thread-safe via STM)
+- HTTP API server for rule parsing, evaluation, and preflight caching
+- Support for complex predicates (AND, OR, NOT, EXISTS, FORALL, COUNT, BETWEEN)
+- Named quantifier variables for nested quantifier correlation (`EXISTS x IN path WHERE ...`)
+- Domain predicates (`claim.has_diagnosis`, `claim.has_procedure`)
+- Redundancy detection across rule sets (exact duplicate, condition overlap, subsumption)
 
 ## Module Overview
 
 | Module | Purpose |
 |---|---|
-| `X12.DSL.Syntax` | AST types for rules, predicates, actions, field references |
+| `X12.DSL.Syntax` | AST types for rules, predicates, actions, field references, and evaluation results |
 | `X12.DSL.Parser` | Parsec-based DSL parser |
 | `X12.DSL.SimpleEvaluator` | Evaluate predicates against generic JSON claim payloads |
-| `X12.DSL.Evaluator` | Evaluate predicates against typed legacy documents |
-| `X12.DSL.Compiler` | Code generation (AST to Haskell source) and GHC compilation |
-| `X12.DSL.RuleEngine` | Multi-rule evaluation engine |
-| `X12.DSL.X12Types` | Shared document and result types (legacy naming) |
-
-Note: module names under `X12.DSL.*` are retained for backward compatibility; current API/UI evaluation paths operate on JSON claim payloads.
+| `X12.DSL.RuleCache` | Thread-safe STM cache of parsed rule ASTs, keyed by rule name |
+| `X12.DSL.RuleEngine` | Multi-rule evaluation engine and reporting |
+| `X12.DSL.PolicyCombiner` | Merge DSL results with ML scoring into a combined policy envelope |
+| `X12.DSL.RedundancyChecker` | Detect redundant rules: exact duplicates, condition overlap, and subsumption |
+| `X12.DSL.MLClient` | HTTP client for calling the external ML scoring service |
+| `X12.DSL.EvaluationContract` | Request/response types for the evaluation API |
 
 ## Building
 
@@ -63,38 +65,39 @@ The server starts on port 8080.
 | `/api/health` | GET | Health check |
 | `/api/parse-rule` | POST | Parse DSL rule text and return AST |
 | `/api/evaluate` | POST | Evaluate rules against a JSON claim payload |
-| `/api/compile-rule` | POST | Generate Haskell source from a rule and compile with GHC |
-| `/api/evaluate-compiled` | POST | Evaluate a document using a previously compiled rule |
-| `/api/compiled-rules` | GET | List all compiled rules in the cache |
+| `/api/batch-evaluate` | POST | Evaluate one ruleset against many claim payloads |
+| `/api/compile-rules` | POST | Parse a full ruleset, cache ASTs, return preflight counts |
 
-### Compile Rule
+## Fraud Detection Scoring
 
-```bash
-curl -X POST http://localhost:8080/api/compile-rule \
-  -H 'Content-Type: application/json' \
-  -d '{"ruleText": "RULE high_amount \"Flag high claims\" WHEN amount > 10000 THEN FLAG_FRAUD \"High amount\";"}'
+The UI displays two metrics per evaluated claim under **Fraud Detection Details**:
+
+### Rule-Based Score
+
+Shows the ratio of matched (triggered) rules to total rules evaluated, e.g. `3 / 17`. The bar fills proportionally. This answers: **how many rules fired?**
+
+### Overall Risk Assessment
+
+A severity classification (0-100 scale) derived from the *actions* of the matched rules, not just the count. This answers: **how bad are the rules that fired?**
+
+The `determineRiskLevel` function in `RuleEngine.hs` computes the level:
+
+| Level | Score | Condition |
+|---|---|---|
+| CriticalRisk | 90 | Any matched rule triggers `RejectClaim` or `FlagFraud` |
+| HighRisk | 65 | 3+ matched rules have `AssignRiskScore >= 70` |
+| MediumRisk | 35 | 1-2 matched rules have `AssignRiskScore >= 70` |
+| LowRisk | 5 | No high-severity actions |
+
+A claim can trigger many rules but remain LowRisk if they are all low-severity. Conversely, a single `REJECT` match produces CriticalRisk.
+
+## Parse and Cache Pipeline
+
+```
+DSL Text  -->  Parser  -->  Rule AST  -->  RuleCache  -->  evaluateRuleSimple
 ```
 
-Response includes the generated Haskell source, compilation status, and timing.
-
-### Evaluate with Compiled Rule
-
-```bash
-curl -X POST http://localhost:8080/api/evaluate-compiled \
-  -H 'Content-Type: application/json' \
-  -d '{"ruleName": "high_amount", "document": {"amount": 25000}}'
-```
-
-## Compilation Pipeline
-
-```
-DSL Text  -->  Parser  -->  Rule AST  -->  Code Generator  -->  Haskell Source  -->  GHC Verification
-                                                |
-                                                +-- generateRuleCode: AST to self-contained Haskell module
-                                                +-- compileRule: writes source, runs `stack exec -- ghc -c`
-```
-
-Each generated module is fully self-contained with inlined helper functions (no project imports required), making the generated code portable and independently compilable.
+Rules are parsed once per request (or pre-cached via `/api/compile-rules`) and evaluated directly against JSON claim payloads using `SimpleEvaluator`. No Haskell code generation or GHC invocation.
 
 ## License
 

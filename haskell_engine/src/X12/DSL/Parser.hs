@@ -24,7 +24,7 @@
 -- * @\<name\>@ is an identifier (alphanumeric, may start with digit for X12 loop IDs like @2300@)
 -- * @\<description\>@ is a quoted string, optionally preceded by @DESCRIPTION@ keyword
 -- * @\<predicate\>@ is a boolean expression (see below)
--- * @\<action\>@ is one of: @FLAG_FRAUD@, @RISK_SCORE@, @REQUIRE_REVIEW@, @REJECT@
+-- * @\<action\>@ is one of: @FLAG_FRAUD@, @RISK_SCORE@, @REQUIRE_REVIEW@, @REJECT@, @APPROVE@
 -- * Rules can end with @;@ or @END@
 --
 -- == Predicate Syntax
@@ -32,9 +32,11 @@
 -- Predicates support:
 --
 -- * __Comparisons__: @field = value@, @field != value@, @field > value@, @field < value@, @field >= value@, @field <= value@
+-- * __Range__: @field BETWEEN value AND value@
 -- * __Null checks__: @field IS NULL@, @field IS NOT NULL@
+-- * __Domain__: @claim.has_diagnosis "code"@, @claim.has_procedure "code"@
 -- * __Boolean logic__: @AND@, @OR@, @NOT@, parentheses for grouping
--- * __Quantifiers__: @EXISTS path WHERE predicate@, @FORALL path WHERE predicate@
+-- * __Quantifiers__: @EXISTS path WHERE predicate@, @EXISTS var IN path WHERE predicate@
 -- * __Counting__: @COUNT(path) > n@
 --
 -- == Field References
@@ -226,7 +228,9 @@ bindingIdentifier = do
         "COUNT",
         "LET",
         "IS",
-        "NULL"
+        "NULL",
+        "BETWEEN",
+        "IN"
       ]
 
 -- | Parse rule description: either a direct string literal or @DESCRIPTION "..."@.
@@ -275,7 +279,10 @@ atomicPredicate =
     [ try existsPred,
       try forAllPred,
       try countPred,
+      try hasDiagnosisPred,
+      try hasProcedurePred,
       try helperCallPred,
+      try betweenPred,
       try comparisonPred,
       try nullCheckPred,
       parenPredicate,
@@ -321,25 +328,53 @@ parenPredicate = between (char '(' *> spaces) (spaces *> char ')') predicatePars
 
 -- | Parse existential quantifier.
 --
--- @EXISTS path WHERE predicate@ - true if any item in path satisfies predicate.
+-- Supports two forms:
+--
+-- @EXISTS path WHERE predicate@            - implicit context shift (backward compatible)
+-- @EXISTS varName IN path WHERE predicate@ - named variable binding
 --
 -- Example: @EXISTS 2400 WHERE SV1.amount > 1000@
+-- Example: @EXISTS line IN service_lines WHERE line.charge > 5000@
 existsPred :: Parser Predicate
-existsPred =
-  Syntax.Exists
-    <$> (string "EXISTS" *> spaces *> segmentPath)
-    <*> (spaces *> string "WHERE" *> spaces *> predicateParser)
+existsPred = do
+  _ <- string "EXISTS" *> spaces
+  try namedExists <|> unnamedExists
+  where
+    namedExists = do
+      varName <- identifier <* spaces
+      kw "IN"
+      path <- segmentPath <* spaces
+      _ <- string "WHERE" *> spaces
+      Syntax.Exists (Just (T.pack varName)) path <$> predicateParser
+    unnamedExists = do
+      path <- segmentPath <* spaces
+      _ <- string "WHERE" *> spaces
+      Syntax.Exists Nothing path <$> predicateParser
 
 -- | Parse universal quantifier.
 --
--- @FORALL path WHERE predicate@ - true if all items in path satisfy predicate.
+-- Supports two forms:
+--
+-- @FORALL path WHERE predicate@            - implicit context shift (backward compatible)
+-- @FORALL varName IN path WHERE predicate@ - named variable binding
 --
 -- Example: @FORALL 2400.SV1 WHERE amount < 5000@
+-- Example: @FORALL line IN service_lines WHERE line.charge > 0@
 forAllPred :: Parser Predicate
-forAllPred =
-  Syntax.ForAll
-    <$> (string "FORALL" *> spaces *> segmentPath)
-    <*> (spaces *> string "WHERE" *> spaces *> predicateParser)
+forAllPred = do
+  _ <- string "FORALL" *> spaces
+  try namedForAll <|> unnamedForAll
+  where
+    namedForAll = do
+      varName <- identifier <* spaces
+      kw "IN"
+      path <- segmentPath <* spaces
+      _ <- string "WHERE" *> spaces
+      Syntax.ForAll (Just (T.pack varName)) path <$> predicateParser
+    unnamedForAll = do
+      path <- segmentPath <* spaces
+      _ <- string "WHERE" *> spaces
+      Syntax.ForAll Nothing path <$> predicateParser
 
 -- | Parse count predicate.
 --
@@ -352,6 +387,34 @@ countPred =
     <$> (string "COUNT" *> spaces *> between (char '(') (char ')') (spaces *> segmentPath <* spaces))
     <*> (spaces *> compOperator)
     <*> (spaces *> intLiteral)
+
+-- | Parse @claim.has_diagnosis "code"@ predicate.
+hasDiagnosisPred :: Parser Predicate
+hasDiagnosisPred = do
+  _ <- try (string "claim" *> char '.' *> string "has_diagnosis")
+  spaces
+  Syntax.HasDiagnosis <$> valueParser
+
+-- | Parse @claim.has_procedure "code"@ predicate.
+hasProcedurePred :: Parser Predicate
+hasProcedurePred = do
+  _ <- try (string "claim" *> char '.' *> string "has_procedure")
+  spaces
+  Syntax.HasProcedure <$> valueParser
+
+-- | Parse inclusive range predicate.
+--
+-- @field BETWEEN lo AND hi@ — equivalent to @field >= lo AND field <= hi@.
+-- The inner @AND@ is consumed by this parser before the boolean @AND@ layer
+-- sees it.
+betweenPred :: Parser Predicate
+betweenPred = do
+  field <- fieldRef
+  spaces
+  kw "BETWEEN"
+  lo <- lexeme valueParser
+  kw "AND"
+  Syntax.Between field lo <$> valueParser
 
 -- | Parse comparison predicate.
 --
@@ -380,7 +443,7 @@ comparisonPred = do
 nullCheckPred :: Parser Predicate
 nullCheckPred = do
   field <- fieldRef <* spaces <* string "IS" <* spaces
-  nullCheck <- (Syntax.IsNotNull <$ string "NOT NULL") <|> (Syntax.IsNull <$ string "NULL")
+  nullCheck <- (Syntax.IsNotNull <$ try (string "NOT NULL")) <|> (Syntax.IsNull <$ string "NULL")
   pure $ nullCheck field
 
 -- | Parse boolean literals: @TRUE@ or @FALSE@.
@@ -495,6 +558,7 @@ actionParser = compositeAction <|> singleAction
         [ try $ stringAction "FLAG_FRAUD" Syntax.FlagFraud,
           try $ stringAction "REQUIRE_REVIEW" Syntax.RequireReview,
           try $ stringAction "REJECT" Syntax.RejectClaim,
+          try $ stringAction "APPROVE" Syntax.ApproveClaim,
           Syntax.AssignRiskScore <$> (string "RISK_SCORE" *> spaces *> intLiteral)
         ]
 
@@ -538,7 +602,9 @@ identifier = do
         "COUNT",
         "LET",
         "IS",
-        "NULL"
+        "NULL",
+        "BETWEEN",
+        "IN"
       ]
 
 -- | Parse a double-quoted string literal.

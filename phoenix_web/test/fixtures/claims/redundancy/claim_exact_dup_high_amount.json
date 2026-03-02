@@ -1,0 +1,37 @@
+{
+    "claim_id": "REDUN-EXACT-DUP-001",
+    "2300": {
+        "CLM": {
+            "claim_amount": 65000,
+            "facility_type": "Inpatient",
+            "claim_type": "Institutional",
+            "authorization_number": "AUTH-RED-001"
+        },
+        "HI": {
+            "diagnosis_code": "E11.9"
+        }
+    },
+    "2010": {
+        "NM1": {
+            "provider_tenure_days": 400,
+            "provider_specialty": "cardiology",
+            "provider_risk_score": 20
+        }
+    },
+    "2400": [
+        {
+            "SV1": {
+                "place_of_service": "21",
+                "procedure_code": "99223",
+                "line_charge": 65000,
+                "modifier_1": "",
+                "modifier_2": "",
+                "procedure_type": "inpatient"
+            },
+            "DTP": {
+                "service_day_of_week": "MON"
+            }
+        }
+    ],
+    "_test_notes": "Triggers: high_amount_50k AND high_amount_50k_dup (Level 1 — Exact Duplicate). Amount 65k > 50k. Established provider (400 days), non-ER. Also triggers mid_range_review overlap zone does NOT apply (65k outside 40k-60k range). Also triggers high_amount_reject (65k < 75k, so does NOT fire)."
+}

@@ -53,7 +53,6 @@ module X12.DSL.RuleEngine
   , loadRules
   , engineRules
     -- * Evaluation
-  , evaluateDocument
   , evaluateSimpleJson
     -- * Results
   , EvaluationReport (..)
@@ -63,11 +62,10 @@ module X12.DSL.RuleEngine
 import Data.Aeson qualified as Aeson
 import Data.Text (Text)
 import Data.Text qualified as T
-import X12.DSL.Evaluator (evaluateRule)
+import Data.Time (Day)
 import X12.DSL.Parser (parseRules)
 import X12.DSL.SimpleEvaluator (evaluateRuleSimple)
-import X12.DSL.Syntax (Rule)
-import X12.DSL.X12Types
+import X12.DSL.Syntax (Action' (..), Rule, RuleResult (..))
 
 -- ----------------------------------------------------------------------------
 -- Rule Engine
@@ -109,26 +107,6 @@ loadRules rulesText = case parseRules rulesText of
 -- Evaluation
 -- ----------------------------------------------------------------------------
 
--- | Evaluate an X12 document against all loaded rules.
---
--- Uses "X12.DSL.Evaluator" which expects a fully parsed 'X12Document'
--- structure. For JSON documents, use 'evaluateSimpleJson' instead.
-evaluateDocument :: RuleEngine -> X12Document -> EvaluationReport
-evaluateDocument engine doc =
-  let results    = map (evaluateRule doc) (engineRules engine)
-      matched    = filter resultMatched results
-      matchCount = length matched
-      totalCount = length results
-      riskLevel  = determineRiskLevel results
-      summary    = generateSummary matchCount totalCount riskLevel
-  in EvaluationReport
-       { reportResults      = results
-       , reportTotalRules   = totalCount
-       , reportMatchedRules = matchCount
-       , reportOverallRisk  = riskLevel
-       , reportSummary      = summary
-       }
-
 -- | Evaluate a JSON document against all loaded rules.
 --
 -- Uses "X12.DSL.SimpleEvaluator" which works with any JSON structure.
@@ -142,9 +120,9 @@ evaluateDocument engine doc =
 -- when (reportOverallRisk report >= HighRisk) $
 --   flagForReview claim
 -- @
-evaluateSimpleJson :: RuleEngine -> Aeson.Value -> EvaluationReport
-evaluateSimpleJson engine doc =
-  let results    = map (evaluateRuleSimple doc) (engineRules engine)
+evaluateSimpleJson :: RuleEngine -> Day -> Aeson.Value -> EvaluationReport
+evaluateSimpleJson engine today doc =
+  let results    = map (evaluateRuleSimple today doc) (engineRules engine)
       matched    = filter resultMatched results
       matchCount = length matched
       totalCount = length results

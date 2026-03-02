@@ -26,7 +26,7 @@ import Data.Aeson (ToJSON)
 import Data.Aeson qualified as Aeson
 import Data.Text (Text)
 import GHC.Generics (Generic)
-import X12.DSL.X12Types (Action' (..), RuleResult (..))
+import X12.DSL.Syntax (Action' (..), RuleResult (..))
 
 data Thresholds = Thresholds
   { lowThreshold :: Double,
@@ -217,6 +217,7 @@ buildCombinedEnvelope cfg claimIdValue evaluatedAt rules mlResult =
       flattenedActions = concatMap extractActionTypes matched
       hasReject = any (== "REJECT") flattenedActions
       hasDslConcern = not (null matchedNames)
+                        && not (all (== "APPROVE") flattenedActions)
       reasonsBase = if null matchedNames then [] else map ("DSL:" <>) matchedNames
       mlReasons = mlReasonCodes cfg mlResult
       finalDecision
@@ -278,6 +279,7 @@ extractActionTypes result =
     flatten (AssignRiskScore' _) = ["RISK_SCORE"]
     flatten (RequireReview' _) = ["REQUIRE_REVIEW"]
     flatten (RejectClaim' _) = ["REJECT"]
+    flatten (ApproveClaim' _) = ["APPROVE"]
     flatten (CompositeAction' actions) = concatMap flatten actions
 
 showThreshold :: Double -> Text

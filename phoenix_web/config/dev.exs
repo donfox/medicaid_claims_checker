@@ -6,7 +6,7 @@ import Config
 # The watchers configuration can be used to run external
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
-config :x12_fraud_web, X12FraudWebWeb.Endpoint,
+config :medicaid_claims_checker, MedicaidClaimsCheckerWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
   http: [ip: {127, 0, 0, 1}, port: String.to_integer(System.get_env("PORT") || "4000")],
@@ -15,8 +15,8 @@ config :x12_fraud_web, X12FraudWebWeb.Endpoint,
   debug_errors: true,
   secret_key_base: "gJbfwm1vRTR60Ek0y2msaAAkiyRpPS0ZeISMOUM5pydYVsacZjC8yRNzUQhmpGVD",
   watchers: [
-    esbuild: {Esbuild, :install_and_run, [:x12_fraud_web, ~w(--sourcemap=inline --watch)]},
-    tailwind: {Tailwind, :install_and_run, [:x12_fraud_web, ~w(--watch)]}
+    esbuild: {Esbuild, :install_and_run, [:medicaid_claims_checker, ~w(--sourcemap=inline --watch)]},
+    tailwind: {Tailwind, :install_and_run, [:medicaid_claims_checker, ~w(--watch)]}
   ]
 
 # ## SSL Support
@@ -43,18 +43,18 @@ config :x12_fraud_web, X12FraudWebWeb.Endpoint,
 # different ports.
 
 # Watch static and templates for browser reloading.
-config :x12_fraud_web, X12FraudWebWeb.Endpoint,
+config :medicaid_claims_checker, MedicaidClaimsCheckerWeb.Endpoint,
   live_reload: [
     web_console_logger: true,
     patterns: [
       ~r"priv/static/(?!uploads/).*(js|css|png|jpeg|jpg|gif|svg)$",
       ~r"priv/gettext/.*(po)$",
-      ~r"lib/x12_fraud_web_web/(?:controllers|live|components|router)/?.*\.(ex|heex)$"
+      ~r"lib/medicaid_claims_checker_web/(?:controllers|live|components|router)/?.*\.(ex|heex)$"
     ]
   ]
 
 # Enable dev routes for dashboard and mailbox
-config :x12_fraud_web, dev_routes: true
+config :medicaid_claims_checker, dev_routes: true
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
@@ -75,11 +75,11 @@ config :phoenix_live_view,
   enable_expensive_runtime_checks: true
 
 # Configure database
-config :x12_fraud_web, X12FraudWeb.Repo,
+config :medicaid_claims_checker, MedicaidClaimsChecker.Repo,
   username: "postgres",
   password: "postgres",
   hostname: "localhost",
-  database: "x12_fraud_web_dev",
+  database: "medicaid_claims_checker_dev",
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10

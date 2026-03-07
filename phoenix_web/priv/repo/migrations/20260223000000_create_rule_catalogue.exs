@@ -1,4 +1,4 @@
-defmodule X12FraudWeb.Repo.Migrations.CreateRuleCatalogue do
+defmodule MedicaidClaimsChecker.Repo.Migrations.CreateRuleCatalogue do
   use Ecto.Migration
 
   def change do

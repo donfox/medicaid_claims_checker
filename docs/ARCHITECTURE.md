@@ -1,4 +1,4 @@
-# JSON Claims Integrity - Architecture
+# Medicaid Claims Checker - Architecture
 
 ## System Overview
 
@@ -50,7 +50,7 @@ The frontend sends rule text + claim payloads to the backend over HTTP/JSON for 
 - Deterministic DSL behavior remains policy source of truth
 - JSON payload evaluation is the primary active path
 - Compiled rule cache is process-local and thread-safe (STM)
-- Module namespace is `X12.DSL.*` (retained from original X12 EDI scope; now JSON-first)
+- Module namespace is `Claims.*` (retained from original X12 EDI scope; now JSON-first)
 
 ## Operational Notes
 

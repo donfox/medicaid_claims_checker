@@ -22,7 +22,7 @@ import "phoenix_html"
 // Establish Phoenix Socket and LiveView configuration.
 import { Socket } from "phoenix"
 import { LiveSocket } from "phoenix_live_view"
-import { hooks as colocatedHooks } from "phoenix-colocated/x12_fraud_web"
+import { hooks as colocatedHooks } from "phoenix-colocated/medicaid_claims_checker"
 import topbar from "../vendor/topbar"
 
 // Custom hooks for textarea management

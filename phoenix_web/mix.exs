@@ -1,9 +1,9 @@
-defmodule X12FraudWeb.MixProject do
+defmodule MedicaidClaimsChecker.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :x12_fraud_web,
+      app: :medicaid_claims_checker,
       version: "0.1.0",
       elixir: "~> 1.15",
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -20,7 +20,7 @@ defmodule X12FraudWeb.MixProject do
   # Type `mix help compile.app` for more information.
   def application do
     [
-      mod: {X12FraudWeb.Application, []},
+      mod: {MedicaidClaimsChecker.Application, []},
       extra_applications: [:logger, :runtime_tools]
     ]
   end
@@ -65,7 +65,8 @@ defmodule X12FraudWeb.MixProject do
       {:bandit, "~> 1.5"},
       {:httpoison, "~> 2.2"},
       {:ecto_sql, "~> 3.12"},
-      {:postgrex, "~> 0.19"}
+      {:postgrex, "~> 0.19"},
+      {:nimble_csv, "~> 1.2"}
     ]
   end
 
@@ -81,10 +82,10 @@ defmodule X12FraudWeb.MixProject do
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["compile", "tailwind x12_fraud_web", "esbuild x12_fraud_web"],
+      "assets.build": ["compile", "tailwind medicaid_claims_checker", "esbuild medicaid_claims_checker"],
       "assets.deploy": [
-        "tailwind x12_fraud_web --minify",
-        "esbuild x12_fraud_web --minify",
+        "tailwind medicaid_claims_checker --minify",
+        "esbuild medicaid_claims_checker --minify",
         "phx.digest"
       ],
       precommit: ["compile --warning-as-errors", "deps.unlock --unused", "format", "test"]

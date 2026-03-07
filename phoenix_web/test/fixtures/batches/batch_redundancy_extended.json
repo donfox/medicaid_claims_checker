@@ -1,0 +1,96 @@
+{
+  "rulesText": "RULE diabetes_flag \"Flag diabetes claims\" WHEN 2300.HI.diagnosis_code = \"E11.9\" THEN FLAG_FRAUD \"Diabetes diagnosis flagged for review\"; RULE diabetes_flag_dup \"Duplicate diabetes flag\" WHEN 2300.HI.diagnosis_code = \"E11.9\" THEN FLAG_FRAUD \"Diabetes diagnosis flagged for review\"; RULE diabetes_reject \"Reject diabetes claims outright\" WHEN 2300.HI.diagnosis_code = \"E11.9\" THEN REJECT \"Diabetes claims auto-rejected\"; RULE hypertension_review \"Review hypertension claims\" WHEN 2300.HI.diagnosis_code = \"I10\" THEN REQUIRE_REVIEW \"Hypertension claim — manual review\"; RULE stay_7_14 \"Review stays 7–14 days\" WHEN 2300.CLM.days_stay BETWEEN 7 AND 14 THEN REQUIRE_REVIEW \"Medium-length stay review\"; RULE stay_7_14_dup \"Duplicate: also reviews 7–14 day stays\" WHEN 2300.CLM.days_stay BETWEEN 7 AND 14 THEN REQUIRE_REVIEW \"Medium-length stay review\"; RULE stay_10_21 \"Flag long stays 10–21 days\" WHEN 2300.CLM.days_stay BETWEEN 10 AND 21 THEN FLAG_FRAUD \"Extended stay flagged\"; RULE stay_1_5 \"Review short stays 1–5 days\" WHEN 2300.CLM.days_stay BETWEEN 1 AND 5 THEN REQUIRE_REVIEW \"Short stay — possible premature discharge\"; RULE high_or_er \"Flag high amount OR ER visit\" WHEN 2300.CLM.claim_amount > 50000 OR 2400.SV1.place_of_service = \"23\" THEN FLAG_FRAUD \"High amount or ER — flagged\"; RULE high_or_er_dup \"Duplicate: high amount OR ER\" WHEN 2300.CLM.claim_amount > 50000 OR 2400.SV1.place_of_service = \"23\" THEN FLAG_FRAUD \"High amount or ER — flagged\"; RULE high_amount_only \"Flag high amount (no OR)\" WHEN 2300.CLM.claim_amount > 50000 THEN FLAG_FRAUD \"High amount flagged\"; RULE moderate_amount_flag \"Flag moderate amounts\" WHEN 2300.CLM.claim_amount > 30000 THEN FLAG_FRAUD \"Moderate amount flagged\"; RULE not_outpatient_flag \"Flag non-outpatient claims\" WHEN NOT 2300.CLM.facility_type = \"Outpatient\" THEN FLAG_FRAUD \"Non-outpatient claim flagged\"; RULE not_outpatient_flag_dup \"Duplicate: flag non-outpatient\" WHEN NOT 2300.CLM.facility_type = \"Outpatient\" THEN FLAG_FRAUD \"Non-outpatient claim flagged\"; RULE not_outpatient_reject \"Reject non-outpatient claims\" WHEN NOT 2300.CLM.facility_type = \"Outpatient\" THEN REJECT \"Non-outpatient auto-rejected\"; RULE cardio_high_amount \"Cardiology + high amount\" WHEN 2300.CLM.claim_amount > 50000 AND 2010.NM1.provider_specialty = \"cardiology\" THEN FLAG_FRAUD \"High-amount cardiology claim\"; RULE long_stay_high_amount \"Long stay + high amount\" WHEN 2300.CLM.claim_amount > 50000 AND 2300.CLM.days_stay > 14 THEN REQUIRE_REVIEW \"High-amount long-stay claim\"; RULE cardio_moderate \"Cardiology + moderate amount\" WHEN 2300.CLM.claim_amount > 20000 AND 2010.NM1.provider_specialty = \"cardiology\" THEN REQUIRE_REVIEW \"Moderate cardiology claim review\";",
+  "claims": [
+    {
+      "_id": "EXT-E01",
+      "_desc": "GROUP E: Diabetes diagnosis — triggers diabetes_flag, dup, reject",
+      "2300": { "CLM": { "claim_amount": 1200, "facility_type": "Outpatient", "days_stay": 0 }, "HI": { "diagnosis_code": "E11.9" } },
+      "2010": { "NM1": { "provider_tenure_days": 500, "provider_specialty": "endocrinology" } },
+      "2400": [{ "SV1": { "place_of_service": "11", "procedure_code": "99214", "line_charge": 1200 }, "DTP": { "service_day_of_week": "TUE" } }]
+    },
+    {
+      "_id": "EXT-E02",
+      "_desc": "GROUP E: Hypertension only — triggers hypertension_review, no diabetes rules",
+      "2300": { "CLM": { "claim_amount": 900, "facility_type": "Outpatient", "days_stay": 0 }, "HI": { "diagnosis_code": "I10" } },
+      "2010": { "NM1": { "provider_tenure_days": 600, "provider_specialty": "internal_medicine" } },
+      "2400": [{ "SV1": { "place_of_service": "11", "procedure_code": "99213", "line_charge": 900 }, "DTP": { "service_day_of_week": "MON" } }]
+    },
+    {
+      "_id": "EXT-F01",
+      "_desc": "GROUP F: 12-day stay — triggers stay_7_14, dup, stay_10_21 overlap",
+      "2300": { "CLM": { "claim_amount": 900, "facility_type": "Inpatient", "days_stay": 12 }, "HI": { "diagnosis_code": "J18.9" } },
+      "2010": { "NM1": { "provider_tenure_days": 700, "provider_specialty": "pulmonology" } },
+      "2400": [{ "SV1": { "place_of_service": "21", "procedure_code": "99223", "line_charge": 900 }, "DTP": { "service_day_of_week": "MON" } }]
+    },
+    {
+      "_id": "EXT-F02",
+      "_desc": "GROUP F: 3-day stay — triggers stay_1_5 only, disjoint from 7-14",
+      "2300": { "CLM": { "claim_amount": 600, "facility_type": "Inpatient", "days_stay": 3 }, "HI": { "diagnosis_code": "K35.80" } },
+      "2010": { "NM1": { "provider_tenure_days": 900, "provider_specialty": "general_surgery" } },
+      "2400": [{ "SV1": { "place_of_service": "21", "procedure_code": "44950", "line_charge": 600 }, "DTP": { "service_day_of_week": "THU" } }]
+    },
+    {
+      "_id": "EXT-F03",
+      "_desc": "GROUP F: 6-day stay — triggers NO BETWEEN rules (between 5 and 7 gap)",
+      "2300": { "CLM": { "claim_amount": 700, "facility_type": "Inpatient", "days_stay": 6 }, "HI": { "diagnosis_code": "N39.0" } },
+      "2010": { "NM1": { "provider_tenure_days": 800, "provider_specialty": "urology" } },
+      "2400": [{ "SV1": { "place_of_service": "21", "procedure_code": "52000", "line_charge": 700 }, "DTP": { "service_day_of_week": "WED" } }]
+    },
+    {
+      "_id": "EXT-G01",
+      "_desc": "GROUP G: High amount $75k, POS=11 — triggers OR via amount arm",
+      "2300": { "CLM": { "claim_amount": 75000, "facility_type": "Outpatient", "days_stay": 0 }, "HI": { "diagnosis_code": "M54.5" } },
+      "2010": { "NM1": { "provider_tenure_days": 400, "provider_specialty": "orthopedics" } },
+      "2400": [{ "SV1": { "place_of_service": "11", "procedure_code": "27447", "line_charge": 75000 }, "DTP": { "service_day_of_week": "WED" } }]
+    },
+    {
+      "_id": "EXT-G02",
+      "_desc": "GROUP G: Low amount $500, POS=23 — triggers OR via ER arm only",
+      "2300": { "CLM": { "claim_amount": 500, "facility_type": "Outpatient", "days_stay": 0 }, "HI": { "diagnosis_code": "S06.0" } },
+      "2010": { "NM1": { "provider_tenure_days": 600, "provider_specialty": "emergency_medicine" } },
+      "2400": [{ "SV1": { "place_of_service": "23", "procedure_code": "99285", "line_charge": 500 }, "DTP": { "service_day_of_week": "SAT" } }]
+    },
+    {
+      "_id": "EXT-G03",
+      "_desc": "GROUP G: Both arms — $80k AND POS=23 — OR fires on both disjuncts",
+      "2300": { "CLM": { "claim_amount": 80000, "facility_type": "Outpatient", "days_stay": 0 }, "HI": { "diagnosis_code": "S72.001" } },
+      "2010": { "NM1": { "provider_tenure_days": 300, "provider_specialty": "orthopedic_surgery" } },
+      "2400": [{ "SV1": { "place_of_service": "23", "procedure_code": "27236", "line_charge": 80000 }, "DTP": { "service_day_of_week": "SUN" } }]
+    },
+    {
+      "_id": "EXT-H01",
+      "_desc": "GROUP H: Inpatient (NOT Outpatient = TRUE) — triggers negation rules",
+      "2300": { "CLM": { "claim_amount": 2000, "facility_type": "Inpatient", "days_stay": 4 }, "HI": { "diagnosis_code": "J18.9" } },
+      "2010": { "NM1": { "provider_tenure_days": 450, "provider_specialty": "internal_medicine" } },
+      "2400": [{ "SV1": { "place_of_service": "21", "procedure_code": "99223", "line_charge": 2000 }, "DTP": { "service_day_of_week": "FRI" } }]
+    },
+    {
+      "_id": "EXT-H02",
+      "_desc": "GROUP H: Outpatient — NOT condition is FALSE, no negation rules fire",
+      "2300": { "CLM": { "claim_amount": 800, "facility_type": "Outpatient", "days_stay": 0 }, "HI": { "diagnosis_code": "J06.9" } },
+      "2010": { "NM1": { "provider_tenure_days": 1200, "provider_specialty": "family_medicine" } },
+      "2400": [{ "SV1": { "place_of_service": "11", "procedure_code": "99213", "line_charge": 800 }, "DTP": { "service_day_of_week": "MON" } }]
+    },
+    {
+      "_id": "EXT-I01",
+      "_desc": "GROUP I: Cardiology + $70k + 18-day stay — all three compound rules fire",
+      "2300": { "CLM": { "claim_amount": 70000, "facility_type": "Inpatient", "days_stay": 18 }, "HI": { "diagnosis_code": "I21.0" } },
+      "2010": { "NM1": { "provider_tenure_days": 350, "provider_specialty": "cardiology" } },
+      "2400": [{ "SV1": { "place_of_service": "21", "procedure_code": "33533", "line_charge": 70000 }, "DTP": { "service_day_of_week": "TUE" } }]
+    },
+    {
+      "_id": "EXT-I02",
+      "_desc": "GROUP I: Orthopedics + $70k + 18-day stay — only long_stay_high_amount fires",
+      "2300": { "CLM": { "claim_amount": 70000, "facility_type": "Inpatient", "days_stay": 18 }, "HI": { "diagnosis_code": "M54.5" } },
+      "2010": { "NM1": { "provider_tenure_days": 350, "provider_specialty": "orthopedics" } },
+      "2400": [{ "SV1": { "place_of_service": "21", "procedure_code": "27236", "line_charge": 70000 }, "DTP": { "service_day_of_week": "WED" } }]
+    },
+    {
+      "_id": "EXT-CTRL",
+      "_desc": "CONTROL: Low amount, outpatient, 0-day stay, no special diagnosis — zero rules fire",
+      "2300": { "CLM": { "claim_amount": 250, "facility_type": "Outpatient", "days_stay": 0 }, "HI": { "diagnosis_code": "Z00.00" } },
+      "2010": { "NM1": { "provider_tenure_days": 1000, "provider_specialty": "family_medicine" } },
+      "2400": [{ "SV1": { "place_of_service": "11", "procedure_code": "99213", "line_charge": 250 }, "DTP": { "service_day_of_week": "TUE" } }]
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # Database Entity Relationship Diagram (In-Use)
 
-Current Ecto/PostgreSQL schema used by the Phoenix app (`X12FraudWeb.Claims`).
+Current Ecto/PostgreSQL schema used by the Phoenix app (`MedicaidClaimsChecker.Claims`).
 
 ## ERD Diagram
 

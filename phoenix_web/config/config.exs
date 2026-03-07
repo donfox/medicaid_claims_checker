@@ -7,19 +7,19 @@
 # General application configuration
 import Config
 
-config :x12_fraud_web,
-  ecto_repos: [X12FraudWeb.Repo],
+config :medicaid_claims_checker,
+  ecto_repos: [MedicaidClaimsChecker.Repo],
   generators: [timestamp_type: :utc_datetime]
 
 # Configures the endpoint
-config :x12_fraud_web, X12FraudWebWeb.Endpoint,
+config :medicaid_claims_checker, MedicaidClaimsCheckerWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
-    formats: [html: X12FraudWebWeb.ErrorHTML, json: X12FraudWebWeb.ErrorJSON],
+    formats: [html: MedicaidClaimsCheckerWeb.ErrorHTML, json: MedicaidClaimsCheckerWeb.ErrorJSON],
     layout: false
   ],
-  pubsub_server: X12FraudWeb.PubSub,
+  pubsub_server: MedicaidClaimsChecker.PubSub,
   live_view: [signing_salt: "4SAj6dYS"]
 
 # Configures the mailer
@@ -29,12 +29,12 @@ config :x12_fraud_web, X12FraudWebWeb.Endpoint,
 #
 # For production it's recommended to configure a different adapter
 # at the `config/runtime.exs`.
-config :x12_fraud_web, X12FraudWeb.Mailer, adapter: Swoosh.Adapters.Local
+config :medicaid_claims_checker, MedicaidClaimsChecker.Mailer, adapter: Swoosh.Adapters.Local
 
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",
-  x12_fraud_web: [
+  medicaid_claims_checker: [
     args:
       ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
     cd: Path.expand("../assets", __DIR__),
@@ -44,7 +44,7 @@ config :esbuild,
 # Configure tailwind (the version is required)
 config :tailwind,
   version: "4.1.7",
-  x12_fraud_web: [
+  medicaid_claims_checker: [
     args: ~w(
       --input=assets/css/app.css
       --output=priv/static/assets/css/app.css

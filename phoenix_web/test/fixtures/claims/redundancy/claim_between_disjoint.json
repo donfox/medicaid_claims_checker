@@ -1,0 +1,38 @@
+{
+    "claim_id": "REDUN-BETWEEN-002",
+    "2300": {
+        "CLM": {
+            "claim_amount": 600,
+            "facility_type": "Inpatient",
+            "claim_type": "Institutional",
+            "days_stay": 3,
+            "authorization_number": "AUTH-RED-F02"
+        },
+        "HI": {
+            "diagnosis_code": "K35.80"
+        }
+    },
+    "2010": {
+        "NM1": {
+            "provider_tenure_days": 900,
+            "provider_specialty": "general_surgery",
+            "provider_risk_score": 5
+        }
+    },
+    "2400": [
+        {
+            "SV1": {
+                "place_of_service": "21",
+                "procedure_code": "44950",
+                "line_charge": 600,
+                "modifier_1": "",
+                "modifier_2": "",
+                "procedure_type": "surgical"
+            },
+            "DTP": {
+                "service_day_of_week": "THU"
+            }
+        }
+    ],
+    "_test_notes": "GROUP F — BETWEEN disjoint control. days_stay=3 triggers: stay_1_5 ONLY (3 in 1-5). Does NOT trigger stay_7_14, stay_7_14_dup, or stay_10_21 (3 < 7). Confirms disjoint BETWEEN ranges produce no redundancy match at evaluation time."
+}

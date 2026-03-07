@@ -1,0 +1,38 @@
+{
+    "claim_id": "REDUN-STRING-001",
+    "2300": {
+        "CLM": {
+            "claim_amount": 1200,
+            "facility_type": "Outpatient",
+            "claim_type": "Professional",
+            "days_stay": 0,
+            "authorization_number": "AUTH-RED-E01"
+        },
+        "HI": {
+            "diagnosis_code": "E11.9"
+        }
+    },
+    "2010": {
+        "NM1": {
+            "provider_tenure_days": 500,
+            "provider_specialty": "endocrinology",
+            "provider_risk_score": 12
+        }
+    },
+    "2400": [
+        {
+            "SV1": {
+                "place_of_service": "11",
+                "procedure_code": "99214",
+                "line_charge": 1200,
+                "modifier_1": "",
+                "modifier_2": "",
+                "procedure_type": "office_visit"
+            },
+            "DTP": {
+                "service_day_of_week": "TUE"
+            }
+        }
+    ],
+    "_test_notes": "GROUP E — String equality redundancy. Diagnosis E11.9 triggers: diabetes_flag + diabetes_flag_dup (Level 1 Exact Duplicate), diabetes_reject (Level 3 Shadowed, REJECT vs FLAG_FRAUD). Does NOT trigger hypertension_review (I10 != E11.9). Low amount + established provider + POS 11 avoids all other groups."
+}

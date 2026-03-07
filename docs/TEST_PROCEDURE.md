@@ -1,4 +1,4 @@
-# Test Procedure — JSON Claims Integrity
+# Test Procedure — Medicaid Claims Checker
 
 ## Prerequisites
 
@@ -67,7 +67,7 @@ Or individually:
 
 ```bash
 # Terminal 1 — Haskell engine
-cd haskell_engine && cabal run x12-fraud-dsl-exe
+cd haskell_engine && cabal run medicaid-claims-dsl-exe
 
 # Terminal 2 — Phoenix web
 cd phoenix_web && mix phx.server

@@ -1,0 +1,38 @@
+{
+    "claim_id": "REDUN-PARTIAL-001",
+    "2300": {
+        "CLM": {
+            "claim_amount": 70000,
+            "facility_type": "Inpatient",
+            "claim_type": "Institutional",
+            "days_stay": 18,
+            "authorization_number": "AUTH-RED-I01"
+        },
+        "HI": {
+            "diagnosis_code": "I21.0"
+        }
+    },
+    "2010": {
+        "NM1": {
+            "provider_tenure_days": 350,
+            "provider_specialty": "cardiology",
+            "provider_risk_score": 22
+        }
+    },
+    "2400": [
+        {
+            "SV1": {
+                "place_of_service": "21",
+                "procedure_code": "33533",
+                "line_charge": 70000,
+                "modifier_1": "",
+                "modifier_2": "",
+                "procedure_type": "surgical"
+            },
+            "DTP": {
+                "service_day_of_week": "TUE"
+            }
+        }
+    ],
+    "_test_notes": "GROUP I — Multi-field partial overlap. Triggers: cardio_high_amount (70k > 50k AND specialty=cardiology), long_stay_high_amount (70k > 50k AND days_stay=18 > 14), cardio_moderate (70k > 20k AND specialty=cardiology). All three rules share claim_amount > threshold (Level 4 overlap on amount), but differ on second conjunct. cardio_high_amount and cardio_moderate share both fields (Level 2 subsumption: > 50k implies > 20k, same specialty). cardio_high_amount and long_stay_high_amount share only amount (Level 4 partial overlap)."
+}

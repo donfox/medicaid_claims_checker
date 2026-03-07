@@ -1,6 +1,6 @@
 # Business Rules Syntax Documentation
 
-## Business Analyst Guide to JSON Claims Integrity Rules
+## Business Analyst Guide to Medicaid Claims Checker Rules
 
 This document provides a comprehensive guide for business analysts to write claims integrity and risk review rules using our Domain-Specific Language (DSL).
 

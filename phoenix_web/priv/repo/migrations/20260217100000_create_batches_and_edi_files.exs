@@ -1,4 +1,4 @@
-defmodule X12FraudWeb.Repo.Migrations.CreateBatchesAndEdiFiles do
+defmodule MedicaidClaimsChecker.Repo.Migrations.CreateBatchesAndEdiFiles do
   use Ecto.Migration
 
   def change do

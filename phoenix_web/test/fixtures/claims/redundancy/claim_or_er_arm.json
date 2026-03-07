@@ -1,0 +1,38 @@
+{
+    "claim_id": "REDUN-OR-002",
+    "2300": {
+        "CLM": {
+            "claim_amount": 500,
+            "facility_type": "Outpatient",
+            "claim_type": "Professional",
+            "days_stay": 0,
+            "authorization_number": "AUTH-RED-G02"
+        },
+        "HI": {
+            "diagnosis_code": "S06.0"
+        }
+    },
+    "2010": {
+        "NM1": {
+            "provider_tenure_days": 600,
+            "provider_specialty": "emergency_medicine",
+            "provider_risk_score": 25
+        }
+    },
+    "2400": [
+        {
+            "SV1": {
+                "place_of_service": "23",
+                "procedure_code": "99285",
+                "line_charge": 500,
+                "modifier_1": "",
+                "modifier_2": "",
+                "procedure_type": "emergency"
+            },
+            "DTP": {
+                "service_day_of_week": "SAT"
+            }
+        }
+    ],
+    "_test_notes": "GROUP G — OR via ER arm only. Amount $500 (below all amount thresholds) but POS=23 triggers: high_or_er + high_or_er_dup (via ER arm of OR). Does NOT trigger high_amount_only or moderate_amount_flag (amount too low). Tests that OR-based rules fire when only one disjunct matches."
+}

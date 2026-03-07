@@ -1,0 +1,38 @@
+{
+    "claim_id": "REDUN-NOT-001",
+    "2300": {
+        "CLM": {
+            "claim_amount": 2000,
+            "facility_type": "Inpatient",
+            "claim_type": "Institutional",
+            "days_stay": 4,
+            "authorization_number": "AUTH-RED-H01"
+        },
+        "HI": {
+            "diagnosis_code": "J18.9"
+        }
+    },
+    "2010": {
+        "NM1": {
+            "provider_tenure_days": 450,
+            "provider_specialty": "internal_medicine",
+            "provider_risk_score": 14
+        }
+    },
+    "2400": [
+        {
+            "SV1": {
+                "place_of_service": "21",
+                "procedure_code": "99223",
+                "line_charge": 2000,
+                "modifier_1": "",
+                "modifier_2": "",
+                "procedure_type": "inpatient"
+            },
+            "DTP": {
+                "service_day_of_week": "FRI"
+            }
+        }
+    ],
+    "_test_notes": "GROUP H — NOT/negation redundancy. facility_type='Inpatient' (NOT 'Outpatient') triggers: not_outpatient_flag + not_outpatient_flag_dup (Level 1 Exact Duplicate), not_outpatient_reject (Level 3 Shadowed, REJECT vs FLAG_FRAUD). Low amount + established provider + POS 21 avoids other groups."
+}

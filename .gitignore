@@ -33,7 +33,7 @@ phoenix_web/priv/static/cache_manifest.json
 phoenix_web/assets/node_modules/
 erl_crash.dump
 *.ez
-x12_fraud_web-*.tar
+medicaid_claims_checker-*.tar
 npm-debug.log
 
 # Editor swap files

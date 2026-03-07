@@ -1,4 +1,4 @@
-defmodule X12FraudWebWeb.ConnCase do
+defmodule MedicaidClaimsCheckerWeb.ConnCase do
   @moduledoc """
   This module defines the test case to be used by
   tests that require setting up a connection.
@@ -11,7 +11,7 @@ defmodule X12FraudWebWeb.ConnCase do
   we enable the SQL sandbox, so changes done to the database
   are reverted at the end of every test. If you are using
   PostgreSQL, you can even run database tests asynchronously
-  by setting `use X12FraudWebWeb.ConnCase, async: true`, although
+  by setting `use MedicaidClaimsCheckerWeb.ConnCase, async: true`, although
   this option is not recommended for other databases.
   """
 
@@ -20,14 +20,14 @@ defmodule X12FraudWebWeb.ConnCase do
   using do
     quote do
       # The default endpoint for testing
-      @endpoint X12FraudWebWeb.Endpoint
+      @endpoint MedicaidClaimsCheckerWeb.Endpoint
 
-      use X12FraudWebWeb, :verified_routes
+      use MedicaidClaimsCheckerWeb, :verified_routes
 
       # Import conveniences for testing with connections
       import Plug.Conn
       import Phoenix.ConnTest
-      import X12FraudWebWeb.ConnCase
+      import MedicaidClaimsCheckerWeb.ConnCase
     end
   end
 

@@ -1,0 +1,38 @@
+{
+    "claim_id": "REDUN-PARTIAL-002",
+    "2300": {
+        "CLM": {
+            "claim_amount": 70000,
+            "facility_type": "Inpatient",
+            "claim_type": "Institutional",
+            "days_stay": 18,
+            "authorization_number": "AUTH-RED-I02"
+        },
+        "HI": {
+            "diagnosis_code": "M54.5"
+        }
+    },
+    "2010": {
+        "NM1": {
+            "provider_tenure_days": 350,
+            "provider_specialty": "orthopedics",
+            "provider_risk_score": 20
+        }
+    },
+    "2400": [
+        {
+            "SV1": {
+                "place_of_service": "21",
+                "procedure_code": "27236",
+                "line_charge": 70000,
+                "modifier_1": "",
+                "modifier_2": "",
+                "procedure_type": "surgical"
+            },
+            "DTP": {
+                "service_day_of_week": "WED"
+            }
+        }
+    ],
+    "_test_notes": "GROUP I — Partial overlap control. Same high amount (70k) and long stay (18 days) but specialty=orthopedics (NOT cardiology). Triggers: long_stay_high_amount (70k > 50k AND 18 > 14). Does NOT trigger cardio_high_amount or cardio_moderate (specialty mismatch). Confirms the specialty conjunct is properly evaluated."
+}

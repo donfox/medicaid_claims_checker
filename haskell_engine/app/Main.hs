@@ -15,10 +15,10 @@ import Network.Wai
 import Network.Wai.Handler.Warp (run)
 import System.Environment (lookupEnv)
 import Text.Read (readMaybe)
-import X12.DSL.EvaluationContract (EvaluationRequest (..))
-import X12.DSL.MLClient (MLClientConfig (..), scoreClaimWithMl)
-import X12.DSL.Parser
-import X12.DSL.PolicyCombiner
+import Claims.EvaluationContract (EvaluationRequest (..))
+import Claims.MLClient (MLClientConfig (..), scoreClaimWithMl)
+import Claims.Parser
+import Claims.PolicyCombiner
   ( CombinedEnvelope,
     FallbackPolicy (..),
     MLResult,
@@ -29,15 +29,15 @@ import X12.DSL.PolicyCombiner
     mlErrorResult,
     mlStubResult,
   )
-import X12.DSL.RuleCache
+import Claims.RuleCache
   ( CompilationResult (..),
     CompiledRuleCache,
     cacheCompiledRule,
     compileRules,
     newCompiledRuleCache,
   )
-import X12.DSL.RedundancyChecker (checkRedundancy)
-import X12.DSL.RuleEngine (EvaluationReport (..), evaluateSimpleJson, loadRules)
+import Claims.RedundancyChecker (checkRedundancy)
+import Claims.RuleEngine (EvaluationReport (..), evaluateSimpleJson, loadRules)
 
 main :: IO ()
 main = do

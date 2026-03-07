@@ -1,6 +1,6 @@
-alias X12FraudWeb.Repo
-alias X12FraudWeb.Claims.BusinessRule
-alias X12FraudWeb.Claims.RuleCatalogue
+alias MedicaidClaimsChecker.Repo
+alias MedicaidClaimsChecker.Claims.BusinessRule
+alias MedicaidClaimsChecker.Claims.RuleCatalogue
 
 now = DateTime.utc_now() |> DateTime.truncate(:second)
 
@@ -125,6 +125,18 @@ default_catalogue_entries = [
     removable: false,
     redundant: false,
     db_access: false,
+    inserted_at: now,
+    updated_at: now
+  },
+  %{
+    name: "NPPESProviderLookup",
+    description: "Validates provider NPI exists in the NPPES national registry and was active on the date of service",
+    entry_type: "Default Rule",
+    status: "Active",
+    editable: false,
+    removable: false,
+    redundant: false,
+    db_access: true,
     inserted_at: now,
     updated_at: now
   }

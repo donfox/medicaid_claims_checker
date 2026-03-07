@@ -1,0 +1,38 @@
+{
+    "claim_id": "REDUN-NOT-002",
+    "2300": {
+        "CLM": {
+            "claim_amount": 800,
+            "facility_type": "Outpatient",
+            "claim_type": "Professional",
+            "days_stay": 0,
+            "authorization_number": "AUTH-RED-H02"
+        },
+        "HI": {
+            "diagnosis_code": "J06.9"
+        }
+    },
+    "2010": {
+        "NM1": {
+            "provider_tenure_days": 1200,
+            "provider_specialty": "family_medicine",
+            "provider_risk_score": 3
+        }
+    },
+    "2400": [
+        {
+            "SV1": {
+                "place_of_service": "11",
+                "procedure_code": "99213",
+                "line_charge": 800,
+                "modifier_1": "",
+                "modifier_2": "",
+                "procedure_type": "office_visit"
+            },
+            "DTP": {
+                "service_day_of_week": "MON"
+            }
+        }
+    ],
+    "_test_notes": "GROUP H — Negation control. facility_type='Outpatient' so NOT condition is FALSE. None of the Group H rules fire. Confirms negation evaluation rejects matching values."
+}

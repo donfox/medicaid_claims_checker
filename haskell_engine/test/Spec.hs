@@ -7,14 +7,14 @@ import Data.Aeson qualified as Aeson
 import Data.String (fromString)
 import Data.Time (Day, fromGregorian)
 import Test.Hspec
-import X12.DSL.EvaluationContract
-import X12.DSL.MLClient
-import X12.DSL.Parser
-import X12.DSL.PolicyCombiner
-import X12.DSL.RuleEngine (EvaluationReport (..), RiskLevel (..), evaluateSimpleJson, loadRules)
-import X12.DSL.RedundancyChecker
-import X12.DSL.SimpleEvaluator (evaluateRuleSimple)
-import X12.DSL.Syntax
+import Claims.EvaluationContract
+import Claims.MLClient
+import Claims.Parser
+import Claims.PolicyCombiner
+import Claims.RuleEngine (EvaluationReport (..), RiskLevel (..), evaluateSimpleJson, loadRules)
+import Claims.RedundancyChecker
+import Claims.SimpleEvaluator (evaluateRuleSimple)
+import Claims.Syntax
 
 -- | Fixed test date: 2026-02-28 (Saturday)
 testDay :: Day

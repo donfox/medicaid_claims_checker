@@ -1,0 +1,38 @@
+{
+    "claim_id": "REDUN-OR-001",
+    "2300": {
+        "CLM": {
+            "claim_amount": 75000,
+            "facility_type": "Outpatient",
+            "claim_type": "Professional",
+            "days_stay": 0,
+            "authorization_number": "AUTH-RED-G01"
+        },
+        "HI": {
+            "diagnosis_code": "M54.5"
+        }
+    },
+    "2010": {
+        "NM1": {
+            "provider_tenure_days": 400,
+            "provider_specialty": "orthopedics",
+            "provider_risk_score": 18
+        }
+    },
+    "2400": [
+        {
+            "SV1": {
+                "place_of_service": "11",
+                "procedure_code": "27447",
+                "line_charge": 75000,
+                "modifier_1": "",
+                "modifier_2": "",
+                "procedure_type": "surgical"
+            },
+            "DTP": {
+                "service_day_of_week": "WED"
+            }
+        }
+    ],
+    "_test_notes": "GROUP G — OR-condition redundancy. Amount 75k > 50k triggers: high_or_er + high_or_er_dup (Level 1 Exact Duplicate, via amount arm of OR), high_amount_only (same action, Level 2 if OR-implication supported), moderate_amount_flag (75k > 30k, Level 4 overlap on claim_amount field). POS=11 so ER arm of OR does not fire. Isolates the amount-only path through the OR."
+}

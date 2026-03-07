@@ -41,7 +41,7 @@ while [[ $# -gt 0 ]]; do
       cat <<EOF
 Usage: ./start.sh [OPTIONS]
 
-Start the JSON Claims Integrity DSL services (Haskell backend + Phoenix frontend)
+Start the Medicaid Claims Checker DSL services (Haskell backend + Phoenix frontend)
 
 OPTIONS:
   --install      Install/update dependencies before starting
@@ -178,7 +178,7 @@ fi
 if [[ $FOREGROUND -eq 0 ]]; then
   echo ""
   echo "======================================"
-  echo "  JSON Claims Integrity DSL - Running"
+  echo "  Medicaid Claims Checker DSL - Running"
   echo "======================================"
   echo ""
   echo "Services:"

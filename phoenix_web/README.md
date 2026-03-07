@@ -1,4 +1,4 @@
-# JSON Claims Integrity Web Frontend
+# Medicaid Claims Checker Web Frontend
 
 Phoenix LiveView application providing the user interface for rule management, batch claim evaluation, and fraud detection scoring.
 
@@ -54,7 +54,7 @@ The frontend calls the Haskell engine at `http://localhost:8080` via HTTPoison.
 | `/api/batch-evaluate` | POST | Evaluate claims against active rules |
 | `/api/check-redundancy` | POST | Detect overlap between a candidate rule and existing rules |
 
-Request payloads are built by `PayloadBuilder` (`lib/x12_fraud_web_web/live/rule_live/payload_builder.ex`).
+Request payloads are built by `PayloadBuilder` (`lib/medicaid_claims_checker_web/live/rule_live/payload_builder.ex`).
 
 ## Setup
 

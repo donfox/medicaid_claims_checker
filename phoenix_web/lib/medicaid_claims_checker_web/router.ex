@@ -26,6 +26,8 @@ defmodule MedicaidClaimsCheckerWeb.Router do
   scope "/api", MedicaidClaimsCheckerWeb do
     pipe_through :api
     get "/health", HealthController, :health
+    post "/x12-batch-ingest", X12BatchIngestController, :create
+    get "/x12-batch-ingest/:batch_id", X12BatchIngestController, :show
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development

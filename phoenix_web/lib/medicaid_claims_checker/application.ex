@@ -14,6 +14,7 @@ defmodule MedicaidClaimsChecker.Application do
       {DNSCluster, query: Application.get_env(:medicaid_claims_checker, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: MedicaidClaimsChecker.PubSub},
       MedicaidClaimsChecker.Repo,
+      {Task.Supervisor, name: MedicaidClaimsChecker.TaskSupervisor},
       # Start to serve requests, typically the last entry
       MedicaidClaimsCheckerWeb.Endpoint
     ]

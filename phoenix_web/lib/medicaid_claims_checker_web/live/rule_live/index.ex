@@ -2,10 +2,14 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
   use MedicaidClaimsCheckerWeb, :live_view
   import MedicaidClaimsCheckerWeb.Components.RuleComponents
   alias MedicaidClaimsChecker.Claims
+  alias MedicaidClaimsChecker.Claims.Evaluator
   alias MedicaidClaimsCheckerWeb.RuleLive.PayloadBuilder
 
   @impl true
   def mount(_params, _session, socket) do
+    if connected?(socket) do
+      Phoenix.PubSub.subscribe(MedicaidClaimsChecker.PubSub, Evaluator.topic())
+    end
     default_rule = get_default_rule()
     catalog_rules = safe_list_catalogue_entries()
 
@@ -41,6 +45,9 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
      |> assign(:redundancy_pending_save, nil)
      |> assign(:show_dsl_reference, false)
      |> assign(:batch_filter, nil)
+     |> assign(:batch_notification, nil)
+     |> assign(:batch_history, load_batch_history())
+     |> assign(:expanded_batch_ids, MapSet.new())
      |> allow_upload(:claim_files,
        accept: ~w(.json),
        max_entries: 100,
@@ -50,6 +57,59 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
   end
 
   @impl true
+  def handle_info({:batch_completed, %{batch_id: batch_id, summary: summary, files: files}}, socket) do
+    notification = %{
+      type: :completed,
+      batch_id: batch_id,
+      total: summary.total,
+      flagged: summary.fraudulent,
+      clean: summary.total - summary.fraudulent,
+      files: files,
+      expanded: false
+    }
+
+    {:noreply,
+     socket
+     |> assign(:batch_notification, notification)
+     |> assign(:batch_history, load_batch_history())}
+  end
+
+  def handle_info({:batch_failed, %{batch_id: batch_id, reason: reason}}, socket) do
+    notification = %{
+      type: :failed,
+      batch_id: batch_id,
+      reason: reason
+    }
+
+    {:noreply, assign(socket, :batch_notification, notification)}
+  end
+
+  @impl true
+  def handle_event("dismiss_batch_notification", _params, socket) do
+    {:noreply, assign(socket, :batch_notification, nil)}
+  end
+
+  def handle_event("toggle_notification_details", _params, socket) do
+    notification = socket.assigns.batch_notification
+    {:noreply, assign(socket, :batch_notification, %{notification | expanded: !notification.expanded})}
+  end
+
+  def handle_event("toggle_batch_detail", %{"id" => id}, socket) do
+    id = String.to_integer(id)
+    expanded = socket.assigns.expanded_batch_ids
+
+    updated =
+      if MapSet.member?(expanded, id),
+        do: MapSet.delete(expanded, id),
+        else: MapSet.put(expanded, id)
+
+    {:noreply, assign(socket, :expanded_batch_ids, updated)}
+  end
+
+  def handle_event("refresh_batch_history", _params, socket) do
+    {:noreply, assign(socket, :batch_history, load_batch_history())}
+  end
+
   def handle_event("update_catalog_rule", %{"catalog" => params}, socket) do
     rule_text = Map.get(params, "text", "")
     {parsed_rule, parse_error} = parse_single_rule_text(rule_text)
@@ -539,9 +599,12 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
   defp run_batch_execution(socket, claims, filenames, file_errors, rules_text) do
     batch_id = Ecto.UUID.generate()
 
+    timestamp = Calendar.strftime(DateTime.utc_now(), "%b %d, %Y %I:%M %p")
+
     {:ok, batch} =
       Claims.create_batch(%{
         batch_id: batch_id,
+        batch_name: "UI Upload - #{timestamp}",
         source: "ui_upload",
         file_count: length(claims),
         status: "processing",
@@ -669,6 +732,45 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
     Claims.list_catalogue_entries()
   rescue
     _ -> []
+  end
+
+  defp load_batch_history do
+    Claims.list_recent_batches(10)
+    |> Enum.map(fn batch ->
+      files = Claims.list_files_for_batch(batch.id)
+
+      files_with_details =
+        Enum.map(files, fn f ->
+          report = f.json_output || %{}
+
+          matched_results =
+            (report["results"] || [])
+            |> Enum.filter(& &1["resultMatched"])
+            |> Enum.map(fn r ->
+              %{rule: r["resultRuleName"], detail: r["resultDetails"]}
+            end)
+
+          %{
+            id: f.id,
+            filename: f.filename,
+            status: f.status,
+            risk: report["overallRisk"] || "N/A",
+            matched_rules: report["matchedRules"] || 0,
+            matched_results: matched_results
+          }
+        end)
+
+      %{
+        id: batch.id,
+        batch_id: batch.batch_id,
+        source: batch.source,
+        status: batch.status,
+        file_count: batch.file_count,
+        inserted_at: batch.inserted_at,
+        completed_at: batch.completed_at,
+        files: files_with_details
+      }
+    end)
   end
 
   # Evaluation uses active BA rules from business_rules table (the DSL execution store)

@@ -4,7 +4,9 @@ defmodule MedicaidClaimsChecker.Claims do
   """
   import Ecto.Query
   alias MedicaidClaimsChecker.Repo
-  alias MedicaidClaimsChecker.Claims.{Batch, EdiFile, BusinessRule, RuleCatalogue, NppesProvider}
+  alias MedicaidClaimsChecker.Claims.{Batch, EdiFile, BusinessRule, RuleCatalogue, NppesProvider, Evaluator}
+
+  require Logger
 
   # --- Batch operations ---
 
@@ -33,6 +35,79 @@ defmodule MedicaidClaimsChecker.Claims do
     |> Repo.all()
   end
 
+  # --- Batch ingest (from X12Translator webhook) ---
+
+  @doc """
+  Ingests a translated batch from X12Translator.
+
+  Expects a map with:
+    - "batch_id"  => unique string identifier
+    - "source"    => origin description (e.g. "sftp://claims.example.com/daily")
+    - "claims"    => list of %{"filename" => string, "claim" => map}
+
+  Creates a batch record and one edi_file per claim inside a transaction.
+  Returns {:ok, %{batch: batch, edi_files: [edi_file, ...]}} or {:error, reason}.
+  """
+  def ingest_batch(%{"batch_id" => batch_id, "claims" => claims} = params)
+      when is_list(claims) do
+    source = Map.get(params, "source", "x12translator")
+    batch_name = Map.get(params, "batch_name") || default_batch_name(source)
+
+    result =
+      Repo.transaction(fn ->
+        batch_attrs = %{
+          batch_id: batch_id,
+          batch_name: batch_name,
+          source: source,
+          file_count: length(claims),
+          status: "pending",
+          started_at: DateTime.utc_now()
+        }
+
+        batch =
+          case %Batch{} |> Batch.changeset(batch_attrs) |> Repo.insert() do
+            {:ok, b} -> b
+            {:error, changeset} -> Repo.rollback({:batch, changeset})
+          end
+
+        edi_files =
+          Enum.map(claims, fn %{"filename" => filename, "claim" => claim_json} ->
+            file_attrs = %{
+              filename: filename,
+              file_path: "x12translator://#{batch_id}/#{filename}",
+              json_output: claim_json,
+              status: "translated",
+              processed_at: DateTime.utc_now(),
+              batch_id: batch.id
+            }
+
+            case %EdiFile{} |> EdiFile.changeset(file_attrs) |> Repo.insert() do
+              {:ok, f} -> f
+              {:error, changeset} -> Repo.rollback({:edi_file, filename, changeset})
+            end
+          end)
+
+        %{batch: batch, edi_files: edi_files}
+      end)
+
+    # After successful ingest, trigger auto-evaluation asynchronously
+    case result do
+      {:ok, %{batch: batch}} ->
+        Logger.info("Batch #{batch.batch_id} ingested — launching auto-evaluation")
+
+        Task.Supervisor.start_child(MedicaidClaimsChecker.TaskSupervisor, fn ->
+          Evaluator.evaluate_batch(batch)
+        end)
+
+        result
+
+      _ ->
+        result
+    end
+  end
+
+  def ingest_batch(_), do: {:error, :invalid_payload}
+
   # --- EDI File operations ---
 
   def create_edi_file(attrs) do
@@ -42,6 +117,12 @@ defmodule MedicaidClaimsChecker.Claims do
   end
 
   def get_edi_file!(id), do: Repo.get!(EdiFile, id)
+
+  def update_edi_file_evaluation(%EdiFile{} = edi_file, attrs) do
+    edi_file
+    |> EdiFile.changeset(attrs)
+    |> Repo.update()
+  end
 
   def list_files_for_batch(batch_id) do
     EdiFile
@@ -233,5 +314,15 @@ defmodule MedicaidClaimsChecker.Claims do
       entry_lower = String.downcase(entry.name)
       entry_lower != name_lower and String.jaro_distance(name_lower, entry_lower) > 0.85
     end)
+  end
+
+  defp default_batch_name(source) do
+    timestamp = Calendar.strftime(DateTime.utc_now(), "%b %d, %Y %I:%M %p")
+
+    case source do
+      "ui_upload" -> "UI Upload - #{timestamp}"
+      "x12translator" -> "X12 Import - #{timestamp}"
+      other -> "#{other} - #{timestamp}"
+    end
   end
 end

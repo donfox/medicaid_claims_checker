@@ -12,6 +12,115 @@
       </div>
     <% end %>
 
+    <%= if @batch_notification do %>
+      <div class={[
+        "mb-4 rounded-lg border overflow-hidden",
+        if(@batch_notification.type == :completed, do: "bg-green-50 border-green-300", else: "bg-red-50 border-red-300")
+      ]}>
+        <div class="p-4 flex items-start justify-between">
+          <div class="flex items-start gap-3 flex-1">
+            <div class={[
+              "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mt-0.5",
+              if(@batch_notification.type == :completed, do: "bg-green-200", else: "bg-red-200")
+            ]}>
+              <%= if @batch_notification.type == :completed do %>
+                <svg class="w-5 h-5 text-green-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              <% else %>
+                <svg class="w-5 h-5 text-red-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              <% end %>
+            </div>
+            <div class="flex-1">
+              <%= if @batch_notification.type == :completed do %>
+                <p class="text-sm font-semibold text-green-900">
+                  Batch "<%= @batch_notification.batch_id %>" evaluated
+                </p>
+                <p class="text-sm text-green-800 mt-1">
+                  <%= @batch_notification.total %> claims processed
+                  — <%= @batch_notification.flagged %> flagged, <%= @batch_notification.clean %> clean
+                </p>
+                <button
+                  phx-click="toggle_notification_details"
+                  class="mt-2 text-xs font-medium text-green-700 hover:text-green-900 underline"
+                >
+                  <%= if @batch_notification.expanded, do: "Hide details", else: "Show claim details" %>
+                </button>
+              <% else %>
+                <p class="text-sm font-semibold text-red-900">
+                  Batch "<%= @batch_notification.batch_id %>" failed
+                </p>
+                <p class="text-sm text-red-800 mt-1"><%= @batch_notification.reason %></p>
+              <% end %>
+            </div>
+          </div>
+          <button
+            phx-click="dismiss_batch_notification"
+            class="flex-shrink-0 ml-4 text-gray-400 hover:text-gray-600"
+          >
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <%= if @batch_notification.type == :completed && @batch_notification.expanded do %>
+          <div class="border-t border-green-200 px-4 py-3 bg-green-50/50">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left text-xs font-semibold text-green-800 uppercase">
+                  <th class="pb-2 pr-4">Filename</th>
+                  <th class="pb-2 pr-4">Status</th>
+                  <th class="pb-2 pr-4">Risk</th>
+                  <th class="pb-2 pr-4">Rules Matched</th>
+                  <th class="pb-2">Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                <%= for file <- @batch_notification.files do %>
+                  <tr class="border-t border-green-100">
+                    <td class="py-2 pr-4 font-medium text-gray-900"><%= file.filename %></td>
+                    <td class="py-2 pr-4">
+                      <span class={[
+                        "px-2 py-0.5 text-xs font-medium rounded-full",
+                        if(file.status == "fraudulent", do: "bg-red-100 text-red-800", else: "bg-green-100 text-green-800")
+                      ]}>
+                        <%= file.status %>
+                      </span>
+                    </td>
+                    <td class="py-2 pr-4">
+                      <span class={[
+                        "text-xs font-semibold",
+                        cond do
+                          file.risk == "CriticalRisk" -> "text-red-700"
+                          file.risk == "HighRisk" -> "text-orange-600"
+                          file.risk == "MediumRisk" -> "text-yellow-600"
+                          true -> "text-green-700"
+                        end
+                      ]}>
+                        <%= file.risk %>
+                      </span>
+                    </td>
+                    <td class="py-2 pr-4 text-gray-700"><%= file.matched_rules %></td>
+                    <td class="py-2 text-xs text-gray-600">
+                      <%= for mr <- file.matched_results do %>
+                        <div><span class="font-medium"><%= mr.rule %></span></div>
+                      <% end %>
+                      <%= if file.matched_results == [] do %>
+                        <span class="text-green-600">No rules triggered</span>
+                      <% end %>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+
     <div class="mb-6 p-6 bg-white rounded-lg shadow-md">
       <div class="flex items-center justify-between">
         <h1 class="text-3xl font-bold text-gray-900">Claims Integrity Engine</h1>
@@ -954,6 +1063,140 @@ END</code></pre>
       <% end %>
 
     </div><!-- end claims processing -->
+
+    <!-- Batch History section -->
+    <div class="relative mt-8 mb-6">
+      <div class="absolute inset-0 flex items-center" aria-hidden="true">
+        <div class="w-full border-t border-gray-300"></div>
+      </div>
+      <div class="relative flex justify-center">
+        <span class="bg-purple-50 border border-purple-200 px-4 py-1 text-sm font-semibold text-purple-700 uppercase tracking-wide rounded-full">Batch History</span>
+      </div>
+    </div>
+
+    <div class="mb-6 p-6 bg-white rounded-lg shadow-md">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-xl font-semibold text-gray-900">Ingested Batches</h2>
+          <p class="mt-1 text-sm text-gray-600">Batches received from X12Translator and their evaluation results</p>
+        </div>
+        <button
+          phx-click="refresh_batch_history"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 cursor-pointer"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Refresh
+        </button>
+      </div>
+
+      <%= if @batch_history == [] do %>
+        <div class="text-center py-8 text-gray-500">
+          <svg class="mx-auto w-12 h-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+          </svg>
+          <p class="text-sm font-medium">No batches received yet</p>
+          <p class="text-xs mt-1">Batches will appear here when X12Translator sends claims</p>
+        </div>
+      <% else %>
+        <div class="space-y-3">
+          <%= for batch <- @batch_history do %>
+            <div class="border border-gray-200 rounded-lg overflow-hidden">
+              <button
+                phx-click="toggle_batch_detail"
+                phx-value-id={batch.id}
+                class="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 text-left cursor-pointer"
+              >
+                <div class="flex items-center gap-4">
+                  <span class={[
+                    "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold",
+                    cond do
+                      batch.status == "completed" -> "bg-green-100 text-green-800"
+                      batch.status == "processing" -> "bg-blue-100 text-blue-800"
+                      batch.status == "failed" -> "bg-red-100 text-red-800"
+                      true -> "bg-gray-100 text-gray-800"
+                    end
+                  ]}>
+                    <%= batch.status %>
+                  </span>
+                  <div>
+                    <span class="text-sm font-semibold text-gray-900"><%= batch.batch_id %></span>
+                    <span class="ml-2 text-xs text-gray-500">from <%= batch.source %></span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-4 text-sm text-gray-500">
+                  <span><%= batch.file_count %> claims</span>
+                  <span><%= Calendar.strftime(batch.inserted_at, "%b %d, %Y %H:%M") %></span>
+                  <svg class={[
+                    "w-5 h-5 text-gray-400 transition-transform",
+                    if(MapSet.member?(@expanded_batch_ids, batch.id), do: "rotate-180", else: "")
+                  ]} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </button>
+
+              <%= if MapSet.member?(@expanded_batch_ids, batch.id) do %>
+                <div class="border-t border-gray-200 px-4 py-3 bg-gray-50">
+                  <table class="w-full text-sm">
+                    <thead>
+                      <tr class="text-left text-xs font-semibold text-gray-500 uppercase">
+                        <th class="pb-2 pr-4">Filename</th>
+                        <th class="pb-2 pr-4">Status</th>
+                        <th class="pb-2 pr-4">Risk Level</th>
+                        <th class="pb-2 pr-4">Rules Matched</th>
+                        <th class="pb-2">Triggered Rules</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <%= for file <- batch.files do %>
+                        <tr class="border-t border-gray-100">
+                          <td class="py-2 pr-4 font-medium text-gray-900 text-xs"><%= file.filename %></td>
+                          <td class="py-2 pr-4">
+                            <span class={[
+                              "px-2 py-0.5 text-xs font-medium rounded-full",
+                              if(file.status == "fraudulent", do: "bg-red-100 text-red-800", else: "bg-green-100 text-green-800")
+                            ]}>
+                              <%= file.status %>
+                            </span>
+                          </td>
+                          <td class="py-2 pr-4">
+                            <span class={[
+                              "text-xs font-semibold",
+                              cond do
+                                file.risk == "CriticalRisk" -> "text-red-700"
+                                file.risk == "HighRisk" -> "text-orange-600"
+                                file.risk == "MediumRisk" -> "text-yellow-600"
+                                true -> "text-green-700"
+                              end
+                            ]}>
+                              <%= file.risk %>
+                            </span>
+                          </td>
+                          <td class="py-2 pr-4 text-gray-700"><%= file.matched_rules %></td>
+                          <td class="py-2 text-xs text-gray-600">
+                            <%= for mr <- file.matched_results do %>
+                              <div class="mb-0.5">
+                                <span class="font-medium text-gray-800"><%= mr.rule %></span>
+                                <span class="text-gray-500 ml-1"><%= mr.detail %></span>
+                              </div>
+                            <% end %>
+                            <%= if file.matched_results == [] do %>
+                              <span class="text-green-600">No rules triggered</span>
+                            <% end %>
+                          </td>
+                        </tr>
+                      <% end %>
+                    </tbody>
+                  </table>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
 
   </div>
 </div>

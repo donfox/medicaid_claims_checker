@@ -4,6 +4,7 @@ defmodule MedicaidClaimsChecker.Claims.Batch do
 
   schema "batches" do
     field :batch_id, :string
+    field :batch_name, :string
     field :source, :string
     field :file_count, :integer
     field :status, :string, default: "pending"
@@ -17,7 +18,7 @@ defmodule MedicaidClaimsChecker.Claims.Batch do
 
   def changeset(batch, attrs) do
     batch
-    |> cast(attrs, [:batch_id, :source, :file_count, :status, :started_at, :completed_at])
+    |> cast(attrs, [:batch_id, :batch_name, :source, :file_count, :status, :started_at, :completed_at])
     |> validate_required([:batch_id, :file_count, :status])
     |> validate_inclusion(:status, ["pending", "processing", "completed", "failed"])
     |> unique_constraint(:batch_id)

@@ -48,6 +48,7 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
      |> assign(:batch_notification, nil)
      |> assign(:batch_history, load_batch_history())
      |> assign(:expanded_batch_ids, MapSet.new())
+     |> assign(:expanded_batch_file_ids, MapSet.new())
      |> allow_upload(:claim_files,
        accept: ~w(.json),
        max_entries: 100,
@@ -104,6 +105,18 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
         else: MapSet.put(expanded, id)
 
     {:noreply, assign(socket, :expanded_batch_ids, updated)}
+  end
+
+  def handle_event("toggle_batch_file_detail", %{"id" => id}, socket) do
+    id = String.to_integer(id)
+    expanded = socket.assigns.expanded_batch_file_ids
+
+    updated =
+      if MapSet.member?(expanded, id),
+        do: MapSet.delete(expanded, id),
+        else: MapSet.put(expanded, id)
+
+    {:noreply, assign(socket, :expanded_batch_file_ids, updated)}
   end
 
   def handle_event("refresh_batch_history", _params, socket) do
@@ -752,7 +765,7 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
 
           %{
             id: f.id,
-            filename: f.filename,
+            filename: normalize_filename(f.filename),
             status: f.status,
             risk: report["overallRisk"] || "N/A",
             matched_rules: report["matchedRules"] || 0,
@@ -781,6 +794,19 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
     |> case do
       [] -> nil
       entries -> Enum.join(entries, "\n\n")
+    end
+  end
+
+  defp normalize_filename(filename) do
+    case Path.extname(filename) do
+      ext when ext in [".x12", ".edi", ".X12", ".EDI"] ->
+        Path.rootname(filename) <> ".json"
+
+      "" ->
+        filename <> ".json"
+
+      _ ->
+        filename
     end
   end
 

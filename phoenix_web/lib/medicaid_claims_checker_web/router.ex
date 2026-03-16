@@ -20,6 +20,7 @@ defmodule MedicaidClaimsCheckerWeb.Router do
     live("/", RuleLive.Index, :index)
     live("/rules", RuleLive.Index, :index)
     live("/catalogue", RuleCatalogueLive.Index, :index)
+    live("/fetch-sources", FetchSourceLive.Index, :index)
   end
 
   # API routes
@@ -28,6 +29,7 @@ defmodule MedicaidClaimsCheckerWeb.Router do
     get "/health", HealthController, :health
     post "/x12-batch-ingest", X12BatchIngestController, :create
     get "/x12-batch-ingest/:batch_id", X12BatchIngestController, :show
+    get "/fetch-config", FetchConfigController, :index
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development

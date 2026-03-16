@@ -1,0 +1,376 @@
+<div class="px-4 py-10 sm:px-6 sm:py-28 lg:px-8 xl:px-28 xl:py-32">
+  <div class="mx-auto max-w-7xl">
+
+    <%= if Phoenix.Flash.get(@flash, :error) do %>
+      <div class="mb-4 p-4 bg-red-100 border border-red-300 rounded-lg">
+        <p class="text-sm text-red-900 font-semibold"><%= Phoenix.Flash.get(@flash, :error) %></p>
+      </div>
+    <% end %>
+
+    <%= if Phoenix.Flash.get(@flash, :info) do %>
+      <div class="mb-4 p-4 bg-blue-100 border border-blue-300 rounded-lg">
+        <p class="text-sm text-blue-900"><%= Phoenix.Flash.get(@flash, :info) %></p>
+      </div>
+    <% end %>
+
+    <!-- Page Header -->
+    <div class="mb-6 p-4 bg-white rounded-lg shadow-md">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900">Fetch Sources</h1>
+          <p class="mt-2 text-base text-gray-800 font-medium">Configure where and when X12Translator fetches claim files</p>
+        </div>
+        <div class="flex gap-2">
+          <a href={~p"/rules"} class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium rounded-md border border-gray-300">
+            Rule Editor
+          </a>
+          <a href={~p"/catalogue"} class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium rounded-md border border-gray-300">
+            Rule Catalogue
+          </a>
+        </div>
+      </div>
+      <div class="mt-3 p-3 bg-blue-100 border border-blue-300 rounded-md">
+        <p class="text-sm text-blue-900 font-medium">
+          Define fetch locations (SFTP, local, HTTP, Databricks) and schedules. X12Translator polls this configuration automatically and runs fetches on the schedules you set. Toggle sources or schedules off to pause them temporarily.
+        </p>
+      </div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="mb-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div class="bg-white shadow rounded-lg p-3 text-center">
+        <p class="text-xl font-bold text-gray-900"><%= length(@sources) %></p>
+        <p class="text-xs text-gray-700 mt-1">Total Sources</p>
+      </div>
+      <div class="bg-white shadow rounded-lg p-3 text-center">
+        <p class="text-xl font-bold text-green-700"><%= Enum.count(@sources, & &1.enabled) %></p>
+        <p class="text-xs text-gray-700 mt-1">Enabled</p>
+      </div>
+      <div class="bg-white shadow rounded-lg p-3 text-center">
+        <p class="text-xl font-bold text-gray-500"><%= Enum.count(@sources, &(not &1.enabled)) %></p>
+        <p class="text-xs text-gray-700 mt-1">Disabled</p>
+      </div>
+      <div class="bg-white shadow rounded-lg p-3 text-center">
+        <p class="text-xl font-bold text-blue-700"><%= @sources |> Enum.flat_map(& &1.fetch_schedules) |> length() %></p>
+        <p class="text-xs text-gray-700 mt-1">Total Schedules</p>
+      </div>
+    </div>
+
+    <!-- Add / Edit Source Form -->
+    <div class="mb-6 bg-white shadow-md rounded-lg">
+      <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-gray-900">
+          <%= if @editing_source, do: "Edit Source", else: "Add Source" %>
+        </h2>
+        <button
+          type="button"
+          phx-click="toggle_add_source_form"
+          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md cursor-pointer"
+        >
+          <%= if @show_source_form, do: "Cancel", else: "+ New Source" %>
+        </button>
+      </div>
+
+      <%= if @show_source_form do %>
+        <.form
+          for={%{}}
+          phx-submit="save_source"
+          id="source-form"
+          class="p-4 space-y-4"
+        >
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-900 mb-1">Name <span class="text-red-600">*</span></label>
+              <input
+                name="source[name]"
+                value={@source_name}
+                class="w-full px-3 py-2 border border-gray-400 rounded-md text-sm text-gray-900 bg-white"
+                placeholder="e.g., Daily SFTP Drop"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-900 mb-1">URI / Path <span class="text-red-600">*</span></label>
+              <input
+                name="source[uri]"
+                value={@source_uri}
+                class="w-full px-3 py-2 border border-gray-400 rounded-md text-sm text-gray-900 bg-white"
+                placeholder="e.g., sftp://claims.example.com/daily"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-900 mb-1">Type <span class="text-red-600">*</span></label>
+              <select
+                name="source[type]"
+                class="w-full px-3 py-2 border border-gray-400 rounded-md text-sm text-gray-900 bg-white"
+              >
+                <option value="sftp" selected={@source_type == "sftp"}>SFTP</option>
+                <option value="local" selected={@source_type == "local"}>Local Directory</option>
+                <option value="http" selected={@source_type == "http"}>HTTP</option>
+                <option value="databricks" selected={@source_type == "databricks"}>Databricks</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-900 mb-1">Password / Secret</label>
+              <input
+                name="source[password]"
+                value={@source_password}
+                type="password"
+                class="w-full px-3 py-2 border border-gray-400 rounded-md text-sm text-gray-900 bg-white"
+                placeholder="SFTP password or API key (leave blank to keep existing)"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-900 mb-1">Username (optional override)</label>
+              <input
+                name="source[username]"
+                value={@source_username}
+                class="w-full px-3 py-2 border border-gray-400 rounded-md text-sm text-gray-900 bg-white"
+                placeholder="Override username from URI (optional)"
+              />
+            </div>
+          </div>
+
+          <%= if @form_error do %>
+            <div class="p-3 bg-red-100 border border-red-300 rounded-md">
+              <p class="text-sm text-red-900"><%= @form_error %></p>
+            </div>
+          <% end %>
+
+          <button
+            type="submit"
+            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium cursor-pointer"
+          >
+            <%= if @editing_source, do: "Update Source", else: "Add Source" %>
+          </button>
+        </.form>
+      <% end %>
+    </div>
+
+    <!-- Sources List -->
+    <div class="bg-white shadow-md rounded-lg overflow-hidden">
+      <%= if @sources == [] do %>
+        <div class="p-8 text-center text-sm text-gray-700">
+          No fetch sources configured yet. Use the <strong>+ New Source</strong> button above to add one.
+        </div>
+      <% else %>
+        <table class="w-full text-sm">
+          <thead class="bg-gray-100 border-b border-gray-300">
+            <tr>
+              <th class="px-4 py-3 text-left font-semibold text-gray-800"></th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-800">Name</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-800">URI / Path</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-800">Type</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-800">Schedules</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-800">Status</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-800">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200">
+            <%= for source <- @sources do %>
+              <tr class={"hover:bg-gray-50 #{if not source.enabled, do: "opacity-60"}"}>
+                <td class="px-4 py-3">
+                  <button
+                    type="button"
+                    phx-click="toggle_expand_source"
+                    phx-value-id={source.id}
+                    class="text-gray-500 hover:text-gray-800 cursor-pointer"
+                  >
+                    <%= if MapSet.member?(@expanded_source_ids, source.id) do %>
+                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    <% else %>
+                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    <% end %>
+                  </button>
+                </td>
+                <td class="px-4 py-3 font-medium text-gray-900"><%= source.name %></td>
+                <td class="px-4 py-3 text-gray-700 text-xs max-w-xs truncate" title={source.uri}><%= source.uri %></td>
+                <td class="px-4 py-3">
+                  <span class="px-2 py-0.5 text-xs bg-indigo-100 text-indigo-800 rounded font-medium">
+                    <%= source_type_label(source.source_type) %>
+                  </span>
+                </td>
+                <td class="px-4 py-3 text-gray-700">
+                  <%= length(source.fetch_schedules) %>
+                </td>
+                <td class="px-4 py-3">
+                  <%= if source.enabled do %>
+                    <span class="px-2 py-0.5 text-xs bg-green-100 text-green-800 rounded font-medium">Enabled</span>
+                  <% else %>
+                    <span class="px-2 py-0.5 text-xs bg-gray-200 text-gray-700 rounded font-medium">Disabled</span>
+                  <% end %>
+                  <%= if source.credentials && map_size(source.credentials) > 0 && source.credentials["password"] do %>
+                    <span class="ml-1 px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded font-medium">Key</span>
+                  <% end %>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="flex gap-2">
+                    <button
+                      type="button"
+                      phx-click="toggle_source_enabled"
+                      phx-value-id={source.id}
+                      class="px-3 py-1 text-xs font-medium rounded bg-indigo-100 hover:bg-indigo-200 text-indigo-800 cursor-pointer"
+                    >
+                      <%= if source.enabled, do: "Disable", else: "Enable" %>
+                    </button>
+                    <button
+                      type="button"
+                      phx-click="edit_source"
+                      phx-value-id={source.id}
+                      class="px-3 py-1 text-xs font-medium rounded bg-blue-100 hover:bg-blue-200 text-blue-800 cursor-pointer"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      phx-click="delete_source"
+                      phx-value-id={source.id}
+                      class="px-3 py-1 text-xs font-medium rounded bg-red-100 hover:bg-red-200 text-red-800 cursor-pointer"
+                      data-confirm="Delete this source and all its schedules?"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Expanded: Schedules -->
+              <%= if MapSet.member?(@expanded_source_ids, source.id) do %>
+                <tr>
+                  <td colspan="7" class="px-8 py-4 bg-gray-50">
+                    <div class="flex items-center justify-between mb-3">
+                      <h3 class="text-sm font-semibold text-gray-800">Schedules for "<%= source.name %>"</h3>
+                      <button
+                        type="button"
+                        phx-click="show_add_schedule"
+                        phx-value-source-id={source.id}
+                        class="px-3 py-1 text-xs font-medium rounded bg-green-600 hover:bg-green-700 text-white cursor-pointer"
+                      >
+                        + Add Schedule
+                      </button>
+                    </div>
+
+                    <%= if source.fetch_schedules == [] do %>
+                      <p class="text-xs text-gray-600">No schedules configured. Add one to start automated fetching.</p>
+                    <% else %>
+                      <table class="w-full text-xs">
+                        <thead>
+                          <tr class="border-b border-gray-300">
+                            <th class="px-3 py-2 text-left font-semibold text-gray-700">Schedule</th>
+                            <th class="px-3 py-2 text-left font-semibold text-gray-700">Status</th>
+                            <th class="px-3 py-2 text-left font-semibold text-gray-700">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                          <%= for schedule <- source.fetch_schedules do %>
+                            <tr class={"#{if not schedule.enabled, do: "opacity-60"}"}>
+                              <td class="px-3 py-2 text-gray-900 font-medium"><%= schedule_description(schedule) %></td>
+                              <td class="px-3 py-2">
+                                <%= if schedule.enabled do %>
+                                  <span class="px-2 py-0.5 text-[10px] bg-green-100 text-green-800 rounded font-medium">Active</span>
+                                <% else %>
+                                  <span class="px-2 py-0.5 text-[10px] bg-gray-200 text-gray-700 rounded font-medium">Paused</span>
+                                <% end %>
+                              </td>
+                              <td class="px-3 py-2">
+                                <div class="flex gap-2">
+                                  <button
+                                    type="button"
+                                    phx-click="toggle_schedule_enabled"
+                                    phx-value-id={schedule.id}
+                                    class="px-2 py-0.5 text-[10px] font-medium rounded bg-indigo-100 hover:bg-indigo-200 text-indigo-800 cursor-pointer"
+                                  >
+                                    <%= if schedule.enabled, do: "Pause", else: "Resume" %>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    phx-click="delete_schedule"
+                                    phx-value-id={schedule.id}
+                                    class="px-2 py-0.5 text-[10px] font-medium rounded bg-red-100 hover:bg-red-200 text-red-800 cursor-pointer"
+                                    data-confirm="Remove this schedule?"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          <% end %>
+                        </tbody>
+                      </table>
+                    <% end %>
+
+                    <!-- Add Schedule Form (inline) -->
+                    <%= if @adding_schedule_for == source.id do %>
+                      <div class="mt-3 p-3 bg-white border border-gray-300 rounded-md">
+                        <.form for={%{}} phx-submit="save_schedule" id={"schedule-form-#{source.id}"} class="space-y-3">
+                          <p class="text-xs font-medium text-gray-800">Provide either a cron expression or an interval (not both):</p>
+                          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                              <label class="block text-xs font-medium text-gray-700 mb-1">Cron Expression</label>
+                              <input
+                                name="schedule[cron]"
+                                value={@schedule_cron}
+                                class="w-full px-2 py-1.5 border border-gray-400 rounded text-xs text-gray-900 bg-white"
+                                placeholder="e.g., 0 */6 * * *"
+                              />
+                              <p class="text-[10px] text-gray-500 mt-1">min hour day month weekday</p>
+                            </div>
+                            <div>
+                              <label class="block text-xs font-medium text-gray-700 mb-1">Interval (seconds)</label>
+                              <input
+                                name="schedule[interval]"
+                                value={@schedule_interval}
+                                type="number"
+                                min="60"
+                                class="w-full px-2 py-1.5 border border-gray-400 rounded text-xs text-gray-900 bg-white"
+                                placeholder="e.g., 3600 (1 hour)"
+                              />
+                              <p class="text-[10px] text-gray-500 mt-1">Minimum 60 seconds</p>
+                            </div>
+                          </div>
+
+                          <%= if @form_error do %>
+                            <div class="p-2 bg-red-100 border border-red-300 rounded">
+                              <p class="text-xs text-red-900"><%= @form_error %></p>
+                            </div>
+                          <% end %>
+
+                          <div class="flex gap-2">
+                            <button type="submit" class="px-3 py-1.5 text-xs font-medium rounded bg-green-600 hover:bg-green-700 text-white cursor-pointer">
+                              Save Schedule
+                            </button>
+                            <button type="button" phx-click="cancel_add_schedule" class="px-3 py-1.5 text-xs font-medium rounded bg-gray-200 hover:bg-gray-300 text-gray-800 cursor-pointer">
+                              Cancel
+                            </button>
+                          </div>
+                        </.form>
+                      </div>
+                    <% end %>
+                  </td>
+                </tr>
+              <% end %>
+            <% end %>
+          </tbody>
+        </table>
+      <% end %>
+    </div>
+
+    <!-- Info Note -->
+    <div class="mt-8 p-4 bg-gray-50 border border-gray-300 rounded-lg">
+      <h3 class="text-sm font-semibold text-gray-900 mb-2">How It Works</h3>
+      <ol class="text-xs text-gray-800 space-y-1 list-decimal pl-4">
+        <li>Add fetch sources with their URI/path and connection type.</li>
+        <li>Attach one or more schedules to each source (cron expressions or fixed intervals).</li>
+        <li>X12Translator polls this configuration every 60 seconds and updates its fetch schedule automatically.</li>
+        <li>Toggle sources or individual schedules off to pause fetching temporarily without losing the configuration.</li>
+      </ol>
+    </div>
+
+  </div>
+</div>

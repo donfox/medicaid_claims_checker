@@ -254,7 +254,10 @@ defmodule MedicaidClaimsChecker.Claims do
   end
 
   def validate_claim_providers(claim_json) do
-    provider_npi = get_in(claim_json, ["provider", "npi"])
+    provider_npi =
+      get_in(claim_json, ["provider", "npi"]) ||
+        get_in(claim_json, ["claim", "rendering_provider", "npi"])
+
     billing_npi = get_in(claim_json, ["billing_provider", "npi"])
     service_date = extract_earliest_service_date(claim_json)
 
@@ -284,14 +287,20 @@ defmodule MedicaidClaimsChecker.Claims do
   end
 
   defp extract_earliest_service_date(claim_json) do
-    service_lines = claim_json["service_lines"] || []
+    # service_lines may be at top level or nested under "claim"
+    service_lines =
+      claim_json["service_lines"] ||
+        get_in(claim_json, ["claim", "service_lines"]) ||
+        []
 
     dates =
       service_lines
-      |> Enum.map(&(&1["date_of_service"]))
+      |> Enum.flat_map(fn line ->
+        [line["date_of_service"], line["service_date"]]
+      end)
       |> Enum.reject(&is_nil/1)
       |> Enum.flat_map(fn str ->
-        case Date.from_iso8601(str) do
+        case parse_date(str) do
           {:ok, d} -> [d]
           _ -> []
         end
@@ -302,6 +311,17 @@ defmodule MedicaidClaimsChecker.Claims do
       dates -> Enum.min(dates, Date)
     end
   end
+
+  # Parses ISO 8601 (2026-03-10) or compact (20260310) date strings
+  defp parse_date(<<y::binary-size(4), "-", m::binary-size(2), "-", d::binary-size(2)>>) do
+    Date.from_iso8601("#{y}-#{m}-#{d}")
+  end
+
+  defp parse_date(<<y::binary-size(4), m::binary-size(2), d::binary-size(2)>>) do
+    Date.from_iso8601("#{y}-#{m}-#{d}")
+  end
+
+  defp parse_date(_), do: :error
 
   # Returns catalogue entries whose names are similar to the given name (Jaro distance > 0.85),
   # excluding any exact case-insensitive match (which would be a conflict, not redundancy).

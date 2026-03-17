@@ -197,4 +197,5 @@ defmodule MedicaidClaimsCheckerWeb.RuleCatalogueLive.Index do
       redundant: Enum.count(entries, & &1.redundant)
     }
   end
+
 end

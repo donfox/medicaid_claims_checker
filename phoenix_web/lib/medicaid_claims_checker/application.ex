@@ -15,6 +15,7 @@ defmodule MedicaidClaimsChecker.Application do
       {Phoenix.PubSub, name: MedicaidClaimsChecker.PubSub},
       MedicaidClaimsChecker.Repo,
       {Task.Supervisor, name: MedicaidClaimsChecker.TaskSupervisor},
+      MedicaidClaimsChecker.Nppes.RefreshWorker,
       # Start to serve requests, typically the last entry
       MedicaidClaimsCheckerWeb.Endpoint
     ]

@@ -56,6 +56,156 @@
       </div>
     </div>
 
+    <!-- NPPES Provider Registry -->
+    <div class="mb-6 bg-white shadow-md rounded-lg">
+      <div class="px-4 py-3 border-b border-gray-200">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-semibold text-gray-900">NPPES Provider Registry</h2>
+            <p class="text-xs text-gray-600 mt-1">
+              Automated refresh of the National Provider registry used for NPI validation
+            </p>
+          </div>
+          <div class="flex items-center gap-3">
+            <!-- Status badge -->
+            <%= unless @nppes_refreshing do %>
+              <%= case @nppes_config.last_status do %>
+                <% "completed" -> %>
+                  <span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded font-medium">Up to date</span>
+                <% "failed" -> %>
+                  <span class="px-2 py-1 text-xs bg-red-100 text-red-800 rounded font-medium">Failed</span>
+                <% _ -> %>
+                  <span class="px-2 py-1 text-xs bg-gray-200 text-gray-600 rounded font-medium">Never refreshed</span>
+              <% end %>
+              <span class="text-xs text-gray-500">
+                <%= format_nppes_time(@nppes_config.last_refresh_at) %> &middot; <%= format_number(@nppes_provider_count) %> providers
+              </span>
+              <button
+                type="button"
+                phx-click="nppes_refresh_now"
+                class="px-3 py-1.5 text-xs font-medium rounded bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+              >
+                Refresh Now
+              </button>
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading progress bar (visible only during refresh) -->
+      <%= if @nppes_refreshing do %>
+        <div class="px-4 py-3 bg-yellow-50 border-t border-b border-yellow-200">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="relative flex h-3 w-3">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-3 w-3 bg-yellow-500"></span>
+              </span>
+              <span class="text-sm font-semibold text-yellow-900">Loading NPPES data...</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-sm font-medium text-yellow-800">
+                <%= @nppes_elapsed_display %> elapsed
+              </span>
+              <%= if @nppes_rows_imported > 0 do %>
+                <span class="text-sm text-yellow-700">
+                  &middot; <%= format_number(@nppes_rows_imported) %> rows imported
+                </span>
+              <% end %>
+              <button
+                type="button"
+                phx-click="nppes_cancel_refresh"
+                class="px-3 py-1.5 text-xs font-medium rounded bg-red-600 hover:bg-red-700 text-white cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+          <div class="w-full bg-yellow-200 rounded-full h-1.5">
+            <div class="bg-yellow-500 h-1.5 rounded-full animate-pulse" style="width: 100%"></div>
+          </div>
+        </div>
+      <% end %>
+
+      <!-- Error banner (visible after failure) -->
+      <%= if not @nppes_refreshing and @nppes_config.last_status == "failed" and @nppes_config.last_error do %>
+        <div class="px-4 py-3 bg-red-50 border-t border-b border-red-300">
+          <div class="flex items-start gap-2">
+            <svg class="w-5 h-5 text-red-600 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+            <div>
+              <p class="text-sm font-semibold text-red-900">NPPES refresh failed</p>
+              <p class="text-sm text-red-800 mt-1"><%= @nppes_config.last_error %></p>
+            </div>
+          </div>
+        </div>
+      <% end %>
+
+      <div class="p-4">
+
+        <.form for={%{}} phx-submit="save_nppes_config" id="nppes-config-form" class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <!-- Auto-refresh toggle -->
+            <div>
+              <label class="block text-sm font-medium text-gray-900 mb-1">Auto-refresh</label>
+              <button
+                type="button"
+                phx-click="toggle_nppes_auto_refresh"
+                class={"relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer #{if @nppes_config.auto_refresh, do: "bg-blue-600", else: "bg-gray-300"}"}
+              >
+                <span class={"inline-block h-4 w-4 transform rounded-full bg-white transition-transform #{if @nppes_config.auto_refresh, do: "translate-x-6", else: "translate-x-1"}"} />
+              </button>
+              <span class="ml-2 text-xs text-gray-600">
+                <%= if @nppes_config.auto_refresh, do: "Enabled", else: "Disabled" %>
+              </span>
+            </div>
+
+            <!-- Interval -->
+            <div>
+              <label class="block text-sm font-medium text-gray-900 mb-1">Refresh Interval</label>
+              <select
+                name="nppes[interval_seconds]"
+                class="w-full px-3 py-2 border border-gray-400 rounded-md text-sm text-gray-900 bg-white"
+              >
+                <option value="86400" selected={@nppes_config.interval_seconds == 86_400}>Daily</option>
+                <option value="604800" selected={@nppes_config.interval_seconds == 604_800}>Weekly</option>
+                <option value="1209600" selected={@nppes_config.interval_seconds == 1_209_600}>Bi-weekly</option>
+                <option value="2592000" selected={@nppes_config.interval_seconds == 2_592_000}>Monthly</option>
+              </select>
+              <p class="text-[10px] text-gray-500 mt-1">
+                Currently: <%= interval_label(@nppes_config.interval_seconds) %>
+              </p>
+            </div>
+
+            <!-- Download URL -->
+            <div>
+              <label class="block text-sm font-medium text-gray-900 mb-1">Download URL</label>
+              <input
+                name="nppes[download_url]"
+                value={@nppes_config.download_url}
+                class="w-full px-3 py-2 border border-gray-400 rounded-md text-sm text-gray-900 bg-white"
+                placeholder="https://download.cms.gov/nppes/..."
+              />
+            </div>
+          </div>
+
+          <%= if @nppes_form_error do %>
+            <div class="p-2 bg-red-100 border border-red-300 rounded">
+              <p class="text-xs text-red-900"><%= @nppes_form_error %></p>
+            </div>
+          <% end %>
+
+          <button
+            type="submit"
+            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium cursor-pointer"
+          >
+            Save Settings
+          </button>
+        </.form>
+      </div>
+    </div>
+
     <!-- Add / Edit Source Form -->
     <div class="mb-6 bg-white shadow-md rounded-lg">
       <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
@@ -308,29 +458,31 @@
                     <!-- Add Schedule Form (inline) -->
                     <%= if @adding_schedule_for == source.id do %>
                       <div class="mt-3 p-3 bg-white border border-gray-300 rounded-md">
-                        <.form for={%{}} phx-submit="save_schedule" id={"schedule-form-#{source.id}"} class="space-y-3">
+                        <.form for={%{}} phx-submit="save_schedule" phx-change="update_schedule_form" id={"schedule-form-#{source.id}"} class="space-y-3">
                           <p class="text-xs font-medium text-gray-800">Provide either a cron expression or an interval (not both):</p>
                           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div>
                               <label class="block text-xs font-medium text-gray-700 mb-1">Cron Expression</label>
-                              <input
-                                name="schedule[cron]"
-                                value={@schedule_cron}
-                                class="w-full px-2 py-1.5 border border-gray-400 rounded text-xs text-gray-900 bg-white"
-                                placeholder="e.g., 0 */6 * * *"
-                              />
+                              <div id={"cron-input-wrapper-#{source.id}"} phx-update="ignore">
+                                <input
+                                  name="schedule[cron]"
+                                  class="w-full px-2 py-1.5 border border-gray-400 rounded text-xs text-gray-900 bg-white"
+                                  placeholder="e.g., 0 */6 * * *"
+                                />
+                              </div>
                               <p class="text-[10px] text-gray-500 mt-1">min hour day month weekday</p>
                             </div>
                             <div>
                               <label class="block text-xs font-medium text-gray-700 mb-1">Interval (seconds)</label>
-                              <input
-                                name="schedule[interval]"
-                                value={@schedule_interval}
-                                type="number"
-                                min="60"
-                                class="w-full px-2 py-1.5 border border-gray-400 rounded text-xs text-gray-900 bg-white"
-                                placeholder="e.g., 3600 (1 hour)"
-                              />
+                              <div id={"interval-input-wrapper-#{source.id}"} phx-update="ignore">
+                                <input
+                                  name="schedule[interval]"
+                                  type="number"
+                                  min="60"
+                                  class="w-full px-2 py-1.5 border border-gray-400 rounded text-xs text-gray-900 bg-white"
+                                  placeholder="e.g., 3600 (1 hour)"
+                                />
+                              </div>
                               <p class="text-[10px] text-gray-500 mt-1">Minimum 60 seconds</p>
                             </div>
                           </div>

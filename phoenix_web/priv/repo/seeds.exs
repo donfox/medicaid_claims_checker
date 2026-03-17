@@ -1,8 +1,100 @@
 alias MedicaidClaimsChecker.Repo
 alias MedicaidClaimsChecker.Claims.BusinessRule
 alias MedicaidClaimsChecker.Claims.RuleCatalogue
+alias MedicaidClaimsChecker.Claims.NppesProvider
+alias MedicaidClaimsChecker.Nppes.RefreshConfig
 
 now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+# --- Mock NPPES Providers (for testing) ---
+
+mock_providers = [
+  %{
+    npi: "1234567893",
+    entity_type: 1,
+    provider_name: "Dr. Jane Smith",
+    credential: "MD",
+    state: "NY",
+    enumeration_date: ~D[2010-03-15],
+    deactivation_date: nil,
+    reactivation_date: nil,
+    last_update_date: ~D[2024-01-10],
+    inserted_at: now,
+    updated_at: now
+  },
+  %{
+    npi: "9876543210",
+    entity_type: 1,
+    provider_name: "Dr. Robert Johnson",
+    credential: "DO",
+    state: "CA",
+    enumeration_date: ~D[2005-07-22],
+    deactivation_date: nil,
+    reactivation_date: nil,
+    last_update_date: ~D[2023-11-05],
+    inserted_at: now,
+    updated_at: now
+  },
+  %{
+    npi: "5678901234",
+    entity_type: 2,
+    provider_name: "Sunrise Medical Group LLC",
+    credential: nil,
+    state: "TX",
+    enumeration_date: ~D[2012-01-10],
+    deactivation_date: nil,
+    reactivation_date: nil,
+    last_update_date: ~D[2024-02-20],
+    inserted_at: now,
+    updated_at: now
+  },
+  %{
+    npi: "1111111112",
+    entity_type: 1,
+    provider_name: "Dr. Maria Garcia",
+    credential: "MD",
+    state: "FL",
+    enumeration_date: ~D[2015-09-01],
+    deactivation_date: ~D[2023-06-15],
+    reactivation_date: nil,
+    last_update_date: ~D[2023-06-15],
+    inserted_at: now,
+    updated_at: now
+  },
+  %{
+    npi: "2222222223",
+    entity_type: 1,
+    provider_name: "Dr. James Wilson",
+    credential: "MD",
+    state: "IL",
+    enumeration_date: ~D[2008-11-20],
+    deactivation_date: ~D[2022-03-01],
+    reactivation_date: ~D[2022-09-15],
+    last_update_date: ~D[2022-09-15],
+    inserted_at: now,
+    updated_at: now
+  },
+  %{
+    npi: "3333333334",
+    entity_type: 2,
+    provider_name: "Metro Health Partners Inc",
+    credential: nil,
+    state: "PA",
+    enumeration_date: ~D[2018-04-12],
+    deactivation_date: nil,
+    reactivation_date: nil,
+    last_update_date: ~D[2024-03-01],
+    inserted_at: now,
+    updated_at: now
+  }
+]
+
+Repo.insert_all(
+  NppesProvider,
+  mock_providers,
+  on_conflict: {:replace, [:provider_name, :credential, :state, :deactivation_date, :reactivation_date, :last_update_date, :updated_at]},
+  conflict_target: [:npi]
+)
 
 # --- Business Rules (DSL text) ---
 
@@ -629,3 +721,6 @@ Repo.insert_all(
   on_conflict: {:replace, [:description, :status, :updated_at]},
   conflict_target: [:name]
 )
+
+# --- NPPES Refresh Config (ensure default row exists) ---
+RefreshConfig.get_or_create()

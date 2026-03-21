@@ -37,10 +37,12 @@
         "tenure_days": 4380,
         "risk_score": 4,
         "credentialing_date": "2014-02-24",
-        "specialty": "Clinical Pathology"
+        "specialty": "Clinical Pathology",
+        "taxonomy": "207ZP0102X"
     },
     "billing_provider": {
         "npi": "1555666777",
+        "taxonomy": "207ZP0102X",
         "name": "Midwest Diagnostics Laboratory",
         "address": {
             "street": "300 Science Park",

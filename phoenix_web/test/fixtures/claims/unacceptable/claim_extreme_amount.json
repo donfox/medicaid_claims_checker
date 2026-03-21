@@ -37,10 +37,12 @@
         "tenure_days": 5000,
         "risk_score": 20,
         "credentialing_date": "2012-06-01",
-        "specialty": "Cardiothoracic Surgery"
+        "specialty": "Cardiothoracic Surgery",
+        "taxonomy": "208G00000X"
     },
     "billing_provider": {
         "npi": "1098765432",
+        "taxonomy": "208G00000X",
         "name": "Metro Regional Hospital",
         "address": {
             "street": "1 Hospital Drive",

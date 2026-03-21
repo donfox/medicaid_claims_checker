@@ -37,10 +37,12 @@
         "tenure_days": 800,
         "risk_score": 25,
         "credentialing_date": "2015-12-01",
-        "specialty": "Family Medicine"
+        "specialty": "Family Medicine",
+        "taxonomy": "207Q00000X"
     },
     "billing_provider": {
         "npi": "1234567901",
+        "taxonomy": "207Q00000X",
         "name": "Kansas City Medical Center",
         "address": {
             "street": "6060 Main Street",

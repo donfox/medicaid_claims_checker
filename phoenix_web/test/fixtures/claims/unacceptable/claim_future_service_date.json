@@ -37,10 +37,12 @@
         "tenure_days": 600,
         "risk_score": 15,
         "credentialing_date": "2024-06-15",
-        "specialty": "General Practice"
+        "specialty": "General Practice",
+        "taxonomy": "208D00000X"
     },
     "billing_provider": {
         "npi": "1234509876",
+        "taxonomy": "208D00000X",
         "name": "Eastside Medical Group",
         "address": {
             "street": "400 Future Lane",

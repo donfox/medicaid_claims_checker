@@ -22,15 +22,18 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
         {:error, error} -> {nil, normalize_error(error)}
       end
 
+    # Restore the most recent completed batch results from the database
+    {restored_status, restored_results, restored_summary} = restore_last_batch_results()
+
     {:ok,
      socket
      |> assign(:batch_rule_text, default_rule)
      |> assign(:batch_parsed_rules, batch_parsed_rules)
      |> assign(:batch_parse_error, batch_parse_error)
-     |> assign(:batch_status, :idle)
-     |> assign(:batch_results, [])
+     |> assign(:batch_status, restored_status)
+     |> assign(:batch_results, restored_results)
      |> assign(:batch_error, nil)
-     |> assign(:batch_summary, nil)
+     |> assign(:batch_summary, restored_summary)
      |> assign(:batch_show_matched_only, true)
      |> assign(:expanded_claims, MapSet.new())
      |> assign(:catalog_rules, catalog_rules)
@@ -46,9 +49,6 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
      |> assign(:show_dsl_reference, false)
      |> assign(:batch_filter, nil)
      |> assign(:batch_notification, nil)
-     |> assign(:batch_history, load_batch_history())
-     |> assign(:expanded_batch_ids, MapSet.new())
-     |> assign(:expanded_batch_file_ids, MapSet.new())
      |> allow_upload(:claim_files,
        accept: ~w(.json),
        max_entries: 100,
@@ -58,7 +58,8 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
   end
 
   @impl true
-  def handle_info({:batch_completed, %{batch_id: batch_id, summary: summary, files: files}}, socket) do
+  def handle_info({:batch_completed, %{batch_id: batch_id, summary: summary, files: files}}, socket)
+      when is_map(summary) and is_list(files) do
     notification = %{
       type: :completed,
       batch_id: batch_id,
@@ -71,11 +72,16 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
 
     {:noreply,
      socket
-     |> assign(:batch_notification, notification)
-     |> assign(:batch_history, load_batch_history())}
+     |> assign(:batch_notification, notification)}
   end
 
-  def handle_info({:batch_failed, %{batch_id: batch_id, reason: reason}}, socket) do
+  # Simplified broadcast from manual UI uploads — no notification needed (results shown inline)
+  def handle_info({:batch_completed, _payload}, socket) do
+    {:noreply, socket}
+  end
+
+  def handle_info({:batch_failed, %{batch_id: batch_id, reason: reason}}, socket)
+      when is_binary(reason) do
     notification = %{
       type: :failed,
       batch_id: batch_id,
@@ -83,6 +89,10 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
     }
 
     {:noreply, assign(socket, :batch_notification, notification)}
+  end
+
+  def handle_info({:batch_failed, _payload}, socket) do
+    {:noreply, socket}
   end
 
   @impl true
@@ -93,34 +103,6 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
   def handle_event("toggle_notification_details", _params, socket) do
     notification = socket.assigns.batch_notification
     {:noreply, assign(socket, :batch_notification, %{notification | expanded: !notification.expanded})}
-  end
-
-  def handle_event("toggle_batch_detail", %{"id" => id}, socket) do
-    id = String.to_integer(id)
-    expanded = socket.assigns.expanded_batch_ids
-
-    updated =
-      if MapSet.member?(expanded, id),
-        do: MapSet.delete(expanded, id),
-        else: MapSet.put(expanded, id)
-
-    {:noreply, assign(socket, :expanded_batch_ids, updated)}
-  end
-
-  def handle_event("toggle_batch_file_detail", %{"id" => id}, socket) do
-    id = String.to_integer(id)
-    expanded = socket.assigns.expanded_batch_file_ids
-
-    updated =
-      if MapSet.member?(expanded, id),
-        do: MapSet.delete(expanded, id),
-        else: MapSet.put(expanded, id)
-
-    {:noreply, assign(socket, :expanded_batch_file_ids, updated)}
-  end
-
-  def handle_event("refresh_batch_history", _params, socket) do
-    {:noreply, assign(socket, :batch_history, load_batch_history())}
   end
 
   def handle_event("update_catalog_rule", %{"catalog" => params}, socket) do
@@ -379,6 +361,17 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
      |> assign(:batch_error, nil)}
   end
 
+  def handle_event("clear_batch_results", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:batch_status, :idle)
+     |> assign(:batch_results, [])
+     |> assign(:batch_summary, nil)
+     |> assign(:batch_error, nil)
+     |> assign(:batch_filter, nil)
+     |> assign(:expanded_claims, MapSet.new())}
+  end
+
   @impl true
   def handle_event("clear_batch_rule", _params, socket) do
     {:noreply,
@@ -630,9 +623,22 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
     {passthrough_claims, passthrough_filenames, nppes_rejections} =
       nppes_pre_evaluate(claims, filenames)
 
+    # Persist NPPES-rejected claims as edi_file records
+    Enum.each(nppes_rejections, fn rejection ->
+      Claims.create_edi_file(%{
+        filename: rejection["fileName"],
+        file_path: "batch/#{batch_id}/#{rejection["claimId"]}",
+        json_output: rejection["report"],
+        status: "fraudulent",
+        batch_id: batch.id,
+        processed_at: DateTime.utc_now()
+      })
+    end)
+
     # If all claims were rejected by NPPES, skip Haskell evaluation entirely
     if passthrough_claims == [] do
       Claims.update_batch(batch, %{status: "completed", completed_at: DateTime.utc_now()})
+      broadcast_batch_completed(batch.batch_id)
       sorted = Enum.sort_by(nppes_rejections, &risk_sort_key/1)
 
       {:ok,
@@ -656,7 +662,7 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
               if risk in ["CriticalRisk", "HighRisk"], do: "fraudulent", else: "translated"
 
             Claims.create_edi_file(%{
-              filename: claim_id,
+              filename: filename,
               file_path: "batch/#{batch_id}/#{claim_id}",
               json_output: report,
               status: status,
@@ -677,6 +683,7 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
           completed_at: DateTime.utc_now()
         })
 
+        broadcast_batch_completed(batch.batch_id)
         sorted_results = Enum.sort_by(all_results, &risk_sort_key/1)
 
         {:ok,
@@ -688,6 +695,7 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
 
       {:error, err} ->
         Claims.update_batch(batch, %{status: "failed"})
+        broadcast_batch_failed(batch.batch_id, err)
         {:error, err}
     end
     end
@@ -732,6 +740,50 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
     end)
   end
 
+  defp restore_last_batch_results do
+    case Claims.list_recent_batches(1) do
+      [batch] when batch.status == "completed" ->
+        files = Claims.list_files_for_batch(batch.id)
+
+        results =
+          files
+          |> Enum.with_index()
+          |> Enum.map(fn {f, idx} ->
+            report = f.json_output || %{}
+
+            %{
+              "claimIndex" => idx,
+              "claimId" => to_string(f.id),
+              "fileName" => f.filename,
+              "report" => report
+            }
+          end)
+          |> Enum.sort_by(&risk_sort_key/1)
+
+        summary = build_batch_summary(results)
+        {:done, results, summary}
+
+      _ ->
+        {:idle, [], nil}
+    end
+  end
+
+  defp broadcast_batch_completed(batch_id) do
+    Phoenix.PubSub.broadcast(
+      MedicaidClaimsChecker.PubSub,
+      Evaluator.topic(),
+      {:batch_completed, %{batch_id: batch_id}}
+    )
+  end
+
+  defp broadcast_batch_failed(batch_id, reason) do
+    Phoenix.PubSub.broadcast(
+      MedicaidClaimsChecker.PubSub,
+      Evaluator.topic(),
+      {:batch_failed, %{batch_id: batch_id, reason: reason}}
+    )
+  end
+
   defp file_warnings([]), do: nil
 
   defp file_warnings(errors),
@@ -747,43 +799,18 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
     _ -> []
   end
 
-  defp load_batch_history do
-    Claims.list_recent_batches(10)
-    |> Enum.map(fn batch ->
-      files = Claims.list_files_for_batch(batch.id)
+  defp filtered_catalog_rules(rules, "All"), do: rules
+  defp filtered_catalog_rules(rules, type), do: Enum.filter(rules, &(&1.entry_type == type))
 
-      files_with_details =
-        Enum.map(files, fn f ->
-          report = f.json_output || %{}
-
-          matched_results =
-            (report["results"] || [])
-            |> Enum.filter(& &1["resultMatched"])
-            |> Enum.map(fn r ->
-              %{rule: r["resultRuleName"], detail: r["resultDetails"]}
-            end)
-
-          %{
-            id: f.id,
-            filename: normalize_filename(f.filename),
-            status: f.status,
-            risk: report["overallRisk"] || "N/A",
-            matched_rules: report["matchedRules"] || 0,
-            matched_results: matched_results
-          }
-        end)
-
-      %{
-        id: batch.id,
-        batch_id: batch.batch_id,
-        source: batch.source,
-        status: batch.status,
-        file_count: batch.file_count,
-        inserted_at: batch.inserted_at,
-        completed_at: batch.completed_at,
-        files: files_with_details
-      }
-    end)
+  defp catalog_counts(rules) do
+    %{
+      total: length(rules),
+      default: Enum.count(rules, &(&1.entry_type == "Default Rule")),
+      ba: Enum.count(rules, &(&1.entry_type == "BA Rule")),
+      ml: Enum.count(rules, &(&1.entry_type == "ML Model")),
+      active: Enum.count(rules, &(&1.status == "Active")),
+      redundant: Enum.count(rules, & &1.redundant)
+    }
   end
 
   # Evaluation uses active BA rules from business_rules table (the DSL execution store)
@@ -794,19 +821,6 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
     |> case do
       [] -> nil
       entries -> Enum.join(entries, "\n\n")
-    end
-  end
-
-  defp normalize_filename(filename) do
-    case Path.extname(filename) do
-      ext when ext in [".x12", ".edi", ".X12", ".EDI"] ->
-        Path.rootname(filename) <> ".json"
-
-      "" ->
-        filename <> ".json"
-
-      _ ->
-        filename
     end
   end
 

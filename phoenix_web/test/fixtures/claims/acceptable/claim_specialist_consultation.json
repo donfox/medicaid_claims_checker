@@ -37,10 +37,12 @@
         "tenure_days": 2190,
         "risk_score": 8,
         "credentialing_date": "2020-02-20",
-        "specialty": "Orthopedic Surgery"
+        "specialty": "Orthopedic Surgery",
+        "taxonomy": "207X00000X"
     },
     "billing_provider": {
         "npi": "1987654321",
+        "taxonomy": "207X00000X",
         "name": "Capitol Orthopedic Specialists",
         "address": {
             "street": "800 Medical Center Drive",

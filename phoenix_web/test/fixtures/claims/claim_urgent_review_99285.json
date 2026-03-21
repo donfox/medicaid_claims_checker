@@ -17,7 +17,8 @@
         "tenure_days": 800,
         "risk_score": 20,
         "credentialing_date": "2018-03-10",
-        "specialty": "Emergency Medicine"
+        "specialty": "Emergency Medicine",
+        "taxonomy": "207P00000X"
     },
     "patient": {
         "name": {

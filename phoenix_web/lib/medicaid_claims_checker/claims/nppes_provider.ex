@@ -15,6 +15,7 @@ defmodule MedicaidClaimsChecker.Claims.NppesProvider do
     field :entity_type, :integer
     field :provider_name, :string
     field :credential, :string
+    field :taxonomy, :string
     field :state, :string
     field :enumeration_date, :date
     field :deactivation_date, :date
@@ -31,6 +32,7 @@ defmodule MedicaidClaimsChecker.Claims.NppesProvider do
       :entity_type,
       :provider_name,
       :credential,
+      :taxonomy,
       :state,
       :enumeration_date,
       :deactivation_date,

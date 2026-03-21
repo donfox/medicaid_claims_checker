@@ -17,7 +17,8 @@
         "tenure_days": 300,
         "risk_score": 82,
         "credentialing_date": "2024-02-28",
-        "specialty": "Orthopedic Surgery"
+        "specialty": "Orthopedic Surgery",
+        "taxonomy": "207X00000X"
     },
     "patient": {
         "name": {

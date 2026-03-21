@@ -1,6 +1,8 @@
 defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
   use MedicaidClaimsCheckerWeb, :live_view
 
+  alias MedicaidClaimsChecker.Claims
+  alias MedicaidClaimsChecker.Claims.Evaluator
   alias MedicaidClaimsChecker.Ingestion
   alias MedicaidClaimsChecker.Nppes
 
@@ -8,6 +10,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
   def mount(_params, _session, socket) do
     if connected?(socket) do
       Phoenix.PubSub.subscribe(MedicaidClaimsChecker.PubSub, Nppes.topic())
+      Phoenix.PubSub.subscribe(MedicaidClaimsChecker.PubSub, Evaluator.topic())
     end
 
     nppes_config = safe_get_nppes_config()
@@ -35,6 +38,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
      |> assign(:source_type, "sftp")
      |> assign(:expanded_source_ids, MapSet.new())
      |> assign(:adding_schedule_for, nil)
+     |> assign(:editing_schedule, nil)
      |> assign(:schedule_cron, "")
      |> assign(:schedule_interval, "")
      |> assign(:source_password, "")
@@ -46,7 +50,10 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
      |> assign(:nppes_started_at, started_at)
      |> assign(:nppes_rows_imported, 0)
      |> assign(:nppes_elapsed_display, elapsed_display)
-     |> assign(:nppes_elapsed_timer, timer)}
+     |> assign(:nppes_elapsed_timer, timer)
+     |> assign(:batch_history, load_batch_history())
+     |> assign(:expanded_batch_ids, MapSet.new())
+     |> assign(:expanded_batch_file_ids, MapSet.new())}
   end
 
   # --- NPPES PubSub handlers ---
@@ -108,6 +115,16 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
 
   def handle_info({:nppes_config_updated, _config}, socket) do
     {:noreply, assign(socket, :nppes_config, safe_get_nppes_config())}
+  end
+
+  # --- Batch completion handlers ---
+
+  def handle_info({:batch_completed, _payload}, socket) do
+    {:noreply, assign(socket, :batch_history, load_batch_history())}
+  end
+
+  def handle_info({:batch_failed, _payload}, socket) do
+    {:noreply, assign(socket, :batch_history, load_batch_history())}
   end
 
   # --- NPPES event handlers ---
@@ -307,12 +324,27 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     {:noreply,
      socket
      |> assign(:adding_schedule_for, String.to_integer(source_id))
+     |> assign(:editing_schedule, nil)
      |> assign(:schedule_cron, "")
      |> assign(:schedule_interval, "")}
   end
 
+  def handle_event("edit_schedule", %{"id" => id, "source-id" => source_id}, socket) do
+    schedule = Ingestion.get_fetch_schedule!(id)
+
+    {:noreply,
+     socket
+     |> assign(:adding_schedule_for, String.to_integer(source_id))
+     |> assign(:editing_schedule, schedule)
+     |> assign(:schedule_cron, schedule.cron_expression || "")
+     |> assign(:schedule_interval, if(schedule.interval_seconds, do: to_string(schedule.interval_seconds), else: ""))}
+  end
+
   def handle_event("cancel_add_schedule", _params, socket) do
-    {:noreply, assign(socket, :adding_schedule_for, nil)}
+    {:noreply,
+     socket
+     |> assign(:adding_schedule_for, nil)
+     |> assign(:editing_schedule, nil)}
   end
 
   def handle_event("update_schedule_form", %{"schedule" => params}, socket) do
@@ -328,11 +360,11 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     attrs =
       cond do
         String.trim(params["cron"] || "") != "" ->
-          %{fetch_source_id: source_id, cron_expression: String.trim(params["cron"])}
+          %{fetch_source_id: source_id, cron_expression: String.trim(params["cron"]), interval_seconds: nil}
 
         String.trim(params["interval"] || "") != "" ->
           case Integer.parse(params["interval"]) do
-            {seconds, _} -> %{fetch_source_id: source_id, interval_seconds: seconds}
+            {seconds, _} -> %{fetch_source_id: source_id, interval_seconds: seconds, cron_expression: nil}
             :error -> %{fetch_source_id: source_id}
           end
 
@@ -340,12 +372,19 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
           %{fetch_source_id: source_id}
       end
 
-    case Ingestion.create_fetch_schedule(attrs) do
+    result =
+      case socket.assigns.editing_schedule do
+        nil -> Ingestion.create_fetch_schedule(attrs)
+        schedule -> Ingestion.update_fetch_schedule(schedule, attrs)
+      end
+
+    case result do
       {:ok, _} ->
         {:noreply,
          socket
          |> assign(:sources, Ingestion.list_fetch_sources())
-         |> assign(:adding_schedule_for, nil)}
+         |> assign(:adding_schedule_for, nil)
+         |> assign(:editing_schedule, nil)}
 
       {:error, changeset} ->
         message =
@@ -367,6 +406,57 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     schedule = Ingestion.get_fetch_schedule!(id)
     {:ok, _} = Ingestion.toggle_fetch_schedule_enabled(schedule)
     {:noreply, assign(socket, :sources, Ingestion.list_fetch_sources())}
+  end
+
+  # --- Batch History event handlers ---
+
+  def handle_event("toggle_batch_detail", %{"id" => id}, socket) do
+    id = String.to_integer(id)
+    expanded = socket.assigns.expanded_batch_ids
+
+    updated =
+      if MapSet.member?(expanded, id),
+        do: MapSet.delete(expanded, id),
+        else: MapSet.put(expanded, id)
+
+    {:noreply, assign(socket, :expanded_batch_ids, updated)}
+  end
+
+  def handle_event("toggle_batch_file_detail", %{"id" => id}, socket) do
+    id = String.to_integer(id)
+    expanded = socket.assigns.expanded_batch_file_ids
+
+    updated =
+      if MapSet.member?(expanded, id),
+        do: MapSet.delete(expanded, id),
+        else: MapSet.put(expanded, id)
+
+    {:noreply, assign(socket, :expanded_batch_file_ids, updated)}
+  end
+
+  def handle_event("refresh_batch_history", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:batch_history, load_batch_history())
+     |> put_flash(:info, "Batch history refreshed")}
+  end
+
+  def handle_event("clear_batch_history", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:batch_history, [])
+     |> assign(:expanded_batch_ids, MapSet.new())
+     |> assign(:expanded_batch_file_ids, MapSet.new())
+     |> put_flash(:info, "Display cleared — click Refresh to reload")}
+  end
+
+  def handle_event("dismiss_batch", %{"id" => id}, socket) do
+    batch_id = String.to_integer(id)
+
+    {:noreply,
+     socket
+     |> assign(:batch_history, Enum.reject(socket.assigns.batch_history, &(&1.id == batch_id)))
+     |> assign(:expanded_batch_ids, MapSet.delete(socket.assigns.expanded_batch_ids, batch_id))}
   end
 
   defp reset_source_form(socket) do
@@ -459,5 +549,60 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     |> String.replace(~r/.{3}/, "\\0,")
     |> String.reverse()
     |> String.trim_leading(",")
+  end
+
+  # --- Batch History helpers ---
+
+  defp load_batch_history do
+    Claims.list_recent_batches(20)
+    |> Enum.map(fn batch ->
+      files = Claims.list_files_for_batch(batch.id)
+
+      files_with_details =
+        Enum.map(files, fn f ->
+          report = f.json_output || %{}
+
+          matched_results =
+            (report["results"] || [])
+            |> Enum.filter(& &1["resultMatched"])
+            |> Enum.map(fn r ->
+              %{rule: r["resultRuleName"], detail: r["resultDetails"]}
+            end)
+
+          %{
+            id: f.id,
+            filename: normalize_filename(f.filename),
+            status: f.status,
+            risk: report["overallRisk"] || "N/A",
+            matched_rules: report["matchedRules"] || 0,
+            matched_results: matched_results
+          }
+        end)
+
+      %{
+        id: batch.id,
+        batch_id: batch.batch_id,
+        batch_name: batch.batch_name,
+        source: batch.source,
+        status: batch.status,
+        file_count: batch.file_count,
+        inserted_at: batch.inserted_at,
+        completed_at: batch.completed_at,
+        files: files_with_details
+      }
+    end)
+  end
+
+  defp normalize_filename(filename) do
+    case Path.extname(filename) do
+      ext when ext in [".x12", ".edi", ".X12", ".EDI"] ->
+        Path.rootname(filename) <> ".json"
+
+      "" ->
+        filename <> ".json"
+
+      _ ->
+        filename
+    end
   end
 end

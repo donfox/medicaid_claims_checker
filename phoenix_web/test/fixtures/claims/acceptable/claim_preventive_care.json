@@ -37,10 +37,12 @@
         "tenure_days": 3650,
         "risk_score": 5,
         "credentialing_date": "2016-02-22",
-        "specialty": "Internal Medicine"
+        "specialty": "Internal Medicine",
+        "taxonomy": "207R00000X"
     },
     "billing_provider": {
         "npi": "1122334455",
+        "taxonomy": "207R00000X",
         "name": "Northside Primary Care",
         "address": {
             "street": "55 Wellness Way",

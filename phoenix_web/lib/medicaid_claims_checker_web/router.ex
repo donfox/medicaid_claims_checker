@@ -19,7 +19,6 @@ defmodule MedicaidClaimsCheckerWeb.Router do
 
     live("/", RuleLive.Index, :index)
     live("/rules", RuleLive.Index, :index)
-    live("/catalogue", RuleCatalogueLive.Index, :index)
     live("/fetch-sources", FetchSourceLive.Index, :index)
   end
 

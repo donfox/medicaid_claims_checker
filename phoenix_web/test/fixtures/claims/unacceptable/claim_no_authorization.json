@@ -37,10 +37,12 @@
         "tenure_days": 1100,
         "risk_score": 18,
         "credentialing_date": "2023-01-15",
-        "specialty": "Ambulatory Surgery"
+        "specialty": "Ambulatory Surgery",
+        "taxonomy": "261QA0600X"
     },
     "billing_provider": {
         "npi": "1473698520",
+        "taxonomy": "261QA0600X",
         "name": "Bayside Surgical Center",
         "address": {
             "street": "500 Harbor View Drive",

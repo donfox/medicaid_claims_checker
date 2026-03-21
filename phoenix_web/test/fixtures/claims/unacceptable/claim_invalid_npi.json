@@ -37,10 +37,12 @@
         "tenure_days": 200,
         "risk_score": 60,
         "credentialing_date": "2025-07-30",
-        "specialty": "General Practice"
+        "specialty": "General Practice",
+        "taxonomy": "208D00000X"
     },
     "billing_provider": {
         "npi": "1234567",
+        "taxonomy": "208D00000X",
         "name": "Unclear Medical Services",
         "address": {
             "street": "999 Unknown Street",

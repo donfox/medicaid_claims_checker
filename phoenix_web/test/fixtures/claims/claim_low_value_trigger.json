@@ -17,7 +17,8 @@
         "tenure_days": 200,
         "risk_score": 45,
         "credentialing_date": "2024-06-15",
-        "specialty": "General Practice"
+        "specialty": "General Practice",
+        "taxonomy": "208D00000X"
     },
     "patient": {
         "name": {

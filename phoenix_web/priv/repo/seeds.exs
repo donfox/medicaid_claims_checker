@@ -9,50 +9,317 @@ now = DateTime.utc_now() |> DateTime.truncate(:second)
 # --- Mock NPPES Providers (for testing) ---
 
 mock_providers = [
+  # --- Providers matching test fixture NPIs (with taxonomy) ---
+  # claim_normal_approved.json, claim_routine_office_visit.json
   %{
-    npi: "1234567893",
-    entity_type: 1,
-    provider_name: "Dr. Jane Smith",
-    credential: "MD",
-    state: "NY",
-    enumeration_date: ~D[2010-03-15],
+    npi: "1234567890",
+    entity_type: 2,
+    provider_name: "Riverside Family Practice",
+    credential: nil,
+    taxonomy: "207Q00000X",
+    state: "IL",
+    enumeration_date: ~D[2021-02-19],
     deactivation_date: nil,
     reactivation_date: nil,
     last_update_date: ~D[2024-01-10],
     inserted_at: now,
     updated_at: now
   },
+  # claim_normal_approved.json
   %{
-    npi: "9876543210",
-    entity_type: 1,
-    provider_name: "Dr. Robert Johnson",
-    credential: "DO",
-    state: "CA",
-    enumeration_date: ~D[2005-07-22],
-    deactivation_date: nil,
-    reactivation_date: nil,
-    last_update_date: ~D[2023-11-05],
-    inserted_at: now,
-    updated_at: now
-  },
-  %{
-    npi: "5678901234",
+    npi: "1234567901",
     entity_type: 2,
-    provider_name: "Sunrise Medical Group LLC",
+    provider_name: "Kansas City Medical Center",
     credential: nil,
-    state: "TX",
-    enumeration_date: ~D[2012-01-10],
+    taxonomy: "207Q00000X",
+    state: "MO",
+    enumeration_date: ~D[2015-12-01],
     deactivation_date: nil,
     reactivation_date: nil,
-    last_update_date: ~D[2024-02-20],
+    last_update_date: ~D[2024-02-15],
     inserted_at: now,
     updated_at: now
   },
+  # claim_low_value_trigger.json
+  %{
+    npi: "1234567891",
+    entity_type: 2,
+    provider_name: "Budget Clinic",
+    credential: nil,
+    taxonomy: "208D00000X",
+    state: "TX",
+    enumeration_date: ~D[2024-06-15],
+    deactivation_date: nil,
+    reactivation_date: nil,
+    last_update_date: ~D[2024-06-15],
+    inserted_at: now,
+    updated_at: now
+  },
+  # claim_invalid_state_trigger.json
+  %{
+    npi: "1234567892",
+    entity_type: 1,
+    provider_name: "Unknown Provider LLC",
+    credential: nil,
+    taxonomy: nil,
+    state: "XX",
+    enumeration_date: ~D[2025-01-20],
+    deactivation_date: nil,
+    reactivation_date: nil,
+    last_update_date: ~D[2025-01-20],
+    inserted_at: now,
+    updated_at: now
+  },
+  # claim_high_risk_combo_trigger.json
+  %{
+    npi: "1234567893",
+    entity_type: 2,
+    provider_name: "New Startup Clinic",
+    credential: nil,
+    taxonomy: "261QD0000X",
+    state: "FL",
+    enumeration_date: ~D[2025-12-01],
+    deactivation_date: nil,
+    reactivation_date: nil,
+    last_update_date: ~D[2025-12-01],
+    inserted_at: now,
+    updated_at: now
+  },
+  # claim_urgent_review_99285.json
+  %{
+    npi: "1234567894",
+    entity_type: 2,
+    provider_name: "Emergency Medical Center",
+    credential: nil,
+    taxonomy: "207P00000X",
+    state: "IL",
+    enumeration_date: ~D[2018-03-10],
+    deactivation_date: nil,
+    reactivation_date: nil,
+    last_update_date: ~D[2024-01-15],
+    inserted_at: now,
+    updated_at: now
+  },
+  # claim_missing_auth_trigger.json
+  %{
+    npi: "1234567895",
+    entity_type: 2,
+    provider_name: "Suspicious Medical Group",
+    credential: nil,
+    taxonomy: "193200000X",
+    state: "NV",
+    enumeration_date: ~D[2025-09-15],
+    deactivation_date: nil,
+    reactivation_date: nil,
+    last_update_date: ~D[2025-09-15],
+    inserted_at: now,
+    updated_at: now
+  },
+  # claim_multi_action_trigger.json
+  %{
+    npi: "1234567896",
+    entity_type: 2,
+    provider_name: "Extreme Services Inc",
+    credential: nil,
+    taxonomy: "283X00000X",
+    state: "CA",
+    enumeration_date: ~D[2025-11-15],
+    deactivation_date: nil,
+    reactivation_date: nil,
+    last_update_date: ~D[2025-11-15],
+    inserted_at: now,
+    updated_at: now
+  },
+  # claim_complex_fraud_trigger.json
+  %{
+    npi: "1234567897",
+    entity_type: 2,
+    provider_name: "High-Risk Medical Services",
+    credential: nil,
+    taxonomy: "207X00000X",
+    state: "AZ",
+    enumeration_date: ~D[2024-02-28],
+    deactivation_date: nil,
+    reactivation_date: nil,
+    last_update_date: ~D[2024-02-28],
+    inserted_at: now,
+    updated_at: now
+  },
+  # claim_specialist_consultation.json
+  %{
+    npi: "1987654321",
+    entity_type: 2,
+    provider_name: "Capitol Orthopedic Specialists",
+    credential: nil,
+    taxonomy: "207X00000X",
+    state: "TX",
+    enumeration_date: ~D[2020-02-20],
+    deactivation_date: nil,
+    reactivation_date: nil,
+    last_update_date: ~D[2024-03-01],
+    inserted_at: now,
+    updated_at: now
+  },
+  # claim_preventive_care.json
+  %{
+    npi: "1122334455",
+    entity_type: 2,
+    provider_name: "Northside Primary Care",
+    credential: nil,
+    taxonomy: "207R00000X",
+    state: "CO",
+    enumeration_date: ~D[2016-02-22],
+    deactivation_date: nil,
+    reactivation_date: nil,
+    last_update_date: ~D[2024-01-20],
+    inserted_at: now,
+    updated_at: now
+  },
+  # claim_outpatient_lab.json
+  %{
+    npi: "1555666777",
+    entity_type: 2,
+    provider_name: "Midwest Diagnostics Laboratory",
+    credential: nil,
+    taxonomy: "207ZP0102X",
+    state: "OH",
+    enumeration_date: ~D[2014-02-24],
+    deactivation_date: nil,
+    reactivation_date: nil,
+    last_update_date: ~D[2024-02-01],
+    inserted_at: now,
+    updated_at: now
+  },
+  # claim_extreme_amount.json
+  %{
+    npi: "1098765432",
+    entity_type: 2,
+    provider_name: "Metro Regional Hospital",
+    credential: nil,
+    taxonomy: "208G00000X",
+    state: "NY",
+    enumeration_date: ~D[2012-06-01],
+    deactivation_date: nil,
+    reactivation_date: nil,
+    last_update_date: ~D[2024-01-05],
+    inserted_at: now,
+    updated_at: now
+  },
+  # claim_future_service_date.json
+  %{
+    npi: "1234509876",
+    entity_type: 2,
+    provider_name: "Eastside Medical Group",
+    credential: nil,
+    taxonomy: "208D00000X",
+    state: "AZ",
+    enumeration_date: ~D[2024-06-15],
+    deactivation_date: nil,
+    reactivation_date: nil,
+    last_update_date: ~D[2024-06-15],
+    inserted_at: now,
+    updated_at: now
+  },
+  # claim_missing_diagnosis.json
+  %{
+    npi: "1357924680",
+    entity_type: 2,
+    provider_name: "Westfield Urgent Care",
+    credential: nil,
+    taxonomy: "261QU0200X",
+    state: "GA",
+    enumeration_date: ~D[2024-02-25],
+    deactivation_date: nil,
+    reactivation_date: nil,
+    last_update_date: ~D[2024-02-25],
+    inserted_at: now,
+    updated_at: now
+  },
+  # claim_no_authorization.json
+  %{
+    npi: "1473698520",
+    entity_type: 2,
+    provider_name: "Bayside Surgical Center",
+    credential: nil,
+    taxonomy: "261QA0600X",
+    state: "WA",
+    enumeration_date: ~D[2023-01-15],
+    deactivation_date: nil,
+    reactivation_date: nil,
+    last_update_date: ~D[2024-01-10],
+    inserted_at: now,
+    updated_at: now
+  },
+  # claim_suspicious_low_amount.json
+  %{
+    npi: "1928374650",
+    entity_type: 2,
+    provider_name: "Greenway Behavioral Health",
+    credential: nil,
+    taxonomy: "2084P0800X",
+    state: "OR",
+    enumeration_date: ~D[2023-08-10],
+    deactivation_date: nil,
+    reactivation_date: nil,
+    last_update_date: ~D[2024-01-15],
+    inserted_at: now,
+    updated_at: now
+  },
+  # claim_high_value_threshold.json
+  %{
+    npi: "1654321987",
+    entity_type: 2,
+    provider_name: "University Orthopedic Hospital",
+    credential: nil,
+    taxonomy: "207X00000X",
+    state: "PA",
+    enumeration_date: ~D[2017-02-26],
+    deactivation_date: nil,
+    reactivation_date: nil,
+    last_update_date: ~D[2024-02-10],
+    inserted_at: now,
+    updated_at: now
+  },
+  # claim_new_provider_high_value.json
+  %{
+    npi: "1829384756",
+    entity_type: 2,
+    provider_name: "Sunrise Pain Management Center",
+    credential: nil,
+    taxonomy: "208VP0014X",
+    state: "TN",
+    enumeration_date: ~D[2026-01-27],
+    deactivation_date: nil,
+    reactivation_date: nil,
+    last_update_date: ~D[2026-01-27],
+    inserted_at: now,
+    updated_at: now
+  },
+  # claim_er_high_complexity.json
+  %{
+    npi: "1736251948",
+    entity_type: 2,
+    provider_name: "St. Catherine Emergency Center",
+    credential: nil,
+    taxonomy: "207P00000X",
+    state: "TX",
+    enumeration_date: ~D[2019-02-25],
+    deactivation_date: nil,
+    reactivation_date: nil,
+    last_update_date: ~D[2024-01-20],
+    inserted_at: now,
+    updated_at: now
+  },
+  # claim_invalid_npi.json (7-digit NPI — will NOT be inserted due to length validation)
+  # NPI "1234567" is intentionally invalid; no NPPES record for it.
+
+  # --- Additional mock providers for NPPES validation testing ---
   %{
     npi: "1111111112",
     entity_type: 1,
     provider_name: "Dr. Maria Garcia",
     credential: "MD",
+    taxonomy: "207Q00000X",
     state: "FL",
     enumeration_date: ~D[2015-09-01],
     deactivation_date: ~D[2023-06-15],
@@ -66,24 +333,12 @@ mock_providers = [
     entity_type: 1,
     provider_name: "Dr. James Wilson",
     credential: "MD",
+    taxonomy: "207R00000X",
     state: "IL",
     enumeration_date: ~D[2008-11-20],
     deactivation_date: ~D[2022-03-01],
     reactivation_date: ~D[2022-09-15],
     last_update_date: ~D[2022-09-15],
-    inserted_at: now,
-    updated_at: now
-  },
-  %{
-    npi: "3333333334",
-    entity_type: 2,
-    provider_name: "Metro Health Partners Inc",
-    credential: nil,
-    state: "PA",
-    enumeration_date: ~D[2018-04-12],
-    deactivation_date: nil,
-    reactivation_date: nil,
-    last_update_date: ~D[2024-03-01],
     inserted_at: now,
     updated_at: now
   }
@@ -92,7 +347,7 @@ mock_providers = [
 Repo.insert_all(
   NppesProvider,
   mock_providers,
-  on_conflict: {:replace, [:provider_name, :credential, :state, :deactivation_date, :reactivation_date, :last_update_date, :updated_at]},
+  on_conflict: {:replace, [:provider_name, :credential, :taxonomy, :state, :deactivation_date, :reactivation_date, :last_update_date, :updated_at]},
   conflict_target: [:npi]
 )
 
@@ -718,6 +973,85 @@ new_ba_catalogue_entries = [
 Repo.insert_all(
   RuleCatalogue,
   new_ba_catalogue_entries,
+  on_conflict: {:replace, [:description, :status, :updated_at]},
+  conflict_target: [:name]
+)
+
+# --- Taxonomy Validation Rules ---
+
+taxonomy_ba_rules = [
+  %{
+    name: "MissingProviderTaxonomy",
+    rule_text:
+      """
+      RULE missing_provider_taxonomy
+      DESCRIPTION "Flag claims missing provider taxonomy code for specialty verification"
+      WHEN billing_provider.taxonomy IS NULL
+           AND financial.claim_amount > 1000
+      THEN REQUIRE_REVIEW "Provider taxonomy code missing — cannot validate specialty"
+      END
+      """
+      |> String.trim(),
+    active: true,
+    inserted_at: now,
+    updated_at: now
+  },
+  %{
+    name: "TaxonomyMismatchNewProvider",
+    rule_text:
+      """
+      RULE taxonomy_mismatch_new_provider
+      DESCRIPTION "New provider with missing taxonomy on high-value claim is high risk"
+      WHEN billing_provider.taxonomy IS NULL
+           AND provider.tenure_days < 90
+           AND financial.claim_amount > 5000
+      THEN FLAG_FRAUD "New provider with no taxonomy code submitting high-value claim"
+      END
+      """
+      |> String.trim(),
+    active: true,
+    inserted_at: now,
+    updated_at: now
+  }
+]
+
+Repo.insert_all(
+  BusinessRule,
+  taxonomy_ba_rules,
+  on_conflict: {:replace, [:rule_text, :active, :updated_at]},
+  conflict_target: [:name]
+)
+
+taxonomy_ba_catalogue_entries = [
+  %{
+    name: "MissingProviderTaxonomy",
+    description: "Flag claims over $1,000 that are missing the provider taxonomy code from PRV segment",
+    entry_type: "BA Rule",
+    status: "Active",
+    editable: true,
+    removable: true,
+    redundant: false,
+    db_access: false,
+    inserted_at: now,
+    updated_at: now
+  },
+  %{
+    name: "TaxonomyMismatchNewProvider",
+    description: "Flag new providers (<90 days) submitting $5k+ claims without taxonomy as potential fraud",
+    entry_type: "BA Rule",
+    status: "Active",
+    editable: true,
+    removable: true,
+    redundant: false,
+    db_access: false,
+    inserted_at: now,
+    updated_at: now
+  }
+]
+
+Repo.insert_all(
+  RuleCatalogue,
+  taxonomy_ba_catalogue_entries,
   on_conflict: {:replace, [:description, :status, :updated_at]},
   conflict_target: [:name]
 )

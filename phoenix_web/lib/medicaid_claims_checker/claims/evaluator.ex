@@ -13,11 +13,9 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
 
   require Logger
 
-  @rule_engine_url Application.compile_env(
-                     :medicaid_claims_checker,
-                     :rule_engine_url,
-                     "http://localhost:8080"
-                   )
+  defp rule_engine_url do
+    Application.get_env(:medicaid_claims_checker, :rule_engine_url, "http://localhost:8080")
+  end
 
   @doc """
   Evaluates all edi_files in a batch that are in "translated" status.
@@ -132,7 +130,7 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
     body = Jason.encode!(PayloadBuilder.build_batch_evaluate_payload(rules_text, claims))
 
     case HTTPoison.post(
-           "#{@rule_engine_url}/api/batch-evaluate",
+           "#{rule_engine_url()}/api/batch-evaluate",
            body,
            [{"Content-Type", "application/json"}],
            timeout: 120_000,

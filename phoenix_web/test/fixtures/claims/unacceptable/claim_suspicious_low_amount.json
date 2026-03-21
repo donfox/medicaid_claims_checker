@@ -37,10 +37,12 @@
         "tenure_days": 900,
         "risk_score": 30,
         "credentialing_date": "2023-08-10",
-        "specialty": "Psychiatry"
+        "specialty": "Psychiatry",
+        "taxonomy": "2084P0800X"
     },
     "billing_provider": {
         "npi": "1928374650",
+        "taxonomy": "2084P0800X",
         "name": "Greenway Behavioral Health",
         "address": {
             "street": "77 Tranquil Lane",

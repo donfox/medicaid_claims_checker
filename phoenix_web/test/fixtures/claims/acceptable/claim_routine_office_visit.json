@@ -37,10 +37,12 @@
         "tenure_days": 1825,
         "risk_score": 12,
         "credentialing_date": "2021-02-19",
-        "specialty": "Family Medicine"
+        "specialty": "Family Medicine",
+        "taxonomy": "207Q00000X"
     },
     "billing_provider": {
         "npi": "1234567890",
+        "taxonomy": "207Q00000X",
         "name": "Riverside Family Practice",
         "address": {
             "street": "1200 Oak Avenue",

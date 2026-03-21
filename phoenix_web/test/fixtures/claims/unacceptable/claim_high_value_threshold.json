@@ -37,10 +37,12 @@
         "tenure_days": 3285,
         "risk_score": 10,
         "credentialing_date": "2017-02-26",
-        "specialty": "Orthopedic Surgery"
+        "specialty": "Orthopedic Surgery",
+        "taxonomy": "207X00000X"
     },
     "billing_provider": {
         "npi": "1654321987",
+        "taxonomy": "207X00000X",
         "name": "University Orthopedic Hospital",
         "address": {
             "street": "2000 University Drive",

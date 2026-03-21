@@ -17,7 +17,8 @@
         "tenure_days": 100,
         "risk_score": 30,
         "credentialing_date": "2025-01-20",
-        "specialty": "Unknown"
+        "specialty": "Unknown",
+        "taxonomy": null
     },
     "patient": {
         "name": {

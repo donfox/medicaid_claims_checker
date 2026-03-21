@@ -66,7 +66,8 @@ defmodule MedicaidClaimsChecker.MixProject do
       {:httpoison, "~> 2.2"},
       {:ecto_sql, "~> 3.12"},
       {:postgrex, "~> 0.19"},
-      {:nimble_csv, "~> 1.2"}
+      {:nimble_csv, "~> 1.2"},
+      {:bypass, "~> 2.1", only: :test}
     ]
   end
 

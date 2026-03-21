@@ -27,6 +27,7 @@ defmodule MedicaidClaimsChecker.Nppes.Importer do
   @col_last_update_date 37
   @col_deactivation_date 40
   @col_reactivation_date 41
+  @col_taxonomy 47
 
   @doc """
   Imports NPPES providers from a local CSV file.
@@ -174,6 +175,7 @@ defmodule MedicaidClaimsChecker.Nppes.Importer do
         entity_type: entity_type,
         provider_name: provider_name,
         credential: safe_col(row, @col_credential),
+        taxonomy: safe_col(row, @col_taxonomy),
         state: safe_col(row, @col_practice_state),
         enumeration_date: parse_date(safe_col(row, @col_enumeration_date)),
         deactivation_date: parse_date(safe_col(row, @col_deactivation_date)),

@@ -35,6 +35,12 @@ defmodule MedicaidClaimsChecker.Claims do
     |> Repo.all()
   end
 
+  def clear_batch_history do
+    Repo.delete_all(EdiFile)
+    Repo.delete_all(Batch)
+    :ok
+  end
+
   # --- Batch ingest (from X12Translator webhook) ---
 
   @doc """
@@ -95,9 +101,11 @@ defmodule MedicaidClaimsChecker.Claims do
       {:ok, %{batch: batch}} ->
         Logger.info("Batch #{batch.batch_id} ingested — launching auto-evaluation")
 
-        Task.Supervisor.start_child(MedicaidClaimsChecker.TaskSupervisor, fn ->
-          Evaluator.evaluate_batch(batch)
-        end)
+        unless Application.get_env(:medicaid_claims_checker, :skip_async_evaluation, false) do
+          Task.Supervisor.start_child(MedicaidClaimsChecker.TaskSupervisor, fn ->
+            Evaluator.evaluate_batch(batch)
+          end)
+        end
 
         result
 

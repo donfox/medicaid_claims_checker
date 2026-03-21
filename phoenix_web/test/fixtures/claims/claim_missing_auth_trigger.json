@@ -17,7 +17,8 @@
         "tenure_days": 120,
         "risk_score": 65,
         "credentialing_date": "2025-09-15",
-        "specialty": "Multiple"
+        "specialty": "Multiple",
+        "taxonomy": "193200000X"
     },
     "patient": {
         "name": {

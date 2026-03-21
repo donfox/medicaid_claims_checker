@@ -37,10 +37,12 @@
         "tenure_days": 2555,
         "risk_score": 14,
         "credentialing_date": "2019-02-25",
-        "specialty": "Emergency Medicine"
+        "specialty": "Emergency Medicine",
+        "taxonomy": "207P00000X"
     },
     "billing_provider": {
         "npi": "1736251948",
+        "taxonomy": "207P00000X",
         "name": "St. Catherine Emergency Center",
         "address": {
             "street": "1 Emergency Drive",

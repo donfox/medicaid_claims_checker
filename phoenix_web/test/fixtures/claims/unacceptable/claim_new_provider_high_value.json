@@ -37,10 +37,12 @@
         "tenure_days": 30,
         "risk_score": 65,
         "credentialing_date": "2026-01-27",
-        "specialty": "Pain Management"
+        "specialty": "Pain Management",
+        "taxonomy": "208VP0014X"
     },
     "billing_provider": {
         "npi": "1829384756",
+        "taxonomy": "208VP0014X",
         "name": "Sunrise Pain Management Center",
         "address": {
             "street": "150 Innovation Parkway",

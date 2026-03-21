@@ -18,7 +18,8 @@
         "tenure_days": 500,
         "risk_score": 25,
         "credentialing_date": "2020-06-15",
-        "specialty": "Acute Care Hospital"
+        "specialty": "Acute Care Hospital",
+        "taxonomy": "282N00000X"
     },
     "patient": {
         "name": {

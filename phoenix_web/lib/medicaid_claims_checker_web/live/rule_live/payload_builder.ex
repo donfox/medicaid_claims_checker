@@ -13,13 +13,15 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.PayloadBuilder do
     request_id =
       Map.get(opts, :request_id, "req_" <> Integer.to_string(System.system_time(:millisecond)))
 
+    enriched_claims = Enum.map(claims, &flatten_first_service_line/1)
+
     build_evaluate_payload(
       rules_text,
       %{},
       Map.merge(opts, %{request_id: request_id, claim_id: "batch_" <> request_id})
     )
     |> Map.delete(:document)
-    |> Map.put(:claims, claims)
+    |> Map.put(:claims, enriched_claims)
   end
 
   def contract_metadata(opts \\ %{}) do
@@ -40,6 +42,14 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.PayloadBuilder do
     |> String.replace("\r\n", "\n")
     |> String.replace("ENDRULE", "END RULE")
   end
+
+  # Promotes first service line fields to `claim.first_service_line.*` so the
+  # Haskell rule engine (which doesn't support array indexing) can reference them.
+  defp flatten_first_service_line(%{"claim" => %{"service_lines" => [first | _]}} = doc) do
+    put_in(doc, ["claim", "first_service_line"], first)
+  end
+
+  defp flatten_first_service_line(doc), do: doc
 
   defp default_tenant_id do
     System.get_env("TENANT_ID") || "default_tenant"

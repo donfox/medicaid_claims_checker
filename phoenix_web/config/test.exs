@@ -28,6 +28,9 @@ config :medicaid_claims_checker, MedicaidClaimsChecker.Repo,
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: 10
 
+# Skip async evaluation in tests — evaluation is tested directly via Evaluator
+config :medicaid_claims_checker, skip_async_evaluation: true
+
 # Enable helpful, but potentially expensive runtime checks
 config :phoenix_live_view,
   enable_expensive_runtime_checks: true

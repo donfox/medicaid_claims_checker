@@ -1,4 +1,4 @@
-<div class="px-4 py-10 sm:px-6 sm:py-28 lg:px-8 xl:px-28 xl:py-32">
+<div class="px-4 py-6 sm:px-6 sm:py-8 lg:px-8 xl:px-28 xl:py-10">
   <div class="mx-auto max-w-7xl">
     <%= if Phoenix.Flash.get(@flash, :error) do %>
       <div class="mb-4 p-4 bg-red-100 border border-red-300 rounded-lg">
@@ -128,14 +128,11 @@
           <a href={~p"/fetch-sources"} class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-md">
             Fetch Sources
           </a>
-          <a href={~p"/catalogue"} class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium rounded-md border border-gray-300">
-            Rule Catalogue
-          </a>
         </div>
       </div>
       <p class="mt-2 text-base text-gray-700 font-medium">Write and test integrity rules using predicate logic against healthcare claims</p>
       <div class="mt-3 p-3 bg-blue-100 border border-blue-300 rounded-md">
-        <p class="text-sm text-blue-900 font-medium"><strong>Workflow:</strong> 1) Review, write, or edit Business Rules. 2) Upload one or more claim files. 3) Click "Process Claims" to evaluate all claims against the active rule set.</p>
+        <p class="text-sm text-blue-900 font-medium"><strong>Workflow:</strong> 1) Optionally review, write, or edit Business Rules. 2) Upload claim files and click "Process Claims" to evaluate against the active rule set.</p>
       </div>
     </div>
 
@@ -144,7 +141,7 @@
         <div class="w-full border-t border-gray-300"></div>
       </div>
       <div class="relative flex justify-center">
-        <span class="bg-yellow-50 border border-yellow-200 px-4 py-1 text-sm font-semibold text-yellow-700 uppercase tracking-wide rounded-full">Step 1 — Define Rules</span>
+        <span class="bg-yellow-50 border border-yellow-200 px-4 py-1 text-sm font-semibold text-yellow-700 uppercase tracking-wide rounded-full">Step 1 (Optional) — Define Rules</span>
       </div>
     </div>
 
@@ -331,159 +328,118 @@
       </.form>
       </details>
 
-      <% ba_rules = Enum.filter(@catalog_rules, & &1.entry_type == "BA Rule") %>
-      <% default_rules = Enum.filter(@catalog_rules, & &1.entry_type == "Default Rule") %>
-      <% ml_models = Enum.filter(@catalog_rules, & &1.entry_type == "ML Model") %>
+      <% counts = catalog_counts(@catalog_rules) %>
 
-      <div class="mt-4 space-y-0 border border-gray-300 rounded-md overflow-hidden">
-        <!-- BA Rules -->
-        <details class="group">
-          <summary class="px-3 py-2 bg-blue-50 border-b border-gray-300 text-sm font-semibold text-gray-900 cursor-pointer select-none flex items-center gap-2">
-            <svg class="w-4 h-4 text-gray-500 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
-            <span class="px-1.5 py-0.5 text-xs bg-blue-100 text-blue-800 rounded">BA</span>
-            BA Rules (<%= length(ba_rules) %>)
-          </summary>
-          <%= if ba_rules == [] do %>
-            <div class="p-3 text-sm text-gray-500 border-b border-gray-300">No BA rules yet.</div>
-          <% else %>
-            <div class="divide-y divide-gray-200 border-b border-gray-300">
-              <%= for entry <- ba_rules do %>
-                <div
-                  id={"catalog-entry-#{entry.id}"}
-                  class={"p-3 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 #{if @selected_catalog_rule_id == entry.id, do: "bg-blue-50", else: ""}"}
-                >
-                  <button type="button" phx-click="select_catalog_rule" phx-value-id={entry.id} class="text-left w-full">
-                    <div class="flex items-center gap-2 flex-wrap">
-                      <p class="text-sm font-semibold text-gray-900"><%= entry.name %></p>
-                      <%= if entry.status == "Active" do %>
-                        <span class="px-2 py-0.5 text-xs bg-green-100 text-green-800 rounded">ACTIVE</span>
-                      <% else %>
-                        <span class="px-2 py-0.5 text-xs bg-gray-200 text-gray-800 rounded">INACTIVE</span>
-                      <% end %>
-                      <%= if @selected_catalog_rule_id == entry.id do %>
-                        <span class="px-2 py-0.5 text-xs bg-blue-200 text-blue-900 rounded">SELECTED</span>
-                      <% end %>
-                      <%= if entry.redundant do %>
-                        <span class="px-2 py-0.5 text-xs bg-orange-200 text-orange-800 rounded">REDUNDANT</span>
-                      <% end %>
-                    </div>
-                    <%= if entry.description && entry.description != "" do %>
-                      <p class="mt-1 text-xs text-gray-600"><%= entry.description %></p>
-                    <% end %>
-                  </button>
-                  <div class="flex gap-2 shrink-0">
-                    <%= if entry.editable do %>
-                      <button type="button" phx-click="toggle_catalog_rule_active" phx-value-id={entry.id} class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-medium cursor-pointer">
-                        <%= if entry.status == "Active", do: "Deactivate", else: "Activate" %>
-                      </button>
-                      <%= if entry.removable do %>
-                        <button type="button" phx-click="delete_catalog_rule" phx-value-id={entry.id} class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-medium cursor-pointer">
-                          Remove
-                        </button>
-                      <% end %>
-                    <% end %>
-                  </div>
-                </div>
-              <% end %>
-            </div>
-          <% end %>
-        </details>
-
-        <!-- Default Rules -->
-        <details class="group">
-          <summary class="px-3 py-2 bg-indigo-50 border-b border-gray-300 text-sm font-semibold text-gray-900 cursor-pointer select-none flex items-center gap-2">
-            <svg class="w-4 h-4 text-gray-500 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
-            <span class="px-1.5 py-0.5 text-xs bg-indigo-100 text-indigo-800 rounded">Default</span>
-            Default Rules (<%= length(default_rules) %>)
-          </summary>
-          <%= if default_rules == [] do %>
-            <div class="p-3 text-sm text-gray-500 border-b border-gray-300">No default rules.</div>
-          <% else %>
-            <div class="divide-y divide-gray-200 border-b border-gray-300">
-              <%= for entry <- default_rules do %>
-                <div
-                  id={"catalog-entry-#{entry.id}"}
-                  class={"p-3 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 #{if @selected_catalog_rule_id == entry.id, do: "bg-blue-50", else: ""}"}
-                >
-                  <button type="button" phx-click="select_catalog_rule" phx-value-id={entry.id} class="text-left w-full">
-                    <div class="flex items-center gap-2 flex-wrap">
-                      <p class="text-sm font-semibold text-gray-900"><%= entry.name %></p>
-                      <span class="px-2 py-0.5 text-xs bg-green-100 text-green-800 rounded">ALWAYS ON</span>
-                      <%= if @selected_catalog_rule_id == entry.id do %>
-                        <span class="px-2 py-0.5 text-xs bg-indigo-200 text-indigo-900 rounded">SELECTED</span>
-                      <% end %>
-                      <%= if entry.db_access do %>
-                        <span class="px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded">DB Access</span>
-                      <% end %>
-                    </div>
-                    <%= if entry.description && entry.description != "" do %>
-                      <p class="mt-1 text-xs text-gray-600"><%= entry.description %></p>
-                    <% end %>
-                  </button>
-                  <div class="flex gap-2 shrink-0">
-                    <%= if entry.editable do %>
-                      <button type="button" phx-click="toggle_catalog_rule_active" phx-value-id={entry.id} class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-medium cursor-pointer">
-                        <%= if entry.status == "Active", do: "Deactivate", else: "Activate" %>
-                      </button>
-                    <% end %>
-                  </div>
-                </div>
-              <% end %>
-            </div>
-          <% end %>
-        </details>
-
-        <!-- ML Models -->
-        <details class="group">
-          <summary class="px-3 py-2 bg-purple-50 border-b border-gray-300 text-sm font-semibold text-gray-900 cursor-pointer select-none flex items-center gap-2">
-            <svg class="w-4 h-4 text-gray-500 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
-            <span class="px-1.5 py-0.5 text-xs bg-purple-100 text-purple-800 rounded">ML</span>
-            ML Models (<%= length(ml_models) %>)
-          </summary>
-          <%= if ml_models == [] do %>
-            <div class="p-3 text-sm text-gray-500">No ML models.</div>
-          <% else %>
-            <div class="divide-y divide-gray-200">
-              <%= for entry <- ml_models do %>
-                <div
-                  id={"catalog-entry-#{entry.id}"}
-                  class={"p-3 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 #{if @selected_catalog_rule_id == entry.id, do: "bg-blue-50", else: ""}"}
-                >
-                  <button type="button" phx-click="select_catalog_rule" phx-value-id={entry.id} class="text-left w-full">
-                    <div class="flex items-center gap-2 flex-wrap">
-                      <p class="text-sm font-semibold text-gray-900"><%= entry.name %></p>
-                      <%= if entry.status == "Active" do %>
-                        <span class="px-2 py-0.5 text-xs bg-green-100 text-green-800 rounded">ACTIVE</span>
-                      <% else %>
-                        <span class="px-2 py-0.5 text-xs bg-gray-200 text-gray-800 rounded">INACTIVE</span>
-                      <% end %>
-                      <%= if @selected_catalog_rule_id == entry.id do %>
-                        <span class="px-2 py-0.5 text-xs bg-purple-200 text-purple-900 rounded">SELECTED</span>
-                      <% end %>
-                    </div>
-                    <%= if entry.description && entry.description != "" do %>
-                      <p class="mt-1 text-xs text-gray-600"><%= entry.description %></p>
-                    <% end %>
-                  </button>
-                  <div class="flex gap-2 shrink-0">
-                    <%= if entry.editable do %>
-                      <button type="button" phx-click="toggle_catalog_rule_active" phx-value-id={entry.id} class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-medium cursor-pointer">
-                        <%= if entry.status == "Active", do: "Deactivate", else: "Activate" %>
-                      </button>
-                    <% end %>
-                  </div>
-                </div>
-              <% end %>
-            </div>
-          <% end %>
-        </details>
+      <!-- Summary Stats -->
+      <div class="mt-4 grid grid-cols-3 sm:grid-cols-6 gap-2">
+        <div class="bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-center">
+          <p class="text-lg font-bold text-gray-900"><%= counts.total %></p>
+          <p class="text-[10px] text-gray-600">Total</p>
+        </div>
+        <div class="bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-center">
+          <p class="text-lg font-bold text-indigo-700"><%= counts.default %></p>
+          <p class="text-[10px] text-gray-600">Default</p>
+        </div>
+        <div class="bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-center">
+          <p class="text-lg font-bold text-blue-700"><%= counts.ba %></p>
+          <p class="text-[10px] text-gray-600">BA Rules</p>
+        </div>
+        <div class="bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-center">
+          <p class="text-lg font-bold text-purple-700"><%= counts.ml %></p>
+          <p class="text-[10px] text-gray-600">ML Models</p>
+        </div>
+        <div class="bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-center">
+          <p class="text-lg font-bold text-green-700"><%= counts.active %></p>
+          <p class="text-[10px] text-gray-600">Active</p>
+        </div>
+        <div class="bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-center">
+          <p class="text-lg font-bold text-orange-700"><%= counts.redundant %></p>
+          <p class="text-[10px] text-gray-600">Redundant</p>
+        </div>
       </div>
+
+      <%= for {type_key, label, color, badge_class, count} <- [
+        {"BA Rule", "BA Created Rules", "blue", "bg-blue-100 text-blue-800", counts.ba},
+        {"Default Rule", "Default Rules", "indigo", "bg-indigo-100 text-indigo-800", counts.default},
+        {"ML Model", "ML Models", "purple", "bg-purple-100 text-purple-800", counts.ml}
+      ] do %>
+        <% type_rules = filtered_catalog_rules(@catalog_rules, type_key) %>
+        <% type_active = Enum.count(type_rules, &(&1.status == "Active")) %>
+        <details class={"mt-3 group/catalog-#{type_key}"}>
+          <summary class={"px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm font-semibold text-gray-800 cursor-pointer select-none flex items-center gap-2 [&::-webkit-details-marker]:hidden"}>
+            <svg class={"w-4 h-4 text-#{color}-500 transition-transform [[open]>&]:rotate-90"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+            <span class={badge_class <> " px-1.5 py-0.5 text-[10px] rounded font-medium"}><%= type_key %></span>
+            <%= label %>
+            <span class="text-xs font-normal text-gray-500">
+              — <%= count %> total<%= if type_key != "Default Rule", do: ", #{type_active} active" %>
+            </span>
+          </summary>
+
+          <div class="mt-2 border border-gray-300 rounded-md overflow-hidden">
+            <%= if type_rules == [] do %>
+              <div class="p-4 text-center text-sm text-gray-500">
+                No <%= String.downcase(label) %> found.
+              </div>
+            <% else %>
+              <div class="divide-y divide-gray-200">
+                <%= for entry <- type_rules do %>
+                  <div
+                    id={"catalog-entry-#{entry.id}"}
+                    class={"p-3 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 #{if @selected_catalog_rule_id == entry.id, do: "bg-blue-50", else: ""}"}
+                  >
+                    <button type="button" phx-click="select_catalog_rule" phx-value-id={entry.id} class="text-left w-full">
+                      <div class="flex items-center gap-1.5 flex-wrap">
+                        <p class="text-sm font-semibold text-gray-900"><%= entry.name %></p>
+                        <!-- Status -->
+                        <%= if entry.entry_type == "Default Rule" do %>
+                          <span class="px-1.5 py-0.5 text-[10px] bg-green-100 text-green-800 rounded font-medium">Always On</span>
+                        <% else %>
+                          <%= if entry.status == "Active" do %>
+                            <span class="px-1.5 py-0.5 text-[10px] bg-green-100 text-green-800 rounded font-medium">Active</span>
+                          <% else %>
+                            <span class="px-1.5 py-0.5 text-[10px] bg-gray-200 text-gray-700 rounded font-medium">Inactive</span>
+                          <% end %>
+                        <% end %>
+                        <!-- Selected -->
+                        <%= if @selected_catalog_rule_id == entry.id do %>
+                          <span class="px-1.5 py-0.5 text-[10px] bg-blue-200 text-blue-900 rounded font-medium">Selected</span>
+                        <% end %>
+                        <!-- Flags -->
+                        <%= if entry.redundant do %>
+                          <span class="px-1.5 py-0.5 text-[10px] bg-orange-100 text-orange-800 rounded">Redundant</span>
+                        <% end %>
+                        <%= if entry.db_access do %>
+                          <span class="px-1.5 py-0.5 text-[10px] bg-yellow-100 text-yellow-800 rounded">DB Access</span>
+                        <% end %>
+                        <%= if not entry.editable do %>
+                          <span class="px-1.5 py-0.5 text-[10px] bg-gray-100 text-gray-600 rounded">Read-only</span>
+                        <% end %>
+                      </div>
+                      <%= if entry.description && entry.description != "" do %>
+                        <p class="mt-1 text-xs text-gray-600"><%= entry.description %></p>
+                      <% end %>
+                    </button>
+                    <div class="flex gap-2 shrink-0">
+                      <%= if entry.editable do %>
+                        <button type="button" phx-click="toggle_catalog_rule_active" phx-value-id={entry.id} class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-medium cursor-pointer">
+                          <%= if entry.status == "Active", do: "Deactivate", else: "Activate" %>
+                        </button>
+                        <%= if entry.removable do %>
+                          <button type="button" phx-click="delete_catalog_rule" phx-value-id={entry.id} class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-medium cursor-pointer" data-confirm="Remove this rule from the catalogue?">
+                            Remove
+                          </button>
+                        <% end %>
+                      <% end %>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
+        </details>
+      <% end %>
     </div>
 
     <!-- DSL Reference Modal -->
@@ -637,111 +593,97 @@ END</code></pre>
         <div class="w-full border-t border-gray-300"></div>
       </div>
       <div class="relative flex justify-center">
-        <span class="bg-yellow-50 border border-yellow-200 px-4 py-1 text-sm font-semibold text-yellow-700 uppercase tracking-wide rounded-full">Step 2 — Upload Claims</span>
+        <span class="bg-yellow-50 border border-yellow-200 px-4 py-1 text-sm font-semibold text-yellow-700 uppercase tracking-wide rounded-full">Step 2 — Upload & Process Claims</span>
       </div>
     </div>
 
     <div>
 
-      <!-- File Upload Panel -->
-      <div class="mb-6">
-        <div class="bg-white shadow-md rounded-lg p-6">
-          <h2 class="text-xl font-semibold text-gray-900">Upload Claims</h2>
-          <p class="mt-1 text-sm text-gray-700">Select one or more <code class="font-mono bg-gray-100 px-1 rounded">.json</code> claim files (up to 100 files, 10 MB each).</p>
-
-          <details class="mt-4 group/upload">
-            <summary class="px-3 py-2 bg-blue-50 border border-blue-200 rounded-md text-sm font-semibold text-blue-800 cursor-pointer select-none flex items-center gap-2">
-              <svg class="w-4 h-4 text-blue-500 transition-transform group-open/upload:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-              </svg>
-              Select Claims
-              <%= if @uploads.claim_files.entries != [] do %>
-                <span class="px-2 py-0.5 text-xs bg-blue-200 text-blue-900 rounded"><%= length(@uploads.claim_files.entries) %> files</span>
-              <% end %>
-            </summary>
-
-            <.form for={%{}} phx-change="validate_uploads" phx-submit="process_batch" id="batch-upload-form" class="mt-3">
-              <div
-                class="border-2 border-dashed border-gray-400 rounded-lg p-8 text-center bg-gray-50 hover:bg-gray-100 transition-colors mb-4 phx-drop-target-active:bg-blue-50 phx-drop-target-active:border-blue-400"
-                phx-drop-target={@uploads.claim_files.ref}
-              >
-                <svg class="mx-auto h-10 w-10 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                <p class="text-sm text-gray-600">Drag & drop claim JSON files here</p>
-              </div>
-
-              <div class="flex items-center gap-3 mb-4">
-                <div class="flex-1 border-t border-gray-300"></div>
-                <span class="text-xs font-medium text-gray-400 uppercase">or</span>
-                <div class="flex-1 border-t border-gray-300"></div>
-              </div>
-
-              <div class="mb-4">
-                <label class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md cursor-pointer">
-                  Choose Files
-                  <.live_file_input upload={@uploads.claim_files} class="sr-only" />
-                </label>
-              </div>
-
-              <%= if @uploads.claim_files.entries != [] do %>
-                <div class="mb-4">
-                  <div class="flex items-center justify-between mb-2">
-                    <p class="text-sm font-medium text-gray-900">Selected files <span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold bg-blue-200 text-blue-900 rounded-full"><%= length(@uploads.claim_files.entries) %></span></p>
-                    <button
-                      type="button"
-                      phx-click="clear_claim_uploads"
-                      disabled={@batch_status == :processing}
-                      class="px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                    >
-                      Clear Files
-                    </button>
-                  </div>
-                  <ul class="text-xs text-gray-900 space-y-1 max-h-32 overflow-y-auto">
-                    <%= for entry <- @uploads.claim_files.entries do %>
-                      <li class="flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-blue-500 inline-block"></span>
-                        <%= entry.client_name %>
-                        <span class="text-gray-500">(<%= Float.round(entry.client_size / 1024, 1) %> KB)</span>
-                        <%= if entry.valid? do %>
-                          <span class="text-green-700">✓</span>
-                        <% else %>
-                          <span class="text-red-700">✗</span>
-                        <% end %>
-                      </li>
-                    <% end %>
-                  </ul>
-                </div>
-              <% end %>
-
-            </.form>
-          </details>
-        </div>
-      </div>
-
-      <!-- Step 3 divider -->
-      <div class="relative mt-2 mb-6">
-        <div class="absolute inset-0 flex items-center" aria-hidden="true">
-          <div class="w-full border-t border-gray-300"></div>
-        </div>
-        <div class="relative flex justify-center">
-          <span class="bg-yellow-50 border border-yellow-200 px-4 py-1 text-sm font-semibold text-yellow-700 uppercase tracking-wide rounded-full">Step 3 — Process Claims</span>
-        </div>
-      </div>
-
-      <!-- Process Claims action bar -->
       <div class="mb-6 bg-white shadow-md rounded-lg p-6">
         <div class="flex items-center justify-between">
           <div>
-            <h2 class="text-xl font-semibold text-gray-900">Process Claims</h2>
-            <p class="text-sm text-gray-500 mt-0.5">
-              <%= if @uploads.claim_files.entries == [] do %>
-                Upload claim files above, then click Process Claims.
-              <% else %>
-                <%= length(@uploads.claim_files.entries) %> file<%= if length(@uploads.claim_files.entries) != 1, do: "s" %> ready to evaluate.
-              <% end %>
-            </p>
+            <h2 class="text-xl font-semibold text-gray-900">Upload & Process Claims</h2>
+            <p class="mt-1 text-sm text-gray-700">Select one or more <code class="font-mono bg-gray-100 px-1 rounded">.json</code> claim files (up to 100 files, 10 MB each), then process them against the active rule set.</p>
           </div>
+        </div>
+
+        <details class="mt-4 group/upload">
+          <summary class="px-3 py-2 bg-blue-50 border border-blue-200 rounded-md text-sm font-semibold text-blue-800 cursor-pointer select-none flex items-center gap-2">
+            <svg class="w-4 h-4 text-blue-500 transition-transform group-open/upload:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+            Select Claims
+            <%= if @uploads.claim_files.entries != [] do %>
+              <span class="px-2 py-0.5 text-xs bg-blue-200 text-blue-900 rounded"><%= length(@uploads.claim_files.entries) %> files</span>
+            <% end %>
+          </summary>
+
+          <.form for={%{}} phx-change="validate_uploads" phx-submit="process_batch" id="batch-upload-form" class="mt-3">
+            <div
+              class="border-2 border-dashed border-gray-400 rounded-lg p-8 text-center bg-gray-50 hover:bg-gray-100 transition-colors mb-4 phx-drop-target-active:bg-blue-50 phx-drop-target-active:border-blue-400"
+              phx-drop-target={@uploads.claim_files.ref}
+            >
+              <svg class="mx-auto h-10 w-10 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <p class="text-sm text-gray-600">Drag & drop claim JSON files here</p>
+            </div>
+
+            <div class="flex items-center gap-3 mb-4">
+              <div class="flex-1 border-t border-gray-300"></div>
+              <span class="text-xs font-medium text-gray-400 uppercase">or</span>
+              <div class="flex-1 border-t border-gray-300"></div>
+            </div>
+
+            <div class="mb-4">
+              <label class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md cursor-pointer">
+                Choose Files
+                <.live_file_input upload={@uploads.claim_files} class="sr-only" />
+              </label>
+            </div>
+
+            <%= if @uploads.claim_files.entries != [] do %>
+              <div class="mb-4">
+                <div class="flex items-center justify-between mb-2">
+                  <p class="text-sm font-medium text-gray-900">Selected files <span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold bg-blue-200 text-blue-900 rounded-full"><%= length(@uploads.claim_files.entries) %></span></p>
+                  <button
+                    type="button"
+                    phx-click="clear_claim_uploads"
+                    disabled={@batch_status == :processing}
+                    class="px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    Clear Files
+                  </button>
+                </div>
+                <ul class="text-xs text-gray-900 space-y-1 max-h-32 overflow-y-auto">
+                  <%= for entry <- @uploads.claim_files.entries do %>
+                    <li class="flex items-center gap-2">
+                      <span class="w-2 h-2 rounded-full bg-blue-500 inline-block"></span>
+                      <%= entry.client_name %>
+                      <span class="text-gray-500">(<%= Float.round(entry.client_size / 1024, 1) %> KB)</span>
+                      <%= if entry.valid? do %>
+                        <span class="text-green-700">✓</span>
+                      <% else %>
+                        <span class="text-red-700">✗</span>
+                      <% end %>
+                    </li>
+                  <% end %>
+                </ul>
+              </div>
+            <% end %>
+
+          </.form>
+        </details>
+
+        <!-- Process action bar -->
+        <div class="mt-4 flex items-center justify-between border-t border-gray-200 pt-4">
+          <p class="text-sm text-gray-500">
+            <%= if @uploads.claim_files.entries == [] do %>
+              Select claim files above, then click Process.
+            <% else %>
+              <%= length(@uploads.claim_files.entries) %> file<%= if length(@uploads.claim_files.entries) != 1, do: "s" %> ready to evaluate.
+            <% end %>
+          </p>
           <button
             type="button"
             phx-click="process_batch"
@@ -778,87 +720,53 @@ END</code></pre>
           <svg class="mx-auto h-12 w-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          <p class="text-sm text-gray-400">Upload claims and click Process Claims to see results here.</p>
+          <p class="text-sm text-gray-400">Select claims and click Process Claims to see results here.</p>
         </div>
       <% end %>
 
       <!-- Results Table -->
       <%= if @batch_status == :done && @batch_results != [] do %>
         <!-- Batch Summary Cards (clickable filters) -->
-        <div class="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
+        <div class="grid grid-cols-5 gap-2 mb-6">
           <%!-- Total Claims --%>
-          <button type="button" phx-click="filter_batch" phx-value-filter="" class={"relative rounded-xl p-5 text-center border-2 cursor-pointer transition-all shadow-sm hover:shadow-md #{if @batch_filter == nil, do: "bg-blue-100 border-blue-400 ring-2 ring-blue-300 shadow-inner", else: "bg-blue-50 border-blue-200 hover:border-blue-400"}"}>
-            <%= if @batch_filter == nil do %>
-              <span class="absolute top-2 right-2">
-                <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-              </span>
-            <% end %>
-            <svg class="w-7 h-7 mx-auto mb-2 text-blue-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15a2.25 2.25 0 012.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z"/></svg>
-            <p class="text-3xl font-bold text-blue-900"><%= @batch_summary.total %></p>
-            <p class="text-xs font-semibold text-blue-700 mt-1 tracking-wide uppercase">Total Claims</p>
+          <button type="button" phx-click="filter_batch" phx-value-filter="" class={"rounded-lg px-3 py-2 text-center border cursor-pointer transition-all #{if @batch_filter == nil, do: "bg-blue-100 border-blue-400 ring-1 ring-blue-300", else: "bg-blue-50 border-blue-200 hover:border-blue-400"}"}>
+            <p class="text-2xl font-bold text-blue-900"><%= @batch_summary.total %></p>
+            <p class="text-[10px] font-semibold text-blue-700 uppercase">Total</p>
           </button>
 
           <%!-- Clean --%>
-          <button type="button" phx-click="filter_batch" phx-value-filter="clean" class={"relative rounded-xl p-5 text-center border-2 cursor-pointer transition-all shadow-sm hover:shadow-md #{if @batch_filter == "clean", do: "bg-green-100 border-green-400 ring-2 ring-green-300 shadow-inner", else: "bg-green-50 border-green-200 hover:border-green-400"}"}>
-            <%= if @batch_filter == "clean" do %>
-              <span class="absolute top-2 right-2">
-                <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-              </span>
-            <% end %>
-            <svg class="w-7 h-7 mx-auto mb-2 text-green-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            <p class="text-3xl font-bold text-green-900"><%= @batch_summary.clean %></p>
-            <p class="text-xs font-semibold text-green-700 mt-1 tracking-wide uppercase">Clean</p>
-            <p class="text-xs text-green-600 mt-0.5"><%= summary_percent(@batch_summary.clean, @batch_summary.total) %>%</p>
-            <div class="mt-2 w-full bg-green-200 rounded-full h-1.5 overflow-hidden">
-              <div class="h-full bg-green-500 rounded-full transition-all duration-500" style={"width: #{summary_percent(@batch_summary.clean, @batch_summary.total)}%"}></div>
+          <button type="button" phx-click="filter_batch" phx-value-filter="clean" class={"rounded-lg px-3 py-2 text-center border cursor-pointer transition-all #{if @batch_filter == "clean", do: "bg-green-100 border-green-400 ring-1 ring-green-300", else: "bg-green-50 border-green-200 hover:border-green-400"}"}>
+            <p class="text-2xl font-bold text-green-900"><%= @batch_summary.clean %></p>
+            <p class="text-[10px] font-semibold text-green-700 uppercase">Clean</p>
+            <div class="mt-1 w-full bg-green-200 rounded-full h-1 overflow-hidden">
+              <div class="h-full bg-green-500 rounded-full" style={"width: #{summary_percent(@batch_summary.clean, @batch_summary.total)}%"}></div>
             </div>
           </button>
 
           <%!-- Flagged --%>
-          <button type="button" phx-click="filter_batch" phx-value-filter="flagged" class={"relative rounded-xl p-5 text-center border-2 cursor-pointer transition-all shadow-sm hover:shadow-md #{if @batch_filter == "flagged", do: "bg-yellow-100 border-yellow-400 ring-2 ring-yellow-300 shadow-inner", else: "bg-yellow-50 border-yellow-200 hover:border-yellow-400"}"}>
-            <%= if @batch_filter == "flagged" do %>
-              <span class="absolute top-2 right-2">
-                <svg class="w-4 h-4 text-yellow-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-              </span>
-            <% end %>
-            <svg class="w-7 h-7 mx-auto mb-2 text-yellow-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v1.5M3 21v-6m0 0l2.77-.693a9 9 0 016.208.682l.108.054a9 9 0 006.086.71l3.114-.732a48.524 48.524 0 01-.005-10.499l-3.11.732a9 9 0 01-6.085-.711l-.108-.054a9 9 0 00-6.208-.682L3 4.5M3 15V4.5"/></svg>
-            <p class="text-3xl font-bold text-yellow-900"><%= @batch_summary.matched %></p>
-            <p class="text-xs font-semibold text-yellow-700 mt-1 tracking-wide uppercase">Flagged</p>
-            <p class="text-xs text-yellow-600 mt-0.5"><%= summary_percent(@batch_summary.matched, @batch_summary.total) %>%</p>
-            <div class="mt-2 w-full bg-yellow-200 rounded-full h-1.5 overflow-hidden">
-              <div class="h-full bg-yellow-500 rounded-full transition-all duration-500" style={"width: #{summary_percent(@batch_summary.matched, @batch_summary.total)}%"}></div>
+          <button type="button" phx-click="filter_batch" phx-value-filter="flagged" class={"rounded-lg px-3 py-2 text-center border cursor-pointer transition-all #{if @batch_filter == "flagged", do: "bg-yellow-100 border-yellow-400 ring-1 ring-yellow-300", else: "bg-yellow-50 border-yellow-200 hover:border-yellow-400"}"}>
+            <p class="text-2xl font-bold text-yellow-900"><%= @batch_summary.matched %></p>
+            <p class="text-[10px] font-semibold text-yellow-700 uppercase">Flagged</p>
+            <div class="mt-1 w-full bg-yellow-200 rounded-full h-1 overflow-hidden">
+              <div class="h-full bg-yellow-500 rounded-full" style={"width: #{summary_percent(@batch_summary.matched, @batch_summary.total)}%"}></div>
             </div>
           </button>
 
           <%!-- High Risk --%>
-          <button type="button" phx-click="filter_batch" phx-value-filter="HighRisk" class={"relative rounded-xl p-5 text-center border-2 cursor-pointer transition-all shadow-sm hover:shadow-md #{if @batch_filter == "HighRisk", do: "bg-orange-100 border-orange-400 ring-2 ring-orange-300 shadow-inner", else: "bg-orange-50 border-orange-200 hover:border-orange-400"}"}>
-            <%= if @batch_filter == "HighRisk" do %>
-              <span class="absolute top-2 right-2">
-                <svg class="w-4 h-4 text-orange-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-              </span>
-            <% end %>
-            <svg class="w-7 h-7 mx-auto mb-2 text-orange-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
-            <p class="text-3xl font-bold text-orange-900"><%= @batch_summary.high %></p>
-            <p class="text-xs font-semibold text-orange-700 mt-1 tracking-wide uppercase">High Risk</p>
-            <p class="text-xs text-orange-600 mt-0.5"><%= summary_percent(@batch_summary.high, @batch_summary.total) %>%</p>
-            <div class="mt-2 w-full bg-orange-200 rounded-full h-1.5 overflow-hidden">
-              <div class="h-full bg-orange-500 rounded-full transition-all duration-500" style={"width: #{summary_percent(@batch_summary.high, @batch_summary.total)}%"}></div>
+          <button type="button" phx-click="filter_batch" phx-value-filter="HighRisk" class={"rounded-lg px-3 py-2 text-center border cursor-pointer transition-all #{if @batch_filter == "HighRisk", do: "bg-orange-100 border-orange-400 ring-1 ring-orange-300", else: "bg-orange-50 border-orange-200 hover:border-orange-400"}"}>
+            <p class="text-2xl font-bold text-orange-900"><%= @batch_summary.high %></p>
+            <p class="text-[10px] font-semibold text-orange-700 uppercase">High Risk</p>
+            <div class="mt-1 w-full bg-orange-200 rounded-full h-1 overflow-hidden">
+              <div class="h-full bg-orange-500 rounded-full" style={"width: #{summary_percent(@batch_summary.high, @batch_summary.total)}%"}></div>
             </div>
           </button>
 
           <%!-- Critical --%>
-          <button type="button" phx-click="filter_batch" phx-value-filter="CriticalRisk" class={"relative rounded-xl p-5 text-center border-2 cursor-pointer transition-all shadow-sm hover:shadow-md #{if @batch_filter == "CriticalRisk", do: "bg-red-100 border-red-400 ring-2 ring-red-300 shadow-inner", else: "bg-red-50 border-red-200 hover:border-red-400"}"}>
-            <%= if @batch_filter == "CriticalRisk" do %>
-              <span class="absolute top-2 right-2">
-                <svg class="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-              </span>
-            <% end %>
-            <svg class="w-7 h-7 mx-auto mb-2 text-red-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 0v.008m0-.008h.008M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9.003 4.125h.008v.008h-.008v-.008z"/><path stroke-linecap="round" stroke-linejoin="round" d="M9.348 3.168A19.6 19.6 0 0112 3c.905 0 1.798.056 2.652.168m-5.304 0A19.814 19.814 0 003.063 8.25M9.348 3.168A19.861 19.861 0 018.25 8.25m1.098-5.082a19.898 19.898 0 015.304 0m0 0A19.814 19.814 0 0120.937 8.25m-5.585-5.082A19.861 19.861 0 0115.75 8.25"/></svg>
-            <p class="text-3xl font-bold text-red-900"><%= @batch_summary.critical %></p>
-            <p class="text-xs font-semibold text-red-700 mt-1 tracking-wide uppercase">Critical</p>
-            <p class="text-xs text-red-600 mt-0.5"><%= summary_percent(@batch_summary.critical, @batch_summary.total) %>%</p>
-            <div class="mt-2 w-full bg-red-200 rounded-full h-1.5 overflow-hidden">
-              <div class="h-full bg-red-500 rounded-full transition-all duration-500" style={"width: #{summary_percent(@batch_summary.critical, @batch_summary.total)}%"}></div>
+          <button type="button" phx-click="filter_batch" phx-value-filter="CriticalRisk" class={"rounded-lg px-3 py-2 text-center border cursor-pointer transition-all #{if @batch_filter == "CriticalRisk", do: "bg-red-100 border-red-400 ring-1 ring-red-300", else: "bg-red-50 border-red-200 hover:border-red-400"}"}>
+            <p class="text-2xl font-bold text-red-900"><%= @batch_summary.critical %></p>
+            <p class="text-[10px] font-semibold text-red-700 uppercase">Critical</p>
+            <div class="mt-1 w-full bg-red-200 rounded-full h-1 overflow-hidden">
+              <div class="h-full bg-red-500 rounded-full" style={"width: #{summary_percent(@batch_summary.critical, @batch_summary.total)}%"}></div>
             </div>
           </button>
         </div>
@@ -868,7 +776,7 @@ END</code></pre>
             <div>
               <h2 class="text-lg font-bold text-gray-900">Claim Results</h2>
               <p class="text-xs text-gray-500 mt-0.5">
-                <%= @batch_summary.total %> claims evaluated against <%= hd(@batch_results)["report"]["totalRules"] %> rules<%= if @batch_filter, do: " — filtered to #{length(filtered_batch_results(@batch_results, @batch_filter))} shown", else: "" %>
+                <%= @batch_summary.total %> claims evaluated against <%= (hd(@batch_results)["report"]["totalRules"] || 0) %> rules<%= if @batch_filter, do: " — filtered to #{length(filtered_batch_results(@batch_results, @batch_filter))} shown", else: "" %>
               </p>
             </div>
             <div class="flex items-center gap-3">
@@ -907,6 +815,13 @@ END</code></pre>
                   All Rules
                 </button>
               </div>
+              <button
+                type="button"
+                phx-click="clear_batch_results"
+                class="px-4 py-2.5 text-sm font-medium rounded-md border border-red-300 bg-white hover:bg-red-50 text-red-700 cursor-pointer"
+              >
+                Clear Results
+              </button>
             </div>
           </div>
 
@@ -1072,234 +987,6 @@ END</code></pre>
 
     </div><!-- end claims processing -->
 
-    <!-- Batch History section -->
-    <div class="relative mt-8 mb-6">
-      <div class="absolute inset-0 flex items-center" aria-hidden="true">
-        <div class="w-full border-t border-gray-300"></div>
-      </div>
-      <div class="relative flex justify-center">
-        <span class="bg-purple-50 border border-purple-200 px-4 py-1 text-sm font-semibold text-purple-700 uppercase tracking-wide rounded-full">Batch History</span>
-      </div>
-    </div>
-
-    <div class="mb-6 p-6 bg-white rounded-lg shadow-md">
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <h2 class="text-xl font-semibold text-gray-900">Ingested Batches</h2>
-          <p class="mt-1 text-sm text-gray-600">Batches received from X12Translator and their evaluation results</p>
-        </div>
-        <button
-          phx-click="refresh_batch_history"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 cursor-pointer"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          Refresh
-        </button>
-      </div>
-
-      <%= if @batch_history == [] do %>
-        <div class="text-center py-8 text-gray-500">
-          <svg class="mx-auto w-12 h-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-          </svg>
-          <p class="text-sm font-medium">No batches received yet</p>
-          <p class="text-xs mt-1">Batches will appear here when X12Translator sends claims</p>
-        </div>
-      <% else %>
-        <div class="space-y-3">
-          <%= for batch <- @batch_history do %>
-            <div class="border border-gray-200 rounded-lg overflow-hidden">
-              <button
-                phx-click="toggle_batch_detail"
-                phx-value-id={batch.id}
-                class="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 text-left cursor-pointer"
-              >
-                <div class="flex items-center gap-4">
-                  <span class={[
-                    "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold",
-                    cond do
-                      batch.status == "completed" -> "bg-green-100 text-green-800"
-                      batch.status == "processing" -> "bg-blue-100 text-blue-800"
-                      batch.status == "failed" -> "bg-red-100 text-red-800"
-                      true -> "bg-gray-100 text-gray-800"
-                    end
-                  ]}>
-                    <%= batch.status %>
-                  </span>
-                  <div>
-                    <span class="text-sm font-semibold text-gray-900"><%= batch.batch_id %></span>
-                    <span class="ml-2 text-xs text-gray-500">from <%= batch.source %></span>
-                  </div>
-                </div>
-                <div class="flex items-center gap-4 text-sm text-gray-500">
-                  <span><%= batch.file_count %> claims</span>
-                  <span><%= Calendar.strftime(batch.inserted_at, "%b %d, %Y %H:%M") %></span>
-                  <svg class={[
-                    "w-5 h-5 text-gray-400 transition-transform",
-                    if(MapSet.member?(@expanded_batch_ids, batch.id), do: "rotate-180", else: "")
-                  ]} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </button>
-
-              <%= if MapSet.member?(@expanded_batch_ids, batch.id) do %>
-                <div class="border-t border-gray-200 px-4 py-3 bg-gray-50">
-                  <table class="w-full text-sm">
-                    <thead>
-                      <tr class="text-left text-xs font-semibold text-gray-500 uppercase">
-                        <th class="pb-2 w-8"></th>
-                        <th class="pb-2 pr-4">Filename</th>
-                        <th class="pb-2 pr-4">Status</th>
-                        <th class="pb-2 pr-4">Risk Level</th>
-                        <th class="pb-2 pr-4">Rules Matched</th>
-                        <th class="pb-2">Summary</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <%= for file <- batch.files do %>
-                        <% file_expanded = MapSet.member?(@expanded_batch_file_ids, file.id) %>
-                        <tr
-                          class={"border-t border-gray-100 hover:bg-gray-100 cursor-pointer #{if file_expanded, do: "bg-gray-100"}"}
-                          phx-click="toggle_batch_file_detail"
-                          phx-value-id={file.id}
-                        >
-                          <td class="py-2 pl-1">
-                            <svg class={"w-4 h-4 text-gray-400 transition-transform #{if file_expanded, do: "rotate-90"}"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                            </svg>
-                          </td>
-                          <td class="py-2 pr-4 font-medium text-gray-900 text-xs"><%= file.filename %></td>
-                          <td class="py-2 pr-4">
-                            <%= if file.matched_rules > 0 do %>
-                              <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800">FLAGGED</span>
-                            <% else %>
-                              <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">CLEAN</span>
-                            <% end %>
-                          </td>
-                          <td class="py-2 pr-4">
-                            <span class={[
-                              "text-xs font-semibold",
-                              cond do
-                                file.risk == "CriticalRisk" -> "text-red-700"
-                                file.risk == "HighRisk" -> "text-orange-600"
-                                file.risk == "MediumRisk" -> "text-yellow-600"
-                                true -> "text-green-700"
-                              end
-                            ]}>
-                              <%= file.risk %>
-                            </span>
-                          </td>
-                          <td class="py-2 pr-4 text-gray-700"><%= file.matched_rules %></td>
-                          <td class="py-2 text-xs text-gray-600">
-                            <%= if file.matched_results != [] do %>
-                              <%= (file.matched_results |> List.first()).rule %>
-                              <%= if length(file.matched_results) > 1, do: "+ #{length(file.matched_results) - 1} more" %>
-                            <% else %>
-                              <span class="text-green-600">No rules triggered</span>
-                            <% end %>
-                          </td>
-                        </tr>
-
-                        <!-- Expanded file detail -->
-                        <%= if file_expanded do %>
-                          <tr>
-                            <td colspan="6" class="px-0 py-0">
-                              <div class="bg-white border-t border-b border-gray-200 px-8 py-4">
-                                <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-5 space-y-4">
-                                  <h4 class="text-sm font-bold text-gray-900">
-                                    Fraud Detection Details
-                                    <span class="ml-2 font-mono text-xs text-gray-500"><%= file.filename %></span>
-                                  </h4>
-
-                                  <!-- Score bar -->
-                                  <div>
-                                    <div class="flex justify-between items-center mb-1">
-                                      <span class="text-xs font-medium text-gray-700">Rules triggered</span>
-                                      <span class="text-xs font-bold text-gray-900"><%= file.matched_rules %></span>
-                                    </div>
-                                    <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                                      <div class={[
-                                        "h-full rounded-full",
-                                        cond do
-                                          file.risk == "CriticalRisk" -> "bg-red-500"
-                                          file.risk == "HighRisk" -> "bg-orange-500"
-                                          file.risk == "MediumRisk" -> "bg-yellow-500"
-                                          true -> "bg-green-500"
-                                        end
-                                      ]} style={"width: #{min(file.matched_rules * 25, 100)}%"}></div>
-                                    </div>
-                                  </div>
-
-                                  <!-- Overall risk card -->
-                                  <div class={[
-                                    "rounded-lg p-4 border",
-                                    cond do
-                                      file.risk == "CriticalRisk" -> "bg-red-50 border-red-200"
-                                      file.risk == "HighRisk" -> "bg-orange-50 border-orange-200"
-                                      file.risk == "MediumRisk" -> "bg-yellow-50 border-yellow-200"
-                                      true -> "bg-green-50 border-green-200"
-                                    end
-                                  ]}>
-                                    <div class="flex justify-between items-center">
-                                      <span class="text-sm font-bold text-gray-900">Overall Risk Assessment</span>
-                                      <span class={[
-                                        "px-3 py-1 rounded-full text-sm font-semibold",
-                                        cond do
-                                          file.risk == "CriticalRisk" -> "bg-red-100 text-red-800"
-                                          file.risk == "HighRisk" -> "bg-orange-100 text-orange-800"
-                                          file.risk == "MediumRisk" -> "bg-yellow-100 text-yellow-800"
-                                          true -> "bg-green-100 text-green-800"
-                                        end
-                                      ]}>
-                                        <%= file.risk %>
-                                      </span>
-                                    </div>
-                                  </div>
-
-                                  <!-- Triggered rules detail -->
-                                  <%= if file.matched_results != [] do %>
-                                    <div>
-                                      <h5 class="text-xs font-semibold text-gray-700 uppercase mb-2">Triggered Rules</h5>
-                                      <div class="space-y-2">
-                                        <%= for mr <- file.matched_results do %>
-                                          <div class="bg-red-50 border border-red-200 rounded-lg p-3">
-                                            <div class="flex items-start gap-2">
-                                              <svg class="w-4 h-4 text-red-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                                              </svg>
-                                              <div>
-                                                <span class="text-sm font-semibold text-red-800"><%= mr.rule %></span>
-                                                <p class="text-xs text-red-700 mt-0.5"><%= mr.detail %></p>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        <% end %>
-                                      </div>
-                                    </div>
-                                  <% else %>
-                                    <div class="bg-green-50 border border-green-200 rounded-lg p-3">
-                                      <span class="text-sm font-medium text-green-800">No rules triggered — claim is clean</span>
-                                    </div>
-                                  <% end %>
-
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        <% end %>
-                      <% end %>
-                    </tbody>
-                  </table>
-                </div>
-              <% end %>
-            </div>
-          <% end %>
-        </div>
-      <% end %>
-    </div>
 
   </div>
 </div>

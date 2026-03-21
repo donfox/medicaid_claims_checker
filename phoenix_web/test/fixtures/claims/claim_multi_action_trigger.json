@@ -17,7 +17,8 @@
         "tenure_days": 60,
         "risk_score": 95,
         "credentialing_date": "2025-11-15",
-        "specialty": "Specialty Hospital"
+        "specialty": "Specialty Hospital",
+        "taxonomy": "283X00000X"
     },
     "patient": {
         "name": {

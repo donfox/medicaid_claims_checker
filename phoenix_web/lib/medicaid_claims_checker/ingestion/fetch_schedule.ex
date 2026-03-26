@@ -17,8 +17,25 @@ defmodule MedicaidClaimsChecker.Ingestion.FetchSchedule do
     |> cast(attrs, [:fetch_source_id, :cron_expression, :interval_seconds, :enabled])
     |> validate_required([:fetch_source_id])
     |> validate_schedule_present()
+    |> validate_cron_expression()
     |> validate_number(:interval_seconds, greater_than_or_equal_to: 60)
     |> foreign_key_constraint(:fetch_source_id)
+  end
+
+  defp validate_cron_expression(changeset) do
+    case get_field(changeset, :cron_expression) do
+      nil ->
+        changeset
+
+      cron ->
+        parts = String.split(cron)
+
+        if length(parts) == 5 do
+          changeset
+        else
+          add_error(changeset, :cron_expression, "must have exactly 5 fields (min hour day month weekday)")
+        end
+    end
   end
 
   defp validate_schedule_present(changeset) do

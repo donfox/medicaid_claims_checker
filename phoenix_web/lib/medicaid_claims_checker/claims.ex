@@ -54,9 +54,39 @@ defmodule MedicaidClaimsChecker.Claims do
   Creates a batch record and one edi_file per claim inside a transaction.
   Returns {:ok, %{batch: batch, edi_files: [edi_file, ...]}} or {:error, reason}.
   """
+  def register_manual_batch(batch_id) do
+    table = ensure_manual_batch_table()
+    :ets.insert(table, {batch_id})
+  end
+
+  defp pop_manual_batch(batch_id) do
+    table = ensure_manual_batch_table()
+
+    case :ets.lookup(table, batch_id) do
+      [{^batch_id}] ->
+        :ets.delete(table, batch_id)
+        true
+
+      [] ->
+        false
+    end
+  end
+
+  defp ensure_manual_batch_table do
+    case :ets.whereis(:manual_upload_batches) do
+      :undefined -> :ets.new(:manual_upload_batches, [:set, :public, :named_table])
+      ref -> ref
+    end
+  end
+
   def ingest_batch(%{"batch_id" => batch_id, "claims" => claims} = params)
       when is_list(claims) do
-    source = Map.get(params, "source", "x12translator")
+    source =
+      cond do
+        Map.has_key?(params, "source") -> params["source"]
+        pop_manual_batch(batch_id) -> "manual_upload"
+        true -> "x12translator"
+      end
     batch_name = Map.get(params, "batch_name") || default_batch_name(source)
 
     result =
@@ -345,12 +375,19 @@ defmodule MedicaidClaimsChecker.Claims do
   end
 
   defp default_batch_name(source) do
-    timestamp = Calendar.strftime(DateTime.utc_now(), "%b %d, %Y %I:%M %p")
+    timestamp = format_eastern_timestamp()
 
     case source do
       "ui_upload" -> "UI Upload - #{timestamp}"
-      "x12translator" -> "X12 Import - #{timestamp}"
+      "manual_upload" -> "Manual Upload - #{timestamp}"
+      "x12translator" -> "Batch Upload - #{timestamp}"
       other -> "#{other} - #{timestamp}"
     end
+  end
+
+  defp format_eastern_timestamp do
+    DateTime.utc_now()
+    |> DateTime.shift_zone!("America/New_York")
+    |> Calendar.strftime("%b %d, %Y %I:%M %p %Z")
   end
 end

@@ -1,0 +1,40 @@
+{
+  "description": "Set 1: All valid medical claims — should pass both syntactic and semantic validation",
+  "files": [
+    {
+      "type": "837P",
+      "filename": "valid_837p_office_visit.x12",
+      "description": "Office visit with strep test and antibiotic injection — $350",
+      "expected_status": "success",
+      "expected_claims": 1,
+      "expected_semantic_errors": []
+    },
+    {
+      "type": "837P",
+      "filename": "valid_837p_lab_work.x12",
+      "description": "Comprehensive lab panel for diabetic patient — $450",
+      "expected_status": "success",
+      "expected_claims": 1,
+      "expected_semantic_errors": []
+    },
+    {
+      "type": "837I",
+      "filename": "valid_837i_inpatient.x12",
+      "description": "3-day inpatient stay with imaging and cardiac monitoring — $4,500",
+      "expected_status": "success",
+      "expected_claims": 1,
+      "expected_semantic_errors": []
+    },
+    {
+      "type": "837P",
+      "filename": "valid_837p_preventive.x12",
+      "description": "Pediatric well-child visit with vaccinations — $275",
+      "expected_status": "success",
+      "expected_claims": 1,
+      "expected_semantic_errors": []
+    }
+  ],
+  "batch_id": "batch_set1_valid_001",
+  "created_at": "2026-03-14T08:00:00Z",
+  "total_files": 4
+}

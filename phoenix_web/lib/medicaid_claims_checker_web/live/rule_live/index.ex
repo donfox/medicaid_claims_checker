@@ -48,13 +48,7 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
      |> assign(:redundancy_pending_save, nil)
      |> assign(:show_dsl_reference, false)
      |> assign(:batch_filter, nil)
-     |> assign(:batch_notification, nil)
-     |> allow_upload(:claim_files,
-       accept: ~w(.json),
-       max_entries: 100,
-       max_file_size: 10_000_000,
-       auto_upload: true
-     )}
+     |> assign(:batch_notification, nil)}
   end
 
   @impl true
@@ -343,24 +337,6 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
      |> assign(:batch_parse_error, parse_error)}
   end
 
-  @impl true
-  def handle_event("validate_uploads", _params, socket) do
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("clear_claim_uploads", _params, socket) do
-    socket =
-      Enum.reduce(socket.assigns.uploads.claim_files.entries, socket, fn entry, acc_socket ->
-        cancel_upload(acc_socket, :claim_files, entry.ref)
-      end)
-
-    {:noreply,
-     socket
-     |> assign(:batch_status, :idle)
-     |> assign(:batch_error, nil)}
-  end
-
   def handle_event("clear_batch_results", _params, socket) do
     {:noreply,
      socket
@@ -605,7 +581,10 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
   defp run_batch_execution(socket, claims, filenames, file_errors, rules_text) do
     batch_id = Ecto.UUID.generate()
 
-    timestamp = Calendar.strftime(DateTime.utc_now(), "%b %d, %Y %I:%M %p")
+    timestamp =
+      DateTime.utc_now()
+      |> DateTime.shift_zone!("America/New_York")
+      |> Calendar.strftime("%b %d, %Y %I:%M %p %Z")
 
     {:ok, batch} =
       Claims.create_batch(%{

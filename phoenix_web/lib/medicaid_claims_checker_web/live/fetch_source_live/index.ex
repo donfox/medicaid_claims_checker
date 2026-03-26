@@ -5,6 +5,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
   alias MedicaidClaimsChecker.Claims.Evaluator
   alias MedicaidClaimsChecker.Ingestion
   alias MedicaidClaimsChecker.Nppes
+  alias MedicaidClaimsChecker.X12TranslatorClient
 
   @impl true
   def mount(_params, _session, socket) do
@@ -52,8 +53,17 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
      |> assign(:nppes_elapsed_display, elapsed_display)
      |> assign(:nppes_elapsed_timer, timer)
      |> assign(:batch_history, load_batch_history())
+     |> assign(:show_batch_history, false)
      |> assign(:expanded_batch_ids, MapSet.new())
-     |> assign(:expanded_batch_file_ids, MapSet.new())}
+     |> assign(:expanded_batch_file_ids, MapSet.new())
+     |> assign(:upload_status, :idle)
+     |> assign(:upload_message, nil)
+     |> allow_upload(:manual_files,
+       accept: ~w(.json .x12 .zip),
+       max_entries: 100,
+       max_file_size: 10_000_000,
+       auto_upload: true
+     )}
   end
 
   # --- NPPES PubSub handlers ---
@@ -119,12 +129,20 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
 
   # --- Batch completion handlers ---
 
+  def handle_info({:batch_completed, %{batch_id: batch_id}}, socket) do
+    {:noreply, merge_batch_update(socket, batch_id)}
+  end
+
   def handle_info({:batch_completed, _payload}, socket) do
-    {:noreply, assign(socket, :batch_history, load_batch_history())}
+    {:noreply, socket}
+  end
+
+  def handle_info({:batch_failed, %{batch_id: batch_id}}, socket) do
+    {:noreply, merge_batch_update(socket, batch_id)}
   end
 
   def handle_info({:batch_failed, _payload}, socket) do
-    {:noreply, assign(socket, :batch_history, load_batch_history())}
+    {:noreply, socket}
   end
 
   # --- NPPES event handlers ---
@@ -408,7 +426,170 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     {:noreply, assign(socket, :sources, Ingestion.list_fetch_sources())}
   end
 
+  # --- Manual Upload event handlers ---
+
+  def handle_event("validate_manual_uploads", _params, socket) do
+    {:noreply, socket}
+  end
+
+  def handle_event("clear_manual_uploads", _params, socket) do
+    socket =
+      Enum.reduce(socket.assigns.uploads.manual_files.entries, socket, fn entry, acc_socket ->
+        cancel_upload(acc_socket, :manual_files, entry.ref)
+      end)
+
+    {:noreply,
+     socket
+     |> assign(:upload_status, :idle)
+     |> assign(:upload_message, nil)}
+  end
+
+  def handle_event("process_manual_upload", _params, socket) do
+    socket = assign(socket, :upload_message, nil)
+
+    files =
+      consume_uploaded_entries(socket, :manual_files, fn %{path: path}, entry ->
+        content = File.read!(path)
+        {:ok, {entry.client_name, content}}
+      end)
+
+    if files == [] do
+      {:noreply,
+       socket
+       |> assign(:upload_status, :error)
+       |> assign(:upload_message, "No valid files to process.")}
+    else
+      # Split files by extension
+      {json_files, x12_files, zip_files} = classify_files(files)
+
+      # Extract zip files and classify their contents
+      {zip_json, zip_x12} = extract_and_classify_zips(zip_files)
+      json_files = json_files ++ zip_json
+      x12_files = x12_files ++ zip_x12
+
+      socket = assign(socket, :upload_status, :processing)
+
+      # Process JSON files directly through batch ingestion
+      socket = process_json_files(socket, json_files)
+
+      # Submit X12 files to X12Translator
+      socket = process_x12_files(socket, x12_files)
+
+      {:noreply, socket}
+    end
+  end
+
+  defp classify_files(files) do
+    Enum.reduce(files, {[], [], []}, fn {filename, content}, {json, x12, zip} ->
+      ext = filename |> Path.extname() |> String.downcase()
+
+      case ext do
+        ".json" -> {[{filename, content} | json], x12, zip}
+        ".x12" -> {json, [{filename, content} | x12], zip}
+        ".zip" -> {json, x12, [{filename, content} | zip]}
+        _ -> {json, x12, zip}
+      end
+    end)
+  end
+
+  defp extract_and_classify_zips(zip_files) do
+    Enum.reduce(zip_files, {[], []}, fn {_zip_name, content}, {json_acc, x12_acc} ->
+      case :zip.unzip(content, [:memory]) do
+        {:ok, entries} ->
+          Enum.reduce(entries, {json_acc, x12_acc}, fn {name, data}, {j, x} ->
+            filename = to_string(name)
+            ext = filename |> Path.extname() |> String.downcase()
+
+            case ext do
+              ".json" -> {[{filename, data} | j], x}
+              ".x12" -> {j, [{filename, data} | x]}
+              _ -> {j, x}
+            end
+          end)
+
+        {:error, _} ->
+          {json_acc, x12_acc}
+      end
+    end)
+  end
+
+  defp process_json_files(socket, []), do: socket
+
+  defp process_json_files(socket, json_files) do
+    batch_id = Ecto.UUID.generate()
+    timestamp =
+      DateTime.utc_now()
+      |> DateTime.shift_zone!("America/New_York")
+      |> Calendar.strftime("%b %d, %Y %I:%M %p %Z")
+
+    claims =
+      Enum.flat_map(json_files, fn {filename, content} ->
+        case Jason.decode(content) do
+          {:ok, claim} -> [%{"filename" => filename, "claim" => claim}]
+          {:error, _} -> []
+        end
+      end)
+
+    if claims != [] do
+      params = %{
+        "batch_id" => batch_id,
+        "batch_name" => "Manual Upload - #{timestamp}",
+        "source" => "manual_upload",
+        "claims" => claims
+      }
+
+      case Claims.ingest_batch(params) do
+        {:ok, batch} ->
+          new_entry = build_batch_entry(batch)
+
+          socket
+          |> assign(:upload_status, :done)
+          |> assign(:upload_message, "#{length(claims)} JSON claim(s) submitted for evaluation.")
+          |> assign(:batch_history, [new_entry | socket.assigns.batch_history])
+
+        {:error, reason} ->
+          socket
+          |> assign(:upload_status, :error)
+          |> assign(:upload_message,
+            (socket.assigns.upload_message || "") <>
+              " JSON ingestion error: #{inspect(reason)}")
+      end
+    else
+      socket
+      |> assign(:upload_status, :error)
+      |> assign(:upload_message,
+        (socket.assigns.upload_message || "") <>
+          " No valid JSON claims found in uploaded files.")
+    end
+  end
+
+  defp process_x12_files(socket, []), do: socket
+
+  defp process_x12_files(socket, x12_files) do
+    case X12TranslatorClient.submit_files(x12_files) do
+      {:ok, %{batch_id: batch_id, file_count: count}} ->
+        Claims.register_manual_batch(batch_id)
+        message = "#{count} X12 file(s) submitted for translation (batch #{String.slice(batch_id, 0..7)}...)."
+        prior = socket.assigns.upload_message
+
+        socket
+        |> assign(:upload_status, :submitted)
+        |> assign(:upload_message, if(prior, do: "#{prior} #{message}", else: message))
+
+      {:error, reason} ->
+        prior = socket.assigns.upload_message
+
+        socket
+        |> assign(:upload_status, :error)
+        |> assign(:upload_message, if(prior, do: "#{prior} X12 error: #{reason}", else: "X12 error: #{reason}"))
+    end
+  end
+
   # --- Batch History event handlers ---
+
+  def handle_event("toggle_batch_history", _params, socket) do
+    {:noreply, assign(socket, :show_batch_history, !socket.assigns.show_batch_history)}
+  end
 
   def handle_event("toggle_batch_detail", %{"id" => id}, socket) do
     id = String.to_integer(id)
@@ -555,42 +736,91 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
 
   defp load_batch_history do
     Claims.list_recent_batches(20)
-    |> Enum.map(fn batch ->
-      files = Claims.list_files_for_batch(batch.id)
+    |> Enum.map(&build_batch_entry/1)
+  end
 
-      files_with_details =
-        Enum.map(files, fn f ->
-          report = f.json_output || %{}
+  defp build_batch_entry(batch) do
+    files = Claims.list_files_for_batch(batch.id)
 
-          matched_results =
-            (report["results"] || [])
-            |> Enum.filter(& &1["resultMatched"])
-            |> Enum.map(fn r ->
-              %{rule: r["resultRuleName"], detail: r["resultDetails"]}
-            end)
+    files_with_details =
+      Enum.map(files, fn f ->
+        report = f.json_output || %{}
 
-          %{
-            id: f.id,
-            filename: normalize_filename(f.filename),
-            status: f.status,
-            risk: report["overallRisk"] || "N/A",
-            matched_rules: report["matchedRules"] || 0,
-            matched_results: matched_results
-          }
-        end)
+        matched_results =
+          (report["results"] || [])
+          |> Enum.filter(& &1["resultMatched"])
+          |> Enum.map(fn r ->
+            %{rule: r["resultRuleName"], detail: r["resultDetails"]}
+          end)
 
-      %{
-        id: batch.id,
-        batch_id: batch.batch_id,
-        batch_name: batch.batch_name,
-        source: batch.source,
-        status: batch.status,
-        file_count: batch.file_count,
-        inserted_at: batch.inserted_at,
-        completed_at: batch.completed_at,
-        files: files_with_details
-      }
-    end)
+        %{
+          id: f.id,
+          filename: normalize_filename(f.filename),
+          status: f.status,
+          risk: report["overallRisk"] || "N/A",
+          matched_rules: report["matchedRules"] || 0,
+          matched_results: matched_results
+        }
+      end)
+
+    %{
+      id: batch.id,
+      batch_id: batch.batch_id,
+      batch_name: batch.batch_name,
+      source: batch.source,
+      status: batch.status,
+      file_count: batch.file_count,
+      inserted_at: batch.inserted_at,
+      completed_at: batch.completed_at,
+      files: files_with_details
+    }
+  end
+
+  defp merge_batch_update(socket, batch_id) do
+    case Claims.get_batch_by_batch_id(batch_id) do
+      nil ->
+        socket
+
+      batch ->
+        updated = build_batch_entry(batch)
+        history = socket.assigns.batch_history
+
+        new_history =
+          if Enum.any?(history, &(&1.batch_id == batch_id)) do
+            Enum.map(history, fn b -> if b.batch_id == batch_id, do: updated, else: b end)
+          else
+            [updated | history]
+          end
+
+        assign(socket, :batch_history, new_history)
+    end
+  end
+
+  defp file_type_color(filename) do
+    case filename |> Path.extname() |> String.downcase() do
+      ".json" -> "bg-green-500"
+      ".x12" -> "bg-purple-500"
+      ".zip" -> "bg-orange-500"
+      _ -> "bg-gray-500"
+    end
+  end
+
+  defp file_type_badge(filename) do
+    case filename |> Path.extname() |> String.downcase() do
+      ".json" -> "bg-green-100 text-green-800"
+      ".x12" -> "bg-purple-100 text-purple-800"
+      ".zip" -> "bg-orange-100 text-orange-800"
+      _ -> "bg-gray-100 text-gray-800"
+    end
+  end
+
+  defp file_type_label(filename) do
+    case filename |> Path.extname() |> String.downcase() do
+      ".json" -> "JSON"
+      ".x12" -> "X12"
+      ".zip" -> "ZIP"
+      ext -> ext
+    end
   end
 
   defp normalize_filename(filename) do
@@ -605,4 +835,9 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
         filename
     end
   end
+
+  defp upload_error_to_string(:too_large), do: "File is too large (max 10 MB)."
+  defp upload_error_to_string(:not_accepted), do: "File type not accepted. Allowed: .json, .x12, .zip"
+  defp upload_error_to_string(:too_many_files), do: "Too many files selected (max 100)."
+  defp upload_error_to_string(err), do: "Upload error: #{inspect(err)}"
 end

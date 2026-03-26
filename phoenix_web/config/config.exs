@@ -11,6 +11,13 @@ config :medicaid_claims_checker,
   ecto_repos: [MedicaidClaimsChecker.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+config :elixir, :time_zone_database, Tzdata.TimeZoneDatabase
+
+# Register .x12 MIME type for LiveView uploads
+config :mime, :types, %{
+  "application/x-x12" => ["x12"]
+}
+
 # Configures the endpoint
 config :medicaid_claims_checker, MedicaidClaimsCheckerWeb.Endpoint,
   url: [host: "localhost"],

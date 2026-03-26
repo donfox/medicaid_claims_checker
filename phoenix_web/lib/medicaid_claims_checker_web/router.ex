@@ -17,9 +17,8 @@ defmodule MedicaidClaimsCheckerWeb.Router do
   scope "/", MedicaidClaimsCheckerWeb do
     pipe_through(:browser)
 
-    live("/", RuleLive.Index, :index)
+    live("/", FetchSourceLive.Index, :index)
     live("/rules", RuleLive.Index, :index)
-    live("/fetch-sources", FetchSourceLive.Index, :index)
   end
 
   # API routes

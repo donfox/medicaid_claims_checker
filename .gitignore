@@ -9,6 +9,9 @@ logs/
 .vscode/
 *.code-workspace
 
+# Claude Code
+.claude/
+
 # ── Haskell (haskell_engine/) ─────────────────────
 haskell_engine/.stack-work/
 haskell_engine/dist-newstyle/

@@ -7,6 +7,7 @@ import Data.Aeson qualified as Aeson
 import Data.String (fromString)
 import Data.Time (Day, fromGregorian)
 import Test.Hspec
+import ParserProps (parserProperties)
 import Claims.EvaluationContract
 import Claims.MLClient
 import Claims.Parser
@@ -22,6 +23,7 @@ testDay = fromGregorian 2026 2 28
 
 main :: IO ()
 main = hspec $ do
+  parserProperties
   describe "DSL Parser" $ do
     it "parses simple equality predicate" $ do
       let input = "RULE test \"Test rule\" WHEN field = \"value\" THEN FLAG_FRAUD \"test\";"

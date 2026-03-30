@@ -68,8 +68,11 @@ test-suite medicaid-claims-dsl-test
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
     main-is:          Spec.hs
+    other-modules:    ParserProps
     build-depends:    base >=4.14 && <5
                     , medicaid-claims-dsl
                     , hspec >= 2.9.0 && < 2.12
+                    , QuickCheck >= 2.14
+                    , text >= 1.2.5
                     , aeson
                     , time >= 1.9

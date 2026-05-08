@@ -11,10 +11,13 @@ defmodule MedicaidClaimsChecker.Application do
   def start(_type, _args) do
     children = [
       MedicaidClaimsCheckerWeb.Telemetry,
-      {DNSCluster, query: Application.get_env(:medicaid_claims_checker, :dns_cluster_query) || :ignore},
+      {DNSCluster,
+       query: Application.get_env(:medicaid_claims_checker, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: MedicaidClaimsChecker.PubSub},
       MedicaidClaimsChecker.Repo,
       {Task.Supervisor, name: MedicaidClaimsChecker.TaskSupervisor},
+      MedicaidClaimsChecker.Scheduler,
+      MedicaidClaimsChecker.Ingestion.ConfigPoller,
       MedicaidClaimsChecker.Nppes.RefreshWorker,
       # Start to serve requests, typically the last entry
       MedicaidClaimsCheckerWeb.Endpoint

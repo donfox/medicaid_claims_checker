@@ -28,7 +28,7 @@
       </div>
       <div class="mt-3 p-3 bg-blue-100 border border-blue-300 rounded-md">
         <p class="text-sm text-blue-900 font-medium">
-          Define fetch locations (SFTP, local, HTTP, Databricks) and schedules. Add sources, attach cron or interval schedules, and X12Translator polls every 60 seconds automatically. Toggle sources or schedules off to pause without losing configuration.
+          Define fetch locations (SFTP, local, HTTP, Databricks) and schedules. Add sources, attach cron or interval schedules, and the app polls every 60 seconds automatically. Toggle sources or schedules off to pause without losing configuration.
         </p>
       </div>
     </div>
@@ -203,8 +203,8 @@
             <svg class="mx-auto h-10 w-10 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
-            <p class="text-sm text-gray-800">Drag & drop <strong>.json</strong>, <strong>.x12</strong>, or <strong>.zip</strong> files here</p>
-            <p class="text-xs text-gray-400 mt-1">JSON files are evaluated directly. X12 files are sent to X12Translator first.</p>
+            <p class="text-sm text-gray-800">Drag & drop <strong>.json</strong>, <strong>.x12</strong>, <strong>.edi</strong>, or <strong>.zip</strong> files here</p>
+            <p class="text-xs text-gray-400 mt-1">JSON files are evaluated directly. X12/EDI files are translated in-app before evaluation.</p>
           </div>
 
           <div class="flex items-center gap-3 mb-4">
@@ -660,7 +660,7 @@
 
       <%= if @show_batch_history do %>
       <div class="px-6 pb-6">
-      <p class="mb-3 text-sm text-gray-800">All processed claim batches — manual uploads and X12Translator imports</p>
+      <p class="mb-3 text-sm text-gray-800">All processed claim batches — manual uploads and scheduled fetch imports</p>
       <div class="flex items-center justify-end gap-2 mb-4">
         <button
           type="button"
@@ -693,7 +693,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
           </svg>
           <p class="text-sm font-medium">No batches received yet</p>
-          <p class="text-xs mt-1">Batches will appear here when X12Translator sends claims</p>
+          <p class="text-xs mt-1">Batches will appear here as claims are ingested</p>
         </div>
       <% else %>
         <div class="space-y-3">
@@ -782,7 +782,11 @@
                             <%= if file.matched_rules > 0 do %>
                               <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800">FLAGGED</span>
                             <% else %>
-                              <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">CLEAN</span>
+                              <%= if batch.status == "failed" and file.status == "translated" do %>
+                                <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-600">NOT EVALUATED</span>
+                              <% else %>
+                                <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">CLEAN</span>
+                              <% end %>
                             <% end %>
                           </td>
                           <td class="py-2 pr-4">
@@ -886,9 +890,15 @@
                                       </div>
                                     </div>
                                   <% else %>
-                                    <div class="bg-green-50 border border-green-200 rounded-lg p-3">
-                                      <span class="text-sm font-medium text-green-800">No rules triggered — claim is clean</span>
-                                    </div>
+                                    <%= if batch.status == "failed" and file.status == "translated" do %>
+                                      <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                                        <span class="text-sm font-medium text-gray-600">Evaluation did not run — rule engine was unavailable when this batch was processed.</span>
+                                      </div>
+                                    <% else %>
+                                      <div class="bg-green-50 border border-green-200 rounded-lg p-3">
+                                        <span class="text-sm font-medium text-green-800">No rules triggered — claim is clean</span>
+                                      </div>
+                                    <% end %>
                                   <% end %>
 
                                 </div>

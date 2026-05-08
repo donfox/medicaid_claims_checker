@@ -21,7 +21,7 @@ defmodule MedicaidClaimsChecker.MixProject do
   def application do
     [
       mod: {MedicaidClaimsChecker.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools, :ssh]
     ]
   end
 
@@ -64,6 +64,8 @@ defmodule MedicaidClaimsChecker.MixProject do
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
       {:httpoison, "~> 2.2"},
+      {:quantum, "~> 3.5"},
+      {:crontab, "~> 1.1"},
       {:ecto_sql, "~> 3.12"},
       {:postgrex, "~> 0.19"},
       {:nimble_csv, "~> 1.2"},
@@ -84,7 +86,11 @@ defmodule MedicaidClaimsChecker.MixProject do
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["compile", "tailwind medicaid_claims_checker", "esbuild medicaid_claims_checker"],
+      "assets.build": [
+        "compile",
+        "tailwind medicaid_claims_checker",
+        "esbuild medicaid_claims_checker"
+      ],
       "assets.deploy": [
         "tailwind medicaid_claims_checker --minify",
         "esbuild medicaid_claims_checker --minify",

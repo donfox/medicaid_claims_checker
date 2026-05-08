@@ -2,6 +2,7 @@ defmodule MedicaidClaimsChecker.ClaimsTest do
   use MedicaidClaimsChecker.DataCase
 
   alias MedicaidClaimsChecker.Claims
+
   @valid_batch_params %{
     "batch_id" => "test-batch-001",
     "source" => "e2e-test",
@@ -12,11 +13,18 @@ defmodule MedicaidClaimsChecker.ClaimsTest do
           "claim_id" => "CLM-001",
           "provider" => %{"name" => "Test Clinic", "state" => "MO"},
           "service_lines" => [
-            %{"procedure_code" => "99213", "line_amount" => 150.00, "date_of_service" => "2026-01-15"}
+            %{
+              "procedure_code" => "99213",
+              "line_amount" => 150.00,
+              "date_of_service" => "2026-01-15"
+            }
           ],
           "claim_totals" => %{"total_submitted" => 150.00},
           "2300" => %{"CLM" => %{"claim_amount" => 150, "facility_type" => "Outpatient"}},
-          "2400" => %{"SV1" => %{"place_of_service" => "11"}, "DTP" => %{"service_day_of_week" => "TUE"}}
+          "2400" => %{
+            "SV1" => %{"place_of_service" => "11"},
+            "DTP" => %{"service_day_of_week" => "TUE"}
+          }
         }
       },
       %{
@@ -25,11 +33,18 @@ defmodule MedicaidClaimsChecker.ClaimsTest do
           "claim_id" => "CLM-002",
           "provider" => %{"name" => "Surgery Center", "state" => "CA"},
           "service_lines" => [
-            %{"procedure_code" => "33533", "line_amount" => 75_000.00, "date_of_service" => "2026-01-15"}
+            %{
+              "procedure_code" => "33533",
+              "line_amount" => 75_000.00,
+              "date_of_service" => "2026-01-15"
+            }
           ],
           "claim_totals" => %{"total_submitted" => 75_000.00},
           "2300" => %{"CLM" => %{"claim_amount" => 75_000, "facility_type" => "Outpatient"}},
-          "2400" => %{"SV1" => %{"place_of_service" => "11"}, "DTP" => %{"service_day_of_week" => "TUE"}}
+          "2400" => %{
+            "SV1" => %{"place_of_service" => "11"},
+            "DTP" => %{"service_day_of_week" => "TUE"}
+          }
         }
       }
     ]
@@ -37,7 +52,8 @@ defmodule MedicaidClaimsChecker.ClaimsTest do
 
   describe "ingest_batch/1" do
     test "creates batch and edi_files in a single transaction" do
-      assert {:ok, %{batch: batch, edi_files: edi_files}} = Claims.ingest_batch(@valid_batch_params)
+      assert {:ok, %{batch: batch, edi_files: edi_files}} =
+               Claims.ingest_batch(@valid_batch_params)
 
       assert batch.batch_id == "test-batch-001"
       assert batch.source == "e2e-test"
@@ -49,7 +65,7 @@ defmodule MedicaidClaimsChecker.ClaimsTest do
       [f1, f2] = edi_files
       assert f1.filename == "claim_clean.json"
       assert f1.status == "translated"
-      assert f1.file_path == "x12translator://test-batch-001/claim_clean.json"
+      assert f1.file_path == "ingest://test-batch-001/claim_clean.json"
       assert f1.json_output["claim_id"] == "CLM-001"
 
       assert f2.filename == "claim_high_value.json"
@@ -145,7 +161,11 @@ defmodule MedicaidClaimsChecker.ClaimsTest do
 
   describe "validate_claim_providers/1" do
     test "returns :ok when no NPIs present" do
-      claim = %{"provider" => %{"name" => "Test"}, "service_lines" => [%{"date_of_service" => "2026-01-15"}]}
+      claim = %{
+        "provider" => %{"name" => "Test"},
+        "service_lines" => [%{"date_of_service" => "2026-01-15"}]
+      }
+
       assert :ok = Claims.validate_claim_providers(claim)
     end
   end

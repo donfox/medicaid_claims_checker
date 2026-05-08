@@ -5,7 +5,7 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
   back into the database.
 
   Extracted from RuleLive.Index so it can be triggered both from the UI
-  and automatically when X12Translator batches arrive.
+  and automatically when scheduled X12 batches arrive.
   """
 
   alias MedicaidClaimsChecker.Claims
@@ -39,7 +39,9 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
       |> Enum.filter(&(&1.status == "translated"))
 
     if edi_files == [] do
-      result = Claims.update_batch(batch, %{status: "completed", completed_at: DateTime.utc_now()})
+      result =
+        Claims.update_batch(batch, %{status: "completed", completed_at: DateTime.utc_now()})
+
       broadcast_completed(batch)
       result
     else
@@ -51,7 +53,10 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
   defp do_evaluate(batch, edi_files) do
     case gather_rules_text() do
       nil ->
-        Logger.warning("No active BA rules — marking batch #{batch.batch_id} completed without evaluation")
+        Logger.warning(
+          "No active BA rules — marking batch #{batch.batch_id} completed without evaluation"
+        )
+
         Claims.update_batch(batch, %{status: "completed", completed_at: DateTime.utc_now()})
         broadcast_completed(batch)
 

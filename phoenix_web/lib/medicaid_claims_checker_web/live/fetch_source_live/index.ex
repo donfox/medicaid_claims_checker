@@ -5,7 +5,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
   alias MedicaidClaimsChecker.Claims.Evaluator
   alias MedicaidClaimsChecker.Ingestion
   alias MedicaidClaimsChecker.Nppes
-  alias MedicaidClaimsChecker.X12TranslatorClient
+  alias MedicaidClaimsChecker.X12.{ClaimSplitter, Converter, SegmentMapper}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -22,7 +22,12 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
       if nppes_status.refreshing and nppes_status.started_at do
         sa = nppes_status.started_at
         el = format_elapsed(elapsed_seconds(sa))
-        t = if connected?(socket), do: Process.send_after(self(), :nppes_elapsed_tick, 10_000), else: nil
+
+        t =
+          if connected?(socket),
+            do: Process.send_after(self(), :nppes_elapsed_tick, 10_000),
+            else: nil
+
         {sa, el, t}
       else
         {nil, "0s", nil}
@@ -59,7 +64,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
      |> assign(:upload_status, :idle)
      |> assign(:upload_message, nil)
      |> allow_upload(:manual_files,
-       accept: ~w(.json .x12 .zip),
+       accept: ~w(.json .x12 .edi .zip),
        max_entries: 100,
        max_file_size: 10_000_000,
        auto_upload: true
@@ -83,7 +88,8 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
      |> assign(:nppes_elapsed_timer, timer)}
   end
 
-  def handle_info({:nppes_status, %{status: status}}, socket) when status in [:completed, :failed, :cancelled] do
+  def handle_info({:nppes_status, %{status: status}}, socket)
+      when status in [:completed, :failed, :cancelled] do
     cancel_elapsed_timer(socket.assigns.nppes_elapsed_timer)
 
     {:noreply,
@@ -202,12 +208,13 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
           nil
       end
 
-    attrs = %{
-      interval_seconds: interval,
-      download_url: String.trim(params["download_url"] || "")
-    }
-    |> Enum.reject(fn {_k, v} -> is_nil(v) or v == "" end)
-    |> Map.new()
+    attrs =
+      %{
+        interval_seconds: interval,
+        download_url: String.trim(params["download_url"] || "")
+      }
+      |> Enum.reject(fn {_k, v} -> is_nil(v) or v == "" end)
+      |> Map.new()
 
     case Nppes.update_refresh_config(attrs) do
       {:ok, updated} ->
@@ -267,7 +274,9 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     credentials =
       credentials
       |> then(fn c -> if password != "", do: Map.put(c, "password", password), else: c end)
-      |> then(fn c -> if username != "", do: Map.put(c, "username", username), else: Map.delete(c, "username") end)
+      |> then(fn c ->
+        if username != "", do: Map.put(c, "username", username), else: Map.delete(c, "username")
+      end)
 
     attrs = %{
       name: String.trim(params["name"] || ""),
@@ -291,7 +300,10 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
          |> assign(:editing_source, nil)
          |> assign(:form_error, nil)
          |> reset_source_form()
-         |> put_flash(:info, if(socket.assigns.editing_source, do: "Source updated.", else: "Source added."))}
+         |> put_flash(
+           :info,
+           if(socket.assigns.editing_source, do: "Source updated.", else: "Source added.")
+         )}
 
       {:error, changeset} ->
         message =
@@ -355,7 +367,10 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
      |> assign(:adding_schedule_for, String.to_integer(source_id))
      |> assign(:editing_schedule, schedule)
      |> assign(:schedule_cron, schedule.cron_expression || "")
-     |> assign(:schedule_interval, if(schedule.interval_seconds, do: to_string(schedule.interval_seconds), else: ""))}
+     |> assign(
+       :schedule_interval,
+       if(schedule.interval_seconds, do: to_string(schedule.interval_seconds), else: "")
+     )}
   end
 
   def handle_event("cancel_add_schedule", _params, socket) do
@@ -378,12 +393,19 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     attrs =
       cond do
         String.trim(params["cron"] || "") != "" ->
-          %{fetch_source_id: source_id, cron_expression: String.trim(params["cron"]), interval_seconds: nil}
+          %{
+            fetch_source_id: source_id,
+            cron_expression: String.trim(params["cron"]),
+            interval_seconds: nil
+          }
 
         String.trim(params["interval"] || "") != "" ->
           case Integer.parse(params["interval"]) do
-            {seconds, _} -> %{fetch_source_id: source_id, interval_seconds: seconds, cron_expression: nil}
-            :error -> %{fetch_source_id: source_id}
+            {seconds, _} ->
+              %{fetch_source_id: source_id, interval_seconds: seconds, cron_expression: nil}
+
+            :error ->
+              %{fetch_source_id: source_id}
           end
 
         true ->
@@ -467,15 +489,25 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
       json_files = json_files ++ zip_json
       x12_files = x12_files ++ zip_x12
 
-      socket = assign(socket, :upload_status, :processing)
+      if json_files == [] and x12_files == [] do
+        {:noreply,
+         socket
+         |> assign(:upload_status, :error)
+         |> assign(
+           :upload_message,
+           "No processable claims found. Supported file types: .json, .x12, .edi, .zip"
+         )}
+      else
+        socket = assign(socket, :upload_status, :processing)
 
-      # Process JSON files directly through batch ingestion
-      socket = process_json_files(socket, json_files)
+        # Process JSON files directly through batch ingestion
+        socket = process_json_files(socket, json_files)
 
-      # Submit X12 files to X12Translator
-      socket = process_x12_files(socket, x12_files)
+        # Translate X12/EDI files in-process and ingest them locally
+        socket = process_x12_files(socket, x12_files)
 
-      {:noreply, socket}
+        {:noreply, socket}
+      end
     end
   end
 
@@ -486,6 +518,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
       case ext do
         ".json" -> {[{filename, content} | json], x12, zip}
         ".x12" -> {json, [{filename, content} | x12], zip}
+        ".edi" -> {json, [{filename, content} | x12], zip}
         ".zip" -> {json, x12, [{filename, content} | zip]}
         _ -> {json, x12, zip}
       end
@@ -503,6 +536,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
             case ext do
               ".json" -> {[{filename, data} | j], x}
               ".x12" -> {j, [{filename, data} | x]}
+              ".edi" -> {j, [{filename, data} | x]}
               _ -> {j, x}
             end
           end)
@@ -517,6 +551,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
 
   defp process_json_files(socket, json_files) do
     batch_id = Ecto.UUID.generate()
+
     timestamp =
       DateTime.utc_now()
       |> DateTime.shift_zone!("America/New_York")
@@ -550,39 +585,164 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
         {:error, reason} ->
           socket
           |> assign(:upload_status, :error)
-          |> assign(:upload_message,
+          |> assign(
+            :upload_message,
             (socket.assigns.upload_message || "") <>
-              " JSON ingestion error: #{inspect(reason)}")
+              " JSON ingestion error: #{inspect(reason)}"
+          )
       end
     else
       socket
       |> assign(:upload_status, :error)
-      |> assign(:upload_message,
+      |> assign(
+        :upload_message,
         (socket.assigns.upload_message || "") <>
-          " No valid JSON claims found in uploaded files.")
+          " No valid JSON claims found in uploaded files."
+      )
     end
   end
 
   defp process_x12_files(socket, []), do: socket
 
   defp process_x12_files(socket, x12_files) do
-    case X12TranslatorClient.submit_files(x12_files) do
-      {:ok, %{batch_id: batch_id, file_count: count}} ->
-        Claims.register_manual_batch(batch_id)
-        message = "#{count} X12 file(s) submitted for translation (batch #{String.slice(batch_id, 0..7)}...)."
-        prior = socket.assigns.upload_message
+    batch_id = Ecto.UUID.generate()
 
-        socket
-        |> assign(:upload_status, :submitted)
-        |> assign(:upload_message, if(prior, do: "#{prior} #{message}", else: message))
+    timestamp =
+      DateTime.utc_now()
+      |> DateTime.shift_zone!("America/New_York")
+      |> Calendar.strftime("%b %d, %Y %I:%M %p %Z")
+
+    {claims, failures} =
+      Enum.reduce(x12_files, {[], []}, fn file, {claims_acc, failures_acc} ->
+        {file_claims, file_failures} = translate_x12_file(file)
+        {claims_acc ++ file_claims, failures_acc ++ file_failures}
+      end)
+
+    prior = socket.assigns.upload_message
+    failure_suffix = format_translation_failures(failures)
+
+    if claims == [] do
+      base = "X12/EDI translation produced no claims."
+
+      socket
+      |> assign(:upload_status, :error)
+      |> assign(
+        :upload_message,
+        if(prior,
+          do: "#{prior} #{base}#{failure_suffix}",
+          else: "#{base}#{failure_suffix}"
+        )
+      )
+    else
+      params = %{
+        "batch_id" => batch_id,
+        "batch_name" => "Manual Upload - #{timestamp}",
+        "source" => "manual_upload",
+        "claims" => claims
+      }
+
+      case Claims.ingest_batch(params) do
+        {:ok, batch} ->
+          new_entry = build_batch_entry(batch)
+          base = "#{length(claims)} X12/EDI claim(s) translated and submitted for evaluation."
+          message = "#{base}#{failure_suffix}"
+
+          socket
+          |> assign(:upload_status, :done)
+          |> assign(:upload_message, if(prior, do: "#{prior} #{message}", else: message))
+          |> assign(:batch_history, [new_entry | socket.assigns.batch_history])
+
+        {:error, reason} ->
+          socket
+          |> assign(:upload_status, :error)
+          |> assign(
+            :upload_message,
+            if(prior,
+              do: "#{prior} X12/EDI ingestion error: #{inspect(reason)}",
+              else: "X12/EDI ingestion error: #{inspect(reason)}"
+            )
+          )
+      end
+    end
+  end
+
+  defp translate_x12_file({filename, content}) do
+    # Pre-split files that have multiple GS/ST transaction sets in one envelope
+    case ClaimSplitter.split_transaction_sets(content) do
+      {:ok, nil} ->
+        # Single transaction set — proceed with normal per-claim splitting
+        translate_x12_single({filename, content})
+
+      {:ok, ts_parts} ->
+        # Multiple transaction sets — translate each independently
+        Enum.reduce(ts_parts, {[], []}, fn ts_content, {claims_acc, failures_acc} ->
+          {file_claims, file_failures} = translate_x12_single({filename, ts_content})
+          {claims_acc ++ file_claims, failures_acc ++ file_failures}
+        end)
 
       {:error, reason} ->
-        prior = socket.assigns.upload_message
-
-        socket
-        |> assign(:upload_status, :error)
-        |> assign(:upload_message, if(prior, do: "#{prior} X12 error: #{reason}", else: "X12 error: #{reason}"))
+        {[], ["#{filename}: #{reason}"]}
     end
+  end
+
+  defp translate_x12_single({filename, content}) do
+    case ClaimSplitter.split_claims_to_x12(content) do
+      {:ok, nil} ->
+        case translate_x12(content) do
+          {:ok, claim} ->
+            {[%{"filename" => to_json_filename(filename), "claim" => claim}], []}
+
+          {:error, reason} ->
+            {[], ["#{filename}: #{reason}"]}
+        end
+
+      {:ok, parts} when is_list(parts) ->
+        Enum.reduce(parts, {[], []}, fn %{claim_id: cid, x12_content: cx12},
+                                        {claims_acc, failures_acc} ->
+          case translate_x12(cx12) do
+            {:ok, claim} ->
+              {claims_acc ++ [%{"filename" => to_split_filename(filename, cid), "claim" => claim}],
+               failures_acc}
+
+            {:error, reason} ->
+              {claims_acc, failures_acc ++ ["#{filename} (claim #{cid}): #{reason}"]}
+          end
+        end)
+
+      {:error, reason} ->
+        {[], ["#{filename}: #{reason}"]}
+    end
+  end
+
+  defp format_translation_failures([]), do: ""
+
+  defp format_translation_failures(failures) do
+    shown = failures |> Enum.take(3) |> Enum.join(" | ")
+    more_count = max(length(failures) - 3, 0)
+
+    more_text =
+      if more_count > 0 do
+        " (and #{more_count} more)"
+      else
+        ""
+      end
+
+    " Translation issues: #{shown}#{more_text}"
+  end
+
+  defp translate_x12(x12_content) do
+    with {:ok, flat_json} <- Converter.convert_content(x12_content),
+         {:ok, semantic} <- SegmentMapper.map_from_json(flat_json) do
+      {:ok, semantic}
+    end
+  end
+
+  defp to_json_filename(filename) do
+    Path.rootname(filename) <> ".json"
+  end
+
+  defp to_split_filename(filename, claim_id) do
+    "#{Path.rootname(filename)}_#{claim_id}.json"
   end
 
   # --- Batch History event handlers ---
@@ -623,12 +783,14 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
   end
 
   def handle_event("clear_batch_history", _params, socket) do
+    Claims.clear_batch_history()
+
     {:noreply,
      socket
      |> assign(:batch_history, [])
      |> assign(:expanded_batch_ids, MapSet.new())
      |> assign(:expanded_batch_file_ids, MapSet.new())
-     |> put_flash(:info, "Display cleared — click Refresh to reload")}
+     |> put_flash(:info, "Job history cleared")}
   end
 
   def handle_event("dismiss_batch", %{"id" => id}, socket) do
@@ -678,7 +840,15 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
   end
 
   defp nppes_config_fallback do
-    %{last_status: "never", last_refresh_at: nil, last_row_count: 0, last_error: nil, auto_refresh: true, interval_seconds: 604_800, download_url: ""}
+    %{
+      last_status: "never",
+      last_refresh_at: nil,
+      last_row_count: 0,
+      last_error: nil,
+      auto_refresh: true,
+      interval_seconds: 604_800,
+      download_url: ""
+    }
   end
 
   defp safe_get_nppes_status do
@@ -800,6 +970,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     case filename |> Path.extname() |> String.downcase() do
       ".json" -> "bg-green-500"
       ".x12" -> "bg-purple-500"
+      ".edi" -> "bg-purple-500"
       ".zip" -> "bg-orange-500"
       _ -> "bg-gray-500"
     end
@@ -809,6 +980,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     case filename |> Path.extname() |> String.downcase() do
       ".json" -> "bg-green-100 text-green-800"
       ".x12" -> "bg-purple-100 text-purple-800"
+      ".edi" -> "bg-purple-100 text-purple-800"
       ".zip" -> "bg-orange-100 text-orange-800"
       _ -> "bg-gray-100 text-gray-800"
     end
@@ -818,6 +990,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     case filename |> Path.extname() |> String.downcase() do
       ".json" -> "JSON"
       ".x12" -> "X12"
+      ".edi" -> "EDI"
       ".zip" -> "ZIP"
       ext -> ext
     end
@@ -837,7 +1010,10 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
   end
 
   defp upload_error_to_string(:too_large), do: "File is too large (max 10 MB)."
-  defp upload_error_to_string(:not_accepted), do: "File type not accepted. Allowed: .json, .x12, .zip"
+
+  defp upload_error_to_string(:not_accepted),
+    do: "File type not accepted. Allowed: .json, .x12, .edi, .zip"
+
   defp upload_error_to_string(:too_many_files), do: "Too many files selected (max 100)."
   defp upload_error_to_string(err), do: "Upload error: #{inspect(err)}"
 end

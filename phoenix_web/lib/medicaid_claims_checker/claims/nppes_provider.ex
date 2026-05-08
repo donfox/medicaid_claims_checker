@@ -12,15 +12,17 @@ defmodule MedicaidClaimsChecker.Claims.NppesProvider do
   @primary_key {:npi, :string, autogenerate: false}
 
   schema "nppes_providers" do
-    field :entity_type, :integer
-    field :provider_name, :string
-    field :credential, :string
-    field :taxonomy, :string
-    field :state, :string
-    field :enumeration_date, :date
-    field :deactivation_date, :date
-    field :reactivation_date, :date
-    field :last_update_date, :date
+    field(:entity_type, :integer)
+    field(:provider_name, :string)
+    field(:credential, :string)
+    # Keep taxonomy optional for compatibility with databases that predate
+    # the taxonomy migration. It can still be explicitly selected when needed.
+    field(:taxonomy, :string, load_in_query: false)
+    field(:state, :string)
+    field(:enumeration_date, :date)
+    field(:deactivation_date, :date)
+    field(:reactivation_date, :date)
+    field(:last_update_date, :date)
 
     timestamps(type: :utc_datetime)
   end
@@ -55,7 +57,10 @@ defmodule MedicaidClaimsChecker.Claims.NppesProvider do
   """
   def active_on_date?(%__MODULE__{deactivation_date: nil}, _service_date), do: true
 
-  def active_on_date?(%__MODULE__{deactivation_date: deact, reactivation_date: react}, service_date) do
+  def active_on_date?(
+        %__MODULE__{deactivation_date: deact, reactivation_date: react},
+        service_date
+      ) do
     cond do
       Date.compare(service_date, deact) in [:lt, :eq] -> true
       react != nil and Date.compare(react, deact) == :gt -> true

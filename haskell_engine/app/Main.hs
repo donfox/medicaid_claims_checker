@@ -1,12 +1,22 @@
--- Copyright (c) 2024-2026 Don Fox. All rights reserved.
+-- Copyright (c) 2024-2025 Don Fox. All rights reserved.
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE OverloadedStrings #-}
 
+-- | Warp HTTP server exposing the Medicaid claims engine on port 8080.
+--
+-- endpoints:
+--
+-- * @post /api/evaluate@          — evaluate one claim against a rule set
+-- * @post /api/batch-evaluate@    — evaluate multiple claims in one request
+-- * @post /api/compile-rules@     — parse and cache a rule set, return preflight counts
+-- * @post /api/parse-rule@        — parse a single rule and return its AST as JSON
+-- * @post /api/check-redundancy@  — detect overlap between a candidate and existing rules
+-- * @get  /api/health@            — liveness probe
 module Main where
 
-import Data.Aeson (FromJSON, ToJSON, decode, encode, object, (.=))
-import Data.Aeson qualified as Aeson
-import Data.Aeson.Types qualified as AesonTypes
+import Data.Aeson (FromJSON (..), ToJSON (..), Value (..), decode, encode, object, withObject, (.:), (.:?), (.=))
+import Data.Aeson.Types (parseMaybe)
+import Data.Maybe (fromMaybe)
 import Data.Text qualified as T
 import Data.Time.Clock (getCurrentTime, utctDay)
 import Data.Time.Format (defaultTimeLocale, formatTime)
@@ -56,6 +66,7 @@ app cache request respond = do
     ["api", "health"] -> handleHealth respond
     _ -> respond $ responseLBS status400 [] "Not found"
 
+-- | Liveness probe — always returns @{"status":"healthy"}@.
 handleHealth :: (Response -> IO ResponseReceived) -> IO ResponseReceived
 handleHealth respond =
   respond $
@@ -64,6 +75,8 @@ handleHealth respond =
       [("Content-Type", "application/json")]
       (encode $ object ["status" .= ("healthy" :: String)])
 
+-- | Evaluate a single claim document against a DSL rule set, combining DSL
+-- results with an ML score (or stub when @ML_SCORER_URL@ is unset).
 handleEvaluate :: Request -> (Response -> IO ResponseReceived) -> IO ResponseReceived
 handleEvaluate request respond = do
   body <- strictRequestBody request
@@ -152,6 +165,8 @@ handleCompileRules cache request respond = do
                   "totalRules" .= length rules
                 ]
 
+-- | Parse a single DSL rule and return its AST as JSON. Useful for editor
+-- tooling and rule authoring validation without running a full evaluation.
 handleParseRule :: Request -> (Response -> IO ResponseReceived) -> IO ResponseReceived
 handleParseRule request respond = do
   body <- strictRequestBody request
@@ -179,7 +194,7 @@ handleParseRule request respond = do
               (encode $ object ["rule" .= rule, "success" .= True])
 
 -- Helper for JSON responses
-jsonResponse :: Status -> Aeson.Value -> Response
+jsonResponse :: Status -> Value -> Response
 jsonResponse status val =
   responseLBS status [("Content-Type", "application/json")] (encode val)
 
@@ -196,7 +211,7 @@ instance ToJSON EvaluationResponse where
         "combined" .= combined
       ]
 
-reportToJSON :: EvaluationReport -> Aeson.Value
+reportToJSON :: EvaluationReport -> Value
 reportToJSON report =
   object
     [ "results" .= reportResults report,
@@ -206,35 +221,35 @@ reportToJSON report =
       "summary" .= reportSummary report
     ]
 
-data ParseRuleRequest = ParseRuleRequest
+newtype ParseRuleRequest = ParseRuleRequest
   { parseRuleText :: T.Text
   }
   deriving (Show)
 
 instance FromJSON ParseRuleRequest where
-  parseJSON = Aeson.withObject "ParseRuleRequest" $ \v ->
-    ParseRuleRequest <$> v Aeson..: "ruleText"
+  parseJSON = withObject "ParseRuleRequest" $ \v ->
+    ParseRuleRequest <$> v .: "ruleText"
 
 data BatchEvaluationRequest = BatchEvaluationRequest
   { batchRulesText :: T.Text,
-    batchClaims :: [Aeson.Value]
+    batchClaims :: [Value]
   }
   deriving (Show)
 
 instance FromJSON BatchEvaluationRequest where
-  parseJSON = Aeson.withObject "BatchEvaluationRequest" $ \v ->
+  parseJSON = withObject "BatchEvaluationRequest" $ \v ->
     BatchEvaluationRequest
-      <$> v Aeson..: "rulesText"
-      <*> v Aeson..: "claims"
+      <$> v .: "rulesText"
+      <*> v .: "claims"
 
-data CompileRulesRequest = CompileRulesRequest
+newtype CompileRulesRequest = CompileRulesRequest
   { compileRulesText :: T.Text
   }
   deriving (Show)
 
 instance FromJSON CompileRulesRequest where
-  parseJSON = Aeson.withObject "CompileRulesRequest" $ \v ->
-    CompileRulesRequest <$> v Aeson..: "rulesText"
+  parseJSON = withObject "CompileRulesRequest" $ \v ->
+    CompileRulesRequest <$> v .: "rulesText"
 
 -- Business logic
 
@@ -257,20 +272,26 @@ processEvaluation req = do
               mlResult
       return $ Right $ EvaluationResponse report combined
 
+-- | Resolve the ML score for a claim, with a test escape hatch: if the claim
+-- document contains @"_mlStatus": "error"@ the ML path is short-circuited and
+-- a forced error result is returned, letting integration tests exercise the
+-- DSL-only fallback path without hitting the scorer service.
 selectMlResult :: EvaluationRequest -> IO MLResult
 selectMlResult req =
   let doc = evalDocument req
       claimId = evalClaimId req
    in case doc of
-        Aeson.Object _ ->
-          case AesonTypes.parseMaybe parseMlStatus doc of
+        Object _ ->
+          case parseMaybe parseMlStatus doc of
             Just (Just s) | T.toLower s == "error" -> pure $ mlErrorResult "forced"
             _ -> fetchOrStub claimId doc
         _ -> fetchOrStub claimId doc
   where
-    parseMlStatus = Aeson.withObject "MLStatus" $ \obj -> obj Aeson..:? "_mlStatus"
+    parseMlStatus = withObject "MLStatus" $ \obj -> obj .:? "_mlStatus"
 
-fetchOrStub :: T.Text -> Aeson.Value -> IO MLResult
+-- | Call the ML scorer when configured; fall back to a neutral stub result
+-- when @ML_SCORER_URL@ is absent so the server runs without the scorer service.
+fetchOrStub :: T.Text -> Value -> IO MLResult
 fetchOrStub claimId doc = do
   mCfg <- getMlClientConfig
   case mCfg of
@@ -285,7 +306,7 @@ getMlClientConfig :: IO (Maybe MLClientConfig)
 getMlClientConfig = do
   mUrl <- lookupEnv "ML_SCORER_URL"
   mTimeout <- lookupEnv "ML_TIMEOUT_MS"
-  let timeoutMs = maybe 120 id (mTimeout >>= readMaybe)
+  let timeoutMs = fromMaybe 120 (mTimeout >>= readMaybe)
   pure $ MLClientConfig <$> mUrl <*> pure timeoutMs
 
 applyFallback :: PolicyConfig -> T.Text -> MLResult
@@ -293,11 +314,11 @@ applyFallback cfg errMsg =
   case fallbackPolicy cfg of
     FallbackDslOnly -> mlErrorResult errMsg
 
-parseRuleRequest :: ParseRuleRequest -> Either String Aeson.Value
+parseRuleRequest :: ParseRuleRequest -> Either String Value
 parseRuleRequest req =
   case parseRules (parseRuleText req) of
     Left err -> Left $ show err
-    Right rules -> Right $ Aeson.toJSON rules
+    Right rules -> Right $ toJSON rules
 
 -- ----------------------------------------------------------------------------
 -- Redundancy checking
@@ -310,10 +331,10 @@ data CheckRedundancyRequest = CheckRedundancyRequest
   deriving (Show)
 
 instance FromJSON CheckRedundancyRequest where
-  parseJSON = Aeson.withObject "CheckRedundancyRequest" $ \v ->
+  parseJSON = withObject "CheckRedundancyRequest" $ \v ->
     CheckRedundancyRequest
-      <$> v Aeson..: "candidateRuleText"
-      <*> v Aeson..: "existingRulesTexts"
+      <$> v .: "candidateRuleText"
+      <*> v .: "existingRulesTexts"
 
 handleCheckRedundancy :: Request -> (Response -> IO ResponseReceived) -> IO ResponseReceived
 handleCheckRedundancy request respond = do

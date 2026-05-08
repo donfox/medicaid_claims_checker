@@ -15,7 +15,7 @@ config :elixir, :time_zone_database, Tzdata.TimeZoneDatabase
 
 # Register .x12 MIME type for LiveView uploads
 config :mime, :types, %{
-  "application/x-x12" => ["x12"]
+  "application/x-x12" => ["x12", "edi"]
 }
 
 # Configures the endpoint
@@ -66,6 +66,17 @@ config :logger, :default_formatter,
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
+
+config :medicaid_claims_checker, MedicaidClaimsChecker.Scheduler,
+  jobs: [],
+  timezone: "America/New_York"
+
+config :medicaid_claims_checker, :config_poller, poll_interval_ms: 60_000
+
+config :medicaid_claims_checker, :remote_fetcher,
+  download_timeout_ms: 60_000,
+  max_file_size_bytes: 100_000_000,
+  allowed_extensions: [".x12", ".edi", ".txt"]
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

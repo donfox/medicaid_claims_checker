@@ -4,7 +4,15 @@ defmodule MedicaidClaimsChecker.Claims do
   """
   import Ecto.Query
   alias MedicaidClaimsChecker.Repo
-  alias MedicaidClaimsChecker.Claims.{Batch, EdiFile, BusinessRule, RuleCatalogue, NppesProvider, Evaluator}
+
+  alias MedicaidClaimsChecker.Claims.{
+    Batch,
+    EdiFile,
+    BusinessRule,
+    RuleCatalogue,
+    NppesProvider,
+    Evaluator
+  }
 
   require Logger
 
@@ -41,10 +49,10 @@ defmodule MedicaidClaimsChecker.Claims do
     :ok
   end
 
-  # --- Batch ingest (from X12Translator webhook) ---
+  # --- Batch ingest ---
 
   @doc """
-  Ingests a translated batch from X12Translator.
+  Ingests a translated batch.
 
   Expects a map with:
     - "batch_id"  => unique string identifier
@@ -54,39 +62,9 @@ defmodule MedicaidClaimsChecker.Claims do
   Creates a batch record and one edi_file per claim inside a transaction.
   Returns {:ok, %{batch: batch, edi_files: [edi_file, ...]}} or {:error, reason}.
   """
-  def register_manual_batch(batch_id) do
-    table = ensure_manual_batch_table()
-    :ets.insert(table, {batch_id})
-  end
-
-  defp pop_manual_batch(batch_id) do
-    table = ensure_manual_batch_table()
-
-    case :ets.lookup(table, batch_id) do
-      [{^batch_id}] ->
-        :ets.delete(table, batch_id)
-        true
-
-      [] ->
-        false
-    end
-  end
-
-  defp ensure_manual_batch_table do
-    case :ets.whereis(:manual_upload_batches) do
-      :undefined -> :ets.new(:manual_upload_batches, [:set, :public, :named_table])
-      ref -> ref
-    end
-  end
-
   def ingest_batch(%{"batch_id" => batch_id, "claims" => claims} = params)
       when is_list(claims) do
-    source =
-      cond do
-        Map.has_key?(params, "source") -> params["source"]
-        pop_manual_batch(batch_id) -> "manual_upload"
-        true -> "x12translator"
-      end
+    source = Map.get(params, "source", "manual_upload")
     batch_name = Map.get(params, "batch_name") || default_batch_name(source)
 
     result =
@@ -110,7 +88,7 @@ defmodule MedicaidClaimsChecker.Claims do
           Enum.map(claims, fn %{"filename" => filename, "claim" => claim_json} ->
             file_attrs = %{
               filename: filename,
-              file_path: "x12translator://#{batch_id}/#{filename}",
+              file_path: "ingest://#{batch_id}/#{filename}",
               json_output: claim_json,
               status: "translated",
               processed_at: DateTime.utc_now(),
@@ -380,7 +358,6 @@ defmodule MedicaidClaimsChecker.Claims do
     case source do
       "ui_upload" -> "UI Upload - #{timestamp}"
       "manual_upload" -> "Manual Upload - #{timestamp}"
-      "x12translator" -> "Batch Upload - #{timestamp}"
       other -> "#{other} - #{timestamp}"
     end
   end

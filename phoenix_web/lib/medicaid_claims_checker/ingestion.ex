@@ -1,7 +1,7 @@
 defmodule MedicaidClaimsChecker.Ingestion do
   @moduledoc """
   Context for managing fetch sources and schedules.
-  X12Translator polls the config exposed here to know what to fetch and when.
+  Local scheduler jobs read this config to know what to fetch and when.
   """
   import Ecto.Query
   alias MedicaidClaimsChecker.Repo

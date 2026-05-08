@@ -20,6 +20,14 @@ if System.get_env("PHX_SERVER") do
   config :medicaid_claims_checker, MedicaidClaimsCheckerWeb.Endpoint, server: true
 end
 
+if System.get_env("SFTP_HOST") do
+  config :medicaid_claims_checker, :sftp,
+    host: System.get_env("SFTP_HOST"),
+    username: System.get_env("SFTP_USERNAME"),
+    password: System.get_env("SFTP_PASSWORD"),
+    port: String.to_integer(System.get_env("SFTP_PORT") || "22")
+end
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

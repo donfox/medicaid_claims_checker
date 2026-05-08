@@ -69,7 +69,7 @@ The Elixir/Phoenix frontend is also functional: Phoenix LiveView uses immutable 
       JSON response back to client
 ```
 
-See also: [dsl_evaluation_flow.svg](dsl_evaluation_flow.svg)
+See also: [dsl_evaluation_flow.svg](../docs/archive/assets/dsl_evaluation_flow.svg)
 
 ---
 

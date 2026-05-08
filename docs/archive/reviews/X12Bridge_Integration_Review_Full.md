@@ -67,7 +67,7 @@ The X12 parsing problem is well-solved in Elixir. The Haskell engine's strength 
 The simplest "deeper integration" that avoids shared state:
 
 1. **X12Bridge runs on its cron schedule** — fetches X12 batches from SFTP/HTTP/Databricks (it already does this)
-2. **After translation, X12Bridge POSTs the JSON claims** to a new endpoint on this app: `POST /api/x12-batch-ingest`
+2. **After translation, X12Bridge forwards semantic JSON claims** into the claims checker ingestion pipeline.
 3. **This app receives the batch**, stores it in `batches` + `edi_files`, and it's immediately available for rule evaluation
 4. **No shared database, no polling, no ZIP files**
 
@@ -89,7 +89,7 @@ This also means X12Bridge can run on a different machine entirely if needed late
 │       ↓                                                 │
 │  SegmentMapper → semantic claim JSON                    │
 │       ↓                                                 │
-│  POST /api/x12-batch-ingest → Claims Integrity app     │
+│  In-app ingestion pipeline → Claims Integrity app       │
 └─────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────┐

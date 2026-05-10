@@ -6,7 +6,12 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
 
   setup do
     bypass = Bypass.open()
-    Application.put_env(:medicaid_claims_checker, :rule_engine_url, "http://localhost:#{bypass.port}")
+
+    Application.put_env(
+      :medicaid_claims_checker,
+      :rule_engine_url,
+      "http://localhost:#{bypass.port}"
+    )
 
     on_exit(fn ->
       Application.delete_env(:medicaid_claims_checker, :rule_engine_url)
@@ -33,11 +38,18 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
         "claim_id" => "CLM-#{filename}",
         "provider" => %{"name" => "Test Clinic", "state" => "MO"},
         "service_lines" => [
-          %{"procedure_code" => "99213", "line_amount" => claim_amount, "date_of_service" => "2026-01-15"}
+          %{
+            "procedure_code" => "99213",
+            "line_amount" => claim_amount,
+            "date_of_service" => "2026-01-15"
+          }
         ],
         "claim_totals" => %{"total_submitted" => claim_amount},
         "2300" => %{"CLM" => %{"claim_amount" => claim_amount, "facility_type" => "Outpatient"}},
-        "2400" => %{"SV1" => %{"place_of_service" => "11"}, "DTP" => %{"service_day_of_week" => "TUE"}}
+        "2400" => %{
+          "SV1" => %{"place_of_service" => "11"},
+          "DTP" => %{"service_day_of_week" => "TUE"}
+        }
       }
     }
   end
@@ -50,16 +62,17 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
   defp engine_response(results) do
     Jason.encode!(%{
       "totalClaims" => length(results),
-      "batchResults" => Enum.map(results, fn {risk, matched, rule_results} ->
-        %{
-          "report" => %{
-            "overallRisk" => risk,
-            "matchedRules" => matched,
-            "totalRules" => 1,
-            "results" => rule_results
+      "batchResults" =>
+        Enum.map(results, fn {risk, matched, rule_results} ->
+          %{
+            "report" => %{
+              "overallRisk" => risk,
+              "matchedRules" => matched,
+              "totalRules" => 1,
+              "results" => rule_results
+            }
           }
-        }
-      end)
+        end)
     })
   end
 
@@ -89,8 +102,10 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
 
   describe "evaluate_batch/1 with rules and engine" do
     test "evaluates claims via Haskell engine and stores results", %{bypass: bypass} do
-      create_rule!("high_value_review",
-        ~s|RULE high_value_review "Flag high-value claims" WHEN 2300.CLM.claim_amount > 50000 THEN REQUIRE_REVIEW "High value";|)
+      create_rule!(
+        "high_value_review",
+        ~s|RULE high_value_review "Flag high-value claims" WHEN 2300.CLM.claim_amount > 50000 THEN REQUIRE_REVIEW "High value";|
+      )
 
       Bypass.expect_once(bypass, "POST", "/api/batch-evaluate", fn conn ->
         {:ok, body, conn} = Plug.Conn.read_body(conn)
@@ -98,24 +113,30 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
 
         assert length(payload["claims"]) == 2
 
-        resp = engine_response([
-          {"LowRisk", 0, []},
-          {"HighRisk", 1, [
-            %{"resultRuleName" => "high_value_review", "resultMatched" => true,
-              "resultAction" => %{"tag" => "RequireReview'", "contents" => "High value"},
-              "resultDetails" => "Exceeds high-value threshold"}
-          ]}
-        ])
+        resp =
+          engine_response([
+            {"LowRisk", 0, []},
+            {"HighRisk", 1,
+             [
+               %{
+                 "resultRuleName" => "high_value_review",
+                 "resultMatched" => true,
+                 "resultAction" => %{"tag" => "RequireReview'", "contents" => "High value"},
+                 "resultDetails" => "Exceeds high-value threshold"
+               }
+             ]}
+          ])
 
         conn
         |> Plug.Conn.put_resp_content_type("application/json")
         |> Plug.Conn.resp(200, resp)
       end)
 
-      batch = ingest_batch!([
-        make_claim("clean.json", 150),
-        make_claim("expensive.json", 75_000)
-      ])
+      batch =
+        ingest_batch!([
+          make_claim("clean.json", 150),
+          make_claim("expensive.json", 75_000)
+        ])
 
       Evaluator.evaluate_batch(batch)
 
@@ -138,17 +159,24 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
     end
 
     test "marks CriticalRisk claims as fraudulent", %{bypass: bypass} do
-      create_rule!("extreme_amount",
-        ~s|RULE extreme_amount "Extreme billing" WHEN 2300.CLM.claim_amount > 1000000 THEN FLAG_FRAUD "Extreme amount";|)
+      create_rule!(
+        "extreme_amount",
+        ~s|RULE extreme_amount "Extreme billing" WHEN 2300.CLM.claim_amount > 1000000 THEN FLAG_FRAUD "Extreme amount";|
+      )
 
       Bypass.expect_once(bypass, "POST", "/api/batch-evaluate", fn conn ->
-        resp = engine_response([
-          {"CriticalRisk", 2, [
-            %{"resultRuleName" => "extreme_amount", "resultMatched" => true,
-              "resultAction" => %{"tag" => "FlagFraud'", "contents" => "Extreme amount"},
-              "resultDetails" => "Extreme billing amount"}
-          ]}
-        ])
+        resp =
+          engine_response([
+            {"CriticalRisk", 2,
+             [
+               %{
+                 "resultRuleName" => "extreme_amount",
+                 "resultMatched" => true,
+                 "resultAction" => %{"tag" => "FlagFraud'", "contents" => "Extreme amount"},
+                 "resultDetails" => "Extreme billing amount"
+               }
+             ]}
+          ])
 
         conn
         |> Plug.Conn.put_resp_content_type("application/json")
@@ -164,7 +192,10 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
     end
 
     test "marks batch failed when engine returns error", %{bypass: bypass} do
-      create_rule!("some_rule", ~s|RULE test "Test" WHEN 2300.CLM.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|)
+      create_rule!(
+        "some_rule",
+        ~s|RULE test "Test" WHEN 2300.CLM.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|
+      )
 
       Bypass.expect_once(bypass, "POST", "/api/batch-evaluate", fn conn ->
         conn
@@ -192,8 +223,10 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
         deactivation_date: ~D[2025-01-01]
       })
 
-      create_rule!("test_rule",
-        ~s|RULE test "Test" WHEN 2300.CLM.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|)
+      create_rule!(
+        "test_rule",
+        ~s|RULE test "Test" WHEN 2300.CLM.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|
+      )
 
       # Engine is still called; NPPES finding is merged onto the engine report.
       Bypass.expect_once(bypass, "POST", "/api/batch-evaluate", fn conn ->
@@ -208,7 +241,11 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
           "claim_id" => "CLM-DEACT",
           "provider" => %{"name" => "Deactivated Doctor", "npi" => "1234567890", "state" => "MO"},
           "service_lines" => [
-            %{"procedure_code" => "99213", "line_amount" => 150, "date_of_service" => "2026-01-15"}
+            %{
+              "procedure_code" => "99213",
+              "line_amount" => 150,
+              "date_of_service" => "2026-01-15"
+            }
           ],
           "2300" => %{"CLM" => %{"claim_amount" => 150}},
           "2400" => %{"SV1" => %{"place_of_service" => "11"}}
@@ -236,8 +273,10 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
     end
 
     test "rejects claims with unknown NPI", %{bypass: bypass} do
-      create_rule!("test_rule",
-        ~s|RULE test "Test" WHEN 2300.CLM.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|)
+      create_rule!(
+        "test_rule",
+        ~s|RULE test "Test" WHEN 2300.CLM.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|
+      )
 
       Bypass.expect_once(bypass, "POST", "/api/batch-evaluate", fn conn ->
         conn
@@ -251,7 +290,11 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
           "claim_id" => "CLM-UNKNOWN",
           "provider" => %{"name" => "Unknown Doc", "npi" => "9999999999", "state" => "MO"},
           "service_lines" => [
-            %{"procedure_code" => "99213", "line_amount" => 150, "date_of_service" => "2026-01-15"}
+            %{
+              "procedure_code" => "99213",
+              "line_amount" => 150,
+              "date_of_service" => "2026-01-15"
+            }
           ],
           "2300" => %{"CLM" => %{"claim_amount" => 150}},
           "2400" => %{"SV1" => %{"place_of_service" => "11"}}
@@ -276,8 +319,10 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
 
     test "mixed batch: NPPES-rejected + engine-evaluated claims", %{bypass: bypass} do
       # Insert an unknown NPI scenario + a clean claim
-      create_rule!("value_rule",
-        ~s|RULE value "Value check" WHEN 2300.CLM.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|)
+      create_rule!(
+        "value_rule",
+        ~s|RULE value "Value check" WHEN 2300.CLM.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|
+      )
 
       Bypass.expect_once(bypass, "POST", "/api/batch-evaluate", fn conn ->
         {:ok, body, conn} = Plug.Conn.read_body(conn)
@@ -298,7 +343,13 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
           "claim" => %{
             "claim_id" => "CLM-BAD",
             "provider" => %{"name" => "Unknown", "npi" => "0000000000", "state" => "MO"},
-            "service_lines" => [%{"procedure_code" => "99213", "line_amount" => 100, "date_of_service" => "2026-01-15"}],
+            "service_lines" => [
+              %{
+                "procedure_code" => "99213",
+                "line_amount" => 100,
+                "date_of_service" => "2026-01-15"
+              }
+            ],
             "2300" => %{"CLM" => %{"claim_amount" => 100}},
             "2400" => %{"SV1" => %{"place_of_service" => "11"}}
           }
@@ -335,8 +386,10 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
 
   describe "PubSub broadcasts" do
     test "broadcasts :batch_completed on success", %{bypass: bypass} do
-      create_rule!("pub_rule",
-        ~s|RULE pub "Pub" WHEN 2300.CLM.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|)
+      create_rule!(
+        "pub_rule",
+        ~s|RULE pub "Pub" WHEN 2300.CLM.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|
+      )
 
       Bypass.expect_once(bypass, "POST", "/api/batch-evaluate", fn conn ->
         resp = engine_response([{"LowRisk", 0, []}])
@@ -356,8 +409,10 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
     end
 
     test "broadcasts :batch_failed on engine error", %{bypass: bypass} do
-      create_rule!("fail_rule",
-        ~s|RULE fail "Fail" WHEN 2300.CLM.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|)
+      create_rule!(
+        "fail_rule",
+        ~s|RULE fail "Fail" WHEN 2300.CLM.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|
+      )
 
       Bypass.expect_once(bypass, "POST", "/api/batch-evaluate", fn conn ->
         conn

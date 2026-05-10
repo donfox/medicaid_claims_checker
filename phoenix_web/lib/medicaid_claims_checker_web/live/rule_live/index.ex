@@ -3,6 +3,7 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
   import MedicaidClaimsCheckerWeb.Components.RuleComponents
   alias MedicaidClaimsChecker.Claims
   alias MedicaidClaimsChecker.Claims.Evaluator
+  alias MedicaidClaimsChecker.Claims.RuleSchemaValidator
   alias MedicaidClaimsCheckerWeb.RuleLive.PayloadBuilder
 
   @impl true
@@ -10,6 +11,7 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
     if connected?(socket) do
       Phoenix.PubSub.subscribe(MedicaidClaimsChecker.PubSub, Evaluator.topic())
     end
+
     default_rule = get_default_rule()
     catalog_rules = safe_list_catalogue_entries()
 
@@ -52,7 +54,10 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
   end
 
   @impl true
-  def handle_info({:batch_completed, %{batch_id: batch_id, summary: summary, files: files}}, socket)
+  def handle_info(
+        {:batch_completed, %{batch_id: batch_id, summary: summary, files: files}},
+        socket
+      )
       when is_map(summary) and is_list(files) do
     notification = %{
       type: :completed,
@@ -96,7 +101,9 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
 
   def handle_event("toggle_notification_details", _params, socket) do
     notification = socket.assigns.batch_notification
-    {:noreply, assign(socket, :batch_notification, %{notification | expanded: !notification.expanded})}
+
+    {:noreply,
+     assign(socket, :batch_notification, %{notification | expanded: !notification.expanded})}
   end
 
   def handle_event("update_catalog_rule", %{"catalog" => params}, socket) do
@@ -131,6 +138,8 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
     if parse_error != nil do
       {:noreply, assign(socket, :catalog_error, "Could not save rule: #{parse_error}")}
     else
+      schema_validation = RuleSchemaValidator.validate(normalized_rule_text)
+
       # Exclude the rule being edited by its original DB name (not the
       # possibly-renamed form value) so it doesn't match against itself.
       exclude_name =
@@ -160,7 +169,14 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
 
         _ ->
           # No redundancy (or check failed) — proceed with save
-          do_save_catalog_rule(socket, name, normalized_rule_text, selected_entry_id, false)
+          do_save_catalog_rule(
+            socket,
+            name,
+            normalized_rule_text,
+            selected_entry_id,
+            false,
+            schema_validation
+          )
       end
     end
   end
@@ -177,7 +193,14 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
           |> assign(:redundancy_matches, [])
           |> assign(:redundancy_pending_save, nil)
 
-        do_save_catalog_rule(socket, name, rule_text, selected_entry_id, true)
+        do_save_catalog_rule(
+          socket,
+          name,
+          rule_text,
+          selected_entry_id,
+          true,
+          RuleSchemaValidator.validate(rule_text)
+        )
     end
   end
 
@@ -193,6 +216,7 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
   def handle_event("toggle_catalog_rule_active", %{"id" => id}, socket) do
     with {entry_id, ""} <- Integer.parse(id),
          %{} = catalogue_entry <- Claims.get_catalogue_entry(entry_id),
+         :ok <- validate_before_activation(catalogue_entry),
          {:ok, _updated} <- Claims.toggle_catalogue_status(catalogue_entry) do
       # Keep business_rule.active in sync for BA Rules and Default Rules
       if catalogue_entry.entry_type in ["BA Rule", "Default Rule"] do
@@ -269,17 +293,23 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
 
               nil ->
                 description = catalogue_entry.description || ""
-                display_text = "-- Default Rule: #{catalogue_entry.name}\n-- #{description}\n-- No DSL implementation (requires database access)."
+
+                display_text =
+                  "-- Default Rule: #{catalogue_entry.name}\n-- #{description}\n-- No DSL implementation (requires database access)."
+
                 {catalogue_entry.name, display_text, nil, nil}
             end
 
           _ ->
             # ML Models: show name + description read-only, no DSL text
             description = catalogue_entry.description || ""
+
             display_text =
               if description != "",
-                do: "-- #{catalogue_entry.entry_type}: #{catalogue_entry.name}\n-- #{description}\n-- This rule is scored by an external ML service.",
-                else: "-- #{catalogue_entry.entry_type}: #{catalogue_entry.name}\n-- This rule is scored by an external ML service."
+                do:
+                  "-- #{catalogue_entry.entry_type}: #{catalogue_entry.name}\n-- #{description}\n-- This rule is scored by an external ML service.",
+                else:
+                  "-- #{catalogue_entry.entry_type}: #{catalogue_entry.name}\n-- This rule is scored by an external ML service."
 
             {catalogue_entry.name, display_text, nil, nil}
         end
@@ -467,25 +497,58 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
     end
   end
 
-  defp do_save_catalog_rule(socket, name, normalized_rule_text, selected_entry_id, mark_redundant) do
+  defp do_save_catalog_rule(
+         socket,
+         name,
+         normalized_rule_text,
+         selected_entry_id,
+         mark_redundant,
+         schema_validation
+       ) do
+    schema_issues =
+      case schema_validation do
+        {:ok, %{issues: issues}} -> issues
+        {:error, %{issues: issues}} -> issues
+        _ -> []
+      end
+
+    schema_drift? = schema_issues != []
+
     if selected_entry_id do
       # Editing an existing catalogue entry — only BA Rules have editable DSL text
       case Claims.get_catalogue_entry(selected_entry_id) do
         %{entry_type: "BA Rule"} = catalogue_entry ->
           case Claims.get_business_rule_by_name(catalogue_entry.name) do
             %{} = rule ->
+              saved_active = if schema_drift?, do: false, else: rule.active
+
               case Claims.update_business_rule(rule, %{
                      name: name,
                      rule_text: String.trim(normalized_rule_text),
-                     active: rule.active
+                     active: saved_active
                    }) do
                 {:ok, _updated} ->
                   updates =
                     if name != catalogue_entry.name,
-                      do: %{name: name, redundant: mark_redundant},
-                      else: %{redundant: mark_redundant}
+                      do: %{
+                        name: name,
+                        redundant: mark_redundant,
+                        status: if(saved_active, do: "Active", else: "Inactive")
+                      },
+                      else: %{
+                        redundant: mark_redundant,
+                        status: if(saved_active, do: "Active", else: "Inactive")
+                      }
 
                   Claims.update_catalogue_entry(catalogue_entry, updates)
+
+                  message =
+                    if schema_drift? do
+                      "Business rule saved as draft. Fix schema drift before activation: " <>
+                        RuleSchemaValidator.format_issues(schema_issues)
+                    else
+                      "Business rule updated."
+                    end
 
                   {:noreply,
                    socket
@@ -497,7 +560,7 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
                    |> assign(:selected_catalog_rule_id, nil)
                    |> assign(:selected_catalog_rule_type, nil)
                    |> assign(:catalog_error, nil)
-                   |> put_flash(:info, "Business rule updated.")}
+                   |> put_flash(:info, message)}
 
                 {:error, changeset} ->
                   message =
@@ -517,10 +580,12 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
       end
     else
       # Creating a new BA Rule — write to business_rules and catalogue
+      saved_active = not schema_drift?
+
       attrs = %{
         name: name,
         rule_text: String.trim(normalized_rule_text),
-        active: true
+        active: saved_active
       }
 
       case Claims.create_business_rule(attrs) do
@@ -529,12 +594,20 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
             name: name,
             description: "",
             entry_type: "BA Rule",
-            status: "Active",
+            status: if(saved_active, do: "Active", else: "Inactive"),
             editable: true,
             removable: true,
             redundant: mark_redundant,
             db_access: false
           })
+
+          message =
+            if schema_drift? do
+              "Business rule saved as draft. Fix schema drift before activation: " <>
+                RuleSchemaValidator.format_issues(schema_issues)
+            else
+              "Business rule saved to catalogue."
+            end
 
           {:noreply,
            socket
@@ -544,7 +617,7 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
            |> assign(:catalog_parsed_rule, nil)
            |> assign(:catalog_parse_error, nil)
            |> assign(:catalog_error, nil)
-           |> put_flash(:info, "Business rule saved to catalogue.")}
+           |> put_flash(:info, message)}
 
         {:error, changeset} ->
           message =
@@ -556,6 +629,27 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
       end
     end
   end
+
+  defp validate_before_activation(%{entry_type: entry_type, status: "Inactive", name: name})
+       when entry_type in ["BA Rule", "Default Rule"] do
+    case Claims.get_business_rule_by_name(name) do
+      %{} = rule ->
+        case RuleSchemaValidator.validate(rule.rule_text || "") do
+          {:ok, _details} ->
+            :ok
+
+          {:error, %{issues: issues}} ->
+            {:error,
+             "Cannot activate rule until schema drift is fixed: " <>
+               RuleSchemaValidator.format_issues(issues)}
+        end
+
+      nil ->
+        :ok
+    end
+  end
+
+  defp validate_before_activation(_catalogue_entry), do: :ok
 
   defp maybe_compile_batch_rules(rules_text) do
     case call_batch_compile(rules_text) do
@@ -627,56 +721,56 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
        |> assign(:batch_summary, build_batch_summary(sorted))
        |> assign(:batch_error, file_warnings(file_errors))}
     else
-    case call_batch_evaluate(rules_text, passthrough_claims) do
-      {:ok, %{"batchResults" => results}} ->
-        enriched_results =
-          results
-          |> Enum.zip(passthrough_filenames)
-          |> Enum.map(fn {result, filename} ->
-            claim_id = Ecto.UUID.generate()
-            report = result["report"]
-            risk = report["overallRisk"] || "LowRisk"
+      case call_batch_evaluate(rules_text, passthrough_claims) do
+        {:ok, %{"batchResults" => results}} ->
+          enriched_results =
+            results
+            |> Enum.zip(passthrough_filenames)
+            |> Enum.map(fn {result, filename} ->
+              claim_id = Ecto.UUID.generate()
+              report = result["report"]
+              risk = report["overallRisk"] || "LowRisk"
 
-            status =
-              if risk in ["CriticalRisk", "HighRisk"], do: "fraudulent", else: "translated"
+              status =
+                if risk in ["CriticalRisk", "HighRisk"], do: "fraudulent", else: "translated"
 
-            Claims.create_edi_file(%{
-              filename: filename,
-              file_path: "batch/#{batch_id}/#{claim_id}",
-              json_output: report,
-              status: status,
-              batch_id: batch.id,
-              processed_at: DateTime.utc_now()
-            })
+              Claims.create_edi_file(%{
+                filename: filename,
+                file_path: "batch/#{batch_id}/#{claim_id}",
+                json_output: report,
+                status: status,
+                batch_id: batch.id,
+                processed_at: DateTime.utc_now()
+              })
 
-            result
-            |> Map.put("claimId", claim_id)
-            |> Map.put("fileName", filename)
-          end)
+              result
+              |> Map.put("claimId", claim_id)
+              |> Map.put("fileName", filename)
+            end)
 
-        # Merge NPPES-rejected claims into the results
-        all_results = nppes_rejections ++ enriched_results
+          # Merge NPPES-rejected claims into the results
+          all_results = nppes_rejections ++ enriched_results
 
-        Claims.update_batch(batch, %{
-          status: "completed",
-          completed_at: DateTime.utc_now()
-        })
+          Claims.update_batch(batch, %{
+            status: "completed",
+            completed_at: DateTime.utc_now()
+          })
 
-        broadcast_batch_completed(batch.batch_id)
-        sorted_results = Enum.sort_by(all_results, &risk_sort_key/1)
+          broadcast_batch_completed(batch.batch_id)
+          sorted_results = Enum.sort_by(all_results, &risk_sort_key/1)
 
-        {:ok,
-         socket
-         |> assign(:batch_status, :done)
-         |> assign(:batch_results, sorted_results)
-         |> assign(:batch_summary, build_batch_summary(sorted_results))
-         |> assign(:batch_error, file_warnings(file_errors))}
+          {:ok,
+           socket
+           |> assign(:batch_status, :done)
+           |> assign(:batch_results, sorted_results)
+           |> assign(:batch_summary, build_batch_summary(sorted_results))
+           |> assign(:batch_error, file_warnings(file_errors))}
 
-      {:error, err} ->
-        Claims.update_batch(batch, %{status: "failed"})
-        broadcast_batch_failed(batch.batch_id, err)
-        {:error, err}
-    end
+        {:error, err} ->
+          Claims.update_batch(batch, %{status: "failed"})
+          broadcast_batch_failed(batch.batch_id, err)
+          {:error, err}
+      end
     end
   end
 
@@ -1117,13 +1211,26 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
 
   defp action_severity_classes(%{"tag" => tag, "contents" => contents}) do
     case tag do
-      "FlagFraud'" -> "border-red-400 bg-red-50"
-      "RejectClaim'" -> "border-red-400 bg-red-50"
-      "RequireReview'" -> "border-yellow-400 bg-yellow-50"
-      "AssignRiskScore'" when is_integer(contents) and contents >= 70 -> "border-orange-400 bg-orange-50"
-      "AssignRiskScore'" -> "border-yellow-400 bg-yellow-50"
-      "ApproveClaim'" -> "border-green-400 bg-green-50"
-      _ -> "border-gray-300 bg-gray-50"
+      "FlagFraud'" ->
+        "border-red-400 bg-red-50"
+
+      "RejectClaim'" ->
+        "border-red-400 bg-red-50"
+
+      "RequireReview'" ->
+        "border-yellow-400 bg-yellow-50"
+
+      "AssignRiskScore'" when is_integer(contents) and contents >= 70 ->
+        "border-orange-400 bg-orange-50"
+
+      "AssignRiskScore'" ->
+        "border-yellow-400 bg-yellow-50"
+
+      "ApproveClaim'" ->
+        "border-green-400 bg-green-50"
+
+      _ ->
+        "border-gray-300 bg-gray-50"
     end
   end
 

@@ -187,14 +187,15 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
       if already_present? do
         existing_results
       else
-        existing_results ++ [
-          %{
-            "resultRuleName" => "NPPESProviderLookup",
-            "resultMatched" => true,
-            "resultAction" => %{"tag" => "RejectClaim'", "contents" => reason},
-            "resultDetails" => reason
-          }
-        ]
+        existing_results ++
+          [
+            %{
+              "resultRuleName" => "NPPESProviderLookup",
+              "resultMatched" => true,
+              "resultAction" => %{"tag" => "RejectClaim'", "contents" => reason},
+              "resultDetails" => reason
+            }
+          ]
       end
 
     matched_rules = Enum.count(results, &(&1["resultMatched"] == true))

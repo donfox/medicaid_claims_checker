@@ -112,6 +112,35 @@ Verify API returns clear errors for:
 - Empty `tenant_id`
 - Malformed DSL input
 
+## 7. Latest Batch NPI/NPPES Audit
+
+Use this to verify provider NPI presence and NPPES status for the latest ingested batch,
+including scheduled remote fetch batches.
+
+From `phoenix_web`:
+
+```bash
+psql -P pager=off medicaid_claims_checker_dev -f ../docs/scripts/latest_batch_npi_nppes_audit.sql
+```
+
+What it reports:
+
+- latest batch metadata (`batch_id`, source, status)
+- filename and service date
+- rendering and billing NPIs from `raw_claim_json`
+- whether each NPI exists in `nppes_providers`
+- whether each NPI is active on the service date
+
+### Audit a Specific Batch ID
+
+If you want to inspect a specific historical batch:
+
+```bash
+psql -P pager=off -v batch_id=560 medicaid_claims_checker_dev -f ../docs/scripts/batch_npi_nppes_audit.sql
+```
+
+Replace `560` with the target DB batch id from the `batches` table.
+
 ## Quick Checklist
 
 - Unit tests pass (`stack test`, `mix test`)

@@ -195,13 +195,11 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
       create_rule!("test_rule",
         ~s|RULE test "Test" WHEN 2300.CLM.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|)
 
-      # Bypass should NOT be called since the claim is rejected at NPPES stage
-      # But we need it set up in case other claims pass through
-      Bypass.stub(bypass, "POST", "/api/batch-evaluate", fn conn ->
-        # Should not be reached for this single-claim batch
+      # Engine is still called; NPPES finding is merged onto the engine report.
+      Bypass.expect_once(bypass, "POST", "/api/batch-evaluate", fn conn ->
         conn
         |> Plug.Conn.put_resp_content_type("application/json")
-        |> Plug.Conn.resp(200, engine_response([]))
+        |> Plug.Conn.resp(200, engine_response([{"LowRisk", 0, []}]))
       end)
 
       claim_with_npi = %{
@@ -228,19 +226,23 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
       assert file.status == "fraudulent"
       assert file.json_output["overallRisk"] == "CriticalRisk"
 
-      result = hd(file.json_output["results"])
-      assert result["resultRuleName"] == "NPPESProviderLookup"
-      assert result["resultDetails"] =~ "deactivated"
+      nppes_result =
+        Enum.find(file.json_output["results"], fn result ->
+          result["resultRuleName"] == "NPPESProviderLookup"
+        end)
+
+      assert nppes_result
+      assert nppes_result["resultDetails"] =~ "deactivated"
     end
 
     test "rejects claims with unknown NPI", %{bypass: bypass} do
       create_rule!("test_rule",
         ~s|RULE test "Test" WHEN 2300.CLM.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|)
 
-      Bypass.stub(bypass, "POST", "/api/batch-evaluate", fn conn ->
+      Bypass.expect_once(bypass, "POST", "/api/batch-evaluate", fn conn ->
         conn
         |> Plug.Conn.put_resp_content_type("application/json")
-        |> Plug.Conn.resp(200, engine_response([]))
+        |> Plug.Conn.resp(200, engine_response([{"LowRisk", 0, []}]))
       end)
 
       claim_with_unknown_npi = %{
@@ -262,7 +264,14 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
       files = Claims.list_files_for_batch(batch.id)
       file = hd(files)
       assert file.status == "fraudulent"
-      assert file.json_output["results"] |> hd() |> Map.get("resultDetails") =~ "not found"
+
+      nppes_result =
+        Enum.find(file.json_output["results"], fn result ->
+          result["resultRuleName"] == "NPPESProviderLookup"
+        end)
+
+      assert nppes_result
+      assert nppes_result["resultDetails"] =~ "not found"
     end
 
     test "mixed batch: NPPES-rejected + engine-evaluated claims", %{bypass: bypass} do
@@ -271,7 +280,11 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
         ~s|RULE value "Value check" WHEN 2300.CLM.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|)
 
       Bypass.expect_once(bypass, "POST", "/api/batch-evaluate", fn conn ->
-        resp = engine_response([{"LowRisk", 0, []}])
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        payload = Jason.decode!(body)
+        assert length(payload["claims"]) == 2
+
+        resp = engine_response([{"LowRisk", 0, []}, {"LowRisk", 0, []}])
 
         conn
         |> Plug.Conn.put_resp_content_type("application/json")
@@ -279,7 +292,7 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
       end)
 
       claims = [
-        # This claim has unknown NPI — will be rejected at NPPES stage
+        # This claim has unknown NPI — still engine-evaluated, but NPPES adds rejection finding
         %{
           "filename" => "bad_npi.json",
           "claim" => %{
@@ -290,7 +303,7 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
             "2400" => %{"SV1" => %{"place_of_service" => "11"}}
           }
         },
-        # This claim has no NPI — will pass NPPES and go to engine
+        # This claim has no NPI — passes NPPES and only has engine findings
         make_claim("clean.json", 200)
       ]
 
@@ -306,6 +319,17 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
 
       assert bad.status == "fraudulent"
       assert clean.status == "translated"
+
+      bad_nppes_result =
+        Enum.find(bad.json_output["results"], fn result ->
+          result["resultRuleName"] == "NPPESProviderLookup"
+        end)
+
+      assert bad_nppes_result
+
+      refute Enum.any?(clean.json_output["results"] || [], fn result ->
+               result["resultRuleName"] == "NPPESProviderLookup"
+             end)
     end
   end
 

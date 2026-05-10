@@ -90,6 +90,7 @@ defmodule MedicaidClaimsChecker.Claims do
               filename: filename,
               file_path: "ingest://#{batch_id}/#{filename}",
               json_output: claim_json,
+              raw_claim_json: claim_json,
               status: "translated",
               processed_at: DateTime.utc_now(),
               batch_id: batch.id

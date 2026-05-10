@@ -6,6 +6,7 @@ defmodule MedicaidClaimsChecker.Claims.EdiFile do
     field :filename, :string
     field :file_path, :string
     field :json_output, :map
+    field :raw_claim_json, :map
     field :status, :string, default: "pending"
     field :error_message, :string
     field :error_details, :map
@@ -18,7 +19,7 @@ defmodule MedicaidClaimsChecker.Claims.EdiFile do
 
   def changeset(edi_file, attrs) do
     edi_file
-    |> cast(attrs, [:filename, :file_path, :json_output, :status, :error_message, :error_details, :processed_at, :batch_id])
+    |> cast(attrs, [:filename, :file_path, :json_output, :raw_claim_json, :status, :error_message, :error_details, :processed_at, :batch_id])
     |> validate_required([:filename, :file_path, :status, :batch_id])
     |> validate_inclusion(:status, ["pending", "translated", "syntax_error", "fraudulent"])
     |> foreign_key_constraint(:batch_id)

@@ -61,24 +61,7 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
         broadcast_completed(batch)
 
       rules_text ->
-        {passing, rejections} = nppes_pre_evaluate(edi_files)
-
-        Enum.each(rejections, fn {edi_file, reason} ->
-          report = nppes_rejection_report(reason)
-
-          Claims.update_edi_file_evaluation(edi_file, %{
-            json_output: report,
-            status: "fraudulent",
-            processed_at: DateTime.utc_now()
-          })
-        end)
-
-        if passing == [] do
-          Claims.update_batch(batch, %{status: "completed", completed_at: DateTime.utc_now()})
-          broadcast_completed(batch)
-        else
-          evaluate_with_engine(batch, passing, rules_text)
-        end
+        evaluate_with_engine(batch, edi_files, rules_text)
     end
   end
 
@@ -92,37 +75,41 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
     end
   end
 
-  defp nppes_pre_evaluate(edi_files) do
-    Enum.reduce(edi_files, {[], []}, fn edi_file, {pass, reject} ->
-      case Claims.validate_claim_providers(edi_file.json_output) do
-        :ok -> {[edi_file | pass], reject}
-        {:reject, reason} -> {pass, [{edi_file, reason} | reject]}
-      end
-    end)
-    |> then(fn {pass, reject} -> {Enum.reverse(pass), Enum.reverse(reject)} end)
-  end
-
   defp evaluate_with_engine(batch, edi_files, rules_text) do
     claims = Enum.map(edi_files, & &1.json_output)
+    nppes_outcomes = Enum.map(edi_files, &Claims.validate_claim_providers(&1.json_output))
 
     case call_batch_evaluate(rules_text, claims) do
       {:ok, %{"batchResults" => results}} ->
-        results
-        |> Enum.zip(edi_files)
-        |> Enum.each(fn {result, edi_file} ->
-          report = result["report"]
-          risk = report["overallRisk"] || "LowRisk"
-          status = if risk in ["CriticalRisk", "HighRisk"], do: "fraudulent", else: "translated"
+        if length(results) != length(edi_files) do
+          reason =
+            "Result count mismatch: expected #{length(edi_files)}, got #{length(results)}"
 
-          Claims.update_edi_file_evaluation(edi_file, %{
-            json_output: report,
-            status: status,
-            processed_at: DateTime.utc_now()
-          })
-        end)
+          Logger.error("Batch evaluation failed for #{batch.batch_id}: #{reason}")
+          Claims.update_batch(batch, %{status: "failed"})
+          broadcast_failed(batch, reason)
+        else
+          [results, edi_files, nppes_outcomes]
+          |> Enum.zip()
+          |> Enum.each(fn {result, edi_file, nppes_outcome} ->
+            report =
+              result
+              |> Map.get("report", %{})
+              |> merge_nppes_finding(nppes_outcome)
 
-        Claims.update_batch(batch, %{status: "completed", completed_at: DateTime.utc_now()})
-        broadcast_completed(batch)
+            risk = report["overallRisk"] || "LowRisk"
+            status = if risk in ["CriticalRisk", "HighRisk"], do: "fraudulent", else: "translated"
+
+            Claims.update_edi_file_evaluation(edi_file, %{
+              json_output: report,
+              status: status,
+              processed_at: DateTime.utc_now()
+            })
+          end)
+
+          Claims.update_batch(batch, %{status: "completed", completed_at: DateTime.utc_now()})
+          broadcast_completed(batch)
+        end
 
       {:error, reason} ->
         Logger.error("Batch evaluation failed for #{batch.batch_id}: #{inspect(reason)}")
@@ -186,19 +173,37 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
     )
   end
 
-  defp nppes_rejection_report(reason) do
-    %{
-      "overallRisk" => "CriticalRisk",
-      "matchedRules" => 1,
-      "totalRules" => 1,
-      "results" => [
-        %{
-          "resultRuleName" => "NPPESProviderLookup",
-          "resultMatched" => true,
-          "resultAction" => %{"tag" => "RejectClaim'", "contents" => reason},
-          "resultDetails" => reason
-        }
-      ]
-    }
+  defp merge_nppes_finding(report, :ok), do: report
+
+  defp merge_nppes_finding(report, {:reject, reason}) when is_map(report) do
+    existing_results = report["results"] || []
+
+    already_present? =
+      Enum.any?(existing_results, fn result ->
+        result["resultRuleName"] == "NPPESProviderLookup"
+      end)
+
+    results =
+      if already_present? do
+        existing_results
+      else
+        existing_results ++ [
+          %{
+            "resultRuleName" => "NPPESProviderLookup",
+            "resultMatched" => true,
+            "resultAction" => %{"tag" => "RejectClaim'", "contents" => reason},
+            "resultDetails" => reason
+          }
+        ]
+      end
+
+    matched_rules = Enum.count(results, &(&1["resultMatched"] == true))
+    total_rules = max(report["totalRules"] || 0, length(results))
+
+    report
+    |> Map.put("results", results)
+    |> Map.put("matchedRules", matched_rules)
+    |> Map.put("totalRules", total_rules)
+    |> Map.put("overallRisk", "CriticalRisk")
   end
 end

@@ -118,19 +118,38 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
     end
   end
 
-  defp call_batch_evaluate(rules_text, claims) do
-    body = Jason.encode!(PayloadBuilder.build_batch_evaluate_payload(rules_text, claims))
+  @batch_chunk_size 200
 
-    case HTTPoison.post(
-           "#{rule_engine_url()}/api/batch-evaluate",
-           body,
-           [{"Content-Type", "application/json"}],
-           timeout: 120_000,
-           recv_timeout: 120_000
-         ) do
-      {:ok, %{status_code: 200, body: resp_body}} -> Jason.decode(resp_body)
-      {:ok, %{body: resp_body}} -> {:error, resp_body}
-      {:error, err} -> {:error, inspect(err)}
+  defp call_batch_evaluate(rules_text, claims) do
+    claims
+    |> Enum.chunk_every(@batch_chunk_size)
+    |> Enum.reduce_while({:ok, []}, fn chunk, {:ok, acc} ->
+      body = Jason.encode!(PayloadBuilder.build_batch_evaluate_payload(rules_text, chunk))
+
+      case HTTPoison.post(
+             "#{rule_engine_url()}/api/batch-evaluate",
+             body,
+             [{"Content-Type", "application/json"}],
+             timeout: 120_000,
+             recv_timeout: 120_000
+           ) do
+        {:ok, %{status_code: 200, body: resp_body}} ->
+          case Jason.decode(resp_body) do
+            {:ok, %{"batchResults" => results}} -> {:cont, {:ok, acc ++ results}}
+            {:ok, _} -> {:halt, {:error, "Unexpected response format from evaluator"}}
+            {:error, _} -> {:halt, {:error, "Invalid JSON from evaluator"}}
+          end
+
+        {:ok, %{body: resp_body}} ->
+          {:halt, {:error, resp_body}}
+
+        {:error, err} ->
+          {:halt, {:error, inspect(err)}}
+      end
+    end)
+    |> case do
+      {:ok, all_results} -> {:ok, %{"batchResults" => all_results}}
+      {:error, _} = error -> error
     end
   end
 

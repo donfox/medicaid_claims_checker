@@ -14,6 +14,10 @@
 -- * @get  /api/health@            — liveness probe
 module Main where
 
+import Control.Concurrent (getNumCapabilities)
+import Control.Concurrent.Async (mapConcurrently)
+import Control.Concurrent.QSem (QSem, newQSem, signalQSem, waitQSem)
+import Control.Exception (bracket_, evaluate)
 import Data.Aeson (FromJSON (..), ToJSON (..), Value (..), decode, encode, object, withObject, (.:), (.:?), (.=))
 import Data.Aeson.Types (parseMaybe)
 import Data.Maybe (fromMaybe)
@@ -53,13 +57,17 @@ main :: IO ()
 main = do
   putStrLn "Starting JSON Claims Integrity DSL Server on port 8080..."
   cache <- newCompiledRuleCache
-  run 8080 (app cache)
+  numCaps <- getNumCapabilities
+  let workerCount = max 1 numCaps
+  sem <- newQSem workerCount
+  putStrLn $ "Worker pool: " ++ show workerCount ++ " concurrent claim evaluations"
+  run 8080 (app cache sem)
 
-app :: CompiledRuleCache -> Application
-app cache request respond = do
+app :: CompiledRuleCache -> QSem -> Application
+app cache sem request respond = do
   case pathInfo request of
     ["api", "evaluate"] -> handleEvaluate request respond
-    ["api", "batch-evaluate"] -> handleBatchEvaluate request respond
+    ["api", "batch-evaluate"] -> handleBatchEvaluate sem request respond
     ["api", "compile-rules"] -> handleCompileRules cache request respond
     ["api", "parse-rule"] -> handleParseRule request respond
     ["api", "check-redundancy"] -> handleCheckRedundancy request respond
@@ -104,8 +112,11 @@ handleEvaluate request respond = do
               (encode report)
 
 -- | Evaluate a batch of claims against a set of DSL rules.
-handleBatchEvaluate :: Request -> (Response -> IO ResponseReceived) -> IO ResponseReceived
-handleBatchEvaluate request respond = do
+--
+-- Claims within the batch are evaluated in parallel, bounded by the worker
+-- semaphore (one slot per GHC capability / CPU core).
+handleBatchEvaluate :: QSem -> Request -> (Response -> IO ResponseReceived) -> IO ResponseReceived
+handleBatchEvaluate sem request respond = do
   body <- strictRequestBody request
   case decode body of
     Nothing ->
@@ -121,16 +132,19 @@ handleBatchEvaluate request respond = do
         Right engine -> do
           today <- utctDay <$> getCurrentTime
           let claims = batchClaims req
-              results =
-                zipWith
-                  ( \i doc ->
-                      object
-                        [ "claimIndex" .= (i :: Int),
-                          "report" .= reportToJSON (evaluateSimpleJson engine today doc)
-                        ]
-                  )
-                  [0 ..]
-                  claims
+          results <- mapConcurrently
+            ( \(i, doc) ->
+                bracket_ (waitQSem sem) (signalQSem sem) $ do
+                  let report = evaluateSimpleJson engine today doc
+                  -- Force rule evaluation before releasing the semaphore slot
+                  _ <- evaluate (reportTotalRules report)
+                  return $
+                    object
+                      [ "claimIndex" .= (i :: Int),
+                        "report" .= reportToJSON report
+                      ]
+            )
+            (zip [0 ..] claims)
           respond $
             jsonResponse status200 $
               object

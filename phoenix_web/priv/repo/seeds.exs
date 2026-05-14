@@ -1058,3 +1058,16 @@ Repo.insert_all(
 
 # --- NPPES Refresh Config (ensure default row exists) ---
 RefreshConfig.get_or_create()
+
+# --- Admin user ---
+alias MedicaidClaimsChecker.Accounts
+
+unless Accounts.get_user_by_email("admin@example.com") do
+  {:ok, _} =
+    Accounts.register_admin(%{
+      email: "admin@example.com",
+      password: "AdminPassword123!"
+    })
+
+  IO.puts("Admin user created: admin@example.com / AdminPassword123!")
+end

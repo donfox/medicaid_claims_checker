@@ -1,0 +1,68 @@
+<Layouts.app flash={@flash} current_scope={@current_scope}>
+  <div class="mx-auto max-w-sm">
+    <div class="text-center">
+      <.header>
+        Register for an account
+        <:subtitle>
+          Already registered?
+          <.link navigate={~p"/users/log-in"} class="font-semibold text-brand hover:underline">
+            Log in
+          </.link>
+          to your account now.
+        </:subtitle>
+      </.header>
+    </div>
+
+    <.form :let={f} for={@changeset} as={:user} action={~p"/users/register"}>
+      <div class="flex gap-3">
+        <.input
+          field={f[:first_name]}
+          type="text"
+          label="First name"
+          autocomplete="given-name"
+          required
+          phx-mounted={JS.focus()}
+        />
+        <.input
+          field={f[:last_name]}
+          type="text"
+          label="Last name"
+          autocomplete="family-name"
+          required
+        />
+      </div>
+      <.input
+        field={f[:username]}
+        type="text"
+        label="Username"
+        autocomplete="username"
+        required
+      />
+      <.input
+        field={f[:email]}
+        type="email"
+        label="Email"
+        autocomplete="email"
+        required
+      />
+      <.input
+        field={f[:password]}
+        type="password"
+        label="Password"
+        autocomplete="new-password"
+        required
+      />
+      <.input
+        field={f[:password_confirmation]}
+        type="password"
+        label="Confirm password"
+        autocomplete="new-password"
+        required
+      />
+
+      <.button phx-disable-with="Creating account..." class="btn btn-primary w-full">
+        Create an account
+      </.button>
+    </.form>
+  </div>
+</Layouts.app>

@@ -25,11 +25,22 @@ defmodule MedicaidClaimsChecker.DataCase do
          function_exported?(Ecto.Adapters.SQL.Sandbox, :start_owner!, 2) and
          function_exported?(Ecto.Adapters.SQL.Sandbox, :stop_owner, 1) do
       pid =
-        apply(Ecto.Adapters.SQL.Sandbox, :start_owner!, [MedicaidClaimsChecker.Repo, [shared: not tags[:async]]])
+        apply(Ecto.Adapters.SQL.Sandbox, :start_owner!, [
+          MedicaidClaimsChecker.Repo,
+          [shared: not tags[:async]]
+        ])
 
       on_exit(fn -> apply(Ecto.Adapters.SQL.Sandbox, :stop_owner, [pid]) end)
     else
       :ok
     end
+  end
+
+  def errors_on(changeset) do
+    Ecto.Changeset.traverse_errors(changeset, fn {message, opts} ->
+      Regex.replace(~r"%{(\w+)}", message, fn _, key ->
+        opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
+      end)
+    end)
   end
 end

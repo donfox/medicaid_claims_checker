@@ -1,5 +1,8 @@
 import Config
 
+# Only in tests, remove the complexity from the password hashing algorithm
+config :bcrypt_elixir, :log_rounds, 1
+
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :medicaid_claims_checker, MedicaidClaimsCheckerWeb.Endpoint,
@@ -30,6 +33,8 @@ config :medicaid_claims_checker, MedicaidClaimsChecker.Repo,
 
 # Skip async evaluation in tests — evaluation is tested directly via Evaluator
 config :medicaid_claims_checker, skip_async_evaluation: true
+
+config :medicaid_claims_checker, Oban, testing: :inline
 
 # Enable helpful, but potentially expensive runtime checks
 config :phoenix_live_view,

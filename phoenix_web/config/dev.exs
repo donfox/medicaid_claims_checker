@@ -82,7 +82,11 @@ config :medicaid_claims_checker, MedicaidClaimsChecker.Repo,
   database: "medicaid_claims_checker_dev",
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
-  pool_size: 10
+  pool_size: 10,
+  log: false
 
 # Disable swoosh api client as it is only required for production adapters.
 config :swoosh, :api_client, false
+
+# Load local dev secrets (Brevo credentials etc.) if present — never commit this file.
+if File.exists?("config/dev.secret.exs"), do: import_config("dev.secret.exs")

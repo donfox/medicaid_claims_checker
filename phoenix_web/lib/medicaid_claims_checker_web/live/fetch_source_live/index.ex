@@ -511,6 +511,63 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     end
   end
 
+  # --- Batch History event handlers ---
+
+  def handle_event("toggle_batch_history", _params, socket) do
+    {:noreply, assign(socket, :show_batch_history, !socket.assigns.show_batch_history)}
+  end
+
+  def handle_event("toggle_batch_detail", %{"id" => id}, socket) do
+    id = String.to_integer(id)
+    expanded = socket.assigns.expanded_batch_ids
+
+    updated =
+      if MapSet.member?(expanded, id),
+        do: MapSet.delete(expanded, id),
+        else: MapSet.put(expanded, id)
+
+    {:noreply, assign(socket, :expanded_batch_ids, updated)}
+  end
+
+  def handle_event("toggle_batch_file_detail", %{"id" => id}, socket) do
+    id = String.to_integer(id)
+    expanded = socket.assigns.expanded_batch_file_ids
+
+    updated =
+      if MapSet.member?(expanded, id),
+        do: MapSet.delete(expanded, id),
+        else: MapSet.put(expanded, id)
+
+    {:noreply, assign(socket, :expanded_batch_file_ids, updated)}
+  end
+
+  def handle_event("refresh_batch_history", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:batch_history, load_batch_history())
+     |> put_flash(:info, "Batch history refreshed")}
+  end
+
+  def handle_event("clear_batch_history", _params, socket) do
+    Claims.clear_batch_history()
+
+    {:noreply,
+     socket
+     |> assign(:batch_history, [])
+     |> assign(:expanded_batch_ids, MapSet.new())
+     |> assign(:expanded_batch_file_ids, MapSet.new())
+     |> put_flash(:info, "Job history cleared")}
+  end
+
+  def handle_event("dismiss_batch", %{"id" => id}, socket) do
+    batch_id = String.to_integer(id)
+
+    {:noreply,
+     socket
+     |> assign(:batch_history, Enum.reject(socket.assigns.batch_history, &(&1.id == batch_id)))
+     |> assign(:expanded_batch_ids, MapSet.delete(socket.assigns.expanded_batch_ids, batch_id))}
+  end
+
   defp classify_files(files) do
     Enum.reduce(files, {[], [], []}, fn {filename, content}, {json, x12, zip} ->
       ext = filename |> Path.extname() |> String.downcase()
@@ -743,63 +800,6 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
 
   defp to_split_filename(filename, claim_id) do
     "#{Path.rootname(filename)}_#{claim_id}.json"
-  end
-
-  # --- Batch History event handlers ---
-
-  def handle_event("toggle_batch_history", _params, socket) do
-    {:noreply, assign(socket, :show_batch_history, !socket.assigns.show_batch_history)}
-  end
-
-  def handle_event("toggle_batch_detail", %{"id" => id}, socket) do
-    id = String.to_integer(id)
-    expanded = socket.assigns.expanded_batch_ids
-
-    updated =
-      if MapSet.member?(expanded, id),
-        do: MapSet.delete(expanded, id),
-        else: MapSet.put(expanded, id)
-
-    {:noreply, assign(socket, :expanded_batch_ids, updated)}
-  end
-
-  def handle_event("toggle_batch_file_detail", %{"id" => id}, socket) do
-    id = String.to_integer(id)
-    expanded = socket.assigns.expanded_batch_file_ids
-
-    updated =
-      if MapSet.member?(expanded, id),
-        do: MapSet.delete(expanded, id),
-        else: MapSet.put(expanded, id)
-
-    {:noreply, assign(socket, :expanded_batch_file_ids, updated)}
-  end
-
-  def handle_event("refresh_batch_history", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(:batch_history, load_batch_history())
-     |> put_flash(:info, "Batch history refreshed")}
-  end
-
-  def handle_event("clear_batch_history", _params, socket) do
-    Claims.clear_batch_history()
-
-    {:noreply,
-     socket
-     |> assign(:batch_history, [])
-     |> assign(:expanded_batch_ids, MapSet.new())
-     |> assign(:expanded_batch_file_ids, MapSet.new())
-     |> put_flash(:info, "Job history cleared")}
-  end
-
-  def handle_event("dismiss_batch", %{"id" => id}, socket) do
-    batch_id = String.to_integer(id)
-
-    {:noreply,
-     socket
-     |> assign(:batch_history, Enum.reject(socket.assigns.batch_history, &(&1.id == batch_id)))
-     |> assign(:expanded_batch_ids, MapSet.delete(socket.assigns.expanded_batch_ids, batch_id))}
   end
 
   defp reset_source_form(socket) do

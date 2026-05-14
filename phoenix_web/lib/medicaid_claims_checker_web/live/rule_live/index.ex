@@ -1,6 +1,5 @@
 defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
   use MedicaidClaimsCheckerWeb, :live_view
-  import MedicaidClaimsCheckerWeb.Components.RuleComponents
   alias MedicaidClaimsChecker.Claims
   alias MedicaidClaimsChecker.Claims.Evaluator
   alias MedicaidClaimsChecker.Claims.RuleSchemaValidator
@@ -955,16 +954,6 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
     end
   end
 
-  defp batch_rule_results(report, show_matched_only) do
-    results = Map.get(report || %{}, "results", [])
-
-    if show_matched_only do
-      Enum.filter(results, &(&1["resultMatched"] == true))
-    else
-      results
-    end
-  end
-
   @batch_chunk_size 200
 
   defp call_batch_evaluate(rules_text, claims) do
@@ -1030,20 +1019,6 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
       {:error, err} ->
         {:error, inspect(err)}
     end
-  end
-
-  defp filtered_batch_results(results, nil), do: results
-
-  defp filtered_batch_results(results, "clean") do
-    Enum.filter(results, fn r -> r["report"]["matchedRules"] == 0 end)
-  end
-
-  defp filtered_batch_results(results, "flagged") do
-    Enum.filter(results, fn r -> r["report"]["matchedRules"] > 0 end)
-  end
-
-  defp filtered_batch_results(results, risk_level) do
-    Enum.filter(results, fn r -> r["report"]["overallRisk"] == risk_level end)
   end
 
   defp risk_sort_key(result) do
@@ -1216,131 +1191,6 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
     |> String.replace(~r/\s+THEN\s+/, "\nTHEN\n  ")
     |> String.replace(~r/;\s*$/, "\nEND", global: false)
   end
-
-  defp action_badge_text(nil), do: nil
-
-  defp action_badge_text(%{"tag" => tag, "contents" => contents}) do
-    case tag do
-      "FlagFraud'" -> "FLAG FRAUD"
-      "RejectClaim'" -> "REJECT"
-      "RequireReview'" -> "REVIEW"
-      "AssignRiskScore'" when is_integer(contents) -> "RISK: #{contents}"
-      "ApproveClaim'" -> "APPROVE"
-      "CompositeAction'" -> "COMPOSITE"
-      _ -> String.upcase(tag)
-    end
-  end
-
-  defp action_badge_text(%{"tag" => tag}), do: String.upcase(String.replace(tag, "'", ""))
-  defp action_badge_text(_), do: nil
-
-  defp action_severity_classes(nil), do: "border-gray-300 bg-gray-50"
-
-  defp action_severity_classes(%{"tag" => tag, "contents" => contents}) do
-    case tag do
-      "FlagFraud'" ->
-        "border-red-400 bg-red-50"
-
-      "RejectClaim'" ->
-        "border-red-400 bg-red-50"
-
-      "RequireReview'" ->
-        "border-yellow-400 bg-yellow-50"
-
-      "AssignRiskScore'" when is_integer(contents) and contents >= 70 ->
-        "border-orange-400 bg-orange-50"
-
-      "AssignRiskScore'" ->
-        "border-yellow-400 bg-yellow-50"
-
-      "ApproveClaim'" ->
-        "border-green-400 bg-green-50"
-
-      _ ->
-        "border-gray-300 bg-gray-50"
-    end
-  end
-
-  defp action_severity_classes(%{"tag" => tag}) do
-    case tag do
-      "FlagFraud'" -> "border-red-400 bg-red-50"
-      "RejectClaim'" -> "border-red-400 bg-red-50"
-      "RequireReview'" -> "border-yellow-400 bg-yellow-50"
-      "ApproveClaim'" -> "border-green-400 bg-green-50"
-      _ -> "border-gray-300 bg-gray-50"
-    end
-  end
-
-  defp action_severity_classes(_), do: "border-gray-300 bg-gray-50"
-
-  defp action_badge_color(nil), do: "bg-gray-200 text-gray-700"
-
-  defp action_badge_color(%{"tag" => tag}) do
-    case tag do
-      "FlagFraud'" -> "bg-red-200 text-red-800"
-      "RejectClaim'" -> "bg-red-200 text-red-800"
-      "RequireReview'" -> "bg-yellow-200 text-yellow-900"
-      "AssignRiskScore'" -> "bg-orange-200 text-orange-800"
-      "ApproveClaim'" -> "bg-green-200 text-green-800"
-      _ -> "bg-gray-200 text-gray-700"
-    end
-  end
-
-  defp action_badge_color(_), do: "bg-gray-200 text-gray-700"
-
-  defp match_ratio_bar_color(matched, total) when total > 0 do
-    ratio = matched * 100.0 / total
-
-    cond do
-      ratio > 60 -> "bg-red-500"
-      ratio > 30 -> "bg-yellow-500"
-      true -> "bg-green-500"
-    end
-  end
-
-  defp match_ratio_bar_color(_, _), do: "bg-gray-400"
-
-  defp match_ratio_percent(matched, total) when total > 0,
-    do: Float.round(matched * 100.0 / total, 1)
-
-  defp match_ratio_percent(_, _), do: 0.0
-
-  defp risk_score_value("CriticalRisk"), do: 90
-  defp risk_score_value("HighRisk"), do: 65
-  defp risk_score_value("MediumRisk"), do: 35
-  defp risk_score_value("LowRisk"), do: 5
-  defp risk_score_value(_), do: 0
-
-  defp summary_percent(_count, 0), do: 0
-  defp summary_percent(count, total), do: Float.round(count / total * 100, 1)
-
-  defp humanize_rule_name(nil), do: ""
-
-  defp humanize_rule_name(name) when is_binary(name) do
-    name
-    |> String.replace(~r/([a-z])([A-Z])/, "\\1 \\2")
-    |> String.replace("_", " ")
-    |> String.split()
-    |> Enum.map_join(" ", &String.capitalize/1)
-  end
-
-  defp risk_label("CriticalRisk"), do: "Critical Risk"
-  defp risk_label("HighRisk"), do: "High Risk"
-  defp risk_label("MediumRisk"), do: "Medium Risk"
-  defp risk_label("LowRisk"), do: "Low Risk"
-  defp risk_label(_), do: "No Risk"
-
-  defp risk_label_color("CriticalRisk"), do: "bg-red-100 text-red-800"
-  defp risk_label_color("HighRisk"), do: "bg-orange-100 text-orange-800"
-  defp risk_label_color("MediumRisk"), do: "bg-yellow-100 text-yellow-800"
-  defp risk_label_color("LowRisk"), do: "bg-green-100 text-green-800"
-  defp risk_label_color(_), do: "bg-gray-100 text-gray-800"
-
-  defp risk_bar_color("CriticalRisk"), do: "bg-red-500"
-  defp risk_bar_color("HighRisk"), do: "bg-orange-500"
-  defp risk_bar_color("MediumRisk"), do: "bg-yellow-500"
-  defp risk_bar_color("LowRisk"), do: "bg-blue-500"
-  defp risk_bar_color(_), do: "bg-gray-400"
 
   defp format_dsl_line(line) do
     upper = String.upcase(line)

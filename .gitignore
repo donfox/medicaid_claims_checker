@@ -1,3 +1,7 @@
+# Environment secrets — never commit filled-in .env files
+.env
+phoenix_web/.env
+
 # macOS
 .DS_Store
 
@@ -43,3 +47,4 @@ npm-debug.log
 *.swp
 *.swo
 *~
+config/dev.secret.exs

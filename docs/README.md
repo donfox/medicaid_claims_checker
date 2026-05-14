@@ -12,12 +12,3 @@ This folder is organized into two categories:
 - `DATABASE_ERD.md` - In-use PostgreSQL/Ecto schema and relationship notes
 - `TEST_PROCEDURE.md` - Practical test workflow for local validation
 
-## Archive
-
-See `archive/` for:
-
-- Formal evaluations and integration reviews
-- Legacy deep-dive PDFs and DOCX files
-- Supporting diagrams and visual artifacts
-
-Archive files are kept to avoid losing important context, but they are not treated as the canonical source for current system behavior.

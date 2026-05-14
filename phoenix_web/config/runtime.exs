@@ -20,6 +20,19 @@ if System.get_env("PHX_SERVER") do
   config :medicaid_claims_checker, MedicaidClaimsCheckerWeb.Endpoint, server: true
 end
 
+if System.get_env("BREVO_MAIL_USERNAME") do
+  config :swoosh, :api_client, Swoosh.ApiClient.Finch
+
+  config :medicaid_claims_checker, MedicaidClaimsChecker.Mailer,
+    adapter: Swoosh.Adapters.SMTP,
+    relay: "smtp-relay.brevo.com",
+    port: 587,
+    username: System.get_env("BREVO_MAIL_USERNAME"),
+    password: System.get_env("BREVO_MAIL_PASSWORD"),
+    tls: :always,
+    auth: :always
+end
+
 if System.get_env("SFTP_HOST") do
   config :medicaid_claims_checker, :sftp,
     host: System.get_env("SFTP_HOST"),
@@ -103,22 +116,4 @@ if config_env() == :prod do
   #       force_ssl: [hsts: true]
   #
   # Check `Plug.SSL` for all available options in `force_ssl`.
-
-  # ## Configuring the mailer
-  #
-  # In production you need to configure the mailer to use a different adapter.
-  # Here is an example configuration for Mailgun:
-  #
-  #     config :medicaid_claims_checker, MedicaidClaimsChecker.Mailer,
-  #       adapter: Swoosh.Adapters.Mailgun,
-  #       api_key: System.get_env("MAILGUN_API_KEY"),
-  #       domain: System.get_env("MAILGUN_DOMAIN")
-  #
-  # Most non-SMTP adapters require an API client. Swoosh supports Req, Hackney,
-  # and Finch out-of-the-box. This configuration is typically done at
-  # compile-time in your config/prod.exs:
-  #
-  #     config :swoosh, :api_client, Swoosh.ApiClient.Req
-  #
-  # See https://hexdocs.pm/swoosh/Swoosh.html#module-installation for details.
 end

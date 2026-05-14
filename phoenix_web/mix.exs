@@ -40,6 +40,7 @@ defmodule MedicaidClaimsChecker.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
+      {:bcrypt_elixir, "~> 3.0"},
       {:phoenix, "~> 1.8.1"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
@@ -56,6 +57,7 @@ defmodule MedicaidClaimsChecker.MixProject do
        compile: false,
        depth: 1},
       {:swoosh, "~> 1.16"},
+      {:gen_smtp, "~> 1.0"},
       {:req, "~> 0.5"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
@@ -64,8 +66,10 @@ defmodule MedicaidClaimsChecker.MixProject do
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
       {:httpoison, "~> 2.2"},
+      {:oban, "~> 2.18"},
       {:quantum, "~> 3.5"},
       {:crontab, "~> 1.1"},
+      {:phoenix_ecto, "~> 4.6"},
       {:ecto_sql, "~> 3.12"},
       {:postgrex, "~> 0.19"},
       {:nimble_csv, "~> 1.2"},

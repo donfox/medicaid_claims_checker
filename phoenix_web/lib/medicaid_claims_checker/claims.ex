@@ -10,8 +10,7 @@ defmodule MedicaidClaimsChecker.Claims do
     EdiFile,
     BusinessRule,
     RuleCatalogue,
-    NppesProvider,
-    Evaluator
+    NppesProvider
   }
 
   require Logger
@@ -24,6 +23,7 @@ defmodule MedicaidClaimsChecker.Claims do
     |> Repo.insert()
   end
 
+  def get_batch(id), do: Repo.get(Batch, id)
   def get_batch!(id), do: Repo.get!(Batch, id)
 
   def get_batch_by_batch_id(batch_id) do
@@ -110,9 +110,9 @@ defmodule MedicaidClaimsChecker.Claims do
         Logger.info("Batch #{batch.batch_id} ingested — launching auto-evaluation")
 
         unless Application.get_env(:medicaid_claims_checker, :skip_async_evaluation, false) do
-          Task.Supervisor.start_child(MedicaidClaimsChecker.TaskSupervisor, fn ->
-            Evaluator.evaluate_batch(batch)
-          end)
+          %{"batch_id" => batch.id}
+          |> MedicaidClaimsChecker.Workers.BatchEvaluationWorker.new()
+          |> Oban.insert!()
         end
 
         result

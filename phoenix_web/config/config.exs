@@ -7,6 +7,19 @@
 # General application configuration
 import Config
 
+config :medicaid_claims_checker, :scopes,
+  user: [
+    default: true,
+    module: MedicaidClaimsChecker.Accounts.Scope,
+    assign_key: :current_scope,
+    access_path: [:user, :id],
+    schema_key: :user_id,
+    schema_type: :id,
+    schema_table: :users,
+    test_data_fixture: MedicaidClaimsChecker.AccountsFixtures,
+    test_setup_helper: :register_and_log_in_user
+  ]
+
 config :medicaid_claims_checker,
   ecto_repos: [MedicaidClaimsChecker.Repo],
   generators: [timestamp_type: :utc_datetime]
@@ -70,6 +83,10 @@ config :phoenix, :json_library, Jason
 config :medicaid_claims_checker, MedicaidClaimsChecker.Scheduler,
   jobs: [],
   timezone: "America/New_York"
+
+config :medicaid_claims_checker, Oban,
+  repo: MedicaidClaimsChecker.Repo,
+  queues: [batch_evaluation: 4]
 
 config :medicaid_claims_checker, :config_poller, poll_interval_ms: 60_000
 

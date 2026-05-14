@@ -69,8 +69,6 @@ The Elixir/Phoenix frontend is also functional: Phoenix LiveView uses immutable 
       JSON response back to client
 ```
 
-See also: [dsl_evaluation_flow.svg](../docs/archive/assets/dsl_evaluation_flow.svg)
-
 ---
 
 ## Evaluation Pipeline
@@ -343,6 +341,64 @@ compileRules = mapM compileRule
 | **Apply to claim** | `map (evaluateRuleSimple doc) rules` | call `compiledFunction claim` per entry |
 | **Thread safe?** | N/A (request-local) | Yes — `atomically` via STM |
 | **Re-parses DSL?** | Every request | No — parsed once, function pre-built |
+
+### Important: cache is not used by `/api/evaluate`
+
+`handleEvaluate` calls `loadRules` directly on the request body — it does **not** consult the `CompiledRuleCache`. The cache is populated by `/api/compile-rules` and is currently unused in the hot evaluation path. This means:
+
+- Every `/api/evaluate` and `/api/batch-evaluate` call re-parses rules from scratch.
+- Pre-warming the cache via `/api/compile-rules` has no effect on evaluation latency today.
+- The cache exists as a foundation for a future optimisation, not a current one.
+
+---
+
+## ML Dispatch
+
+`/api/evaluate` runs a DSL + ML pipeline. `/api/batch-evaluate` is **DSL-only** — it never calls the ML scorer.
+
+For the single-claim path, `selectMlResult` (Main.hs) dispatches through three branches:
+
+```
+selectMlResult claim
+  │
+  ├─ claim has _mlStatus = "error"?
+  │    └─ return mlErrorResult "forced"   ← test escape hatch (bypasses scorer)
+  │
+  └─ fetchOrStub
+       │
+       ├─ ML_SCORER_URL unset?
+       │    └─ return mlStubResult        ← deterministic fake (risk 0.42, confidence 0.74)
+       │
+       └─ call scoreClaimWithMl
+            ├─ success → real ML result
+            └─ failure → mlErrorResult errMsg  (FallbackDslOnly policy)
+```
+
+**Test escape hatch:** sending `"_mlStatus": "error"` in the claim document forces the DSL-only fallback path without needing a scorer service running.
+
+**ML stub:** when `ML_SCORER_URL` is not set, a hardcoded fake result is returned (risk `0.42`, confidence `0.74`, two fixed top factors defined in `PolicyCombiner`). This lets the full pipeline run in development without a scorer.
+
+**Fallback policy:** `FallbackDslOnly` is the only constructor of `FallbackPolicy` — the one-arm case exists as an extension point for future fallback strategies.
+
+---
+
+## WAI Middleware Seam
+
+The application is fully synchronous — every handler reads the request body and responds in the same IO action. There is no middleware between `run` and `app`:
+
+```haskell
+main = do
+  cache <- newCompiledRuleCache
+  run 8080 (app cache)
+```
+
+The natural insertion point for future cross-cutting concerns (auth, request IDs, logging, body-size caps, CORS) is:
+
+```haskell
+run 8080 (someMiddleware (app cache))
+```
+
+Warp-level concerns (timeouts, connection limits) go in `Warp.Settings` passed to `runSettings` instead of `run`.
 
 ---
 

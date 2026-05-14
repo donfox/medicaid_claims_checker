@@ -38,6 +38,14 @@ mix assets.setup
 echo "✓ Phoenix dependencies installed"
 echo
 
+# Set up database
+echo "Setting up database..."
+mix ecto.create
+mix ecto.migrate
+mix run priv/repo/seeds.exs
+echo "✓ Database created, migrated, and seeded"
+echo
+
 # Return to project root
 cd ..
 
@@ -46,11 +54,7 @@ echo "=== Setup Complete! ==="
 echo
 echo "To start the application:"
 echo
-echo "1. Start the Haskell backend (in terminal 1):"
-echo "   cd haskell_engine && stack run"
+echo "   ./start.sh"
 echo
-echo "2. Start the Phoenix frontend (in terminal 2):"
-echo "   cd phoenix_web && mix phx.server"
-echo
-echo "3. Open your browser to: http://localhost:4000/rules"
+echo "Then open your browser to: http://localhost:4000"
 echo

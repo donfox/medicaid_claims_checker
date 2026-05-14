@@ -122,6 +122,7 @@ ensure_frontend_deps() {
   cd "$ROOT_DIR/phoenix_web"
   echo "Installing Phoenix dependencies..."
   mix deps.get
+  mix assets.setup
 }
 
 # Run migrations
@@ -138,7 +139,7 @@ start_backend() {
     exec stack run
   else
     echo "Starting Haskell backend on port 8080..."
-    stack run >>"$BACKEND_LOG" 2>&1 &
+    stack run >"$BACKEND_LOG" 2>&1 &
     BACKEND_PID=$!
   fi
 }
@@ -150,7 +151,7 @@ start_frontend() {
     exec mix phx.server
   else
     echo "Starting Phoenix frontend on port 4000..."
-    mix phx.server >>"$FRONTEND_LOG" 2>&1 &
+    mix phx.server >"$FRONTEND_LOG" 2>&1 &
     FRONTEND_PID=$!
   fi
 }

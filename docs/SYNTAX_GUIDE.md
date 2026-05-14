@@ -65,6 +65,21 @@ field IS NULL          # Check if field has no value
 field IS NOT NULL      # Check if field has a value
 ```
 
+### Boolean Literals
+
+```
+TRUE                   # Always matches (useful for testing or forced-review rules)
+FALSE                  # Never matches (use to disable a rule without deleting it)
+```
+
+Example:
+```
+RULE disabled_check "Temporarily disabled"
+WHEN FALSE
+THEN FLAG_FRAUD "Should never fire"
+END
+```
+
 ### Logical Operators
 
 ```
@@ -182,6 +197,15 @@ END
 ```
 "2026-01-24"
 "20260124"
+```
+
+### Field-to-Field Comparisons
+
+The right-hand side of any comparison can be another field reference instead of a literal:
+
+```
+2400.DTP.service_date > 2300.DTP.admission_date
+CLM.billed_amount > CLM.allowed_amount
 ```
 
 ## Actions

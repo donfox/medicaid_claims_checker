@@ -15,6 +15,7 @@ defmodule MedicaidClaimsChecker.Application do
        query: Application.get_env(:medicaid_claims_checker, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: MedicaidClaimsChecker.PubSub},
       MedicaidClaimsChecker.Repo,
+      {Oban, Application.fetch_env!(:medicaid_claims_checker, Oban)},
       {Task.Supervisor, name: MedicaidClaimsChecker.TaskSupervisor},
       MedicaidClaimsChecker.Scheduler,
       MedicaidClaimsChecker.Ingestion.ConfigPoller,

@@ -19,6 +19,13 @@ config :swoosh, :api_client, false
 # Print only warnings and errors during test
 config :logger, level: :warning
 
+config :medicaid_claims_checker, MedicaidClaimsChecker.Vault,
+  ciphers: [
+    default: {Cloak.Ciphers.AES.GCM,
+              tag: "AES.GCM.V1",
+              key: Base.decode64!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")}
+  ]
+
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime
 

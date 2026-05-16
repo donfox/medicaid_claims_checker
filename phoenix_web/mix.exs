@@ -74,7 +74,8 @@ defmodule MedicaidClaimsChecker.MixProject do
       {:postgrex, "~> 0.19"},
       {:nimble_csv, "~> 1.2"},
       {:bypass, "~> 2.1", only: :test},
-      {:tzdata, "~> 1.1"}
+      {:tzdata, "~> 1.1"},
+      {:cloak_ecto, "~> 1.3"}
     ]
   end
 

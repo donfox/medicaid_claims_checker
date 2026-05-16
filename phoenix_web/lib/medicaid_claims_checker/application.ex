@@ -10,6 +10,7 @@ defmodule MedicaidClaimsChecker.Application do
   @impl true
   def start(_type, _args) do
     children = [
+      MedicaidClaimsChecker.Vault,
       MedicaidClaimsCheckerWeb.Telemetry,
       {DNSCluster,
        query: Application.get_env(:medicaid_claims_checker, :dns_cluster_query) || :ignore},

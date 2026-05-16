@@ -88,5 +88,14 @@ config :medicaid_claims_checker, MedicaidClaimsChecker.Repo,
 # Disable swoosh api client as it is only required for production adapters.
 config :swoosh, :api_client, false
 
+# Vault — dev-only key, NOT for production use.
+# Generate a production key with: :crypto.strong_rand_bytes(32) |> Base.encode64() |> IO.puts()
+config :medicaid_claims_checker, MedicaidClaimsChecker.Vault,
+  ciphers: [
+    default: {Cloak.Ciphers.AES.GCM,
+              tag: "AES.GCM.V1",
+              key: Base.decode64!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")}
+  ]
+
 # Load local dev secrets (Brevo credentials etc.) if present — never commit this file.
 if File.exists?("config/dev.secret.exs"), do: import_config("dev.secret.exs")

@@ -127,4 +127,18 @@ if config_env() == :prod do
   #       force_ssl: [hsts: true]
   #
   # Check `Plug.SSL` for all available options in `force_ssl`.
+
+  cloak_key =
+    System.get_env("CLOAK_KEY") ||
+      raise """
+      environment variable CLOAK_KEY is missing.
+      Generate one with: :crypto.strong_rand_bytes(32) |> Base.encode64() |> IO.puts()
+      """
+
+  config :medicaid_claims_checker, MedicaidClaimsChecker.Vault,
+    ciphers: [
+      default: {Cloak.Ciphers.AES.GCM,
+                tag: "AES.GCM.V1",
+                key: Base.decode64!(cloak_key)}
+    ]
 end

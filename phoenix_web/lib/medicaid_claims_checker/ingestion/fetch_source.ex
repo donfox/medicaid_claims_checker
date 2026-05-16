@@ -7,7 +7,7 @@ defmodule MedicaidClaimsChecker.Ingestion.FetchSource do
     field :uri, :string
     field :source_type, :string
     field :enabled, :boolean, default: true
-    field :credentials, :map
+    field :credentials, MedicaidClaimsChecker.Encrypted.Map
 
     has_many :fetch_schedules, MedicaidClaimsChecker.Ingestion.FetchSchedule
 

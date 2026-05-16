@@ -3,52 +3,62 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive do
 
   alias MedicaidClaimsChecker.Accounts
 
-  def mount(_params, session, socket) do
-    current_user =
-      with token when is_binary(token) <- session["user_token"],
-           {user, _} <- Accounts.get_user_by_session_token(token) do
-        user
-      else
-        _ -> nil
-      end
+  on_mount {MedicaidClaimsCheckerWeb.UserAuth, :require_admin}
 
+  def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(:current_user, current_user)
      |> assign(:registration_open, Accounts.registration_open?())
      |> assign(:users, Accounts.list_users())}
   end
 
   def handle_event("toggle_registration", _params, socket) do
-    new_state = !socket.assigns.registration_open
-    {:ok, _} = Accounts.set_registration_open(new_state)
-    {:noreply, assign(socket, :registration_open, new_state)}
+    with :ok <- assert_admin(socket) do
+      new_state = !socket.assigns.registration_open
+      {:ok, _} = Accounts.set_registration_open(new_state)
+      {:noreply, assign(socket, :registration_open, new_state)}
+    end
   end
 
   def handle_event("toggle_active", %{"id" => id}, socket) do
-    current_user = socket.assigns.current_user
-    user = Accounts.get_user!(String.to_integer(id))
+    with :ok <- assert_admin(socket),
+         {user_id, ""} <- Integer.parse(id) do
+      current_user = socket.assigns.current_user
+      user = Accounts.get_user!(user_id)
 
-    if user.id == current_user.id do
-      {:noreply, put_flash(socket, :error, "You cannot deactivate your own account.")}
+      if user.id == current_user.id do
+        {:noreply, put_flash(socket, :error, "You cannot deactivate your own account.")}
+      else
+        new_state = !user.active
+        {:ok, _} = Accounts.set_user_active(user, new_state)
+        {:noreply, assign(socket, :users, Accounts.list_users())}
+      end
     else
-      new_state = !user.active
-      {:ok, _} = Accounts.set_user_active(user, new_state)
-      {:noreply, assign(socket, :users, Accounts.list_users())}
+      _ -> {:noreply, put_flash(socket, :error, "Invalid request.")}
     end
   end
 
   def handle_event("toggle_admin", %{"id" => id}, socket) do
-    current_user = socket.assigns.current_user
-    user = Accounts.get_user!(String.to_integer(id))
+    with :ok <- assert_admin(socket),
+         {user_id, ""} <- Integer.parse(id) do
+      current_user = socket.assigns.current_user
+      user = Accounts.get_user!(user_id)
 
-    if user.id == current_user.id do
-      {:noreply, put_flash(socket, :error, "You cannot change your own admin status.")}
+      if user.id == current_user.id do
+        {:noreply, put_flash(socket, :error, "You cannot change your own admin status.")}
+      else
+        new_state = !user.is_admin
+        {:ok, _} = Accounts.set_user_admin(user, new_state)
+        {:noreply, assign(socket, :users, Accounts.list_users())}
+      end
     else
-      new_state = !user.is_admin
-      {:ok, _} = Accounts.set_user_admin(user, new_state)
-      {:noreply, assign(socket, :users, Accounts.list_users())}
+      _ -> {:noreply, put_flash(socket, :error, "Invalid request.")}
     end
+  end
+
+  defp assert_admin(socket) do
+    user = socket.assigns[:current_user]
+    if user && user.is_admin, do: :ok, else: :error
   end
 
   def render(assigns) do

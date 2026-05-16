@@ -24,6 +24,13 @@ config :medicaid_claims_checker,
   rule_engine_url: System.get_env("RULE_ENGINE_URL") || "http://localhost:8080",
   rule_engine_secret: System.get_env("RULE_ENGINE_SECRET") || ""
 
+if config_env() == :prod and (System.get_env("RULE_ENGINE_SECRET") || "") == "" do
+  raise """
+  environment variable RULE_ENGINE_SECRET is missing or empty.
+  Set it to a securely random value shared with the Haskell rule engine.
+  """
+end
+
 if System.get_env("BREVO_MAIL_USERNAME") do
   config :swoosh, :api_client, Swoosh.ApiClient.Finch
 

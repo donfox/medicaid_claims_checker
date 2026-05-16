@@ -122,7 +122,7 @@ defmodule MedicaidClaimsChecker.Accounts do
   def registration_open? do
     case Repo.get(AppSettings, "singleton") do
       %AppSettings{registration_open: open} -> open
-      nil -> true
+      nil -> false
     end
   end
 

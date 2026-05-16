@@ -14,7 +14,8 @@ defmodule MedicaidClaimsCheckerWeb.UserAuth do
   @remember_me_options [
     sign: true,
     max_age: @max_cookie_age_in_days * 24 * 60 * 60,
-    same_site: "Lax"
+    same_site: "Lax",
+    secure: true
   ]
 
   # How old the session token should be before a new one is issued. When a request is made
@@ -246,5 +247,55 @@ defmodule MedicaidClaimsCheckerWeb.UserAuth do
       |> redirect(to: ~p"/")
       |> halt()
     end
+  end
+
+  @doc """
+  Plug for API routes that require the `x-rule-engine-secret` header to match
+  the configured `RULE_ENGINE_SECRET`. Returns 401 JSON on mismatch or when
+  the secret is not configured (empty string).
+  """
+  def require_rule_engine_secret(conn, _opts) do
+    expected = Application.get_env(:medicaid_claims_checker, :rule_engine_secret, "")
+    provided = get_req_header(conn, "x-rule-engine-secret") |> List.first("")
+
+    if expected != "" and Plug.Crypto.secure_compare(expected, provided) do
+      conn
+    else
+      conn
+      |> put_resp_content_type("application/json")
+      |> send_resp(401, ~s({"error":"unauthorized"}))
+      |> halt()
+    end
+  end
+
+  @doc """
+  `on_mount` hook that halts LiveView connections when the current user is not
+  an admin. Intended for admin-only LiveView modules.
+  """
+  def on_mount(:require_admin, _params, session, socket) do
+    socket = mount_current_user(session, socket)
+    user = socket.assigns[:current_user]
+
+    if user && user.is_admin do
+      {:cont, socket}
+    else
+      socket =
+        socket
+        |> Phoenix.LiveView.put_flash(:error, "You must be an administrator to access this page.")
+        |> Phoenix.LiveView.redirect(to: ~p"/")
+
+      {:halt, socket}
+    end
+  end
+
+  defp mount_current_user(session, socket) do
+    Phoenix.Component.assign_new(socket, :current_user, fn ->
+      with token when is_binary(token) <- session["user_token"],
+           {user, _} <- Accounts.get_user_by_session_token(token) do
+        user
+      else
+        _ -> nil
+      end
+    end)
   end
 end

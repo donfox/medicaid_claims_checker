@@ -34,6 +34,10 @@ defmodule MedicaidClaimsCheckerWeb.Router do
   scope "/api", MedicaidClaimsCheckerWeb do
     pipe_through(:api)
     get("/health", HealthController, :health)
+  end
+
+  scope "/api", MedicaidClaimsCheckerWeb do
+    pipe_through([:api, :require_rule_engine_secret])
     get("/fetch-config", FetchConfigController, :index)
   end
 

@@ -14,7 +14,6 @@ defmodule MedicaidClaimsCheckerWeb.FetchConfigJSON do
       name: source.name,
       uri: source.uri,
       source_type: source.source_type,
-      credentials: source.credentials,
       schedules: Enum.map(source.fetch_schedules, &schedule_json/1)
     }
   end

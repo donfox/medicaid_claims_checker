@@ -332,7 +332,6 @@ defmodule MedicaidClaimsChecker.Ingestion.RemoteFetcher do
     connect_opts =
       [
         user: user,
-        silently_accept_hosts: true,
         user_interaction: false,
         auth_methods: ~c"publickey,password",
         user_dir: String.to_charlist(Path.join(System.user_home!(), ".ssh")),
@@ -612,7 +611,7 @@ defmodule MedicaidClaimsChecker.Ingestion.RemoteFetcher do
 
     http_options = [
       timeout: config.timeout,
-      ssl: [verify: :verify_none]
+      ssl: [verify: :verify_peer, cacerts: :public_key.cacerts_get(), depth: 3]
     ]
 
     case :httpc.request(:get, request, http_options, body_format: :binary) do
@@ -748,7 +747,7 @@ defmodule MedicaidClaimsChecker.Ingestion.RemoteFetcher do
 
     http_options = [
       timeout: timeout,
-      ssl: [verify: :verify_none]
+      ssl: [verify: :verify_peer, cacerts: :public_key.cacerts_get(), depth: 3]
     ]
 
     body_format_options = [body_format: :binary]
@@ -784,11 +783,11 @@ defmodule MedicaidClaimsChecker.Ingestion.RemoteFetcher do
     case Enum.find(headers, fn {key, _value} ->
            String.downcase(to_string(key)) == "content-length"
          end) do
-      {_key, value} when is_list(value) ->
-        value |> to_string() |> String.to_integer()
-
-      {_key, value} when is_binary(value) ->
-        String.to_integer(value)
+      {_key, value} ->
+        case Integer.parse(to_string(value)) do
+          {n, _} -> n
+          :error -> nil
+        end
 
       _ ->
         nil
@@ -837,7 +836,18 @@ defmodule MedicaidClaimsChecker.Ingestion.RemoteFetcher do
   defp unzip_file(zip_path, extract_dir) do
     case :zip.unzip(String.to_charlist(zip_path), cwd: String.to_charlist(extract_dir)) do
       {:ok, files} ->
-        {:ok, files}
+        abs_extract_dir = Path.expand(extract_dir)
+        safe_files =
+          Enum.filter(files, fn f ->
+            resolved = Path.expand(to_string(f))
+            String.starts_with?(resolved, abs_extract_dir <> "/")
+          end)
+
+        if length(safe_files) < length(files) do
+          Logger.error("ZIP contained path-traversal entries — #{length(files) - length(safe_files)} file(s) rejected")
+        end
+
+        {:ok, safe_files}
 
       {:error, reason} ->
         Logger.error("ZIP extraction failed: #{inspect(reason)}")

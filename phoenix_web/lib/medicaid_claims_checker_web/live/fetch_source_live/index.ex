@@ -595,13 +595,22 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
         {:ok, entries} ->
           Enum.reduce(entries, {json_acc, x12_acc}, fn {name, data}, {j, x} ->
             filename = to_string(name)
-            ext = filename |> Path.extname() |> String.downcase()
 
-            case ext do
-              ".json" -> {[{filename, data} | j], x}
-              ".x12" -> {j, [{filename, data} | x]}
-              ".edi" -> {j, [{filename, data} | x]}
-              _ -> {j, x}
+            case Path.safe_relative(filename) do
+              {:ok, safe_name} ->
+                ext = safe_name |> Path.extname() |> String.downcase()
+
+                case ext do
+                  ".json" -> {[{safe_name, data} | j], x}
+                  ".x12" -> {j, [{safe_name, data} | x]}
+                  ".edi" -> {j, [{safe_name, data} | x]}
+                  _ -> {j, x}
+                end
+
+              :error ->
+                require Logger
+                Logger.warning("ZIP entry rejected (path traversal): #{inspect(filename)}")
+                {j, x}
             end
           end)
 

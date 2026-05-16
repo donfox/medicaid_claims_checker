@@ -20,6 +20,10 @@ if System.get_env("PHX_SERVER") do
   config :medicaid_claims_checker, MedicaidClaimsCheckerWeb.Endpoint, server: true
 end
 
+config :medicaid_claims_checker,
+  rule_engine_url: System.get_env("RULE_ENGINE_URL") || "http://localhost:8080",
+  rule_engine_secret: System.get_env("RULE_ENGINE_SECRET") || ""
+
 if System.get_env("BREVO_MAIL_USERNAME") do
   config :swoosh, :api_client, Swoosh.ApiClient.Finch
 

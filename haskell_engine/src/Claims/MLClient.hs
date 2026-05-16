@@ -29,6 +29,7 @@ module Claims.MLClient
 where
 
 import Control.Exception (SomeException, try)
+import Data.List (isPrefixOf)
 import Data.Aeson (Value)
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Key qualified as Key
@@ -59,15 +60,20 @@ import Claims.PolicyCombiner
 
 -- | Connection settings for the ML scoring service.
 data MLClientConfig = MLClientConfig
-  { mlEndpointUrl :: String,   -- ^ Full URL (e.g. @"http://ml-service:5000/score"@)
+  { mlEndpointUrl :: String,   -- ^ Full URL — must begin with @https://@
     mlTimeoutMs :: Int          -- ^ Request timeout in milliseconds
   }
   deriving (Show, Eq)
 
 -- | POST a claim to the ML service and return the parsed result.  Returns
 -- @Left msg@ on network errors, decode failures, or contract mismatches.
+-- Rejects non-HTTPS endpoints immediately to prevent PHI from travelling in
+-- cleartext.
 scoreClaimWithMl :: MLClientConfig -> Text -> Value -> IO (Either Text MLResult)
-scoreClaimWithMl cfg claimId document = do
+scoreClaimWithMl cfg claimId document
+  | not ("https://" `isPrefixOf` mlEndpointUrl cfg) =
+      pure $ Left "ML_SCORER_URL must use https:// — refusing to transmit PHI over plaintext"
+  | otherwise = do
   reqEither <- try (mkRequest cfg claimId document) :: IO (Either SomeException Request)
   case reqEither of
     Left err -> pure $ Left $ T.pack $ "request_build_failed: " <> show err

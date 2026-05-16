@@ -963,9 +963,9 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
       body = Jason.encode!(PayloadBuilder.build_batch_evaluate_payload(rules_text, chunk))
 
       case HTTPoison.post(
-             "http://localhost:8080/api/batch-evaluate",
+             "#{rule_engine_url()}/api/batch-evaluate",
              body,
-             [{"Content-Type", "application/json"}],
+             engine_headers(),
              timeout: 120_000,
              recv_timeout: 120_000
            ) do
@@ -1001,9 +1001,9 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
     body = Jason.encode!(%{rulesText: normalize_dsl_text(rules_text)})
 
     case HTTPoison.post(
-           "http://localhost:8080/api/compile-rules",
+           "#{rule_engine_url()}/api/compile-rules",
            body,
-           [{"Content-Type", "application/json"}],
+           engine_headers(),
            timeout: 120_000,
            recv_timeout: 120_000
          ) do
@@ -1042,9 +1042,9 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
     normalized_text = normalize_dsl_text(text)
 
     case HTTPoison.post(
-           "http://localhost:8080/api/parse-rule",
+           "#{rule_engine_url()}/api/parse-rule",
            Jason.encode!(%{ruleText: normalized_text}),
-           [{"Content-Type", "application/json"}]
+           engine_headers()
          ) do
       {:ok, %{status_code: 200, body: body}} ->
         Jason.decode(body)
@@ -1088,9 +1088,9 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
         })
 
       case HTTPoison.post(
-             "http://localhost:8080/api/check-redundancy",
+             "#{rule_engine_url()}/api/check-redundancy",
              body,
-             [{"Content-Type", "application/json"}],
+             engine_headers(),
              timeout: 10_000,
              recv_timeout: 10_000
            ) do
@@ -1206,5 +1206,14 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
       String.starts_with?(line, "--") -> line
       true -> "  " <> line
     end
+  end
+
+  defp rule_engine_url do
+    Application.get_env(:medicaid_claims_checker, :rule_engine_url, "http://localhost:8080")
+  end
+
+  defp engine_headers do
+    secret = Application.get_env(:medicaid_claims_checker, :rule_engine_secret, "")
+    [{"Content-Type", "application/json"}, {"Authorization", "Bearer #{secret}"}]
   end
 end

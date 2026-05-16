@@ -48,3 +48,4 @@ npm-debug.log
 *.swo
 *~
 config/dev.secret.exs
+phoenix_web/config/dev.secret.exs

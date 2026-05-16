@@ -17,6 +17,14 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
     Application.get_env(:medicaid_claims_checker, :rule_engine_url, "http://localhost:8080")
   end
 
+  defp engine_secret do
+    Application.get_env(:medicaid_claims_checker, :rule_engine_secret, "")
+  end
+
+  defp engine_headers do
+    [{"Content-Type", "application/json"}, {"Authorization", "Bearer #{engine_secret()}"}]
+  end
+
   @doc """
   Evaluates all edi_files in a batch that are in "translated" status.
 
@@ -96,6 +104,9 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
               result
               |> Map.get("report", %{})
               |> merge_nppes_finding(nppes_outcome)
+              |> then(fn r ->
+                Map.put(r, "weightedScore", compute_weighted_score(r["results"] || []))
+              end)
 
             risk = report["overallRisk"] || "LowRisk"
             status = if risk in ["CriticalRisk", "HighRisk"], do: "fraudulent", else: "translated"
@@ -129,7 +140,7 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
       case HTTPoison.post(
              "#{rule_engine_url()}/api/batch-evaluate",
              body,
-             [{"Content-Type", "application/json"}],
+             engine_headers(),
              timeout: 120_000,
              recv_timeout: 120_000
            ) do
@@ -173,6 +184,7 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
           status: f.status,
           risk: report["overallRisk"] || "LowRisk",
           matched_rules: report["matchedRules"] || 0,
+          weighted_score: report["weightedScore"] || 0,
           matched_results: matched_results
         }
       end)
@@ -191,6 +203,20 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
       {:batch_failed, %{batch_id: batch.batch_id, reason: inspect(reason)}}
     )
   end
+
+  defp compute_weighted_score(results) do
+    results
+    |> Enum.filter(& &1["resultMatched"])
+    |> Enum.map(fn r -> action_weight(r["resultAction"] || %{}) end)
+    |> Enum.sum()
+  end
+
+  defp action_weight(%{"tag" => "RejectClaim'"}), do: 3
+  defp action_weight(%{"tag" => "FlagFraud'"}), do: 2
+  defp action_weight(%{"tag" => "RequireReview'"}), do: 1
+  defp action_weight(%{"tag" => "CompositeAction'", "contents" => actions}) when is_list(actions),
+    do: Enum.sum(Enum.map(actions, &action_weight/1))
+  defp action_weight(_), do: 0
 
   defp merge_nppes_finding(report, :ok), do: report
 

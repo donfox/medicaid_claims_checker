@@ -338,40 +338,57 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
   end
 
   def handle_event("toggle_expand_source", %{"id" => id}, socket) do
-    id = String.to_integer(id)
-    expanded = socket.assigns.expanded_source_ids
+    case Integer.parse(id) do
+      {parsed_id, ""} ->
+        expanded = socket.assigns.expanded_source_ids
 
-    updated =
-      if MapSet.member?(expanded, id),
-        do: MapSet.delete(expanded, id),
-        else: MapSet.put(expanded, id)
+        updated =
+          if MapSet.member?(expanded, parsed_id),
+            do: MapSet.delete(expanded, parsed_id),
+            else: MapSet.put(expanded, parsed_id)
 
-    {:noreply, assign(socket, :expanded_source_ids, updated)}
+        {:noreply, assign(socket, :expanded_source_ids, updated)}
+
+      _ ->
+        {:noreply, put_flash(socket, :error, "Invalid request.")}
+    end
   end
 
   # --- Schedule events ---
 
   def handle_event("show_add_schedule", %{"source-id" => source_id}, socket) do
-    {:noreply,
-     socket
-     |> assign(:adding_schedule_for, String.to_integer(source_id))
-     |> assign(:editing_schedule, nil)
-     |> assign(:schedule_cron, "")
-     |> assign(:schedule_interval, "")}
+    case Integer.parse(source_id) do
+      {parsed_id, ""} ->
+        {:noreply,
+         socket
+         |> assign(:adding_schedule_for, parsed_id)
+         |> assign(:editing_schedule, nil)
+         |> assign(:schedule_cron, "")
+         |> assign(:schedule_interval, "")}
+
+      _ ->
+        {:noreply, put_flash(socket, :error, "Invalid request.")}
+    end
   end
 
   def handle_event("edit_schedule", %{"id" => id, "source-id" => source_id}, socket) do
-    schedule = Ingestion.get_fetch_schedule!(id)
+    case Integer.parse(source_id) do
+      {parsed_source_id, ""} ->
+        schedule = Ingestion.get_fetch_schedule!(id)
 
-    {:noreply,
-     socket
-     |> assign(:adding_schedule_for, String.to_integer(source_id))
-     |> assign(:editing_schedule, schedule)
-     |> assign(:schedule_cron, schedule.cron_expression || "")
-     |> assign(
-       :schedule_interval,
-       if(schedule.interval_seconds, do: to_string(schedule.interval_seconds), else: "")
-     )}
+        {:noreply,
+         socket
+         |> assign(:adding_schedule_for, parsed_source_id)
+         |> assign(:editing_schedule, schedule)
+         |> assign(:schedule_cron, schedule.cron_expression || "")
+         |> assign(
+           :schedule_interval,
+           if(schedule.interval_seconds, do: to_string(schedule.interval_seconds), else: "")
+         )}
+
+      _ ->
+        {:noreply, put_flash(socket, :error, "Invalid request.")}
+    end
   end
 
   def handle_event("cancel_add_schedule", _params, socket) do
@@ -519,27 +536,37 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
   end
 
   def handle_event("toggle_batch_detail", %{"id" => id}, socket) do
-    id = String.to_integer(id)
-    expanded = socket.assigns.expanded_batch_ids
+    case Integer.parse(id) do
+      {parsed_id, ""} ->
+        expanded = socket.assigns.expanded_batch_ids
 
-    updated =
-      if MapSet.member?(expanded, id),
-        do: MapSet.delete(expanded, id),
-        else: MapSet.put(expanded, id)
+        updated =
+          if MapSet.member?(expanded, parsed_id),
+            do: MapSet.delete(expanded, parsed_id),
+            else: MapSet.put(expanded, parsed_id)
 
-    {:noreply, assign(socket, :expanded_batch_ids, updated)}
+        {:noreply, assign(socket, :expanded_batch_ids, updated)}
+
+      _ ->
+        {:noreply, put_flash(socket, :error, "Invalid request.")}
+    end
   end
 
   def handle_event("toggle_batch_file_detail", %{"id" => id}, socket) do
-    id = String.to_integer(id)
-    expanded = socket.assigns.expanded_batch_file_ids
+    case Integer.parse(id) do
+      {parsed_id, ""} ->
+        expanded = socket.assigns.expanded_batch_file_ids
 
-    updated =
-      if MapSet.member?(expanded, id),
-        do: MapSet.delete(expanded, id),
-        else: MapSet.put(expanded, id)
+        updated =
+          if MapSet.member?(expanded, parsed_id),
+            do: MapSet.delete(expanded, parsed_id),
+            else: MapSet.put(expanded, parsed_id)
 
-    {:noreply, assign(socket, :expanded_batch_file_ids, updated)}
+        {:noreply, assign(socket, :expanded_batch_file_ids, updated)}
+
+      _ ->
+        {:noreply, put_flash(socket, :error, "Invalid request.")}
+    end
   end
 
   def handle_event("filter_batch_risk", %{"level" => level}, socket) do
@@ -567,12 +594,16 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
   end
 
   def handle_event("dismiss_batch", %{"id" => id}, socket) do
-    batch_id = String.to_integer(id)
+    case Integer.parse(id) do
+      {batch_id, ""} ->
+        {:noreply,
+         socket
+         |> assign(:batch_history, Enum.reject(socket.assigns.batch_history, &(&1.id == batch_id)))
+         |> assign(:expanded_batch_ids, MapSet.delete(socket.assigns.expanded_batch_ids, batch_id))}
 
-    {:noreply,
-     socket
-     |> assign(:batch_history, Enum.reject(socket.assigns.batch_history, &(&1.id == batch_id)))
-     |> assign(:expanded_batch_ids, MapSet.delete(socket.assigns.expanded_batch_ids, batch_id))}
+      _ ->
+        {:noreply, put_flash(socket, :error, "Invalid request.")}
+    end
   end
 
   defp classify_files(files) do

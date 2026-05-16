@@ -161,9 +161,20 @@ kw = lexeme . keyword
 -- Rule Parsers
 -- ----------------------------------------------------------------------------
 
+-- | Maximum number of rules allowed in a single rule set. Prevents the
+-- O(rules × claims) combinatorial explosion in handleBatchEvaluate.
+maxRuleCount :: Int
+maxRuleCount = 200
+
 -- | Parse zero or more rules, consuming all input.
 rulesParser :: Parser [Rule]
-rulesParser = whitespace *> many ruleParser <* eof
+rulesParser = do
+  whitespace
+  rules <- many ruleParser
+  eof
+  if length rules > maxRuleCount
+    then fail $ "Rule set exceeds the maximum of " ++ show maxRuleCount ++ " rules"
+    else pure rules
 
 -- | Parse a single rule.
 --
@@ -245,39 +256,41 @@ descriptionPart = try (kw "DESCRIPTION" *> stringLiteral) <|> stringLiteral
 --   2. AND
 --   3. NOT
 --   4. Atomic predicates (comparisons, quantifiers, etc.)
+--
+-- All predicate parsers thread an integer depth counter so that deeply-nested
+-- parenthesised rules (e.g. hundreds of layers) are rejected with a clear
+-- error rather than overflowing the Haskell runtime stack.
+
+-- | Maximum allowed parenthesis nesting depth for predicate expressions.
+maxPredicateDepth :: Int
+maxPredicateDepth = 50
 
 -- | Top-level predicate parser. Entry point for parsing boolean expressions.
 predicateParser :: Parser Predicate
-predicateParser = orExpr
+predicateParser = predAt 0
 
--- | Parse OR expressions (lowest precedence).
---
--- @pred1 OR pred2 OR pred3@ is parsed as @Or pred1 (Or pred2 pred3)@ (right-associative).
-orExpr :: Parser Predicate
-orExpr = chainr1 andExpr (Syntax.Or <$ try (whitespace *> kw "OR"))
+-- | Depth-aware predicate entry point. Fails immediately when depth exceeds
+-- 'maxPredicateDepth' so a pathological rule cannot overflow the stack.
+predAt :: Int -> Parser Predicate
+predAt depth
+  | depth > maxPredicateDepth =
+      fail $ "Predicate nesting exceeds the maximum depth (" ++ show maxPredicateDepth ++ " levels)"
+  | otherwise = orAt depth
 
--- | Parse AND expressions (higher precedence than OR).
---
--- @pred1 AND pred2 AND pred3@ is parsed as @And pred1 (And pred2 pred3)@ (right-associative).
-andExpr :: Parser Predicate
-andExpr = chainr1 notExpr (Syntax.And <$ try (whitespace *> kw "AND"))
+orAt :: Int -> Parser Predicate
+orAt depth = chainr1 (andAt depth) (Syntax.Or <$ try (whitespace *> kw "OR"))
 
--- | Parse NOT expressions (higher precedence than AND).
---
--- @NOT predicate@ negates the following atomic predicate.
-notExpr :: Parser Predicate
-notExpr = (Syntax.Not <$> (kw "NOT" *> atomicPredicate)) <|> atomicPredicate
+andAt :: Int -> Parser Predicate
+andAt depth = chainr1 (notAt depth) (Syntax.And <$ try (whitespace *> kw "AND"))
 
--- | Parse atomic predicates (highest precedence).
---
--- Atomic predicates are the building blocks that cannot be further decomposed
--- by boolean operators. Includes quantifiers, comparisons, null checks,
--- parenthesized expressions, and boolean literals.
-atomicPredicate :: Parser Predicate
-atomicPredicate =
+notAt :: Int -> Parser Predicate
+notAt depth = (Syntax.Not <$> (kw "NOT" *> atomicAt depth)) <|> atomicAt depth
+
+atomicAt :: Int -> Parser Predicate
+atomicAt depth =
   choice
-    [ try existsPred,
-      try forAllPred,
+    [ try (existsAt depth),
+      try (forAllAt depth),
       try countPred,
       try hasDiagnosisPred,
       try hasProcedurePred,
@@ -285,7 +298,7 @@ atomicPredicate =
       try betweenPred,
       try comparisonPred,
       try nullCheckPred,
-      parenPredicate,
+      parenAt (depth + 1),
       boolLiteral
     ]
 
@@ -320,13 +333,15 @@ listScalarValue =
   try (Syntax.NumberValue <$> numberLiteral)
     <|> (Syntax.StringValue . T.pack <$> stringLiteral)
 
--- | Parse parenthesized predicate for explicit grouping.
+-- | Parse parenthesized predicate for explicit grouping. Increments depth so
+-- each nesting level is tracked toward 'maxPredicateDepth'.
 --
 -- @(pred1 OR pred2) AND pred3@ allows OR to bind tighter than AND.
-parenPredicate :: Parser Predicate
-parenPredicate = between (char '(' *> spaces) (spaces *> char ')') predicateParser
+parenAt :: Int -> Parser Predicate
+parenAt depth = between (char '(' *> spaces) (spaces *> char ')') (predAt depth)
 
--- | Parse existential quantifier.
+-- | Parse existential quantifier. The WHERE sub-predicate continues from the
+-- current depth so nesting inside quantifiers is also bounded.
 --
 -- Supports two forms:
 --
@@ -335,23 +350,24 @@ parenPredicate = between (char '(' *> spaces) (spaces *> char ')') predicatePars
 --
 -- Example: @EXISTS 2400 WHERE SV1.amount > 1000@
 -- Example: @EXISTS line IN service_lines WHERE line.charge > 5000@
-existsPred :: Parser Predicate
-existsPred = do
+existsAt :: Int -> Parser Predicate
+existsAt depth = do
   _ <- string "EXISTS" *> spaces
-  try namedExists <|> unnamedExists
+  try (namedExists depth) <|> unnamedExists depth
   where
-    namedExists = do
+    namedExists d = do
       varName <- identifier <* spaces
       kw "IN"
       path <- segmentPath <* spaces
       _ <- string "WHERE" *> spaces
-      Syntax.Exists (Just (T.pack varName)) path <$> predicateParser
-    unnamedExists = do
+      Syntax.Exists (Just (T.pack varName)) path <$> predAt d
+    unnamedExists d = do
       path <- segmentPath <* spaces
       _ <- string "WHERE" *> spaces
-      Syntax.Exists Nothing path <$> predicateParser
+      Syntax.Exists Nothing path <$> predAt d
 
--- | Parse universal quantifier.
+-- | Parse universal quantifier. The WHERE sub-predicate continues from the
+-- current depth so nesting inside quantifiers is also bounded.
 --
 -- Supports two forms:
 --
@@ -360,21 +376,21 @@ existsPred = do
 --
 -- Example: @FORALL 2400.SV1 WHERE amount < 5000@
 -- Example: @FORALL line IN service_lines WHERE line.charge > 0@
-forAllPred :: Parser Predicate
-forAllPred = do
+forAllAt :: Int -> Parser Predicate
+forAllAt depth = do
   _ <- string "FORALL" *> spaces
-  try namedForAll <|> unnamedForAll
+  try (namedForAll depth) <|> unnamedForAll depth
   where
-    namedForAll = do
+    namedForAll d = do
       varName <- identifier <* spaces
       kw "IN"
       path <- segmentPath <* spaces
       _ <- string "WHERE" *> spaces
-      Syntax.ForAll (Just (T.pack varName)) path <$> predicateParser
-    unnamedForAll = do
+      Syntax.ForAll (Just (T.pack varName)) path <$> predAt d
+    unnamedForAll d = do
       path <- segmentPath <* spaces
       _ <- string "WHERE" *> spaces
-      Syntax.ForAll Nothing path <$> predicateParser
+      Syntax.ForAll Nothing path <$> predAt d
 
 -- | Parse count predicate.
 --
@@ -559,7 +575,7 @@ actionParser = compositeAction <|> singleAction
           try $ stringAction "REQUIRE_REVIEW" Syntax.RequireReview,
           try $ stringAction "REJECT" Syntax.RejectClaim,
           try $ stringAction "APPROVE" Syntax.ApproveClaim,
-          Syntax.AssignRiskScore <$> (string "RISK_SCORE" *> spaces *> intLiteral)
+          Syntax.AssignRiskScore <$> (string "RISK_SCORE" *> spaces *> riskScoreLiteral)
         ]
 
     -- Helper for actions that take a string argument
@@ -620,6 +636,15 @@ stringLiteral = between (char '"') (char '"') (many (noneOf "\""))
 -- Example: @123@ parses to @123@
 intLiteral :: Parser Int
 intLiteral = read <$> many1 digit
+
+-- | Parse a RISK_SCORE integer bounded to [0, 100]. Rejects out-of-range
+-- values with a clear message, preventing silent Int wraparound on overflow.
+riskScoreLiteral :: Parser Int
+riskScoreLiteral = do
+  n <- intLiteral
+  if n < 0 || n > 100
+    then fail $ "RISK_SCORE must be in range 0-100, got: " ++ show n
+    else pure n
 
 -- | Parse a floating-point number literal.
 --

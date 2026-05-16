@@ -93,6 +93,12 @@ maxBodyBytes = 10 * 1024 * 1024
 maxBatchClaims :: Int
 maxBatchClaims = 500
 
+-- | Maximum character length of an embedded rulesText field (512 KB).
+-- The body-size limit guards the whole request; this guards the rules
+-- substring specifically to prevent the O(rules × claims) blow-up.
+maxRulesTextChars :: Int
+maxRulesTextChars = 512 * 1024
+
 -- | Read the request body up to 'maxBodyBytes'. Returns 'Left' with an error
 -- message if the body exceeds the limit, so the engine never buffers an
 -- arbitrarily large payload into memory.
@@ -183,6 +189,11 @@ handleBatchEvaluate sem request respond = do
               respond $
                 jsonResponse status400 $
                   object ["error" .= ("Batch exceeds maximum of 500 claims" :: String)]
+            else if T.length (batchRulesText req) > maxRulesTextChars
+            then
+              respond $
+                jsonResponse status400 $
+                  object ["error" .= ("rulesText exceeds the 512 KB limit" :: String)]
             else
               case loadRules (batchRulesText req) of
                 Left err ->
@@ -226,6 +237,12 @@ handleCompileRules cache request respond = do
             jsonResponse status400 $
               object ["error" .= ("Invalid JSON" :: String), "success" .= False]
         Just req ->
+          if T.length (compileRulesText req) > maxRulesTextChars
+            then
+              respond $
+                jsonResponse status400 $
+                  object ["error" .= ("rulesText exceeds the 512 KB limit" :: String), "success" .= False]
+            else
           case parseRules (compileRulesText req) of
             Left err ->
               respond $

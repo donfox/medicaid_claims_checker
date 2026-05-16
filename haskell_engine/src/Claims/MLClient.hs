@@ -89,7 +89,29 @@ scoreClaimWithMl cfg claimId document
                 Left parseErr -> pure $ Left parseErr
                 Right ml -> pure $ Right ml
 
+-- | Strip patient-identifying fields before forwarding a claim to the ML
+-- scorer. Removes subscriber/patient objects (name, DOB, address) and scrubs
+-- name/address sub-fields from provider objects, retaining only the
+-- statistical features the model needs for fraud scoring.
+projectForMl :: Value -> Value
+projectForMl (Aeson.Object obj) =
+  Aeson.Object $ KM.fromList $ map scrubEntry $ KM.toList stripped
+  where
+    piiTopKeys = map Key.fromText ["subscriber", "patient", "member", "insured", "guarantor"]
+    stripped = foldr KM.delete obj piiTopKeys
+    providerKeys = ["provider", "billing_provider", "rendering_provider",
+                    "referring_provider", "attending_provider"]
+    piiSubKeys = map Key.fromText ["name", "address", "city", "state", "zip", "phone"]
+    scrubEntry (k, v)
+      | Key.toText k `elem` providerKeys = (k, scrubProviderPii v)
+      | otherwise = (k, v)
+    scrubProviderPii (Aeson.Object po) = Aeson.Object $ foldr KM.delete po piiSubKeys
+    scrubProviderPii v = v
+projectForMl v = v
+
 -- | Build the outbound HTTP request with the v1.0 contract payload.
+-- The claim document is projected through 'projectForMl' before transmission
+-- so patient-identifying fields are never sent to the ML service.
 mkRequest :: MLClientConfig -> Text -> Value -> IO Request
 mkRequest cfg claimId document = do
   base <- parseRequest (mlEndpointUrl cfg)
@@ -98,7 +120,7 @@ mkRequest cfg claimId document = do
           [ "contract_version" Aeson..= ("1.0" :: Text),
             "request_id" Aeson..= claimId,
             "claim_id" Aeson..= claimId,
-            "claim" Aeson..= Aeson.object ["source_format" Aeson..= ("json" :: Text), "payload" Aeson..= document]
+            "claim" Aeson..= Aeson.object ["source_format" Aeson..= ("json" :: Text), "payload" Aeson..= projectForMl document]
           ]
   pure $
     setRequestResponseTimeout (HC.responseTimeoutMicro (mlTimeoutMs cfg * 1000)) $

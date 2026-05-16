@@ -20,18 +20,23 @@ import Control.Concurrent.QSem (QSem, newQSem, signalQSem, waitQSem)
 import Control.Exception (bracket_, evaluate)
 import Data.Aeson (FromJSON (..), ToJSON (..), Value (..), decode, encode, object, withObject, (.:), (.:?), (.=))
 import Data.Aeson.Types (parseMaybe)
+import Data.IORef (IORef, atomicModifyIORef', newIORef)
+import Data.List (isInfixOf, isPrefixOf)
+import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe)
 import Data.Text qualified as T
-import Data.Time.Clock (getCurrentTime, utctDay)
+import Data.Time.Clock (UTCTime, addUTCTime, getCurrentTime, utctDay)
 import Data.Time.Format (defaultTimeLocale, formatTime)
 import Data.ByteString qualified as BS
 import Data.ByteString.Char8 qualified as BS8
 import Data.ByteString.Lazy qualified as BL
-import Network.HTTP.Types (Status, status200, status400, status401)
+import Network.HTTP.Types (Status, status200, status400, status401, status429)
+import Network.Socket (SockAddr)
 import Network.Wai
 import Network.Wai.Handler.Warp (run)
 import System.Environment (lookupEnv)
 import System.IO (hPutStrLn, stderr)
+import System.Timeout (timeout)
 import Text.Read (readMaybe)
 import Claims.EvaluationContract (EvaluationRequest (..))
 import Claims.MLClient (MLClientConfig (..), scoreClaimWithMl)
@@ -65,9 +70,11 @@ main = do
   let workerCount = max 1 numCaps
   sem <- newQSem workerCount
   secret <- BS8.pack . fromMaybe "" <$> lookupEnv "RULE_ENGINE_SECRET"
+  rateRef <- newIORef Map.empty
   putStrLn $ "Worker pool: " ++ show workerCount ++ " concurrent claim evaluations"
   putStrLn $ "Auth: " ++ if BS8.null secret then "WARNING — RULE_ENGINE_SECRET not set, all requests will be rejected" else "shared-secret enabled"
-  run 8080 (authMiddleware secret (app cache sem))
+  putStrLn $ "Rate limit: " ++ show rateLimitMax ++ " requests per " ++ show rateLimitWindowSecs ++ " s per IP"
+  run 8080 (rateLimitMiddleware rateRef (authMiddleware secret (app cache sem)))
 
 -- | Reject every request that lacks a matching Bearer token.
 -- The /api/health liveness probe is always allowed through unauthenticated
@@ -85,6 +92,51 @@ authMiddleware secret inner request respond
               [("Content-Type", "application/json")]
               (encode $ object ["error" .= ("Unauthorized" :: String)])
 
+-- | Sliding-window rate-limiter middleware.
+--
+-- Each unique remote address is allowed at most 'rateLimitMax' requests within
+-- a rolling 'rateLimitWindowSecs' second window. Requests exceeding the limit
+-- receive a 429 response before any body parsing or authentication occurs.
+-- The /api/health endpoint is exempt so liveness probes are never throttled.
+type RateMap = Map.Map SockAddr [UTCTime]
+
+rateLimitMiddleware :: IORef RateMap -> Application -> Application
+rateLimitMiddleware ref inner request respond
+  | pathInfo request == ["api", "health"] = inner request respond
+  | otherwise = do
+      now <- getCurrentTime
+      let addr = remoteHost request
+          cutoff = addUTCTime (fromIntegral (negate rateLimitWindowSecs)) now
+      allowed <- atomicModifyIORef' ref $ \m ->
+        let recent = filter (> cutoff) (Map.findWithDefault [] addr m)
+        in if length recent >= rateLimitMax
+             then (m, False)
+             else (Map.insert addr (now : recent) m, True)
+      if allowed
+        then inner request respond
+        else respond $
+               responseLBS
+                 status429
+                 [("Content-Type", "application/json"), ("Retry-After", "60")]
+                 (encode $ object ["error" .= ("Rate limit exceeded — max 100 requests per 60 s" :: String)])
+
+-- | Validate that an ML scorer URL does not target a private or cloud-metadata
+-- hostname, preventing SSRF when ML_SCORER_URL is influenced by a misconfigured
+-- secrets manager or CI pipeline. Blocks RFC-1918 ranges, loopback, link-local,
+-- and known cloud metadata hostnames.
+validateMlScorerUrl :: String -> Either String ()
+validateMlScorerUrl url
+  | not ("https://" `isPrefixOf` url) =
+      Left "ML_SCORER_URL must begin with https://"
+  | otherwise =
+      let host = takeWhile (\c -> c /= '/' && c /= ':') (drop 8 url)
+      in if any (`isPrefixOf` host) blockedPrefixes || any (`isInfixOf` host) blockedSubstrings
+           then Left $ "ML_SCORER_URL hostname is blocked (SSRF prevention): " ++ host
+           else Right ()
+  where
+    blockedPrefixes   = ["127.", "10.", "192.168.", "169.254.", "0.", "::1", "fc00:", "fd"]
+    blockedSubstrings = ["localhost", "internal", "metadata", ".local"]
+
 -- | Maximum allowed request body size (10 MB).
 maxBodyBytes :: Int
 maxBodyBytes = 10 * 1024 * 1024
@@ -98,6 +150,20 @@ maxBatchClaims = 500
 -- substring specifically to prevent the O(rules × claims) blow-up.
 maxRulesTextChars :: Int
 maxRulesTextChars = 512 * 1024
+
+-- | Per-claim evaluation timeout in microseconds (30 s). Prevents a
+-- pathological rule (e.g. FORALL over a very large array) from holding a
+-- semaphore slot indefinitely after the Phoenix caller has disconnected.
+evalTimeoutMicros :: Int
+evalTimeoutMicros = 30 * 1000000
+
+-- | Sliding-window rate limit: maximum requests per IP per window.
+rateLimitMax :: Int
+rateLimitMax = 100
+
+-- | Rate-limit window size in seconds.
+rateLimitWindowSecs :: Int
+rateLimitWindowSecs = 60
 
 -- | Read the request body up to 'maxBodyBytes'. Returns 'Left' with an error
 -- message if the body exceeds the limit, so the engine never buffers an
@@ -206,14 +272,21 @@ handleBatchEvaluate sem request respond = do
                   results <- mapConcurrently
                     ( \(i, doc) ->
                         bracket_ (waitQSem sem) (signalQSem sem) $ do
-                          let report = evaluateSimpleJson engine today doc
-                          -- Force rule evaluation before releasing the semaphore slot
-                          _ <- evaluate (reportTotalRules report)
-                          return $
-                            object
-                              [ "claimIndex" .= (i :: Int),
-                                "report" .= reportToJSON report
-                              ]
+                          mReport <- timeout evalTimeoutMicros $ do
+                            let report = evaluateSimpleJson engine today doc
+                            _ <- evaluate (reportTotalRules report)
+                            pure report
+                          pure $ case mReport of
+                            Just report ->
+                              object
+                                [ "claimIndex" .= (i :: Int),
+                                  "report" .= reportToJSON report
+                                ]
+                            Nothing ->
+                              object
+                                [ "claimIndex" .= (i :: Int),
+                                  "error" .= ("evaluation timed out after 30 s" :: String)
+                                ]
                     )
                     (zip [0 ..] claims)
                   respond $
@@ -358,17 +431,23 @@ processEvaluation req = do
     Right engine -> do
       now <- getCurrentTime
       let today = utctDay now
-          report = evaluateSimpleJson engine today (evalDocument req)
-      let evaluatedAt = T.pack (formatTime defaultTimeLocale "%Y-%m-%dT%H:%M:%SZ" now)
-      mlResult <- selectMlResult req
-      let combined =
-            buildCombinedEnvelope
-              defaultPolicyConfig
-              (evalClaimId req)
-              evaluatedAt
-              (reportResults report)
-              mlResult
-      return $ Right $ EvaluationResponse report combined
+      mReport <- timeout evalTimeoutMicros $ do
+        let report = evaluateSimpleJson engine today (evalDocument req)
+        _ <- evaluate (reportTotalRules report)
+        pure report
+      case mReport of
+        Nothing -> return $ Left "Evaluation timed out after 30 s"
+        Just report -> do
+          let evaluatedAt = T.pack (formatTime defaultTimeLocale "%Y-%m-%dT%H:%M:%SZ" now)
+          mlResult <- selectMlResult req
+          let combined =
+                buildCombinedEnvelope
+                  defaultPolicyConfig
+                  (evalClaimId req)
+                  evaluatedAt
+                  (reportResults report)
+                  mlResult
+          return $ Right $ EvaluationResponse report combined
 
 -- | Resolve the ML score for a claim.
 --
@@ -413,7 +492,13 @@ getMlClientConfig = do
   mUrl <- lookupEnv "ML_SCORER_URL"
   mTimeout <- lookupEnv "ML_TIMEOUT_MS"
   let timeoutMs = fromMaybe 120 (mTimeout >>= readMaybe)
-  pure $ MLClientConfig <$> mUrl <*> pure timeoutMs
+  case mUrl of
+    Nothing -> pure Nothing
+    Just url -> case validateMlScorerUrl url of
+      Left err -> do
+        hPutStrLn stderr $ "WARNING: ML_SCORER_URL rejected — " ++ err
+        pure Nothing
+      Right () -> pure $ Just $ MLClientConfig url timeoutMs
 
 applyFallback :: PolicyConfig -> T.Text -> MLResult
 applyFallback cfg errMsg =

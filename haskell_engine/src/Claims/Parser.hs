@@ -646,17 +646,20 @@ riskScoreLiteral = do
     then fail $ "RISK_SCORE must be in range 0-100, got: " ++ show n
     else pure n
 
--- | Parse a floating-point number literal.
+-- | Parse a floating-point number literal, including optional leading @-@.
 --
 -- Supports both integer and decimal formats:
 --
 -- * @123@ parses to @123.0@
 -- * @45.67@ parses to @45.67@
+-- * @-5@ parses to @-5.0@ (previously a silent parse failure)
+-- * @-0.5@ parses to @-0.5@
 numberLiteral :: Parser Double
 numberLiteral = do
+  sign <- option "" (string "-")
   intPart <- many1 digit
   fracPart <- optionMaybe (char '.' *> many1 digit)
-  pure $ read $ maybe intPart ((intPart ++ ".") ++) fracPart
+  pure $ read $ sign ++ maybe intPart ((intPart ++ ".") ++) fracPart
 
 -- ----------------------------------------------------------------------------
 -- Utilities

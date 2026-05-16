@@ -661,30 +661,58 @@
       <%= if @show_batch_history do %>
       <div class="px-6 pb-6">
       <p class="mb-3 text-sm text-gray-800">All processed claim batches — manual uploads and scheduled fetch imports</p>
-      <div class="flex items-center justify-end gap-2 mb-4">
-        <button
-          type="button"
-          phx-click="refresh_batch_history"
-          phx-disable-with="Refreshing..."
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 cursor-pointer"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          Refresh
-        </button>
-        <button
-          type="button"
-          phx-click="clear_batch_history"
-          phx-disable-with="Clearing..."
-          data-confirm="Clear all batches from display? Data is preserved — click Refresh to reload."
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-red-300 bg-white hover:bg-red-50 text-red-700 cursor-pointer"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
-          Clear
-        </button>
+      <div class="flex items-center justify-between gap-2 mb-4 flex-wrap">
+        <!-- Risk level filter pills -->
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <span class="text-xs font-medium text-gray-500 mr-1">Filter by risk:</span>
+          <%= for {label, level, active_class, inactive_class} <- [
+            {"All",      nil,            "bg-gray-800 text-white border-gray-800",         "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"},
+            {"Clean",    "Clean",        "bg-blue-600 text-white border-blue-600",          "bg-white text-blue-700 border-blue-300 hover:bg-blue-50"},
+            {"Low",      "LowRisk",      "bg-green-600 text-white border-green-600",        "bg-white text-green-700 border-green-300 hover:bg-green-50"},
+            {"Medium",   "MediumRisk",   "bg-yellow-500 text-white border-yellow-500",      "bg-white text-yellow-700 border-yellow-300 hover:bg-yellow-50"},
+            {"High",     "HighRisk",     "bg-orange-500 text-white border-orange-500",      "bg-white text-orange-700 border-orange-300 hover:bg-orange-50"},
+            {"Critical", "CriticalRisk", "bg-red-600 text-white border-red-600",            "bg-white text-red-700 border-red-300 hover:bg-red-50"}
+          ] do %>
+            <button
+              type="button"
+              phx-click="filter_batch_risk"
+              phx-value-level={level}
+              class={[
+                "px-3 py-1 text-xs font-semibold rounded-full border cursor-pointer transition-colors",
+                if(@batch_risk_filter == level, do: active_class, else: inactive_class)
+              ]}
+            >
+              <%= label %>
+            </button>
+          <% end %>
+        </div>
+
+        <!-- Refresh / Clear -->
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            phx-click="refresh_batch_history"
+            phx-disable-with="Refreshing..."
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 cursor-pointer"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh
+          </button>
+          <button
+            type="button"
+            phx-click="clear_batch_history"
+            phx-disable-with="Clearing..."
+            data-confirm="Clear all batches from display? Data is preserved — click Refresh to reload."
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-red-300 bg-white hover:bg-red-50 text-red-700 cursor-pointer"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            Clear
+          </button>
+        </div>
       </div>
 
       <%= if @batch_history == [] do %>
@@ -750,8 +778,16 @@
 
               <%= if MapSet.member?(@expanded_batch_ids, batch.id) do %>
                 <div class="border-t border-gray-200 px-4 py-3 bg-gray-50">
+                  <% visible_files = case @batch_risk_filter do
+                    nil -> batch.files
+                    "Clean" -> Enum.filter(batch.files, &(&1.matched_rules == 0))
+                    level -> Enum.filter(batch.files, &(&1.risk == level))
+                  end %>
                   <%= if batch.files == [] do %>
                     <p class="text-sm text-gray-800 py-2">No detailed file records available for this batch.</p>
+                  <% else %>
+                  <%= if visible_files == [] do %>
+                    <p class="text-sm text-gray-500 py-2 italic">No claims match the selected risk filter for this batch.</p>
                   <% else %>
                   <table class="w-full text-sm">
                     <thead>
@@ -761,11 +797,12 @@
                         <th class="pb-2 pr-4">Status</th>
                         <th class="pb-2 pr-4">Risk Level</th>
                         <th class="pb-2 pr-4">Rules Matched</th>
+                        <th class="pb-2 pr-4">Weight</th>
                         <th class="pb-2">Summary</th>
                       </tr>
                     </thead>
                     <tbody>
-                      <%= for file <- batch.files do %>
+                      <%= for file <- visible_files do %>
                         <% file_expanded = MapSet.member?(@expanded_batch_file_ids, file.id) %>
                         <tr
                           class={"border-t border-gray-100 hover:bg-gray-100 cursor-pointer #{if file_expanded, do: "bg-gray-100"}"}
@@ -803,6 +840,19 @@
                             </span>
                           </td>
                           <td class="py-2 pr-4 text-gray-800"><%= file.matched_rules %></td>
+                          <td class="py-2 pr-4">
+                            <span class={[
+                              "text-xs font-semibold",
+                              cond do
+                                file.weighted_score >= 6 -> "text-red-700"
+                                file.weighted_score >= 3 -> "text-orange-600"
+                                file.weighted_score >= 1 -> "text-yellow-600"
+                                true -> "text-gray-400"
+                              end
+                            ]}>
+                              <%= file.weighted_score %>
+                            </span>
+                          </td>
                           <td class="py-2 text-xs text-gray-800">
                             <%= if file.matched_results != [] do %>
                               <%= (file.matched_results |> List.first()).rule %>
@@ -816,7 +866,7 @@
                         <!-- Expanded file detail -->
                         <%= if file_expanded do %>
                           <tr>
-                            <td colspan="6" class="px-0 py-0">
+                            <td colspan="7" class="px-0 py-0">
                               <div class="bg-white border-t border-b border-gray-200 px-8 py-4">
                                 <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-5 space-y-4">
                                   <h4 class="text-sm font-bold text-gray-900">
@@ -840,6 +890,50 @@
                                           true -> "bg-green-500"
                                         end
                                       ]} style={"width: #{min(file.matched_rules * 25, 100)}%"}></div>
+                                    </div>
+                                  </div>
+
+                                  <!-- Weighted score breakdown -->
+                                  <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                                    <div class="flex items-center justify-between mb-2">
+                                      <span class="text-xs font-semibold text-gray-800 uppercase">Weighted Score</span>
+                                      <span class={[
+                                        "text-2xl font-bold",
+                                        cond do
+                                          file.weighted_score >= 6 -> "text-red-700"
+                                          file.weighted_score >= 3 -> "text-orange-600"
+                                          file.weighted_score >= 1 -> "text-yellow-600"
+                                          true -> "text-green-600"
+                                        end
+                                      ]}>
+                                        <%= file.weighted_score %>
+                                      </span>
+                                    </div>
+                                    <% reject_count = Enum.count(file.matched_results, &(&1.action == "REJECT")) %>
+                                    <% fraud_count  = Enum.count(file.matched_results, &(&1.action == "FRAUD")) %>
+                                    <% review_count = Enum.count(file.matched_results, &(&1.action == "REVIEW")) %>
+                                    <div class="space-y-1 text-xs text-gray-700">
+                                      <%= if reject_count > 0 do %>
+                                        <div class="flex justify-between">
+                                          <span><span class="font-semibold text-red-700">REJECT</span> &times; <%= reject_count %> &nbsp;<span class="text-gray-400">(3 pts each)</span></span>
+                                          <span class="font-semibold text-red-700"><%= reject_count * 3 %></span>
+                                        </div>
+                                      <% end %>
+                                      <%= if fraud_count > 0 do %>
+                                        <div class="flex justify-between">
+                                          <span><span class="font-semibold text-orange-600">FRAUD</span> &times; <%= fraud_count %> &nbsp;<span class="text-gray-400">(2 pts each)</span></span>
+                                          <span class="font-semibold text-orange-600"><%= fraud_count * 2 %></span>
+                                        </div>
+                                      <% end %>
+                                      <%= if review_count > 0 do %>
+                                        <div class="flex justify-between">
+                                          <span><span class="font-semibold text-yellow-600">REVIEW</span> &times; <%= review_count %> &nbsp;<span class="text-gray-400">(1 pt each)</span></span>
+                                          <span class="font-semibold text-yellow-600"><%= review_count %></span>
+                                        </div>
+                                      <% end %>
+                                      <%= if file.weighted_score == 0 do %>
+                                        <div class="text-green-600">No weighted triggers — claim is clean</div>
+                                      <% end %>
                                     </div>
                                   </div>
 
@@ -880,8 +974,21 @@
                                               <svg class="w-4 h-4 text-red-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
                                               </svg>
-                                              <div>
-                                                <span class="text-sm font-semibold text-red-800"><%= mr.rule %></span>
+                                              <div class="flex-1">
+                                                <div class="flex items-center gap-2">
+                                                  <span class="text-sm font-semibold text-red-800"><%= mr.rule %></span>
+                                                  <span class={[
+                                                    "px-1.5 py-0.5 text-xs font-bold rounded",
+                                                    case mr.action do
+                                                      "REJECT" -> "bg-red-200 text-red-800"
+                                                      "FRAUD"  -> "bg-orange-200 text-orange-800"
+                                                      "REVIEW" -> "bg-yellow-200 text-yellow-800"
+                                                      _        -> "bg-gray-200 text-gray-700"
+                                                    end
+                                                  ]}>
+                                                    <%= mr.action %>
+                                                  </span>
+                                                </div>
                                                 <p class="text-xs text-red-700 mt-0.5"><%= mr.detail %></p>
                                               </div>
                                             </div>
@@ -909,6 +1016,7 @@
                       <% end %>
                     </tbody>
                   </table>
+                  <% end %>
                   <% end %>
                 </div>
               <% end %>

@@ -61,6 +61,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
      |> assign(:show_batch_history, false)
      |> assign(:expanded_batch_ids, MapSet.new())
      |> assign(:expanded_batch_file_ids, MapSet.new())
+     |> assign(:batch_risk_filter, nil)
      |> assign(:upload_status, :idle)
      |> assign(:upload_message, nil)
      |> allow_upload(:manual_files,
@@ -541,6 +542,12 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     {:noreply, assign(socket, :expanded_batch_file_ids, updated)}
   end
 
+  def handle_event("filter_batch_risk", %{"level" => level}, socket) do
+    current = socket.assigns.batch_risk_filter
+    new_filter = if current == level, do: nil, else: level
+    {:noreply, assign(socket, :batch_risk_filter, new_filter)}
+  end
+
   def handle_event("refresh_batch_history", _params, socket) do
     {:noreply,
      socket
@@ -920,7 +927,11 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
           (report["results"] || [])
           |> Enum.filter(& &1["resultMatched"])
           |> Enum.map(fn r ->
-            %{rule: r["resultRuleName"], detail: r["resultDetails"]}
+            %{
+              rule: r["resultRuleName"],
+              detail: r["resultDetails"],
+              action: action_label(r["resultAction"])
+            }
           end)
 
         %{
@@ -929,6 +940,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
           status: f.status,
           risk: report["overallRisk"] || "N/A",
           matched_rules: report["matchedRules"] || 0,
+          weighted_score: report["weightedScore"] || 0,
           matched_results: matched_results
         }
       end)
@@ -1016,4 +1028,11 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
 
   defp upload_error_to_string(:too_many_files), do: "Too many files selected (max 100)."
   defp upload_error_to_string(err), do: "Upload error: #{inspect(err)}"
+
+  defp action_label(%{"tag" => "RejectClaim'"}), do: "REJECT"
+  defp action_label(%{"tag" => "FlagFraud'"}), do: "FRAUD"
+  defp action_label(%{"tag" => "RequireReview'"}), do: "REVIEW"
+  defp action_label(%{"tag" => "CompositeAction'", "contents" => [first | _]}),
+    do: action_label(first)
+  defp action_label(_), do: "UNKNOWN"
 end

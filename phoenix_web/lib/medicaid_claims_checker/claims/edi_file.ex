@@ -20,7 +20,7 @@ defmodule MedicaidClaimsChecker.Claims.EdiFile do
     edi_file
     |> cast(attrs, [:filename, :file_path, :json_output, :status, :error_message, :error_details, :processed_at, :batch_id])
     |> validate_required([:filename, :file_path, :status, :batch_id])
-    |> validate_inclusion(:status, ["pending", "translated", "syntax_error", "fraudulent"])
+    |> validate_inclusion(:status, ["pending", "translated", "evaluated", "syntax_error", "fraudulent"])
     |> foreign_key_constraint(:batch_id)
   end
 end

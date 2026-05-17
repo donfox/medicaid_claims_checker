@@ -16,6 +16,8 @@ defmodule MedicaidClaimsChecker.Ingestion do
     |> Repo.all()
   end
 
+  def get_fetch_source(id), do: Repo.get(FetchSource, id)
+
   def get_fetch_source!(id) do
     FetchSource
     |> preload(:fetch_schedules)

@@ -7,6 +7,7 @@ import Data.Aeson qualified as Aeson
 import Data.String (fromString)
 import Data.Time (Day, fromGregorian)
 import Test.Hspec
+import BusinessRulesSpec (businessRulesSpec)
 import ParserProps (parserProperties)
 import Claims.EvaluationContract
 import Claims.MLClient
@@ -23,6 +24,7 @@ testDay = fromGregorian 2026 2 28
 
 main :: IO ()
 main = hspec $ do
+  businessRulesSpec
   parserProperties
   describe "DSL Parser" $ do
     it "parses simple equality predicate" $ do

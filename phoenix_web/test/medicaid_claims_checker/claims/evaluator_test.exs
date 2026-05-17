@@ -3,6 +3,11 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
 
   alias MedicaidClaimsChecker.Claims
   alias MedicaidClaimsChecker.Claims.Evaluator
+  alias MedicaidClaimsChecker.X12.SegmentMapper
+
+  # Real X12Translator output fixtures — the claims that were previously mis-evaluated
+  @lab_work Jason.decode!(File.read!("test/fixtures/x12/valid_837p_lab_work.json"))
+  @preventive Jason.decode!(File.read!("test/fixtures/x12/valid_837p_preventive.json"))
 
   setup do
     bypass = Bypass.open()
@@ -57,6 +62,17 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
   defp create_rule!(name, rule_text) do
     {:ok, rule} = Claims.create_business_rule(%{name: name, rule_text: rule_text, active: true})
     rule
+  end
+
+  defp insert_active_nppes_provider(npi) do
+    Repo.insert!(%MedicaidClaimsChecker.Claims.NppesProvider{
+      npi: npi,
+      entity_type: 2,
+      provider_name: "Active Provider #{npi}",
+      state: "IL",
+      enumeration_date: ~D[2010-01-01],
+      deactivation_date: nil
+    })
   end
 
   defp engine_response(results) do
@@ -150,7 +166,7 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
       clean = Enum.find(files, &(&1.filename == "clean.json"))
       expensive = Enum.find(files, &(&1.filename == "expensive.json"))
 
-      assert clean.status == "translated"
+      assert clean.status == "evaluated"
       assert clean.json_output["overallRisk"] == "LowRisk"
 
       assert expensive.status == "fraudulent"
@@ -369,7 +385,7 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
       clean = Enum.find(files, &(&1.filename == "clean.json"))
 
       assert bad.status == "fraudulent"
-      assert clean.status == "translated"
+      assert clean.status == "evaluated"
 
       bad_nppes_result =
         Enum.find(bad.json_output["results"], fn result ->
@@ -381,6 +397,186 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
       refute Enum.any?(clean.json_output["results"] || [], fn result ->
                result["resultRuleName"] == "NPPESProviderLookup"
              end)
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Full pipeline tests using real X12 fixture claims
+  #
+  # These tests verify the complete ingest → normalize → evaluate → store path
+  # for claims that previously failed due to schema mismatch.  Two things are
+  # tested for each fixture:
+  #   1. The payload sent to the Haskell engine is correctly normalized
+  #      (i.e., the right fields are in the right places before evaluation).
+  #   2. The end result is stored as "evaluated" / "LowRisk" (not "fraudulent").
+  # ---------------------------------------------------------------------------
+
+  describe "evaluate_batch/1 with real X12 fixture claims" do
+    test "lab_work 837P — normalizes correctly and evaluates as LowRisk", %{bypass: bypass} do
+      insert_active_nppes_provider("1003001850")
+
+      create_rule!(
+        "missing_required_fields",
+        ~s|RULE missing_required_fields "Mandatory fields must be present" WHEN claim_id IS NULL OR provider.npi IS NULL OR patient.date_of_birth IS NULL OR financial.claim_amount IS NULL THEN REJECT "Missing required claim field";|
+      )
+
+      create_rule!(
+        "missing_diagnosis_codes",
+        ~s|RULE missing_diagnosis_codes "No diagnosis codes" WHEN COUNT(diagnosis_codes) = 0 THEN REJECT "No diagnosis codes present on claim";|
+      )
+
+      Bypass.expect_once(bypass, "POST", "/api/batch-evaluate", fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        payload = Jason.decode!(body)
+
+        # Verify the normalized structure was sent — this is the core assertion:
+        # the engine must receive business schema, not the raw X12 nested schema.
+        assert length(payload["claims"]) == 1
+        [claim] = payload["claims"]
+
+        assert claim["claim_id"] == "CLM100002",
+               "claim_id must be at top level, not nested under claim.claim_id"
+
+        assert get_in(claim, ["provider", "npi"]) == "1003001850",
+               "provider.npi must come from billing_provider.npi"
+
+        assert get_in(claim, ["patient", "date_of_birth"]) == "19551108",
+               "patient.date_of_birth must come from claim.subscriber.date_of_birth"
+
+        assert get_in(claim, ["financial", "claim_amount"]) == 450.0,
+               "financial.claim_amount must be a float parsed from total_charge_amount"
+
+        assert length(claim["diagnosis_codes"]) == 2,
+               "diagnosis_codes must be mapped from claim.diagnosis_codes"
+
+        assert hd(claim["service_lines"])["date_of_service"] == "20260307",
+               "service_line.date_of_service must be mapped from service_date"
+
+        assert get_in(claim, ["billing_provider", "taxonomy"]) == "291U00000X",
+               "billing_provider.taxonomy must be mapped from taxonomy_code key"
+
+        resp = engine_response([{"LowRisk", 0, []}])
+
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, resp)
+      end)
+
+      normalized = SegmentMapper.normalize(@lab_work)
+      batch = ingest_batch!([%{"filename" => "valid_837p_lab_work.json", "claim" => normalized}])
+
+      Evaluator.evaluate_batch(batch)
+
+      files = Claims.list_files_for_batch(batch.id)
+      file = hd(files)
+
+      assert file.status == "evaluated",
+             "Lab work claim should be 'evaluated', not '#{file.status}' — MissingRequiredFields must not fire"
+
+      assert file.json_output["overallRisk"] == "LowRisk"
+      assert file.json_output["matchedRules"] == 0
+    end
+
+    test "preventive 837P — normalizes correctly and evaluates as LowRisk", %{bypass: bypass} do
+      insert_active_nppes_provider("1003000118")
+
+      create_rule!(
+        "missing_required_fields",
+        ~s|RULE missing_required_fields "Mandatory fields must be present" WHEN claim_id IS NULL OR provider.npi IS NULL OR patient.date_of_birth IS NULL OR financial.claim_amount IS NULL THEN REJECT "Missing required claim field";|
+      )
+
+      create_rule!(
+        "missing_diagnosis_codes",
+        ~s|RULE missing_diagnosis_codes "No diagnosis codes" WHEN COUNT(diagnosis_codes) = 0 THEN REJECT "No diagnosis codes present on claim";|
+      )
+
+      Bypass.expect_once(bypass, "POST", "/api/batch-evaluate", fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        payload = Jason.decode!(body)
+
+        assert length(payload["claims"]) == 1
+        [claim] = payload["claims"]
+
+        assert claim["claim_id"] == "CLM100004"
+        assert get_in(claim, ["provider", "npi"]) == "1003000118"
+        assert get_in(claim, ["patient", "date_of_birth"]) == "20180905"
+        assert get_in(claim, ["financial", "claim_amount"]) == 275.0
+        assert length(claim["diagnosis_codes"]) == 1
+        assert hd(claim["diagnosis_codes"])["code"] == "Z0000"
+        assert length(claim["service_lines"]) == 3
+        assert hd(claim["service_lines"])["date_of_service"] == "20260312"
+
+        resp = engine_response([{"LowRisk", 0, []}])
+
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, resp)
+      end)
+
+      normalized = SegmentMapper.normalize(@preventive)
+      batch = ingest_batch!([%{"filename" => "valid_837p_preventive.json", "claim" => normalized}])
+
+      Evaluator.evaluate_batch(batch)
+
+      files = Claims.list_files_for_batch(batch.id)
+      file = hd(files)
+
+      assert file.status == "evaluated",
+             "Preventive claim should be 'evaluated', not '#{file.status}' — MissingRequiredFields must not fire"
+
+      assert file.json_output["overallRisk"] == "LowRisk"
+      assert file.json_output["matchedRules"] == 0
+    end
+
+    test "both real X12 claims in one batch are each evaluated correctly", %{bypass: bypass} do
+      insert_active_nppes_provider("1003001850")
+      insert_active_nppes_provider("1003000118")
+
+      create_rule!(
+        "missing_required_fields",
+        ~s|RULE missing_required_fields "Mandatory fields must be present" WHEN claim_id IS NULL OR provider.npi IS NULL OR patient.date_of_birth IS NULL OR financial.claim_amount IS NULL THEN REJECT "Missing required claim field";|
+      )
+
+      Bypass.expect_once(bypass, "POST", "/api/batch-evaluate", fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        payload = Jason.decode!(body)
+
+        assert length(payload["claims"]) == 2
+
+        claim_ids = Enum.map(payload["claims"], & &1["claim_id"])
+        assert "CLM100002" in claim_ids
+        assert "CLM100004" in claim_ids
+
+        # Both claims must have non-nil required fields
+        Enum.each(payload["claims"], fn claim ->
+          refute is_nil(claim["claim_id"])
+          refute is_nil(get_in(claim, ["provider", "npi"]))
+          refute is_nil(get_in(claim, ["patient", "date_of_birth"]))
+          refute is_nil(get_in(claim, ["financial", "claim_amount"]))
+        end)
+
+        resp = engine_response([{"LowRisk", 0, []}, {"LowRisk", 0, []}])
+
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, resp)
+      end)
+
+      claims = [
+        %{"filename" => "valid_837p_lab_work.json", "claim" => SegmentMapper.normalize(@lab_work)},
+        %{
+          "filename" => "valid_837p_preventive.json",
+          "claim" => SegmentMapper.normalize(@preventive)
+        }
+      ]
+
+      batch = ingest_batch!(claims)
+      Evaluator.evaluate_batch(batch)
+
+      files = Claims.list_files_for_batch(batch.id)
+      assert length(files) == 2
+      assert Enum.all?(files, &(&1.status == "evaluated"))
+      assert Enum.all?(files, &(&1.json_output["overallRisk"] == "LowRisk"))
     end
   end
 

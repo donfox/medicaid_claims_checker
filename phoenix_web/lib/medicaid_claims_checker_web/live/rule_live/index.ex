@@ -731,7 +731,7 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
               risk = report["overallRisk"] || "LowRisk"
 
               status =
-                if risk in ["CriticalRisk", "HighRisk"], do: "fraudulent", else: "translated"
+                if risk in ["CriticalRisk", "HighRisk"], do: "fraudulent", else: "evaluated"
 
               Claims.create_edi_file(%{
                 filename: filename,

@@ -134,12 +134,18 @@ run_migrations() {
 # Service starters
 start_backend() {
   cd "$ROOT_DIR/haskell_engine"
+  : "${RULE_ENGINE_SECRET:=dev-secret-change-in-production}"
+  : "${RULE_ENGINE_TLS_CERT:=priv/tls/cert.pem}"
+  : "${RULE_ENGINE_TLS_KEY:=priv/tls/key.pem}"
+  export RULE_ENGINE_SECRET RULE_ENGINE_TLS_CERT RULE_ENGINE_TLS_KEY
+  echo "Building Haskell backend..."
+  stack build 2>&1 | grep -E "^(Building|Linking|Error|Warning:|medicaid-claims)" || true
   if [[ $FOREGROUND -eq 1 ]]; then
     echo "Starting Haskell backend on port 8080 (foreground)..."
-    exec stack run
+    exec stack exec medicaid-claims-dsl-server
   else
     echo "Starting Haskell backend on port 8080..."
-    stack run >"$BACKEND_LOG" 2>&1 &
+    stack exec medicaid-claims-dsl-server >"$BACKEND_LOG" 2>&1 &
     BACKEND_PID=$!
   fi
 }

@@ -22,7 +22,9 @@ end
 
 config :medicaid_claims_checker,
   rule_engine_url: System.get_env("RULE_ENGINE_URL") || "http://localhost:8080",
-  rule_engine_secret: System.get_env("RULE_ENGINE_SECRET") || ""
+  rule_engine_secret:
+    System.get_env("RULE_ENGINE_SECRET") ||
+      if(config_env() == :dev, do: "dev-secret-change-in-production", else: "")
 
 if config_env() == :prod and (System.get_env("RULE_ENGINE_SECRET") || "") == "" do
   raise """

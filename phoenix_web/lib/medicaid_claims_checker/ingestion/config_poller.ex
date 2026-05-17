@@ -72,8 +72,7 @@ defmodule MedicaidClaimsChecker.Ingestion.ConfigPoller do
           id: source.id,
           name: source.name,
           uri: source.uri,
-          source_type: source.source_type,
-          credentials: source.credentials || %{}
+          source_type: source.source_type
         }
 
         job =

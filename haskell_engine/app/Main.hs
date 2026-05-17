@@ -79,9 +79,17 @@ main = do
 -- | Reject every request that lacks a matching Bearer token.
 -- The /api/health liveness probe is always allowed through unauthenticated
 -- so that load-balancers and monitoring tools can reach it without a token.
+-- When RULE_ENGINE_SECRET is unset (empty), ALL non-health requests are rejected
+-- so a misconfigured deployment fails closed rather than open.
 authMiddleware :: BS8.ByteString -> Application -> Application
 authMiddleware secret inner request respond
   | pathInfo request == ["api", "health"] = inner request respond
+  | BS8.null secret =
+      respond $
+        responseLBS
+          status401
+          [("Content-Type", "application/json")]
+          (encode $ object ["error" .= ("RULE_ENGINE_SECRET not configured — server is locked" :: String)])
   | otherwise =
       case lookup "authorization" (requestHeaders request) of
         Just h | h == "Bearer " <> secret -> inner request respond

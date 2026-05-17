@@ -64,6 +64,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
      |> assign(:batch_risk_filter, nil)
      |> assign(:upload_status, :idle)
      |> assign(:upload_message, nil)
+     |> assign(:pending_upload_batch_ids, MapSet.new())
      |> allow_upload(:manual_files,
        accept: ~w(.json .x12 .edi .zip),
        max_entries: 100,
@@ -136,8 +137,33 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
 
   # --- Batch completion handlers ---
 
-  def handle_info({:batch_completed, %{batch_id: batch_id}}, socket) do
-    {:noreply, merge_batch_update(socket, batch_id)}
+  def handle_info({:batch_completed, %{batch_id: batch_id} = payload}, socket) do
+    socket = merge_batch_update(socket, batch_id)
+
+    if MapSet.member?(socket.assigns.pending_upload_batch_ids, batch_id) do
+      summary = Map.get(payload, :summary, %{})
+      fraudulent = Map.get(summary, :fraudulent, 0)
+      total = Map.get(summary, :total, 0)
+
+      msg =
+        cond do
+          fraudulent > 0 ->
+            "#{fraudulent}/#{total} claim(s) flagged — see results below."
+          total > 0 ->
+            "#{total} claim(s) evaluated clean — see results below."
+          true ->
+            "Evaluation complete — see results below."
+        end
+
+      {:noreply,
+       socket
+       |> assign(:upload_status, :done)
+       |> assign(:upload_message, msg)
+       |> assign(:show_batch_history, true)
+       |> assign(:pending_upload_batch_ids, MapSet.delete(socket.assigns.pending_upload_batch_ids, batch_id))}
+    else
+      {:noreply, socket}
+    end
   end
 
   def handle_info({:batch_completed, _payload}, socket) do
@@ -145,7 +171,18 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
   end
 
   def handle_info({:batch_failed, %{batch_id: batch_id}}, socket) do
-    {:noreply, merge_batch_update(socket, batch_id)}
+    socket = merge_batch_update(socket, batch_id)
+
+    if MapSet.member?(socket.assigns.pending_upload_batch_ids, batch_id) do
+      {:noreply,
+       socket
+       |> assign(:upload_status, :error)
+       |> assign(:upload_message, "Evaluation failed — see Batch History for details.")
+       |> assign(:show_batch_history, true)
+       |> assign(:pending_upload_batch_ids, MapSet.delete(socket.assigns.pending_upload_batch_ids, batch_id))}
+    else
+      {:noreply, merge_batch_update(socket, batch_id)}
+    end
   end
 
   def handle_info({:batch_failed, _payload}, socket) do
@@ -664,7 +701,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     claims =
       Enum.flat_map(json_files, fn {filename, content} ->
         case Jason.decode(content) do
-          {:ok, claim} -> [%{"filename" => filename, "claim" => claim}]
+          {:ok, claim} -> [%{"filename" => filename, "claim" => SegmentMapper.normalize(claim)}]
           {:error, _} -> []
         end
       end)
@@ -678,13 +715,14 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
       }
 
       case Claims.ingest_batch(params) do
-        {:ok, batch} ->
+        {:ok, %{batch: batch}} ->
           new_entry = build_batch_entry(batch)
 
           socket
-          |> assign(:upload_status, :done)
-          |> assign(:upload_message, "#{length(claims)} JSON claim(s) submitted for evaluation.")
+          |> assign(:upload_status, :processing)
+          |> assign(:upload_message, "#{length(claims)} JSON claim(s) submitted for evaluation — evaluating...")
           |> assign(:batch_history, [new_entry | socket.assigns.batch_history])
+          |> assign(:pending_upload_batch_ids, MapSet.put(socket.assigns.pending_upload_batch_ids, batch.batch_id))
 
         {:error, reason} ->
           socket
@@ -746,15 +784,16 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
       }
 
       case Claims.ingest_batch(params) do
-        {:ok, batch} ->
+        {:ok, %{batch: batch}} ->
           new_entry = build_batch_entry(batch)
-          base = "#{length(claims)} X12/EDI claim(s) translated and submitted for evaluation."
+          base = "#{length(claims)} X12/EDI claim(s) translated — evaluating..."
           message = "#{base}#{failure_suffix}"
 
           socket
-          |> assign(:upload_status, :done)
+          |> assign(:upload_status, :processing)
           |> assign(:upload_message, if(prior, do: "#{prior} #{message}", else: message))
           |> assign(:batch_history, [new_entry | socket.assigns.batch_history])
+          |> assign(:pending_upload_batch_ids, MapSet.put(socket.assigns.pending_upload_batch_ids, batch.batch_id))
 
         {:error, reason} ->
           socket

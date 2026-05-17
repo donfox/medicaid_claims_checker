@@ -1,0 +1,126 @@
+{
+  "receiver": {
+    "id": "STMED01",
+    "name": "STATE MEDICAID PROGRAM"
+  },
+  "billing_provider": {
+    "name": "STEVEN ENGEL PEDIATRICS",
+    "address": {
+      "state": "IL",
+      "zip": "60625",
+      "city": "CHICAGO",
+      "street": "4700 NORTH LINCOLN AVE"
+    },
+    "npi": "1003000118",
+    "taxonomy_code": "208D00000X",
+    "tax_id": "453217890"
+  },
+  "claim": {
+    "claim_id": "CLM100004",
+    "service_lines": [
+      {
+        "line_number": 1,
+        "service_date": "20260312",
+        "charge_amount": "175.00",
+        "diagnosis_pointer": "1",
+        "procedure_code": "99392",
+        "procedure_qualifier": "HC",
+        "revenue_code": null,
+        "tooth_info": null,
+        "unit_type": "UN",
+        "units": "1"
+      },
+      {
+        "line_number": 2,
+        "service_date": "20260312",
+        "charge_amount": "50.00",
+        "diagnosis_pointer": "1",
+        "procedure_code": "90460",
+        "procedure_qualifier": "HC",
+        "revenue_code": null,
+        "tooth_info": null,
+        "unit_type": "UN",
+        "units": "1"
+      },
+      {
+        "line_number": 3,
+        "service_date": "20260312",
+        "charge_amount": "50.00",
+        "diagnosis_pointer": "1",
+        "procedure_code": "90688",
+        "procedure_qualifier": "HC",
+        "revenue_code": null,
+        "tooth_info": null,
+        "unit_type": "UN",
+        "units": "1"
+      }
+    ],
+    "attending_provider": null,
+    "claim_filing_indicator": "MC",
+    "dates": {
+      "service_date": "20260312",
+      "onset_date": "20260312"
+    },
+    "diagnosis_codes": [
+      {
+        "code": "Z0000",
+        "qualifier": "ABK"
+      }
+    ],
+    "facility_type": "B",
+    "frequency_code": "1",
+    "institutional_claim": null,
+    "payer": {
+      "name": "STATE MEDICAID PROGRAM",
+      "payer_id": "STMED01"
+    },
+    "place_of_service": "11",
+    "rendering_provider": {
+      "first_name": "RASHID",
+      "last_name": "KHALIL",
+      "middle_name": "",
+      "npi": "1003000142",
+      "taxonomy_code": "208D00000X"
+    },
+    "subscriber": {
+      "address": {
+        "state": "IL",
+        "zip": "60618",
+        "city": "CHICAGO",
+        "street": "2100 WEST MONTROSE AVE"
+      },
+      "first_name": "CHIDINMA",
+      "last_name": "OKAFOR",
+      "middle_name": "N",
+      "date_of_birth": "20180905",
+      "gender": "F",
+      "group_number": "GRPMED300",
+      "member_id": "MCD900445678",
+      "payer_responsibility": "P",
+      "relationship_code": "18"
+    },
+    "total_charge_amount": "275.00"
+  },
+  "functional_group": {
+    "version": "004010X098A1",
+    "functional_id_code": "HC",
+    "receiver_code": "MEDICAIDSTATE",
+    "sender_code": "CLEARINGHOUSE01"
+  },
+  "interchange": {
+    "version": "00401",
+    "date": "260314",
+    "time": "0845",
+    "control_number": "000100004",
+    "receiver_id": "MEDICAIDSTATE",
+    "sender_id": "CLEARINGHOUSE01",
+    "usage_indicator": "P"
+  },
+  "submitter": {
+    "id": "CLH001",
+    "name": "MIDWEST MEDICAL BILLING",
+    "contact_name": "ANNA TORRES",
+    "contact_phone": "3125551001"
+  },
+  "transaction_type": "837P"
+}

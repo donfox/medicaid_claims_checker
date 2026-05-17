@@ -270,10 +270,10 @@
             </p>
             <button
               type="submit"
-              disabled={@upload_status == :processing || @uploads.manual_files.entries == []}
+              disabled={@uploads.manual_files.entries == []}
               class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
-              <%= if @upload_status == :processing, do: "Processing...", else: "Process Files" %>
+              Process Files
             </button>
           </div>
         </.form>
@@ -290,9 +290,19 @@
           </div>
         <% end %>
 
+        <%= if @upload_status == :processing do %>
+          <div class="mt-4 p-3 bg-blue-50 border border-blue-300 rounded-lg flex items-center gap-2">
+            <span class="relative flex h-3 w-3">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+            </span>
+            <p class="text-sm text-blue-900"><%= @upload_message %></p>
+          </div>
+        <% end %>
+
         <%= if @upload_status == :done do %>
           <div class="mt-4 p-3 bg-green-50 border border-green-300 rounded-lg">
-            <p class="text-sm text-green-900"><%= @upload_message %></p>
+            <p class="text-sm font-medium text-green-900"><%= @upload_message %></p>
           </div>
         <% end %>
 

@@ -167,6 +167,7 @@ defmodule MedicaidClaimsChecker.Claims do
       total: Map.values(counts) |> Enum.sum(),
       pending: Map.get(counts, "pending", 0),
       translated: Map.get(counts, "translated", 0),
+      evaluated: Map.get(counts, "evaluated", 0),
       syntax_error: Map.get(counts, "syntax_error", 0),
       fraudulent: Map.get(counts, "fraudulent", 0)
     }

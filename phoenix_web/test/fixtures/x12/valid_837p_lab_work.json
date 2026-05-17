@@ -1,0 +1,142 @@
+{
+  "receiver": {
+    "id": "STMED01",
+    "name": "STATE MEDICAID PROGRAM"
+  },
+  "billing_provider": {
+    "name": "MAIN MEDICAL-MYSTIC LLC",
+    "address": {
+      "state": "IL",
+      "zip": "62704",
+      "city": "SPRINGFIELD",
+      "street": "500 SOUTH STATE STREET"
+    },
+    "npi": "1003001850",
+    "taxonomy_code": "291U00000X",
+    "tax_id": "271839456"
+  },
+  "claim": {
+    "claim_id": "CLM100002",
+    "service_lines": [
+      {
+        "line_number": 1,
+        "service_date": "20260307",
+        "charge_amount": "125.00",
+        "diagnosis_pointer": "1",
+        "procedure_code": "80053",
+        "procedure_qualifier": "HC",
+        "revenue_code": null,
+        "tooth_info": null,
+        "unit_type": "UN",
+        "units": "1"
+      },
+      {
+        "line_number": 2,
+        "service_date": "20260307",
+        "charge_amount": "90.00",
+        "diagnosis_pointer": "1",
+        "procedure_code": "85025",
+        "procedure_qualifier": "HC",
+        "revenue_code": null,
+        "tooth_info": null,
+        "unit_type": "UN",
+        "units": "1"
+      },
+      {
+        "line_number": 3,
+        "service_date": "20260307",
+        "charge_amount": "110.00",
+        "diagnosis_pointer": "1",
+        "procedure_code": "80061",
+        "procedure_qualifier": "HC",
+        "revenue_code": null,
+        "tooth_info": null,
+        "unit_type": "UN",
+        "units": "1"
+      },
+      {
+        "line_number": 4,
+        "service_date": "20260307",
+        "charge_amount": "125.00",
+        "diagnosis_pointer": "1",
+        "procedure_code": "83036",
+        "procedure_qualifier": "HC",
+        "revenue_code": null,
+        "tooth_info": null,
+        "unit_type": "UN",
+        "units": "1"
+      }
+    ],
+    "attending_provider": null,
+    "claim_filing_indicator": "MC",
+    "dates": {
+      "service_date": "20260307",
+      "onset_date": "20260307"
+    },
+    "diagnosis_codes": [
+      {
+        "code": "E119",
+        "qualifier": "ABK"
+      },
+      {
+        "code": "I10",
+        "qualifier": "ABK"
+      }
+    ],
+    "facility_type": "B",
+    "frequency_code": "1",
+    "institutional_claim": null,
+    "payer": {
+      "name": "STATE MEDICAID PROGRAM",
+      "payer_id": "STMED01"
+    },
+    "place_of_service": "81",
+    "rendering_provider": {
+      "first_name": "JENNIFER",
+      "last_name": "VELOTTA",
+      "middle_name": "",
+      "npi": "1003000423",
+      "taxonomy_code": "291U00000X"
+    },
+    "subscriber": {
+      "address": {
+        "state": "IL",
+        "zip": "62703",
+        "city": "SPRINGFIELD",
+        "street": "822 EAST COOK STREET"
+      },
+      "first_name": "TERRENCE",
+      "last_name": "WILLIAMS",
+      "middle_name": "D",
+      "date_of_birth": "19551108",
+      "gender": "M",
+      "group_number": "GRPMED200",
+      "member_id": "MCD900223456",
+      "payer_responsibility": "P",
+      "relationship_code": "18"
+    },
+    "total_charge_amount": "450.00"
+  },
+  "functional_group": {
+    "version": "004010X098A1",
+    "functional_id_code": "HC",
+    "receiver_code": "MEDICAIDSTATE",
+    "sender_code": "CLEARINGHOUSE01"
+  },
+  "interchange": {
+    "version": "00401",
+    "date": "260314",
+    "time": "0815",
+    "control_number": "000100002",
+    "receiver_id": "MEDICAIDSTATE",
+    "sender_id": "CLEARINGHOUSE01",
+    "usage_indicator": "P"
+  },
+  "submitter": {
+    "id": "CLH001",
+    "name": "MIDWEST MEDICAL BILLING",
+    "contact_name": "ANNA TORRES",
+    "contact_phone": "3125551001"
+  },
+  "transaction_type": "837P"
+}

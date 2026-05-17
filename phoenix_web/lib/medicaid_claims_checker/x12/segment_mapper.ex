@@ -42,7 +42,7 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
       claim: extract_claim(segments, transaction_type)
     }
 
-    {:ok, result}
+    {:ok, normalize(result)}
   end
 
   def map_segments([]), do: {:error, "No segments provided"}
@@ -563,6 +563,128 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
   defp parse_int(str) do
     case Integer.parse(str) do
       {num, _} -> num
+      :error -> nil
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Business-schema normalization
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Maps X12Translator output to the flat business schema expected by the rules engine.
+
+  Claims already in business schema (top-level `claim_id` key) pass through unchanged,
+  making this function idempotent.
+  """
+  @spec normalize(map()) :: map()
+  def normalize(%{"claim_id" => _} = claim), do: claim
+  def normalize(%{claim_id: _} = claim), do: claim
+
+  def normalize(x12_map) when is_map(x12_map) do
+    claim = nf(x12_map, "claim") || %{}
+    billing = nf(x12_map, "billing_provider") || %{}
+    subscriber = nf(claim, "subscriber") || %{}
+    total_charge_raw = nf(claim, "total_charge_amount")
+    total_charge = parse_money(total_charge_raw)
+
+    service_lines =
+      (nf(claim, "service_lines") || [])
+      |> Enum.map(&normalize_service_line/1)
+
+    %{
+      "claim_id" => nf(claim, "claim_id"),
+      "transaction_type" => nf(x12_map, "transaction_type"),
+      "provider" => %{
+        "npi" => nf(billing, "npi"),
+        "name" => nf(billing, "name"),
+        "taxonomy" => nf(billing, "taxonomy_code"),
+        "tax_id" => nf(billing, "tax_id"),
+        "tenure_days" => nil
+      },
+      "patient" => %{
+        "date_of_birth" => nf(subscriber, "date_of_birth"),
+        "gender" => nf(subscriber, "gender"),
+        "name" => %{
+          "first" => nf(subscriber, "first_name"),
+          "last" => nf(subscriber, "last_name"),
+          "middle" => nf(subscriber, "middle_name")
+        }
+      },
+      "financial" => %{
+        "claim_amount" => total_charge
+      },
+      "diagnosis_codes" => nf(claim, "diagnosis_codes") || [],
+      "service_lines" => service_lines,
+      "claim_totals" => %{
+        "total_charges" => total_charge
+      },
+      "billing_provider" => %{
+        "npi" => nf(billing, "npi"),
+        "name" => nf(billing, "name"),
+        "taxonomy" => nf(billing, "taxonomy_code"),
+        "tax_id" => nf(billing, "tax_id"),
+        "address" => nf(billing, "address")
+      },
+      "authorization" => %{
+        "authorization_number" => nil
+      },
+      "interchange" => nf(x12_map, "interchange"),
+      "functional_group" => nf(x12_map, "functional_group"),
+      "submitter" => nf(x12_map, "submitter"),
+      "receiver" => nf(x12_map, "receiver"),
+      "subscriber" => subscriber,
+      "payer" => nf(claim, "payer"),
+      "rendering_provider" => nf(claim, "rendering_provider")
+    }
+  end
+
+  def normalize(other), do: other
+
+  defp normalize_service_line(line) when is_map(line) do
+    # date_of_service may already be renamed, or still be service_date (X12 schema)
+    date = nf(line, "service_date") || nf(line, "date_of_service")
+
+    %{
+      "line_number" => nf(line, "line_number"),
+      "date_of_service" => date,
+      "procedure_code" => nf(line, "procedure_code"),
+      "procedure_qualifier" => nf(line, "procedure_qualifier"),
+      "charge_amount" => nf(line, "charge_amount"),
+      "unit_type" => nf(line, "unit_type"),
+      "units" => nf(line, "units"),
+      "diagnosis_pointer" => nf(line, "diagnosis_pointer"),
+      "revenue_code" => nf(line, "revenue_code"),
+      "tooth_info" => nf(line, "tooth_info")
+    }
+  end
+
+  defp normalize_service_line(other), do: other
+
+  # Access a field by string key, falling back to atom key.
+  defp nf(map, str_key) when is_map(map) do
+    case Map.fetch(map, str_key) do
+      {:ok, v} ->
+        v
+
+      :error ->
+        try do
+          Map.get(map, String.to_existing_atom(str_key))
+        rescue
+          ArgumentError -> nil
+        end
+    end
+  end
+
+  defp nf(_, _), do: nil
+
+  defp parse_money(nil), do: nil
+  defp parse_money(v) when is_float(v), do: v
+  defp parse_money(v) when is_integer(v), do: v * 1.0
+
+  defp parse_money(v) when is_binary(v) do
+    case Float.parse(v) do
+      {f, _} -> f
       :error -> nil
     end
   end

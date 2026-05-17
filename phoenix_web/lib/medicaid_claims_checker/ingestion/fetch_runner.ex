@@ -9,6 +9,7 @@ defmodule MedicaidClaimsChecker.Ingestion.FetchRunner do
   require Logger
 
   alias MedicaidClaimsChecker.Claims
+  alias MedicaidClaimsChecker.Ingestion
   alias MedicaidClaimsChecker.Ingestion.RemoteFetcher
   alias MedicaidClaimsChecker.X12.{ClaimSplitter, Converter, SegmentMapper}
 
@@ -19,6 +20,16 @@ defmodule MedicaidClaimsChecker.Ingestion.FetchRunner do
 
     Logger.info("Running scheduled fetch for '#{name}' (#{source_type}) from #{uri}")
 
+    # Decrypt credentials at execution time — the Quantum job closure stores
+    # only the source ID, keeping plaintext out of the scheduler's job table.
+    source_id = source_config[:id] || source_config["id"]
+    credentials =
+      case source_id && Ingestion.get_fetch_source(source_id) do
+        %{credentials: creds} -> creds || %{}
+        _ -> %{}
+      end
+
+    source_config = Map.put(source_config, :credentials, credentials)
     opts = build_fetch_opts(source_config)
 
     case RemoteFetcher.fetch_and_extract(uri, opts) do

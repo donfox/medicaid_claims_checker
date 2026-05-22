@@ -1066,7 +1066,10 @@ unless Accounts.get_user_by_email("admin@example.com") do
   {:ok, _} =
     Accounts.register_admin(%{
       email: "admin@example.com",
-      password: "AdminPassword123!"
+      password: "AdminPassword123!",
+      username: "admin",
+      first_name: "Admin",
+      last_name: "User"
     })
 
   IO.puts("Admin user created: admin@example.com / AdminPassword123!")

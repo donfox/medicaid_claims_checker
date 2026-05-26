@@ -1,0 +1,13 @@
+packages: .
+
+-- Enforce global static components for targets that need them
+shared: False
+executable-static: True
+
+-- Explicitly configure your package execution constraints
+package medicaid-claims-dsl
+  package-flags: medicaid-claims-dsl-server
+  -- Only pass static parameters to the executable phase, NOT the library
+  program-options
+    ghc-options: -threaded -O2 -with-rtsopts=-N -optl-static
+

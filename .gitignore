@@ -39,12 +39,15 @@ phoenix_web/doc/
 phoenix_web/.fetch
 phoenix_web/tmp/
 phoenix_web/priv/static/assets/
+phoenix_web/priv/static/**/*.gz
 phoenix_web/priv/static/cache_manifest.json
 phoenix_web/assets/node_modules/
+phoenix_web/rel
 erl_crash.dump
 *.ez
 medicaid_claims_checker-*.tar
 npm-debug.log
+.mix_complete.cache
 
 # Editor swap files
 *.swp

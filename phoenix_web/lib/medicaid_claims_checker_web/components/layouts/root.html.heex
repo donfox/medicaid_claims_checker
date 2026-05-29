@@ -31,6 +31,8 @@
     </script>
   </head>
   <body>
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-white focus:text-blue-700 focus:rounded focus:shadow">Skip to main content</a>
+    <nav aria-label="Main navigation">
     <ul class="menu menu-horizontal w-full relative z-10 flex items-center gap-4 px-4 sm:px-6 lg:px-8 justify-end">
       <%= if @current_scope do %>
         <li>
@@ -56,6 +58,9 @@
         </li>
       <% end %>
     </ul>
+    </nav>
+    <main id="main-content">
     {@inner_content}
+    </main>
   </body>
 </html>

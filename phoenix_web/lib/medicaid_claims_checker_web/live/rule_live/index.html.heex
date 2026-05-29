@@ -1,19 +1,19 @@
 <div class="px-4 py-6 sm:px-6 sm:py-8 lg:px-8 xl:px-28 xl:py-10">
   <div class="mx-auto max-w-7xl">
     <%= if Phoenix.Flash.get(@flash, :error) do %>
-      <div class="mb-4 p-4 bg-red-100 border border-red-300 rounded-lg">
+      <div role="alert" class="mb-4 p-4 bg-red-100 border border-red-300 rounded-lg">
         <p class="text-sm text-red-900 font-semibold"><%= Phoenix.Flash.get(@flash, :error) %></p>
       </div>
     <% end %>
 
     <%= if Phoenix.Flash.get(@flash, :info) do %>
-      <div class="mb-4 p-4 bg-blue-100 border border-blue-300 rounded-lg">
+      <div role="alert" aria-live="polite" class="mb-4 p-4 bg-blue-100 border border-blue-300 rounded-lg">
         <p class="text-sm text-blue-900"><%= Phoenix.Flash.get(@flash, :info) %></p>
       </div>
     <% end %>
 
     <%= if @batch_notification do %>
-      <div class={[
+      <div role="alert" class={[
         "mb-4 rounded-lg border overflow-hidden",
         if(@batch_notification.type == :completed, do: "bg-green-50 border-green-300", else: "bg-red-50 border-red-300")
       ]}>
@@ -44,6 +44,7 @@
                 </p>
                 <button
                   phx-click="toggle_notification_details"
+                  aria-expanded={to_string(@batch_notification.expanded)}
                   class="mt-2 text-xs font-medium text-green-700 hover:text-green-900 underline"
                 >
                   <%= if @batch_notification.expanded, do: "Hide details", else: "Show claim details" %>
@@ -58,6 +59,7 @@
           </div>
           <button
             phx-click="dismiss_batch_notification"
+            aria-label="Dismiss notification"
             class="flex-shrink-0 ml-4 text-gray-400 hover:text-gray-800"
           >
             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -96,7 +98,7 @@
                         cond do
                           file.risk == "CriticalRisk" -> "text-red-700"
                           file.risk == "HighRisk" -> "text-orange-600"
-                          file.risk == "MediumRisk" -> "text-yellow-600"
+                          file.risk == "MediumRisk" -> "text-yellow-700"
                           true -> "text-green-700"
                         end
                       ]}>
@@ -140,6 +142,7 @@
         <button
           type="button"
           phx-click="toggle_dsl_reference"
+          aria-expanded={to_string(@show_dsl_reference)}
           class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700 cursor-pointer"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -171,8 +174,9 @@
         <% end %>
 
         <div>
-          <label class="block text-sm font-medium text-gray-900 mb-1">Rule Name</label>
+          <label for="catalog-rule-name" class="block text-sm font-medium text-gray-900 mb-1">Rule Name</label>
           <input
+            id="catalog-rule-name"
             name="catalog[name]"
             value={@catalog_rule_name}
             readonly={@selected_catalog_rule_type in ["Default Rule", "ML Model"]}
@@ -184,7 +188,7 @@
 
         <div class="mt-3">
           <div class="flex items-center justify-between mb-1">
-            <label class="text-sm font-medium text-gray-900">Rule Text</label>
+            <label for="catalog-rule-text" class="text-sm font-medium text-gray-900">Rule Text</label>
             <%= if @catalog_rule_text != "" do %>
               <button
                 type="button"
@@ -196,6 +200,7 @@
             <% end %>
           </div>
           <textarea
+            id="catalog-rule-text"
             name="catalog[text]"
             readonly={@selected_catalog_rule_type in ["Default Rule", "ML Model"]}
             class={"w-full h-40 p-2 font-mono text-xs border border-gray-400 rounded-md text-gray-900 #{if @selected_catalog_rule_type in ["Default Rule", "ML Model"], do: "bg-gray-100 cursor-default", else: "bg-white"}"}
@@ -206,19 +211,19 @@
 
         <%= if @catalog_rule_text != "" && @selected_catalog_rule_type not in ["Default Rule", "ML Model"] do %>
           <%= if @catalog_parse_error do %>
-            <div class="mt-3 p-3 bg-red-100 border border-red-300 rounded-md">
+            <div role="alert" class="mt-3 p-3 bg-red-100 border border-red-300 rounded-md">
               <p class="text-sm text-red-900 font-semibold">Rule syntax issue</p>
               <p class="text-xs text-red-800 mt-1 whitespace-pre-wrap"><%= @catalog_parse_error %></p>
             </div>
           <% else %>
-            <div class="mt-3 p-3 bg-green-100 border border-green-300 rounded-md">
+            <div role="alert" class="mt-3 p-3 bg-green-100 border border-green-300 rounded-md">
               <p class="text-sm text-green-900 font-semibold">✓ Rule syntax is valid</p>
             </div>
           <% end %>
         <% end %>
 
         <%= if @catalog_error do %>
-          <div class="mt-3 p-3 bg-red-100 border border-red-300 rounded-md">
+          <div role="alert" class="mt-3 p-3 bg-red-100 border border-red-300 rounded-md">
             <p class="text-sm text-red-900"><%= @catalog_error %></p>
           </div>
         <% end %>
@@ -436,7 +441,7 @@
       <div class="mb-6 bg-amber-100 border border-amber-200 rounded-lg shadow-md">
         <div class="px-6 py-4 border-b border-amber-200 flex items-center justify-between">
           <h2 class="text-xl font-semibold text-gray-900">Business Rules Syntax Guide</h2>
-          <button type="button" phx-click="toggle_dsl_reference" class="text-gray-400 hover:text-gray-800 cursor-pointer">
+          <button type="button" phx-click="toggle_dsl_reference" aria-label="Close DSL reference" class="text-gray-400 hover:text-gray-800 cursor-pointer">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>

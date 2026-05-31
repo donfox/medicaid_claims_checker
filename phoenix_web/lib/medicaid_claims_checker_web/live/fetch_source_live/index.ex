@@ -1069,7 +1069,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
 
   defp file_type_badge(filename) do
     case filename |> Path.extname() |> String.downcase() do
-      ".json" -> "bg-green-100 text-green-800"
+      ".json" -> "bg-green-100 text-green-900"
       ".x12" -> "bg-purple-100 text-purple-800"
       ".edi" -> "bg-purple-100 text-purple-800"
       ".zip" -> "bg-orange-100 text-orange-800"

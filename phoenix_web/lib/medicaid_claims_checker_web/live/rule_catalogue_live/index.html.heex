@@ -224,14 +224,15 @@
         </div>
       <% else %>
         <table class="w-full text-sm">
+          <caption class="sr-only">Rule Catalogue</caption>
           <thead class="bg-gray-100 border-b border-gray-300">
             <tr>
-              <th class="px-4 py-3 text-left font-semibold text-gray-800">Name</th>
-              <th class="px-4 py-3 text-left font-semibold text-gray-800">Description</th>
-              <th class="px-4 py-3 text-left font-semibold text-gray-800">Type</th>
-              <th class="px-4 py-3 text-left font-semibold text-gray-800">Status</th>
-              <th class="px-4 py-3 text-left font-semibold text-gray-800">Flags</th>
-              <th class="px-4 py-3 text-left font-semibold text-gray-800">Actions</th>
+              <th scope="col" class="px-4 py-3 text-left font-semibold text-gray-800">Name</th>
+              <th scope="col" class="px-4 py-3 text-left font-semibold text-gray-800">Description</th>
+              <th scope="col" class="px-4 py-3 text-left font-semibold text-gray-800">Type</th>
+              <th scope="col" class="px-4 py-3 text-left font-semibold text-gray-800">Status</th>
+              <th scope="col" class="px-4 py-3 text-left font-semibold text-gray-800">Flags</th>
+              <th scope="col" class="px-4 py-3 text-left font-semibold text-gray-800">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-200">
@@ -257,7 +258,7 @@
                 </td>
                 <td class="px-4 py-3">
                   <%= if entry.status == "Active" do %>
-                    <span class="px-2 py-0.5 text-xs bg-green-100 text-green-800 rounded font-medium">Active</span>
+                    <span class="px-2 py-0.5 text-xs bg-green-100 text-green-900 rounded font-medium">Active</span>
                   <% else %>
                     <span class="px-2 py-0.5 text-xs bg-gray-200 text-gray-700 rounded font-medium">Inactive</span>
                   <% end %>

@@ -1,4 +1,12 @@
 defmodule MedicaidClaimsChecker.Workers.BatchEvaluationWorker do
+  @moduledoc """
+  Oban worker that runs claim evaluation for a single batch.
+
+  Enqueued automatically after `Claims.ingest_batch/1` succeeds.
+  Deduplication (`unique: [period: 60]`) prevents double-evaluation if the
+  same batch_id is enqueued more than once within a 60-second window.
+  """
+
   use Oban.Worker,
     queue: :batch_evaluation,
     max_attempts: 3,

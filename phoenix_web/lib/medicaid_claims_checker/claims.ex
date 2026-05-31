@@ -1,6 +1,15 @@
 defmodule MedicaidClaimsChecker.Claims do
   @moduledoc """
-  Context for batch processing of X12 EDI files.
+  Context for claims processing: batches, EDI files, business rules, the rule
+  catalogue, and NPPES provider validation.
+
+  Batches group EDI files for a single ingestion run. Files progress through
+  statuses: `translated → evaluated | fraudulent | syntax_error`. After
+  evaluation, `batch_summary/1` aggregates counts by status.
+
+  Business rules (BA Rules) store DSL text sent to the Haskell engine.
+  The rule catalogue is the registry of all rule names and types (Default,
+  BA, ML). NPPES lookup validates provider NPIs against the local registry.
   """
   import Ecto.Query
   alias MedicaidClaimsChecker.Repo
@@ -154,6 +163,7 @@ defmodule MedicaidClaimsChecker.Claims do
     |> Repo.all()
   end
 
+  @doc "Returns a map of status counts for all edi_files in a batch."
   def batch_summary(batch_id) do
     counts =
       EdiFile
@@ -270,6 +280,16 @@ defmodule MedicaidClaimsChecker.Claims do
     end
   end
 
+  @doc """
+  Validates all NPIs on a claim against the NPPES registry.
+
+  Checks both the rendering provider (`provider.npi` / `claim.rendering_provider.npi`)
+  and the billing provider (`billing_provider.npi`), using the earliest service
+  date on the claim. Returns `:ok` if all NPIs are valid and active on that
+  date, `{:reject, reason}` on the first failure.
+
+  Returns `:ok` when no NPIs are present (NPI presence is enforced elsewhere).
+  """
   def validate_claim_providers(claim_json) do
     provider_npi =
       get_in(claim_json, ["provider", "npi"]) ||
@@ -340,8 +360,10 @@ defmodule MedicaidClaimsChecker.Claims do
 
   defp parse_date(_), do: :error
 
-  # Returns catalogue entries whose names are similar to the given name (Jaro distance > 0.85),
-  # excluding any exact case-insensitive match (which would be a conflict, not redundancy).
+  @doc """
+  Returns catalogue entries whose names are similar to `name` (Jaro distance > 0.85),
+  excluding exact case-insensitive matches (which are conflicts, not near-duplicates).
+  """
   def find_similar_catalogue_entries(name) do
     name_lower = String.downcase(String.trim(name))
 

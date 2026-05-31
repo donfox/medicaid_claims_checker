@@ -149,6 +149,7 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidator do
 
   @helper_calls MapSet.new(["claim.has_diagnosis", "claim.has_procedure"])
 
+  @doc "Extracts all field path references from a DSL rule string, with quantifier bindings expanded."
   @spec field_references(String.t()) :: [String.t()]
   def field_references(rule_text) when is_binary(rule_text) do
     sanitized_text = strip_string_literals(rule_text)
@@ -159,6 +160,13 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidator do
     |> Enum.uniq()
   end
 
+  @doc """
+  Validates all field references in `rule_text` against the known claim contract.
+
+  Returns `{:ok, %{references: [...], issues: []}}` when all paths are valid, or
+  `{:error, %{references: [...], issues: [%{reference:, suggested:, message:}]}}` when
+  unknown paths are found. Suggestions include the closest valid alternative when one exists.
+  """
   @spec validate(String.t()) :: {:ok, map()} | {:error, map()}
   def validate(rule_text) when is_binary(rule_text) do
     references = field_references(rule_text)

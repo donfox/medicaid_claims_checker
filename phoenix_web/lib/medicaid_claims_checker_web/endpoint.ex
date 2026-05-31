@@ -9,7 +9,7 @@ defmodule MedicaidClaimsCheckerWeb.Endpoint do
     key: "_medicaid_claims_checker_key",
     signing_salt: "sZ8BO3g9",
     same_site: "Lax",
-    secure: true
+    secure: Mix.env() == :prod
   ]
 
   socket "/live", Phoenix.LiveView.Socket,

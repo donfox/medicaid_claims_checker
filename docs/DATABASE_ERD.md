@@ -1,6 +1,6 @@
-# Database Entity Relationship Diagram (In-Use)
+# Database Entity Relationship Diagram (In Use)
 
-Current Ecto/PostgreSQL schema used by the Phoenix app (`MedicaidClaimsChecker.Claims`).
+This document describes the current PostgreSQL / Ecto schema used by the Phoenix application in `MedicaidClaimsChecker.Claims`.
 
 ## ERD Diagram
 
@@ -112,36 +112,75 @@ erDiagram
 
 ## Relationship Notes
 
-- `batches` → `edi_files`: only FK relationship in the claims pipeline.
-- `fetch_sources` → `fetch_schedules`: FK with cascade delete; a source can have multiple schedules (cron or interval-based).
-- `rule_catalogue` → `business_rules`: linked by matching `name` field (no database FK). A `rule_catalogue` entry with `entry_type = "BA Rule"` corresponds to a `business_rules` row with the same name.
-- `rule_catalogue` is the authoritative registry for all rule types (Default Rule, BA Rule, ML Model). `business_rules` stores the DSL text only for BA Rules.
-- `nppes_providers` and `nppes_refresh_config` are standalone tables (no FKs to other tables).
+### `batches` to `edi_files`
 
-## Indexes
+- This is the main foreign-key relationship in the claims pipeline.
+- One batch can contain many `edi_files`.
+- `edi_files.batch_id` is required and deletes cascade when the parent batch is removed.
 
-- `nppes_providers`: `state`, `deactivation_date`
-- `fetch_sources`: `name` (unique)
-- `fetch_schedules`: `fetch_source_id`
+### `fetch_sources` to `fetch_schedules`
 
-## Status and Enum Domains (from app changesets)
+- This is a foreign-key relationship with cascade delete.
+- One fetch source can have multiple schedules.
+- Scheduling can be cron-based or interval-based.
 
-- `batches.status`: `pending`, `processing`, `completed`, `failed`
-- `edi_files.status`: `pending`, `translated`, `syntax_error`, `fraudulent`
-- `rule_catalogue.status`: `Active`, `Inactive`
-- `rule_catalogue.entry_type`: `Default Rule`, `BA Rule`, `ML Model`
-- `fetch_sources.source_type`: application-defined (e.g. `sftp`, `https`)
-- `nppes_refresh_config.last_status`: `never`, `ok`, `error`
+### `rule_catalogue` to `business_rules`
 
-## Future Expansion (Only If Needed)
+- These tables are related by matching `name` values.
+- There is **no database foreign key** between them.
+- A `rule_catalogue` row with `entry_type = "BA Rule"` corresponds to a `business_rules` row with the same `name`.
 
-Keep the current schema lean unless product requirements require additional governance or audit depth.
+## Table Roles
 
-Suggested incremental order:
+### `rule_catalogue`
 
-1. Rule versioning (`business_rule_versions`)
-2. Execution traceability (`claim_decisions`, `rule_execution_log`)
-3. Deployment grouping (`rule_sets`, `rule_set_members`)
-4. Compliance audit trail (`audit_log`)
+`rule_catalogue` is the authoritative registry for all rule-entry types:
 
-Guideline: implement database complexity at the same pace as shipped product behavior.
+- `Default Rule`
+- `BA Rule`
+- `ML Model`
+
+It stores metadata such as:
+
+- display name
+- description
+- status
+- editability
+- removability
+- redundancy flag
+- database-access flag
+
+### `business_rules`
+
+`business_rules` stores the raw DSL text for BA-authored rules plus the active flag used during evaluation.
+
+### `batches`
+
+`batches` stores one row per ingestion or evaluation batch, including source, counts, and lifecycle timestamps.
+
+### `edi_files`
+
+`edi_files` stores one row per translated claim file and captures status, translated JSON, evaluation output, and any error details.
+
+### `nppes_providers`
+
+`nppes_providers` stores the imported NPPES provider snapshot used during NPI pre-validation.
+
+### `fetch_sources`
+
+`fetch_sources` stores remote or local input locations such as SFTP, HTTP, local, or Databricks sources.
+
+### `fetch_schedules`
+
+`fetch_schedules` stores polling schedules attached to fetch sources.
+
+### `nppes_refresh_config`
+
+`nppes_refresh_config` stores the state of NPPES auto-refresh, including interval, last status, row count, and any last error.
+
+## Operational Notes
+
+- `json_output` and `error_details` are stored as `JSONB`.
+- Some important relationships are enforced in application logic rather than database constraints.
+- The schema mixes workflow state, rule metadata, translated claim content, and reference data.
+- The `rule_catalogue` / `business_rules` split is intentional: one table manages the catalogue entry, and the other stores the BA DSL text.

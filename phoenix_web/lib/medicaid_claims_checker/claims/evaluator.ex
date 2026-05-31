@@ -129,6 +129,7 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
     end
   end
 
+  # 200 claims per HTTP request keeps payloads under ~5 MB and engine memory stable.
   @batch_chunk_size 200
 
   defp call_batch_evaluate(rules_text, claims) do
@@ -211,6 +212,8 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
     |> Enum.sum()
   end
 
+  # Weights correspond to severity: reject (3) > fraud flag (2) > review (1).
+  # Threshold for "fraudulent" status is driven by overallRisk, not this score.
   defp action_weight(%{"tag" => "RejectClaim'"}), do: 3
   defp action_weight(%{"tag" => "FlagFraud'"}), do: 2
   defp action_weight(%{"tag" => "RequireReview'"}), do: 1

@@ -70,6 +70,7 @@ defmodule MedicaidClaimsChecker.Ingestion do
 
   # --- Config endpoint query ---
 
+  @doc "Returns enabled fetch sources with their enabled schedules preloaded. Used by the config polling endpoint."
   def list_enabled_config do
     enabled_schedules_query = from(s in FetchSchedule, where: s.enabled == true)
 

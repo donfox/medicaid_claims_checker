@@ -1,122 +1,137 @@
 # Medicaid Claims Checker Architecture
 
-This document describes the current, active architecture. Historical analysis reports live under `docs/archive/`.
+This document describes the **current active architecture**. Historical analysis and older review artifacts live under `docs/archive/`.
 
-## Runtime Services
+## System Summary
 
-- Phoenix LiveView app (port 4000): UI, persistence, batch workflow, and orchestration
-- Haskell DSL engine (port 8080): parse/evaluate rules and return deterministic decisions
+The platform has two runtime services:
 
-The Phoenix app sends rules plus claim payloads to the Haskell engine over HTTP/JSON.
+- **Phoenix LiveView app** on port `4000`  
+  Handles the user interface, persistence, batch workflow, scheduling, and orchestration.
+- **Haskell DSL engine** on port `8080`  
+  Parses rules, evaluates claims, and returns deterministic rule decisions.
+
+In normal operation, the Phoenix app sends rule text plus claim payloads to the Haskell engine over HTTP using JSON.
 
 ## Haskell API Surface
 
 | Endpoint | Method | Purpose |
 |---|---|---|
-| `/api/health` | GET | Service health/liveness |
-| `/api/parse-rule` | POST | Parse DSL text and return parse result |
-| `/api/evaluate` | POST | Evaluate rules against a single claim (DSL + ML pipeline) |
-| `/api/batch-evaluate` | POST | Evaluate rules against multiple claims (DSL only, no ML) |
-| `/api/compile-rules` | POST | Parse ruleset and warm rule cache |
-| `/api/check-redundancy` | POST | Detect duplicates/subsumption/overlap among rules |
+| `/api/health` | GET | Health and liveness check |
+| `/api/parse-rule` | POST | Parse DSL text and return the parse result |
+| `/api/evaluate` | POST | Evaluate rules against a single claim using the DSL + ML pipeline |
+| `/api/batch-evaluate` | POST | Evaluate rules against multiple claims using the DSL only |
+| `/api/compile-rules` | POST | Parse a ruleset and warm the in-memory rule cache |
+| `/api/check-redundancy` | POST | Detect duplicate, overlapping, or subsuming rules |
 
 ## Core Engine Modules
 
-- `Syntax.hs`: DSL AST and shared rule/result types
-- `Parser.hs`: Parsec grammar for `RULE ... END` and shorthand syntax
-- `SimpleEvaluator.hs`: Predicate/action evaluation against JSON claims
-- `RuleEngine.hs`: Rule orchestration and report aggregation
-- `RuleCache.hs`: STM-based cache of parsed rules
-- `PolicyCombiner.hs`: DSL + ML policy merge logic
-- `RedundancyChecker.hs`: Rule redundancy analysis
-- `MLClient.hs`: Optional ML scoring client
-- `Main.hs`: HTTP routing and request handlers
+| Module | Responsibility |
+|---|---|
+| `Syntax.hs` | DSL AST and shared rule/result types |
+| `Parser.hs` | Parsec grammar for `RULE ... END` and shorthand syntax |
+| `SimpleEvaluator.hs` | Predicate and action evaluation against JSON claims |
+| `RuleEngine.hs` | Rule orchestration and report aggregation |
+| `RuleCache.hs` | STM-based cache of parsed rules |
+| `PolicyCombiner.hs` | DSL + ML policy merge logic |
+| `RedundancyChecker.hs` | Rule redundancy analysis |
+| `MLClient.hs` | Optional ML scoring client |
+| `Main.hs` | HTTP routing and request handlers |
 
 ## Primary Flows
 
-### Rule Evaluation
+### 1. Rule Evaluation
 
-1. Client posts `rulesText` and claim payload(s) to `/api/evaluate` or `/api/batch-evaluate`.
-2. Engine parses rules, evaluates predicates/actions, and computes overall risk/decision.
-3. Engine returns structured JSON results for UI and downstream handling.
+1. A client posts `rulesText` and one or more claim payloads to `/api/evaluate` or `/api/batch-evaluate`.
+2. The engine parses the rules, evaluates predicates and actions, and computes the overall decision and risk.
+3. The engine returns a structured JSON response for the UI and downstream handling.
 
-### Preflight and Caching
+### 2. Preflight and Caching
 
-1. Client posts `rulesText` to `/api/compile-rules`.
-2. Engine parses and caches rule ASTs in a process-local STM cache.
-3. Response returns parse status and compiled rule count.
+1. A client posts `rulesText` to `/api/compile-rules`.
+2. The engine parses the rules and stores the AST in a process-local STM cache.
+3. The response returns parse status plus the compiled-rule count.
 
-### Scheduled X12 Ingestion Pipeline
+### 3. Scheduled X12 Ingestion Pipeline
 
-1. Quantum scheduler fires a `FetchRunner` job when a `fetch_schedules` entry is due.
-2. `RemoteFetcher` downloads files from the configured `fetch_sources` URI (SFTP or HTTPS).
-3. `ClaimSplitter` splits multi-claim X12 files; `Converter` + `SegmentMapper` translate each claim to semantic JSON.
-4. `Claims.ingest_batch/1` persists a `batches` record and one `edi_files` row per claim in a single transaction.
-5. On successful ingest, `Task.Supervisor` launches `Evaluator.evaluate_batch/1` asynchronously.
+1. A Quantum scheduler triggers a `FetchRunner` job when a `fetch_schedules` entry is due.
+2. `RemoteFetcher` downloads files from the configured `fetch_sources` URI using SFTP or HTTPS.
+3. `ClaimSplitter` splits multi-claim X12 files, and `Converter` plus `SegmentMapper` translate each claim into semantic JSON.
+4. `Claims.ingest_batch/1` writes one `batches` row and one `edi_files` row per claim in a single transaction.
+5. After a successful ingest, `Task.Supervisor` starts `Evaluator.evaluate_batch/1` asynchronously.
 
-### Batch Evaluation with NPPES Pre-validation
+### 4. Batch Evaluation with NPPES Pre-validation
 
-1. `Evaluator` gathers all active BA rule texts and the translated `edi_files` for the batch.
-2. NPPES pre-validation: `Claims.validate_claim_providers/1` checks each claim's provider NPI against the `nppes_providers` table. Invalid NPIs produce a `NPPESProviderLookup` rejection finding.
-3. Claims are chunked (200 per request) and sent to the Haskell `/api/batch-evaluate` endpoint in sequence via `Enum.reduce_while`.
-4. NPPES findings are merged into each Haskell result; any NPI rejection forces `overallRisk` to `CriticalRisk`.
-5. Results are written back to `edi_files`; batch status is updated to `completed` or `failed`.
-6. Phoenix PubSub broadcasts `batch_completed` / `batch_failed` events to the LiveView UI.
+1. `Evaluator` collects all active BA rule text and the translated `edi_files` for the batch.
+2. Before rule evaluation, `Claims.validate_claim_providers/1` checks each claim's provider NPI against `nppes_providers`.
+3. Invalid NPIs generate an `NPPESProviderLookup` rejection finding.
+4. Claims are chunked into groups of `200` and sent to the Haskell `/api/batch-evaluate` endpoint sequentially with `Enum.reduce_while`.
+5. NPPES findings are merged into each Haskell result, and any NPI rejection forces `overallRisk` to `CriticalRisk`.
+6. Results are written back to `edi_files`, and the batch status is updated to `completed` or `failed`.
+7. Phoenix PubSub broadcasts `batch_completed` or `batch_failed` to the LiveView UI.
 
-### NPPES Data Refresh
+### 5. NPPES Data Refresh
 
-1. `Nppes.RefreshWorker` GenServer starts on application boot with a 10-second initial delay.
-2. On each tick it reads `nppes_refresh_config` and checks whether `interval_seconds` have elapsed since `last_refresh_at` (default interval: 604 800 s / 7 days).
-3. If a refresh is due, `Importer.download_and_import/2` runs under `Task.Supervisor` (async, non-blocking).
-4. Progress and completion status are broadcast via PubSub and persisted to `nppes_refresh_config`.
-5. Refresh can also be triggered manually or cancelled via the `RefreshWorker` public API.
+1. `Nppes.RefreshWorker` starts on application boot after a 10-second initial delay.
+2. On each tick, it reads `nppes_refresh_config` and checks whether `interval_seconds` have elapsed since `last_refresh_at`.
+3. The default refresh interval is `604800` seconds, or 7 days.
+4. If a refresh is due, `Importer.download_and_import/2` runs under `Task.Supervisor` asynchronously.
+5. Progress and completion status are broadcast through PubSub and persisted to `nppes_refresh_config`.
+6. Refresh can also be started manually or cancelled through the `RefreshWorker` public API.
 
 ## Current Constraints
 
+These are active design and implementation constraints, not future goals:
+
 - DSL rules are the deterministic policy source of truth.
 - JSON claim evaluation is the primary active execution path.
-- Rule cache is in-memory and process-local (Haskell side); only `/api/compile-rules` populates it — `/api/batch-evaluate` re-parses rules on every request.
-- Batch evaluation chunk size is 200 claims per Haskell request (hardcoded in `Evaluator`).
-- Claims within each Haskell request are evaluated sequentially; large batches become CPU-bound.
-- NPPES data is refreshed on an interval; claims evaluated between refreshes use the last imported snapshot.
-- Current deployment model assumes trusted/internal network usage.
+- The rule cache is in memory and process-local on the Haskell side.
+- Only `/api/compile-rules` populates the rule cache.
+- `/api/batch-evaluate` reparses rules on every request.
+- Batch evaluation uses a hardcoded chunk size of `200` claims per Haskell request.
+- Claims inside a single Haskell request are evaluated sequentially.
+- Larger batches therefore become CPU-bound.
+- NPPES data is refreshed on an interval, so claims evaluated between refreshes use the most recently imported snapshot.
+- The current deployment model assumes a trusted internal network.
 
-## Concurrency Model & Scaling
+## Concurrency Model and Scaling
 
 ### Current behavior
 
-- Warp handles concurrent HTTP requests across batches.
-- Claims inside a single batch request are evaluated **sequentially** — no intra-request parallelism.
+- Warp can handle concurrent HTTP requests across batches.
+- Claims inside one batch request are evaluated **sequentially**.
 - Rules inside a claim are also evaluated sequentially.
-- STM/TVar rule cache is thread-safe across concurrent requests.
+- The STM/TVar rule cache is thread-safe across concurrent requests.
 
-### Bottleneck
+### Main bottleneck
 
-Large batches sent as a single request become sequential CPU bottlenecks inside the Haskell engine.
+A large batch sent as one request becomes a sequential CPU bottleneck inside the Haskell engine.
 
-### Recommended improvements (not yet implemented)
+### Recommended improvements not yet implemented
 
 - **Bounded parallel claim evaluation** inside Haskell using a worker pool
-- **GHC runtime tuning**: `+RTS -N` to use all available cores (e.g. `+RTS -N8` on an 8-core machine)
-- **Phoenix backpressure**: limit concurrent in-flight Haskell requests to 1–2 at a time
+- **GHC runtime tuning** with `+RTS -N` to use all available CPU cores
+- **Phoenix backpressure** to limit concurrent in-flight Haskell requests to 1 or 2 at a time
 
 ### Production sizing model
 
-| Layer | Setting | Rationale |
+| Layer | Setting | Why it matters |
 |---|---|---|
 | Phoenix chunk size | 100–500 claims | Keeps individual requests bounded |
 | Phoenix concurrent batches | 1–2 | Prevents Haskell overload |
-| Haskell workers per request | ~1 per core | Maximises CPU utilisation |
+| Haskell workers per request | about 1 per core | Improves CPU utilization |
 
 ### Throughput estimates
 
-- ~30–120 claims/sec depending on rule complexity
-- 10,000 claims: 1–3 minutes (light rules) / 3–8 minutes (heavy rules)
+- Approximately `30–120` claims per second, depending on rule complexity
+- `10,000` claims may take:
+  - `1–3 minutes` for lighter rules
+  - `3–8 minutes` for heavier rules
 
-**Core principle:** accepted work can be large; active work must remain bounded.
+**Core principle:** the system may accept large volumes of work, but the amount of work in active execution should stay bounded.
 
-## Related Docs
+## Related Documents
 
-- DSL guide: `SYNTAX_GUIDE.md`
-- Database model: `DATABASE_ERD.md`
-- Test workflow: `TEST_PROCEDURE.md`
+- `SYNTAX_GUIDE.md` — DSL authoring guide
+- `DATABASE_ERD.md` — data model and relationships
+- `TEST_PROCEDURE.md` — local validation workflow

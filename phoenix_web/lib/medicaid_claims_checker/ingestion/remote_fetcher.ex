@@ -138,9 +138,6 @@ defmodule MedicaidClaimsChecker.Ingestion.RemoteFetcher do
 
   # Check if source looks like a local file path
   defp is_local_path?(source) do
-    # Absolute Unix path
-    # Absolute Windows path
-    # Relative path with separators
     String.starts_with?(source, "/") or
       String.match?(source, ~r/^[A-Za-z]:[\\\/]/) or
       String.contains?(source, "/") or String.contains?(source, "\\")
@@ -277,7 +274,6 @@ defmodule MedicaidClaimsChecker.Ingestion.RemoteFetcher do
     opt_password = Keyword.get(opts, :sftp_password)
     opt_port = Keyword.get(opts, :sftp_port)
 
-    # Priority: passed options > URL components > environment config
     host = uri.host || env_host
     user = non_empty(opt_user) || uri.userinfo || env_user
     port = opt_port || uri.port || env_port
@@ -326,7 +322,6 @@ defmodule MedicaidClaimsChecker.Ingestion.RemoteFetcher do
 
     Logger.info("Connecting to SFTP: #{sftp_config.host}:#{port} as #{sftp_config.username}")
 
-    # Start SSH application
     :ssh.start()
 
     connect_opts =
@@ -736,7 +731,6 @@ defmodule MedicaidClaimsChecker.Ingestion.RemoteFetcher do
   defp download_file(url, timeout, max_size) do
     Logger.info("Downloading remote batch file from: #{url}")
 
-    # Start required applications
     :inets.start()
     :ssl.start()
 
@@ -816,7 +810,6 @@ defmodule MedicaidClaimsChecker.Ingestion.RemoteFetcher do
 
     with :ok <- File.write(temp_zip, zip_data),
          {:ok, files} <- unzip_file(temp_zip, extract_dir) do
-      # Remove the temporary ZIP file
       File.rm(temp_zip)
 
       # Convert charlist paths to strings

@@ -1,5 +1,7 @@
 # Documentation Guide
 
+> **eMRTS Intern Project:** This project is one of four instructional projects developed as part of intern training at eMRTS.
+
 This folder is split into two groups:
 
 - **Core docs**: the current, actively maintained references for the system.

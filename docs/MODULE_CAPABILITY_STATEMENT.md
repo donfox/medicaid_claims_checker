@@ -3,7 +3,9 @@
 
 **Version:** 1.0  
 **Date:** May 2026  
-**Status:** Draft — for HCPF procurement review
+**Status:** Portfolio prototype capability statement submitted by EMRTS to state government entities for review
+
+This document describes a portfolio proof of concept. EMRTS submitted it to the state government entities identified in the submission materials. Submission does not imply agency endorsement, contract award, integration, or production deployment.
 
 ---
 

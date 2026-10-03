@@ -32,7 +32,8 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
     1. Gather active BA rules
     2. NPPES pre-validation (hard-reject invalid provider NPIs)
     3. Send passing claims to Haskell rule engine
-    4. Store results back on each edi_file record
+    4. Store each report in `evaluation_report` (the claim in `json_output`
+       is left untouched) and mark the file "evaluated"
     5. Mark batch completed (or failed)
 
   Returns {:ok, batch} | {:error, reason}.
@@ -108,12 +109,11 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
                 Map.put(r, "weightedScore", compute_weighted_score(r["results"] || []))
               end)
 
-            risk = report["overallRisk"] || "LowRisk"
-            status = if risk in ["CriticalRisk", "HighRisk"], do: "fraudulent", else: "evaluated"
-
+            # The report is a recommendation for an analyst; risk level never
+            # changes the file's status.
             Claims.update_edi_file_evaluation(edi_file, %{
-              json_output: report,
-              status: status,
+              evaluation_report: report,
+              status: "evaluated",
               processed_at: DateTime.utc_now()
             })
           end)
@@ -171,7 +171,7 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
 
     files =
       Enum.map(edi_files, fn f ->
-        report = f.json_output || %{}
+        report = f.evaluation_report || %{}
 
         matched_results =
           (report["results"] || [])
@@ -213,7 +213,7 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
   end
 
   # Weights correspond to severity: reject (3) > fraud flag (2) > review (1).
-  # Threshold for "fraudulent" status is driven by overallRisk, not this score.
+  # The score is advisory; flagging for review is driven by overallRisk.
   defp action_weight(%{"tag" => "RejectClaim'"}), do: 3
   defp action_weight(%{"tag" => "FlagFraud'"}), do: 2
   defp action_weight(%{"tag" => "RequireReview'"}), do: 1

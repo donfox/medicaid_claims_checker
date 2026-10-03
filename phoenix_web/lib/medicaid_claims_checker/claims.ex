@@ -4,8 +4,10 @@ defmodule MedicaidClaimsChecker.Claims do
   catalogue, and NPPES provider validation.
 
   Batches group EDI files for a single ingestion run. Files progress through
-  statuses: `translated → evaluated | fraudulent | syntax_error`. After
-  evaluation, `batch_summary/1` aggregates counts by status.
+  processing statuses: `translated → evaluated | syntax_error`. Evaluation
+  stores the engine's report in `evaluation_report` alongside the claim in
+  `json_output`; HighRisk/CriticalRisk reports are counted as flagged for
+  review. The engine recommends; it never marks a claim fraudulent.
 
   Business rules (BA Rules) store DSL text sent to the Haskell engine.
   The rule catalogue is the registry of all rule names and types (Default,
@@ -50,12 +52,6 @@ defmodule MedicaidClaimsChecker.Claims do
     |> order_by(desc: :inserted_at)
     |> limit(^limit)
     |> Repo.all()
-  end
-
-  def clear_batch_history do
-    Repo.delete_all(EdiFile)
-    Repo.delete_all(Batch)
-    :ok
   end
 
   # --- Batch ingest ---
@@ -158,12 +154,21 @@ defmodule MedicaidClaimsChecker.Claims do
 
   def list_errors_for_batch(batch_id) do
     EdiFile
-    |> where([f], f.batch_id == ^batch_id and f.status in ["syntax_error", "fraudulent"])
+    |> where([f], f.batch_id == ^batch_id and f.status == "syntax_error")
     |> order_by(asc: :inserted_at)
     |> Repo.all()
   end
 
-  @doc "Returns a map of status counts for all edi_files in a batch."
+  @flag_for_review_risks ["HighRisk", "CriticalRisk"]
+
+  @doc "Returns true when an evaluation report warrants analyst review."
+  def flagged_for_review?(%{"overallRisk" => risk}), do: risk in @flag_for_review_risks
+  def flagged_for_review?(_report), do: false
+
+  @doc """
+  Returns a map of status counts for all edi_files in a batch, plus
+  `flagged_for_review`: evaluated files whose report is HighRisk or CriticalRisk.
+  """
   def batch_summary(batch_id) do
     counts =
       EdiFile
@@ -179,8 +184,18 @@ defmodule MedicaidClaimsChecker.Claims do
       translated: Map.get(counts, "translated", 0),
       evaluated: Map.get(counts, "evaluated", 0),
       syntax_error: Map.get(counts, "syntax_error", 0),
-      fraudulent: Map.get(counts, "fraudulent", 0)
+      flagged_for_review: count_flagged_for_review(batch_id)
     }
+  end
+
+  defp count_flagged_for_review(batch_id) do
+    EdiFile
+    |> where([f], f.batch_id == ^batch_id)
+    |> where(
+      [f],
+      fragment("?->>'overallRisk'", f.evaluation_report) in @flag_for_review_risks
+    )
+    |> Repo.aggregate(:count)
   end
 
   def list_business_rules do

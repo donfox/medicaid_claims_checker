@@ -105,17 +105,44 @@ defmodule MedicaidClaimsChecker.ClaimsTest do
       assert summary.total == 2
       assert summary.translated == 2
       assert summary.pending == 0
-      assert summary.fraudulent == 0
+      assert summary.flagged_for_review == 0
     end
 
     test "reflects updated statuses" do
       {:ok, %{batch: batch, edi_files: [f1 | _]}} = Claims.ingest_batch(@valid_batch_params)
 
-      Claims.update_edi_file_evaluation(f1, %{status: "fraudulent"})
+      Claims.update_edi_file_evaluation(f1, %{status: "evaluated"})
 
       summary = Claims.batch_summary(batch.id)
-      assert summary.fraudulent == 1
+      assert summary.evaluated == 1
       assert summary.translated == 1
+    end
+
+    test "counts HighRisk and CriticalRisk reports as flagged for review" do
+      {:ok, %{batch: batch, edi_files: [f1, f2]}} = Claims.ingest_batch(@valid_batch_params)
+
+      Claims.update_edi_file_evaluation(f1, %{
+        status: "evaluated",
+        evaluation_report: %{"overallRisk" => "LowRisk"}
+      })
+
+      Claims.update_edi_file_evaluation(f2, %{
+        status: "evaluated",
+        evaluation_report: %{"overallRisk" => "CriticalRisk"}
+      })
+
+      summary = Claims.batch_summary(batch.id)
+      assert summary.evaluated == 2
+      assert summary.flagged_for_review == 1
+    end
+  end
+
+  describe "edi_file status" do
+    test "rejects \"fraudulent\": a fraud determination is an analyst's decision" do
+      {:ok, %{edi_files: [f1 | _]}} = Claims.ingest_batch(@valid_batch_params)
+
+      assert {:error, changeset} = Claims.update_edi_file_evaluation(f1, %{status: "fraudulent"})
+      assert %{status: ["is invalid"]} = errors_on(changeset)
     end
   end
 
@@ -130,10 +157,15 @@ defmodule MedicaidClaimsChecker.ClaimsTest do
   end
 
   describe "list_errors_for_batch/1" do
-    test "returns only errored/fraudulent files" do
-      {:ok, %{batch: batch, edi_files: [f1, _f2]}} = Claims.ingest_batch(@valid_batch_params)
+    test "returns only files with syntax errors" do
+      {:ok, %{batch: batch, edi_files: [f1, f2]}} = Claims.ingest_batch(@valid_batch_params)
 
-      Claims.update_edi_file_evaluation(f1, %{status: "fraudulent"})
+      Claims.update_edi_file_evaluation(f1, %{status: "syntax_error"})
+
+      Claims.update_edi_file_evaluation(f2, %{
+        status: "evaluated",
+        evaluation_report: %{"overallRisk" => "CriticalRisk"}
+      })
 
       errors = Claims.list_errors_for_batch(batch.id)
       assert length(errors) == 1

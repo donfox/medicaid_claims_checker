@@ -62,8 +62,8 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
       type: :completed,
       batch_id: batch_id,
       total: summary.total,
-      flagged: summary.fraudulent,
-      clean: summary.total - summary.fraudulent,
+      flagged: summary.flagged_for_review,
+      clean: summary.total - summary.flagged_for_review,
       files: files,
       expanded: false
     }
@@ -695,13 +695,15 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
     {passthrough_claims, passthrough_filenames, nppes_rejections} =
       nppes_pre_evaluate(claims, filenames)
 
-    # Persist NPPES-rejected claims as edi_file records
+    # Persist NPPES-rejected claims as edi_file records. The NPPES finding is
+    # evidence for an analyst, so these are "evaluated" like any other claim.
     Enum.each(nppes_rejections, fn rejection ->
       Claims.create_edi_file(%{
         filename: rejection["fileName"],
         file_path: "batch/#{batch_id}/#{rejection["claimId"]}",
-        json_output: rejection["report"],
-        status: "fraudulent",
+        json_output: Enum.at(claims, rejection["claimIndex"]),
+        evaluation_report: rejection["report"],
+        status: "evaluated",
         batch_id: batch.id,
         processed_at: DateTime.utc_now()
       })
@@ -723,21 +725,17 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
       case call_batch_evaluate(rules_text, passthrough_claims) do
         {:ok, %{"batchResults" => results}} ->
           enriched_results =
-            results
-            |> Enum.zip(passthrough_filenames)
-            |> Enum.map(fn {result, filename} ->
+            [results, passthrough_filenames, passthrough_claims]
+            |> Enum.zip()
+            |> Enum.map(fn {result, filename, claim} ->
               claim_id = Ecto.UUID.generate()
-              report = result["report"]
-              risk = report["overallRisk"] || "LowRisk"
-
-              status =
-                if risk in ["CriticalRisk", "HighRisk"], do: "fraudulent", else: "evaluated"
 
               Claims.create_edi_file(%{
                 filename: filename,
                 file_path: "batch/#{batch_id}/#{claim_id}",
-                json_output: report,
-                status: status,
+                json_output: claim,
+                evaluation_report: result["report"],
+                status: "evaluated",
                 batch_id: batch.id,
                 processed_at: DateTime.utc_now()
               })
@@ -821,7 +819,7 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
           files
           |> Enum.with_index()
           |> Enum.map(fn {f, idx} ->
-            report = f.json_output || %{}
+            report = f.evaluation_report || %{}
 
             %{
               "claimIndex" => idx,

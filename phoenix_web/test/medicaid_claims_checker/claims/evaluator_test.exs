@@ -109,7 +109,7 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
 
       # Manually mark all files as already processed
       Claims.list_files_for_batch(batch.id)
-      |> Enum.each(fn f -> Claims.update_edi_file_evaluation(f, %{status: "fraudulent"}) end)
+      |> Enum.each(fn f -> Claims.update_edi_file_evaluation(f, %{status: "evaluated"}) end)
 
       {:ok, updated} = Evaluator.evaluate_batch(batch)
       assert updated.status == "completed"
@@ -167,14 +167,21 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
       expensive = Enum.find(files, &(&1.filename == "expensive.json"))
 
       assert clean.status == "evaluated"
-      assert clean.json_output["overallRisk"] == "LowRisk"
+      assert clean.evaluation_report["overallRisk"] == "LowRisk"
 
-      assert expensive.status == "fraudulent"
-      assert expensive.json_output["overallRisk"] == "HighRisk"
-      assert expensive.json_output["matchedRules"] == 1
+      assert expensive.status == "evaluated"
+      assert Claims.flagged_for_review?(expensive.evaluation_report)
+      assert expensive.evaluation_report["overallRisk"] == "HighRisk"
+      assert expensive.evaluation_report["matchedRules"] == 1
+
+      # The translated claim is kept as evidence, not overwritten by the report
+      assert expensive.json_output["claim_id"] == "CLM-expensive.json"
+      refute Map.has_key?(expensive.json_output, "overallRisk")
+
+      assert Claims.batch_summary(batch.id).flagged_for_review == 1
     end
 
-    test "marks CriticalRisk claims as fraudulent", %{bypass: bypass} do
+    test "flags CriticalRisk claims for review without changing status", %{bypass: bypass} do
       create_rule!(
         "extreme_amount",
         ~s|RULE extreme_amount "Extreme billing" WHEN 2300.CLM.claim_amount > 1000000 THEN FLAG_FRAUD "Extreme amount";|
@@ -203,8 +210,9 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
       Evaluator.evaluate_batch(batch)
 
       files = Claims.list_files_for_batch(batch.id)
-      assert hd(files).status == "fraudulent"
-      assert hd(files).json_output["overallRisk"] == "CriticalRisk"
+      assert hd(files).status == "evaluated"
+      assert Claims.flagged_for_review?(hd(files).evaluation_report)
+      assert hd(files).evaluation_report["overallRisk"] == "CriticalRisk"
     end
 
     test "marks batch failed when engine returns error", %{bypass: bypass} do
@@ -276,11 +284,12 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
 
       files = Claims.list_files_for_batch(batch.id)
       file = hd(files)
-      assert file.status == "fraudulent"
-      assert file.json_output["overallRisk"] == "CriticalRisk"
+      assert file.status == "evaluated"
+      assert Claims.flagged_for_review?(file.evaluation_report)
+      assert file.evaluation_report["overallRisk"] == "CriticalRisk"
 
       nppes_result =
-        Enum.find(file.json_output["results"], fn result ->
+        Enum.find(file.evaluation_report["results"], fn result ->
           result["resultRuleName"] == "NPPESProviderLookup"
         end)
 
@@ -322,10 +331,11 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
 
       files = Claims.list_files_for_batch(batch.id)
       file = hd(files)
-      assert file.status == "fraudulent"
+      assert file.status == "evaluated"
+      assert Claims.flagged_for_review?(file.evaluation_report)
 
       nppes_result =
-        Enum.find(file.json_output["results"], fn result ->
+        Enum.find(file.evaluation_report["results"], fn result ->
           result["resultRuleName"] == "NPPESProviderLookup"
         end)
 
@@ -384,17 +394,19 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
       bad = Enum.find(files, &(&1.filename == "bad_npi.json"))
       clean = Enum.find(files, &(&1.filename == "clean.json"))
 
-      assert bad.status == "fraudulent"
+      assert bad.status == "evaluated"
+
+      assert Claims.flagged_for_review?(bad.evaluation_report)
       assert clean.status == "evaluated"
 
       bad_nppes_result =
-        Enum.find(bad.json_output["results"], fn result ->
+        Enum.find(bad.evaluation_report["results"], fn result ->
           result["resultRuleName"] == "NPPESProviderLookup"
         end)
 
       assert bad_nppes_result
 
-      refute Enum.any?(clean.json_output["results"] || [], fn result ->
+      refute Enum.any?(clean.evaluation_report["results"] || [], fn result ->
                result["resultRuleName"] == "NPPESProviderLookup"
              end)
     end
@@ -408,7 +420,7 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
   # tested for each fixture:
   #   1. The payload sent to the Haskell engine is correctly normalized
   #      (i.e., the right fields are in the right places before evaluation).
-  #   2. The end result is stored as "evaluated" / "LowRisk" (not "fraudulent").
+  #   2. The end result is stored as "evaluated" / "LowRisk" (not flagged for review).
   # ---------------------------------------------------------------------------
 
   describe "evaluate_batch/1 with real X12 fixture claims" do
@@ -473,8 +485,8 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
       assert file.status == "evaluated",
              "Lab work claim should be 'evaluated', not '#{file.status}' — MissingRequiredFields must not fire"
 
-      assert file.json_output["overallRisk"] == "LowRisk"
-      assert file.json_output["matchedRules"] == 0
+      assert file.evaluation_report["overallRisk"] == "LowRisk"
+      assert file.evaluation_report["matchedRules"] == 0
     end
 
     test "preventive 837P — normalizes correctly and evaluates as LowRisk", %{bypass: bypass} do
@@ -524,8 +536,8 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
       assert file.status == "evaluated",
              "Preventive claim should be 'evaluated', not '#{file.status}' — MissingRequiredFields must not fire"
 
-      assert file.json_output["overallRisk"] == "LowRisk"
-      assert file.json_output["matchedRules"] == 0
+      assert file.evaluation_report["overallRisk"] == "LowRisk"
+      assert file.evaluation_report["matchedRules"] == 0
     end
 
     test "both real X12 claims in one batch are each evaluated correctly", %{bypass: bypass} do
@@ -576,7 +588,7 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
       files = Claims.list_files_for_batch(batch.id)
       assert length(files) == 2
       assert Enum.all?(files, &(&1.status == "evaluated"))
-      assert Enum.all?(files, &(&1.json_output["overallRisk"] == "LowRisk"))
+      assert Enum.all?(files, &(&1.evaluation_report["overallRisk"] == "LowRisk"))
     end
   end
 

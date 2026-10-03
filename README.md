@@ -12,6 +12,11 @@ Medicaid Claims Checker is one of three independent healthcare-related projects 
 - **Medicaid Claims Checker** evaluates claims against configurable rules and provider data.
 - [Provider Vault](https://github.com/donfox/provider-vault) demonstrates provider-directory features and AI engineering patterns.
 
+## Editions
+
+- **Edition 2** (the current version, in active development) is built on one principle: the system recommends and a named analyst decides. Rule results and ML scores are evidence for an analyst and never a fraud determination.
+- **Edition 1** is preserved as completed: [Edition 1 release](https://github.com/donfox/medicaid_claims_checker/releases/tag/edition-1). In Edition 1, claims the engine rated High or Critical risk were labelled fraudulent automatically.
+
 ## Getting Started
 
 - [Setup instructions](setup.sh)

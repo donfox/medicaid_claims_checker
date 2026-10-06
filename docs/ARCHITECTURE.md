@@ -30,6 +30,7 @@ In normal operation, the Phoenix app sends rule text plus claim payloads to the 
 |---|---|
 | `Syntax.hs` | DSL AST and shared rule/result types |
 | `Parser.hs` | Parsec grammar for `RULE ... END` and shorthand syntax |
+| `Pretty.hs` | AST → DSL text; inverse of the parser (QuickCheck round-trip) |
 | `SimpleEvaluator.hs` | Predicate and action evaluation against JSON claims |
 | `RuleEngine.hs` | Rule orchestration and report aggregation |
 | `RuleCache.hs` | STM-based cache of parsed rules |

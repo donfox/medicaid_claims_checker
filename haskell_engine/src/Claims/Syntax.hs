@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 -- |
 -- Module      : Claims.Syntax
@@ -8,8 +9,8 @@
 -- This module defines the core abstract syntax tree (AST) types for the fraud
 -- detection domain-specific language. These types represent the structure of
 -- parsed rules and are used by both the parser ("Claims.Parser") and the
--- evaluator ("Claims.SimpleEvaluator"). Evaluation result types ('RuleResult',
--- 'Action'') are also defined here.
+-- evaluator ("Claims.SimpleEvaluator"). The evaluation result type
+-- ('RuleResult') is also defined here.
 --
 -- == Type Hierarchy
 --
@@ -42,8 +43,9 @@
 --
 -- == JSON Serialization
 --
--- All types derive 'ToJSON' and 'FromJSON' instances via "GHC.Generics",
--- allowing rules to be stored as JSON configuration files.
+-- AST types derive 'ToJSON' and 'FromJSON' instances via "GHC.Generics",
+-- allowing rules to be stored as JSON configuration files. 'RuleResult' has
+-- a hand-written instance that keeps its historical wire format (see there).
 module Claims.Syntax
   ( -- * Core Types
     Rule (..),
@@ -61,12 +63,15 @@ module Claims.Syntax
 
     -- * Evaluation Results
     RuleResult (..),
-    Action' (..),
   )
 where
 
-import Data.Aeson (FromJSON, ToJSON)
+import Data.Aeson (FromJSON (..), ToJSON (..), object, withObject, (.:), (.:?), (.=))
+import Data.Aeson qualified as Aeson
+import Data.Aeson.KeyMap qualified as KeyMap
+import Data.Maybe (fromMaybe)
 import Data.Text (Text)
+import Data.Text qualified as T
 import GHC.Generics (Generic)
 
 -- ----------------------------------------------------------------------------
@@ -151,7 +156,10 @@ data Predicate
     LessThanOrEqual FieldRef Value
   | -- | String contains substring: @field CONTAINS "text"@
     Contains FieldRef Value
-  | -- | Regex pattern match: @field MATCHES "pattern"@ (not yet implemented)
+  | -- | POSIX extended regex search: @field MATCHES "^[0-9]{10}$"@
+    --
+    -- Unanchored unless the pattern uses @^@ / @$@, which anchor to the
+    -- whole field value. Invalid patterns are rejected by the parser.
     Matches FieldRef Text
   | -- | Field is missing or null: @field IS NULL@
     IsNull FieldRef
@@ -346,25 +354,42 @@ instance FromJSON Action
 data RuleResult = RuleResult
   { resultRuleName :: Text
   , resultMatched  :: Bool
-  , resultAction   :: Maybe Action'
+  , resultAction   :: Maybe Action
   , resultDetails  :: Text
   } deriving (Show, Eq, Generic)
 
-instance ToJSON RuleResult
-instance FromJSON RuleResult
+-- | The JSON encoding is a wire contract with the Phoenix app and with
+-- evaluation reports already stored in its database: action tags carry a
+-- trailing prime (@{"tag": "RejectClaim'", ...}@), a leftover from when
+-- results used a separate primed copy of 'Action'. The type is gone; the
+-- format stays.
+instance ToJSON RuleResult where
+  toJSON r =
+    object
+      [ "resultRuleName" .= resultRuleName r
+      , "resultMatched"  .= resultMatched r
+      , "resultAction"   .= fmap (retagActions (<> "'") . toJSON) (resultAction r)
+      , "resultDetails"  .= resultDetails r
+      ]
 
--- | Runtime action produced by a matched rule.
---
--- Mirrors 'Action' but uses primed constructors to distinguish DSL-level
--- actions (used during parsing) from runtime results (produced by evaluation).
-data Action'
-  = FlagFraud' Text
-  | AssignRiskScore' Int
-  | RequireReview' Text
-  | RejectClaim' Text
-  | ApproveClaim' Text
-  | CompositeAction' [Action']
-  deriving (Show, Eq, Generic)
+instance FromJSON RuleResult where
+  parseJSON = withObject "RuleResult" $ \o ->
+    RuleResult
+      <$> o .: "resultRuleName"
+      <*> o .: "resultMatched"
+      <*> (traverse (parseJSON . retagActions unprime) =<< o .:? "resultAction")
+      <*> o .: "resultDetails"
+    where
+      unprime t = fromMaybe t (T.stripSuffix "'" t)
 
-instance ToJSON Action'
-instance FromJSON Action'
+-- | Rewrite the constructor tag of an encoded 'Action', recursing into
+-- 'CompositeAction' contents.
+retagActions :: (Text -> Text) -> Aeson.Value -> Aeson.Value
+retagActions f (Aeson.Object o) =
+  Aeson.Object (KeyMap.fromList [(k, step k v) | (k, v) <- KeyMap.toList o])
+  where
+    step "tag" (Aeson.String t) = Aeson.String (f t)
+    step "contents" v           = retagActions f v
+    step _ v                    = v
+retagActions f (Aeson.Array a) = Aeson.Array (fmap (retagActions f) a)
+retagActions _ v = v

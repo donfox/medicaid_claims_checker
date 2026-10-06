@@ -48,6 +48,9 @@ module Claims.SimpleEvaluator
 
     -- * Field Lookup (exported for testing)
     lookupJsonField,
+
+    -- * Regular Expressions
+    compileRegex,
   )
 where
 
@@ -66,7 +69,9 @@ import Data.Text qualified as T
 import Data.Time (Day, DayOfWeek (Saturday, Sunday), dayOfWeek, defaultTimeLocale, parseTimeM, toGregorian)
 import Data.Vector qualified as V
 import Claims.Syntax qualified as Syntax
-import Claims.Syntax (Action' (..), RuleResult (..))
+import Claims.Syntax (RuleResult (..))
+import Text.Regex.TDFA (CompOption (multiline), ExecOption, Regex, defaultCompOpt, defaultExecOpt, makeRegexOptsM, matchTest)
+import Text.Regex.TDFA.Text ()
 
 -- ----------------------------------------------------------------------------
 -- Evaluation Environment
@@ -167,8 +172,10 @@ evaluateWithEnv env = \case
       (Just fieldVal, Syntax.StringValue searchStr) ->
         T.isInfixOf searchStr fieldVal
       _ -> False
-  Syntax.Matches _fieldRef _pattern ->
-    False -- TODO: Implement regex matching
+  Syntax.Matches fieldRef pattern ->
+    case (lookupFieldWithEnv env fieldRef, compileRegex pattern) of
+      (Just fieldVal, Just regex) -> matchTest regex fieldVal
+      _ -> False
 
 -- | Add a quantifier-bound variable to the environment.
 bindScope :: Text -> Aeson.Value -> EvalEnv -> EvalEnv
@@ -194,7 +201,7 @@ evaluateRuleSimple today doc rule =
           matched = evaluateWithEnv env (Syntax.ruleCondition rule)
           action =
             if matched
-              then Just (convertAction $ Syntax.ruleAction rule)
+              then Just (Syntax.ruleAction rule)
               else Nothing
           details =
             if matched
@@ -588,15 +595,16 @@ yearsBetween dob ref =
    in if (m2, d2) < (m1, d1) then age - 1 else age
 
 -- ----------------------------------------------------------------------------
--- Action Conversion
+-- Regular Expressions
 -- ----------------------------------------------------------------------------
 
--- | Convert a Syntax.Action to Action' for inclusion in results.
-convertAction :: Syntax.Action -> Action'
-convertAction = \case
-  Syntax.FlagFraud reason -> FlagFraud' reason
-  Syntax.AssignRiskScore score -> AssignRiskScore' score
-  Syntax.RequireReview note -> RequireReview' note
-  Syntax.RejectClaim reason -> RejectClaim' reason
-  Syntax.ApproveClaim reason -> ApproveClaim' reason
-  Syntax.CompositeAction actions -> CompositeAction' (map convertAction actions)
+-- | Compile a @MATCHES@ pattern (POSIX extended syntax, via regex-tdfa).
+--
+-- regex-tdfa runs in time linear in the input, so analyst-written patterns
+-- cannot cause catastrophic backtracking. Multiline mode is off, so @^@ and
+-- @$@ anchor to the whole field value. Returns 'Nothing' for an invalid
+-- pattern; the parser rejects those, so this only matters for rules loaded
+-- from JSON.
+compileRegex :: Text -> Maybe Regex
+compileRegex pattern =
+  makeRegexOptsM (defaultCompOpt {multiline = False}) (defaultExecOpt :: ExecOption) (T.unpack pattern)

@@ -132,16 +132,78 @@ main = hspec $ do
               result = evaluateRuleSimple testDay doc rule
           resultMatched result `shouldBe` True
 
+  describe "Text predicates" $ do
+    let npiDoc npi = object ["provider" .= object ["npi" .= (npi :: String)]]
+        evalOn doc input = case parseRule input of
+          Left err -> error ("Parse failed: " ++ show err)
+          Right rule -> resultMatched (evaluateRuleSimple testDay doc rule)
+
+    it "CONTAINS matches a substring" $ do
+      let input = "RULE c \"d\" WHEN provider.npi CONTAINS \"234\" THEN REQUIRE_REVIEW \"x\";"
+      evalOn (npiDoc "1234567890") input `shouldBe` True
+      evalOn (npiDoc "9999999999") input `shouldBe` False
+
+    it "MATCHES anchors ^ and $ to the whole value" $ do
+      let input = "RULE m \"d\" WHEN NOT (provider.npi MATCHES \"^[0-9]{10}$\") THEN REJECT \"bad npi\";"
+      evalOn (npiDoc "1234567890") input `shouldBe` False
+      evalOn (npiDoc "12345") input `shouldBe` True
+      evalOn (npiDoc "12345678901") input `shouldBe` True
+
+    it "MATCHES is an unanchored search without ^ / $" $ do
+      let input = "RULE m \"d\" WHEN provider.npi MATCHES \"99\" THEN REQUIRE_REVIEW \"x\";"
+      evalOn (npiDoc "1299345678") input `shouldBe` True
+
+    it "MATCHES on a missing field does not match" $ do
+      let input = "RULE m \"d\" WHEN provider.taxonomy MATCHES \".*\" THEN REQUIRE_REVIEW \"x\";"
+      evalOn (npiDoc "1234567890") input `shouldBe` False
+
+    it "rejects an invalid regex at parse time" $ do
+      let input = "RULE m \"d\" WHEN provider.npi MATCHES \"([0-9]\" THEN REJECT \"x\";"
+      parseRule input `shouldSatisfy` isLeft
+
+  describe "RuleResult JSON wire format" $ do
+    let composite =
+          mkResult "r" True (Just (CompositeAction [RejectClaim "dup", AssignRiskScore 90])) "matched"
+        expected =
+          object
+            [ "resultRuleName" .= ("r" :: String),
+              "resultMatched" .= True,
+              "resultAction"
+                .= object
+                  [ "tag" .= ("CompositeAction'" :: String),
+                    "contents"
+                      .= [ object ["tag" .= ("RejectClaim'" :: String), "contents" .= ("dup" :: String)],
+                           object ["tag" .= ("AssignRiskScore'" :: String), "contents" .= (90 :: Int)]
+                         ]
+                  ],
+              "resultDetails" .= ("matched" :: String)
+            ]
+
+    it "keeps the primed action tags Phoenix and stored reports rely on" $
+      Aeson.toJSON composite `shouldBe` expected
+
+    it "decodes its own encoding" $
+      Aeson.fromJSON (Aeson.toJSON composite) `shouldBe` Aeson.Success composite
+
+    it "encodes an unmatched result's action as null" $
+      Aeson.toJSON (mkResult "r" False Nothing "no")
+        `shouldBe` object
+          [ "resultRuleName" .= ("r" :: String),
+            "resultMatched" .= False,
+            "resultAction" .= Aeson.Null,
+            "resultDetails" .= ("no" :: String)
+          ]
+
   describe "PolicyCombiner" $ do
     it "DSL reject always wins even with low ML risk" $ do
-      let rules = [mkResult "reject_rule" True (Just (RejectClaim' "hard reject")) "reject"]
+      let rules = [mkResult "reject_rule" True (Just (RejectClaim "hard reject")) "reject"]
           ml = mlStubResult {mlRiskScore = Just 0.10}
           out = buildCombinedEnvelope defaultPolicyConfig "claim_1" "2026-02-20T00:00:00Z" rules ml
       status (decision out) `shouldBe` "REJECT"
       queue (decision out) `shouldBe` "denied"
 
     it "ML high risk escalates to fraud priority for non-reject outcomes" $ do
-      let rules = [mkResult "review_rule" True (Just (RequireReview' "review")) "review"]
+      let rules = [mkResult "review_rule" True (Just (RequireReview "review")) "review"]
           ml = mlStubResult {mlRiskScore = Just 0.85}
           out = buildCombinedEnvelope defaultPolicyConfig "claim_2" "2026-02-20T00:00:00Z" rules ml
       status (decision out) `shouldBe` "REQUIRE_REVIEW"
@@ -757,7 +819,7 @@ main = hspec $ do
           let doc = object ["amount" .= (100 :: Int)]
               result = evaluateRuleSimple testDay doc rule
           resultMatched result `shouldBe` True
-          resultAction result `shouldBe` Just (ApproveClaim' "auto")
+          resultAction result `shouldBe` Just (ApproveClaim "auto")
 
     it "APPROVE does not override REJECT from other rules" $ do
       let rulesText = "RULE approve_rule \"Auto\" WHEN TRUE THEN APPROVE \"ok\"; \
@@ -770,7 +832,7 @@ main = hspec $ do
           reportOverallRisk report `shouldBe` CriticalRisk
 
     it "APPROVE-only rules do not create DSL concern in PolicyCombiner" $ do
-      let rules = [mkResult "approve_rule" True (Just (ApproveClaim' "ok")) "approved"]
+      let rules = [mkResult "approve_rule" True (Just (ApproveClaim "ok")) "approved"]
           ml = mlStubResult {mlRiskScore = Just 0.10}
           out = buildCombinedEnvelope defaultPolicyConfig "claim_approve" "2026-02-27T00:00:00Z" rules ml
       status (decision out) `shouldBe` "APPROVE"
@@ -973,7 +1035,7 @@ isAesonError :: Aeson.Result a -> Bool
 isAesonError (Aeson.Error _) = True
 isAesonError _ = False
 
-mkResult :: String -> Bool -> Maybe Action' -> String -> RuleResult
+mkResult :: String -> Bool -> Maybe Action -> String -> RuleResult
 mkResult name matched action details =
   RuleResult
     { resultRuleName = fromString name,

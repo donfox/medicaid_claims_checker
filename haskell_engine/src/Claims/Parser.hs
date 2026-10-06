@@ -34,6 +34,7 @@
 -- * __Comparisons__: @field = value@, @field != value@, @field > value@, @field < value@, @field >= value@, @field <= value@
 -- * __Range__: @field BETWEEN value AND value@
 -- * __Null checks__: @field IS NULL@, @field IS NOT NULL@
+-- * __Text__: @field CONTAINS "text"@, @field MATCHES "regex"@ (POSIX extended)
 -- * __Domain__: @claim.has_diagnosis "code"@, @claim.has_procedure "code"@
 -- * __Boolean logic__: @AND@, @OR@, @NOT@, parentheses for grouping
 -- * __Quantifiers__: @EXISTS path WHERE predicate@, @EXISTS var IN path WHERE predicate@
@@ -96,6 +97,7 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Text.Parsec hiding ((<|>))
 import Text.Parsec.Text
+import Claims.SimpleEvaluator (compileRegex)
 import Claims.Syntax (Action, Binding, FieldRef, Predicate, Rule, SegmentPath, Value)
 import Claims.Syntax qualified as Syntax
 
@@ -296,6 +298,7 @@ atomicAt depth =
       try hasProcedurePred,
       try helperCallPred,
       try betweenPred,
+      try textPred,
       try comparisonPred,
       try nullCheckPred,
       parenAt (depth + 1),
@@ -431,6 +434,30 @@ betweenPred = do
   lo <- lexeme valueParser
   kw "AND"
   Syntax.Between field lo <$> valueParser
+
+-- | Parse a text predicate.
+--
+-- * @field CONTAINS "text"@ - substring test
+-- * @field MATCHES "regex"@ - POSIX extended regex search; @^@ / @$@ anchor
+--   to the whole field value
+--
+-- An invalid regex is a parse error, so a broken pattern is caught when the
+-- rule is written rather than silently never matching.
+textPred :: Parser Predicate
+textPred = do
+  field <- fieldRef
+  spaces
+  containsTail field <|> matchesTail field
+  where
+    containsTail field = do
+      kw "CONTAINS"
+      Syntax.Contains field . Syntax.StringValue . T.pack <$> stringLiteral
+    matchesTail field = do
+      kw "MATCHES"
+      pattern <- T.pack <$> stringLiteral
+      case compileRegex pattern of
+        Just _ -> pure (Syntax.Matches field pattern)
+        Nothing -> fail $ "Invalid regular expression in MATCHES: " ++ T.unpack pattern
 
 -- | Parse comparison predicate.
 --

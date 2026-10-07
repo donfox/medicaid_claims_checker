@@ -44,7 +44,7 @@ import Data.Maybe (fromMaybe)
 import Data.Aeson qualified as Aeson
 import Data.Text (Text)
 import GHC.Generics (Generic)
-import Claims.Syntax (Action' (..), RuleResult (..))
+import Claims.Syntax (Action (..), RuleResult (..))
 
 -- | Risk-score thresholds that partition the ML probability space into bands:
 --
@@ -342,12 +342,12 @@ buildCombinedEnvelope cfg claimIdValue evaluatedAt rules mlResult =
 extractActionTypes :: RuleResult -> [Text]
 extractActionTypes result = maybe [] flatten (resultAction result)
   where
-    flatten (FlagFraud' _) = ["FLAG_FRAUD"]
-    flatten (AssignRiskScore' _) = ["RISK_SCORE"]
-    flatten (RequireReview' _) = ["REQUIRE_REVIEW"]
-    flatten (RejectClaim' _) = ["REJECT"]
-    flatten (ApproveClaim' _) = ["APPROVE"]
-    flatten (CompositeAction' actions) = concatMap flatten actions
+    flatten (FlagFraud _) = ["FLAG_FRAUD"]
+    flatten (AssignRiskScore _) = ["RISK_SCORE"]
+    flatten (RequireReview _) = ["REQUIRE_REVIEW"]
+    flatten (RejectClaim _) = ["REJECT"]
+    flatten (ApproveClaim _) = ["APPROVE"]
+    flatten (CompositeAction actions) = concatMap flatten actions
 
 -- | Render a threshold value as an underscore-separated reason-code suffix
 -- (e.g. 0.35 → @"0_35"@).

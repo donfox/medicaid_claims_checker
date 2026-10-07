@@ -12,6 +12,8 @@ Haskell-based engine for parsing, evaluating, and compiling fraud detection rule
 - Support for complex predicates (AND, OR, NOT, EXISTS, FORALL, COUNT, BETWEEN)
 - Named quantifier variables for nested quantifier correlation (`EXISTS x IN path WHERE ...`)
 - Domain predicates (`claim.has_diagnosis`, `claim.has_procedure`)
+- Text predicates: `CONTAINS` and `MATCHES` (POSIX regex via regex-tdfa — linear time, invalid patterns rejected at parse time)
+- Pretty-printer that is the exact inverse of the parser, verified by QuickCheck round-trip properties
 - Redundancy detection across rule sets (exact duplicate, condition overlap, subsumption)
 
 ## Module Overview
@@ -20,6 +22,7 @@ Haskell-based engine for parsing, evaluating, and compiling fraud detection rule
 |---|---|
 | `Claims.Syntax` | AST types for rules, predicates, actions, field references, and evaluation results |
 | `Claims.Parser` | Parsec-based DSL parser |
+| `Claims.Pretty` | Render rule ASTs back to DSL text; `parseRule . prettyRule` is the identity on parsed rules |
 | `Claims.SimpleEvaluator` | Evaluate predicates against generic JSON claim payloads |
 | `Claims.RuleCache` | Thread-safe STM cache of parsed rule ASTs, keyed by rule name |
 | `Claims.RuleEngine` | Multi-rule evaluation engine and reporting |

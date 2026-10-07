@@ -8,7 +8,7 @@
 -- Instead of writing specific example inputs, we:
 --
 --   1. Define 'Arbitrary' instances that generate random AST values
---   2. Write a pretty-printer to convert AST nodes back to DSL text
+--   2. Render them back to DSL text with "Claims.Pretty"
 --   3. Assert properties that must hold for ALL generated inputs
 --
 -- The core property is the __round-trip invariant__:
@@ -31,12 +31,14 @@
 
 module ParserProps (parserProperties) where
 
+import Prelude hiding (EQ, GT, LT)
 import qualified Data.Text as T
 import Data.Text (Text)
 import Test.Hspec
 import Test.QuickCheck
 
 import Claims.Parser (parseRule, parseRules)
+import Claims.Pretty (prettyRule, prettyRules)
 import Claims.Syntax
 
 -- ============================================================
@@ -93,17 +95,32 @@ safeStrings =
   , "outpatient", "male", "female", "tx", "ca"
   ]
 
+safeLetNames :: [Text]
+safeLetNames = ["amt", "prov", "svc_date"]
+
+safeHelpers :: [Text]
+safeHelpers = ["is_weekend", "in_list", "starts_with"]
+
+-- | Valid POSIX extended patterns of the kind analysts write.
+safePatterns :: [Text]
+safePatterns = ["^[0-9]{10}$", "^99[0-9]{3}$", "E11\\.[0-9]+", "^(A|B)[0-9]*$", "x"]
+
 -- | Pick a random element from a fixed list.
 pickFrom :: [a] -> Gen a
 pickFrom = elements
 
--- | Generate a whole-number Double (e.g. 42.0, 500.0).
---
--- We avoid fractional doubles because 'show' can produce scientific notation
--- for very small values (e.g. 1.0e-3) which the parser cannot read back.
--- Whole numbers always render as "42.0", which the parser handles fine.
+-- | Generate a Double with up to two decimal places, positive or negative
+-- (e.g. 42.0, -0.05, 1234.5). 'Claims.Pretty' never uses scientific
+-- notation, so small and fractional values round-trip too.
 genSafeDouble :: Gen Double
-genSafeDouble = fromIntegral <$> choose (0 :: Int, 9999)
+genSafeDouble = (/ 100) . fromIntegral <$> choose (-999999 :: Int, 999999)
+
+genSegmentPath :: Gen SegmentPath
+genSegmentPath = SegmentPath <$> pickFrom safeLoops <*> (take 1 <$> sublistOf safeSegments)
+
+-- | A literal: no field references, since list elements must be scalars.
+genScalar :: Gen Value
+genScalar = oneof [StringValue <$> pickFrom safeStrings, NumberValue <$> genSafeDouble]
 
 
 -- ============================================================
@@ -128,9 +145,9 @@ instance Arbitrary FieldRef where
   shrink _                    = []
 
 instance Arbitrary Value where
-  arbitrary = oneof
-    [ StringValue <$> pickFrom safeStrings
-    , NumberValue <$> genSafeDouble
+  arbitrary = frequency
+    [ (4, genScalar)
+    , (1, FieldRefValue <$> arbitrary)
     ]
   shrink (NumberValue n) = [NumberValue n' | n' <- shrink n, n' >= 0]
   shrink _               = []
@@ -149,6 +166,8 @@ instance Arbitrary Predicate where
                     ++ [Or  p1' p2  | p1' <- shrink p1]
                     ++ [Or  p1  p2' | p2' <- shrink p2]
   shrink (Not p)     = [p] ++ [Not p' | p' <- shrink p]
+  shrink (Exists v path p) = p : [Exists v path p' | p' <- shrink p]
+  shrink (ForAll v path p) = p : [ForAll v path p' | p' <- shrink p]
   shrink _           = []
 
 genPredicate :: Int -> Gen Predicate
@@ -158,8 +177,12 @@ genPredicate n = frequency
   , (2, And <$> genPredicate half <*> genPredicate half)
   , (2, Or  <$> genPredicate half <*> genPredicate half)
   , (1, Not <$> genPredicate (n - 1))
+  , (1, Exists <$> genVar <*> genSegmentPath <*> genPredicate half)
+  , (1, ForAll <$> genVar <*> genSegmentPath <*> genPredicate half)
   ]
-  where half = n `div` 2
+  where
+    half = n `div` 2
+    genVar = oneof [pure Nothing, Just <$> pickFrom ["line", "item"]]
 
 -- | Generate an atomic (leaf) predicate — no boolean operators.
 genAtomic :: Gen Predicate
@@ -177,6 +200,13 @@ genAtomic = oneof
             <*> (NumberValue <$> genSafeDouble)
   , IsNull    <$> arbitrary
   , IsNotNull <$> arbitrary
+  , Contains  <$> arbitrary <*> (StringValue <$> pickFrom safeStrings)
+  , Matches   <$> arbitrary <*> pickFrom safePatterns
+  , HasDiagnosis <$> genScalar
+  , HasProcedure <$> genScalar
+  , Count <$> genSegmentPath <*> elements [EQ, NE, GT, LT, GTE, LTE] <*> choose (0, 50)
+  , HelperCall <$> pickFrom safeHelpers
+               <*> listOf (oneof [arbitrary, ListValue <$> listOf1 genScalar])
   ]
 
 -- | Generate a single (non-composite) action.
@@ -202,78 +232,21 @@ instance Arbitrary Rule where
   arbitrary = Rule
     <$> pickFrom safeRuleNames
     <*> pickFrom safeStrings   -- description
-    <*> pure []                -- LET bindings omitted (separate concern)
+    <*> genBindings
     <*> arbitrary              -- condition
     <*> arbitrary              -- action
   shrink rule =
     [ rule { ruleCondition = p' } | p' <- shrink (ruleCondition rule) ]
     ++
     [ rule { ruleAction = a' }    | a' <- shrink (ruleAction rule) ]
+    ++
+    [ rule { ruleBindings = [] } | not (null (ruleBindings rule)) ]
 
-
--- ============================================================
--- Pretty-printer: AST → DSL text
---
--- This is the inverse of Claims.Parser. It must produce valid DSL text
--- that the parser reads back to the identical AST.
---
--- Key decisions:
---   * Explicit parentheses around every And/Or sub-expression — eliminates
---     all operator-precedence ambiguity during round-trips.
---   * NOT always followed by a parenthesized sub-expression.
---   * Only whole-number Doubles generated, so 'show' gives "42.0" not "4.2e1".
--- ============================================================
-
-prettyFieldRef :: FieldRef -> Text
-prettyFieldRef (Field t)               = t
-prettyFieldRef (SegmentField seg f)    = seg <> "." <> f
-prettyFieldRef (LoopField loop seg f)  = loop <> "." <> seg <> "." <> f
-prettyFieldRef (ElementPosition _ _ _) = "amount"  -- not generated; safe fallback
-
-prettyValue :: Value -> Text
-prettyValue (StringValue t)    = "\"" <> t <> "\""
-prettyValue (NumberValue n)    = T.pack (show n)
-prettyValue (FieldRefValue fr) = prettyFieldRef fr  -- not generated
-prettyValue (ListValue vs)     = "[" <> T.intercalate ", " (map prettyValue vs) <> "]"
-
-prettyPredicate :: Predicate -> Text
-prettyPredicate PTrue                    = "TRUE"
-prettyPredicate PFalse                   = "FALSE"
-prettyPredicate (Equals f v)             = prettyFieldRef f <> " = "  <> prettyValue v
-prettyPredicate (NotEquals f v)          = prettyFieldRef f <> " != " <> prettyValue v
-prettyPredicate (GreaterThan f v)        = prettyFieldRef f <> " > "  <> prettyValue v
-prettyPredicate (LessThan f v)           = prettyFieldRef f <> " < "  <> prettyValue v
-prettyPredicate (GreaterThanOrEqual f v) = prettyFieldRef f <> " >= " <> prettyValue v
-prettyPredicate (LessThanOrEqual f v)    = prettyFieldRef f <> " <= " <> prettyValue v
-prettyPredicate (IsNull f)               = prettyFieldRef f <> " IS NULL"
-prettyPredicate (IsNotNull f)            = prettyFieldRef f <> " IS NOT NULL"
-prettyPredicate (Between f lo hi)        =
-  prettyFieldRef f <> " BETWEEN " <> prettyValue lo <> " AND " <> prettyValue hi
--- Explicit parentheses around both sides preserve round-trip correctness
-prettyPredicate (And p1 p2) =
-  "(" <> prettyPredicate p1 <> ") AND (" <> prettyPredicate p2 <> ")"
-prettyPredicate (Or p1 p2)  =
-  "(" <> prettyPredicate p1 <> ") OR ("  <> prettyPredicate p2 <> ")"
-prettyPredicate (Not p)     =
-  "NOT (" <> prettyPredicate p <> ")"
-prettyPredicate _ = "TRUE"  -- unreachable: ungenerated constructors (HasDiagnosis, etc.)
-
-prettyAction :: Action -> Text
-prettyAction (FlagFraud reason)     = "FLAG_FRAUD \""     <> reason <> "\""
-prettyAction (AssignRiskScore n)    = "RISK_SCORE "       <> T.pack (show n)
-prettyAction (RequireReview note)   = "REQUIRE_REVIEW \"" <> note   <> "\""
-prettyAction (RejectClaim reason)   = "REJECT \""         <> reason <> "\""
-prettyAction (ApproveClaim reason)  = "APPROVE \""        <> reason <> "\""
-prettyAction (CompositeAction acts) =
-  "[" <> T.intercalate ", " (map prettyAction acts) <> "]"
-
-prettyRule :: Rule -> Text
-prettyRule rule =
-  "RULE "  <> ruleName rule
-  <> " \"" <> ruleDescription rule <> "\""
-  <> " WHEN " <> prettyPredicate (ruleCondition rule)
-  <> " THEN " <> prettyAction (ruleAction rule)
-  <> ";"
+-- | Zero or more LET bindings with distinct names (duplicates are a parse error).
+genBindings :: Gen [Binding]
+genBindings = do
+  names <- sublistOf safeLetNames
+  traverse (\name -> Binding name <$> arbitrary) names
 
 
 -- ============================================================
@@ -307,6 +280,13 @@ prop_twoRulesRoundTrip r1 r2 =
        ("Generated DSL text:\n  " <> T.unpack text)
        (result === Right [r1, r2])
 
+-- | PROPERTY 2b: 'prettyRules' output parses back to the same rule set.
+prop_ruleSetRoundTrip :: [Rule] -> Property
+prop_ruleSetRoundTrip rules =
+  let text = prettyRules rules
+  in counterexample ("Generated DSL text:\n" <> T.unpack text)
+       (parseRules text === Right rules)
+
 -- | PROPERTY 3: Rule name is always preserved through serialization.
 prop_ruleNamePreserved :: Rule -> Property
 prop_ruleNamePreserved rule =
@@ -337,6 +317,9 @@ parserProperties =
 
       it "two rules in sequence both survive" $
         checkProp prop_twoRulesRoundTrip
+
+      it "a whole rule set survives prettyRules → parseRules" $
+        checkProp prop_ruleSetRoundTrip
 
     describe "Structural invariants (individual fields)" $ do
 

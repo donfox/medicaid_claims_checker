@@ -163,6 +163,24 @@ EXISTS path WHERE ...
 
 However, nested unnamed quantifiers lose access to the outer element because the evaluation context shifts.
 
+### Text operators
+
+```text
+field CONTAINS "text"
+field MATCHES "regex"
+```
+
+- `CONTAINS` is true when the field's text includes the given substring.
+- `MATCHES` uses POSIX extended regular expressions. It searches anywhere in the value unless the pattern is anchored: `^` and `$` refer to the start and end of the whole field value.
+- An invalid pattern is reported as a parse error when the rule is saved, rather than silently never matching.
+- A missing field never matches either operator.
+
+Example:
+
+```text
+NOT (provider.npi MATCHES "^[0-9]{10}$")
+```
+
 ### String helper operations
 
 ```text
@@ -174,7 +192,6 @@ Notes:
 
 - `starts_with` checks for a text prefix.
 - `in_list` checks membership in a list.
-- Parser-level operators such as `CONTAINS` and `MATCHES` are **not** currently part of the public DSL grammar.
 
 ## Field References
 

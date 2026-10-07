@@ -15,6 +15,7 @@ It orchestrates rule loading, document evaluation, and result aggregation.
 import Claims.RuleEngine
 import Data.Aeson (decode)
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Text as T
 
 main :: IO ()
 main = do
@@ -65,7 +66,7 @@ import Data.Text qualified as T
 import Data.Time (Day)
 import Claims.Parser (parseRules)
 import Claims.SimpleEvaluator (evaluateRuleSimple)
-import Claims.Syntax (Action' (..), Rule, RuleResult (..))
+import Claims.Syntax (Action (..), Rule, RuleResult (..))
 
 -- ----------------------------------------------------------------------------
 -- Rule Engine
@@ -191,32 +192,32 @@ determineRiskLevel results =
 -- | Check if a result contains a reject action.
 isRejectAction :: RuleResult -> Bool
 isRejectAction result = case resultAction result of
-  Just (RejectClaim' _)         -> True
-  Just (CompositeAction' actions) -> any isReject actions
-  _                             -> False
+  Just (RejectClaim _)           -> True
+  Just (CompositeAction actions) -> any isReject actions
+  _                              -> False
   where
-    isReject (RejectClaim' _) = True
-    isReject _                = False
+    isReject (RejectClaim _) = True
+    isReject _               = False
 
 -- | Check if a result contains a fraud flag action.
 isFraudFlag :: RuleResult -> Bool
 isFraudFlag result = case resultAction result of
-  Just (FlagFraud' _)           -> True
-  Just (CompositeAction' actions) -> any isFraud actions
-  _                             -> False
+  Just (FlagFraud _)             -> True
+  Just (CompositeAction actions) -> any isFraud actions
+  _                              -> False
   where
-    isFraud (FlagFraud' _) = True
-    isFraud _              = False
+    isFraud (FlagFraud _) = True
+    isFraud _             = False
 
 -- | Check if a result contains a high risk score (>= 70).
 isHighRiskAction :: RuleResult -> Bool
 isHighRiskAction result = case resultAction result of
-  Just (AssignRiskScore' score)   -> score >= 70
-  Just (CompositeAction' actions) -> any isHighRisk actions
-  _                               -> False
+  Just (AssignRiskScore score)   -> score >= 70
+  Just (CompositeAction actions) -> any isHighRisk actions
+  _                              -> False
   where
-    isHighRisk (AssignRiskScore' score) = score >= 70
-    isHighRisk _                        = False
+    isHighRisk (AssignRiskScore score) = score >= 70
+    isHighRisk _                       = False
 
 -- | Generate a human-readable summary of evaluation results.
 generateSummary :: Int -> Int -> RiskLevel -> Text

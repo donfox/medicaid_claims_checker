@@ -142,13 +142,13 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
 
     if MapSet.member?(socket.assigns.pending_upload_batch_ids, batch_id) do
       summary = Map.get(payload, :summary, %{})
-      fraudulent = Map.get(summary, :fraudulent, 0)
+      flagged = Map.get(summary, :flagged_for_review, 0)
       total = Map.get(summary, :total, 0)
 
       msg =
         cond do
-          fraudulent > 0 ->
-            "#{fraudulent}/#{total} claim(s) flagged — see results below."
+          flagged > 0 ->
+            "#{flagged}/#{total} claim(s) flagged for analyst review — see results below."
           total > 0 ->
             "#{total} claim(s) evaluated clean — see results below."
           true ->
@@ -619,17 +619,6 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
      |> put_flash(:info, "Batch history refreshed")}
   end
 
-  def handle_event("clear_batch_history", _params, socket) do
-    Claims.clear_batch_history()
-
-    {:noreply,
-     socket
-     |> assign(:batch_history, [])
-     |> assign(:expanded_batch_ids, MapSet.new())
-     |> assign(:expanded_batch_file_ids, MapSet.new())
-     |> put_flash(:info, "Job history cleared")}
-  end
-
   def handle_event("dismiss_batch", %{"id" => id}, socket) do
     case Integer.parse(id) do
       {batch_id, ""} ->
@@ -1000,7 +989,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
 
     files_with_details =
       Enum.map(files, fn f ->
-        report = f.json_output || %{}
+        report = f.evaluation_report || %{}
 
         matched_results =
           (report["results"] || [])

@@ -1,14 +1,15 @@
 defmodule MedicaidClaimsChecker.Claims.RuleTriggerTest do
   @moduledoc """
   Negative-case (trigger) tests: verifies that claims with specific fraud patterns
-  are correctly normalized, sent to the engine with the right structure, and stored
-  as fraudulent when the engine flags them.
+  are correctly normalized, sent to the engine with the right structure, and
+  flagged for analyst review when the engine reports High/CriticalRisk.
 
   Each test:
   1. Builds a claim that should trigger a specific rule
   2. Uses a Bypass mock to verify the payload reaches the engine correctly structured
   3. Mocks the engine response as if the rule fired
-  4. Asserts the file is stored as "fraudulent"
+  4. Asserts the file is "evaluated" with a report flagged for review (the
+     pipeline never marks a claim fraudulent; that is an analyst's decision)
 
   The actual rule logic is covered by the Haskell unit tests.
   These tests cover the Elixir pipeline side.
@@ -167,7 +168,7 @@ defmodule MedicaidClaimsChecker.Claims.RuleTriggerTest do
       :ok
     end
 
-    test "null claim_id: engine receives null and pipeline stores fraudulent", %{bypass: bypass} do
+    test "null claim_id: engine receives null and pipeline flags for review", %{bypass: bypass} do
       claim = valid_claim(%{"claim_id" => nil})
 
       Bypass.expect_once(bypass, "POST", "/api/batch-evaluate", fn conn ->
@@ -186,10 +187,12 @@ defmodule MedicaidClaimsChecker.Claims.RuleTriggerTest do
       batch = ingest_batch!([%{"filename" => "missing_id.json", "claim" => claim}])
       file = run_and_get_file(batch)
 
-      assert file.status == "fraudulent"
+      assert file.status == "evaluated"
+
+      assert Claims.flagged_for_review?(file.evaluation_report)
     end
 
-    test "null provider.npi: engine receives null and pipeline stores fraudulent", %{
+    test "null provider.npi: engine receives null and pipeline flags for review", %{
       bypass: bypass
     } do
       claim = valid_claim(%{"provider" => %{"npi" => nil, "tenure_days" => 500}})
@@ -210,27 +213,33 @@ defmodule MedicaidClaimsChecker.Claims.RuleTriggerTest do
       batch = ingest_batch!([%{"filename" => "missing_npi.json", "claim" => claim}])
       file = run_and_get_file(batch)
 
-      assert file.status == "fraudulent"
+      assert file.status == "evaluated"
+
+      assert Claims.flagged_for_review?(file.evaluation_report)
     end
 
-    test "null patient.date_of_birth: pipeline stores fraudulent", %{bypass: bypass} do
+    test "null patient.date_of_birth: pipeline flags for review", %{bypass: bypass} do
       claim = valid_claim(%{"patient" => %{"date_of_birth" => nil}})
       expect_fraud_response(bypass)
 
       batch = ingest_batch!([%{"filename" => "missing_dob.json", "claim" => claim}])
       file = run_and_get_file(batch)
 
-      assert file.status == "fraudulent"
+      assert file.status == "evaluated"
+
+      assert Claims.flagged_for_review?(file.evaluation_report)
     end
 
-    test "null financial.claim_amount: pipeline stores fraudulent", %{bypass: bypass} do
+    test "null financial.claim_amount: pipeline flags for review", %{bypass: bypass} do
       claim = valid_claim(%{"financial" => %{"claim_amount" => nil}})
       expect_fraud_response(bypass)
 
       batch = ingest_batch!([%{"filename" => "missing_amount.json", "claim" => claim}])
       file = run_and_get_file(batch)
 
-      assert file.status == "fraudulent"
+      assert file.status == "evaluated"
+
+      assert Claims.flagged_for_review?(file.evaluation_report)
     end
 
     test "all required fields present: pipeline stores evaluated", %{bypass: bypass} do
@@ -258,7 +267,7 @@ defmodule MedicaidClaimsChecker.Claims.RuleTriggerTest do
       :ok
     end
 
-    test "empty diagnosis_codes array: engine receives [] and pipeline stores fraudulent", %{
+    test "empty diagnosis_codes array: engine receives [] and pipeline flags for review", %{
       bypass: bypass
     } do
       claim = valid_claim(%{"diagnosis_codes" => []})
@@ -279,7 +288,9 @@ defmodule MedicaidClaimsChecker.Claims.RuleTriggerTest do
       batch = ingest_batch!([%{"filename" => "no_dx.json", "claim" => claim}])
       file = run_and_get_file(batch)
 
-      assert file.status == "fraudulent"
+      assert file.status == "evaluated"
+
+      assert Claims.flagged_for_review?(file.evaluation_report)
     end
 
     test "non-empty diagnosis_codes: pipeline stores evaluated", %{bypass: bypass} do
@@ -307,7 +318,7 @@ defmodule MedicaidClaimsChecker.Claims.RuleTriggerTest do
       :ok
     end
 
-    test "5-digit NPI: engine receives short NPI and pipeline stores fraudulent", %{
+    test "5-digit NPI: engine receives short NPI and pipeline flags for review", %{
       bypass: bypass
     } do
       claim = valid_claim(%{"provider" => %{"npi" => "12345", "tenure_days" => 500}})
@@ -327,17 +338,21 @@ defmodule MedicaidClaimsChecker.Claims.RuleTriggerTest do
       batch = ingest_batch!([%{"filename" => "short_npi.json", "claim" => claim}])
       file = run_and_get_file(batch)
 
-      assert file.status == "fraudulent"
+      assert file.status == "evaluated"
+
+      assert Claims.flagged_for_review?(file.evaluation_report)
     end
 
-    test "NPI with letters: pipeline stores fraudulent", %{bypass: bypass} do
+    test "NPI with letters: pipeline flags for review", %{bypass: bypass} do
       claim = valid_claim(%{"provider" => %{"npi" => "123456789a", "tenure_days" => 500}})
       expect_fraud_response(bypass)
 
       batch = ingest_batch!([%{"filename" => "alpha_npi.json", "claim" => claim}])
       file = run_and_get_file(batch)
 
-      assert file.status == "fraudulent"
+      assert file.status == "evaluated"
+
+      assert Claims.flagged_for_review?(file.evaluation_report)
     end
 
     test "valid 10-digit NPI: pipeline stores evaluated", %{bypass: bypass} do
@@ -365,7 +380,7 @@ defmodule MedicaidClaimsChecker.Claims.RuleTriggerTest do
       :ok
     end
 
-    test "NPI 1234567890 (valid format, invalid Luhn): pipeline stores fraudulent", %{
+    test "NPI 1234567890 (valid format, invalid Luhn): pipeline flags for review", %{
       bypass: bypass
     } do
       claim = valid_claim(%{"provider" => %{"npi" => "1234567890", "tenure_days" => 500}})
@@ -386,7 +401,9 @@ defmodule MedicaidClaimsChecker.Claims.RuleTriggerTest do
       batch = ingest_batch!([%{"filename" => "bad_luhn.json", "claim" => claim}])
       file = run_and_get_file(batch)
 
-      assert file.status == "fraudulent"
+      assert file.status == "evaluated"
+
+      assert Claims.flagged_for_review?(file.evaluation_report)
     end
 
     test "lab_work fixture NPI 1003001850 (valid Luhn): pipeline stores evaluated", %{
@@ -441,7 +458,7 @@ defmodule MedicaidClaimsChecker.Claims.RuleTriggerTest do
       :ok
     end
 
-    test "future service date 2099-01-01: engine receives future date and pipeline stores fraudulent",
+    test "future service date 2099-01-01: engine receives future date and pipeline flags for review",
          %{bypass: bypass} do
       claim =
         valid_claim(%{
@@ -464,7 +481,9 @@ defmodule MedicaidClaimsChecker.Claims.RuleTriggerTest do
       batch = ingest_batch!([%{"filename" => "future_date.json", "claim" => claim}])
       file = run_and_get_file(batch)
 
-      assert file.status == "fraudulent"
+      assert file.status == "evaluated"
+
+      assert Claims.flagged_for_review?(file.evaluation_report)
     end
 
     test "past service date 2026-03-07: pipeline stores evaluated", %{bypass: bypass} do
@@ -497,7 +516,7 @@ defmodule MedicaidClaimsChecker.Claims.RuleTriggerTest do
       :ok
     end
 
-    test "$800K claim: engine receives correct total_charges and pipeline stores fraudulent", %{
+    test "$800K claim: engine receives correct total_charges and pipeline flags for review", %{
       bypass: bypass
     } do
       claim =
@@ -522,7 +541,9 @@ defmodule MedicaidClaimsChecker.Claims.RuleTriggerTest do
       batch = ingest_batch!([%{"filename" => "excessive.json", "claim" => claim}])
       file = run_and_get_file(batch)
 
-      assert file.status == "fraudulent"
+      assert file.status == "evaluated"
+
+      assert Claims.flagged_for_review?(file.evaluation_report)
     end
 
     test "$450 claim: pipeline stores evaluated", %{bypass: bypass} do
@@ -550,7 +571,7 @@ defmodule MedicaidClaimsChecker.Claims.RuleTriggerTest do
       :ok
     end
 
-    test "null auth + $10K: engine receives null authorization_number and pipeline stores fraudulent",
+    test "null auth + $10K: engine receives null authorization_number and pipeline flags for review",
          %{bypass: bypass} do
       claim =
         valid_claim(%{
@@ -576,7 +597,9 @@ defmodule MedicaidClaimsChecker.Claims.RuleTriggerTest do
       batch = ingest_batch!([%{"filename" => "no_auth_high.json", "claim" => claim}])
       file = run_and_get_file(batch)
 
-      assert file.status == "fraudulent"
+      assert file.status == "evaluated"
+
+      assert Claims.flagged_for_review?(file.evaluation_report)
     end
 
     test "null auth + $450 (below threshold): pipeline stores evaluated", %{bypass: bypass} do
@@ -615,14 +638,16 @@ defmodule MedicaidClaimsChecker.Claims.RuleTriggerTest do
       :ok
     end
 
-    test "$2.50 claim: engine receives amount and pipeline stores fraudulent", %{bypass: bypass} do
+    test "$2.50 claim: engine receives amount and pipeline flags for review", %{bypass: bypass} do
       claim = valid_claim(%{"financial" => %{"claim_amount" => 2.50}})
       expect_fraud_response(bypass)
 
       batch = ingest_batch!([%{"filename" => "low_charge.json", "claim" => claim}])
       file = run_and_get_file(batch)
 
-      assert file.status == "fraudulent"
+      assert file.status == "evaluated"
+
+      assert Claims.flagged_for_review?(file.evaluation_report)
     end
 
     test "$5.00 claim (boundary — rule is strict < 5): pipeline stores evaluated", %{
@@ -707,7 +732,9 @@ defmodule MedicaidClaimsChecker.Claims.RuleTriggerTest do
       batch = ingest_batch!([%{"filename" => "new_provider_large.json", "claim" => claim}])
       file = run_and_get_file(batch)
 
-      assert file.status == "fraudulent"
+      assert file.status == "evaluated"
+
+      assert Claims.flagged_for_review?(file.evaluation_report)
     end
   end
 
@@ -725,7 +752,7 @@ defmodule MedicaidClaimsChecker.Claims.RuleTriggerTest do
       :ok
     end
 
-    test "DOB 18001101 (age > 130): engine receives extreme DOB and pipeline stores fraudulent",
+    test "DOB 18001101 (age > 130): engine receives extreme DOB and pipeline flags for review",
          %{bypass: bypass} do
       claim = valid_claim(%{"patient" => %{"date_of_birth" => "18001101"}})
 
@@ -744,7 +771,9 @@ defmodule MedicaidClaimsChecker.Claims.RuleTriggerTest do
       batch = ingest_batch!([%{"filename" => "extreme_age.json", "claim" => claim}])
       file = run_and_get_file(batch)
 
-      assert file.status == "fraudulent"
+      assert file.status == "evaluated"
+
+      assert Claims.flagged_for_review?(file.evaluation_report)
     end
 
     test "DOB 19901215 (age ~35): pipeline stores evaluated", %{bypass: bypass} do

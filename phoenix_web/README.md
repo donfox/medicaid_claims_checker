@@ -49,8 +49,9 @@ Development-only routes: `/dev/dashboard` (Phoenix LiveDashboard), `/dev/mailbox
 |---|---|---|
 | `filename` | string | Claim filename |
 | `file_path` | string | Storage path or ingest URI |
-| `json_output` | jsonb | Translated claim JSON + evaluation report |
-| `status` | string | `pending` / `translated` / `syntax_error` / `fraudulent` |
+| `json_output` | jsonb | Translated claim JSON (never overwritten by evaluation) |
+| `evaluation_report` | jsonb | Rule engine report from the latest evaluation (advisory); nullable |
+| `status` | string | Processing state: `pending` / `translated` / `evaluated` / `syntax_error`. Fraud is never a file status; HighRisk/CriticalRisk reports are counted as flagged for analyst review |
 | `error_message` | text | nullable |
 | `error_details` | jsonb | nullable |
 | `processed_at` | utc_datetime | nullable |

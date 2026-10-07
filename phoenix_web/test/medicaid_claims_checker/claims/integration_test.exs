@@ -112,9 +112,9 @@ defmodule MedicaidClaimsChecker.Claims.IntegrationTest do
 
       assert file.status == "evaluated",
              "lab_work CLM100002 should pass all rules; got status=#{file.status}, " <>
-               "report=#{inspect(file.json_output)}"
+               "report=#{inspect(file.evaluation_report)}"
 
-      report = file.json_output || %{}
+      report = file.evaluation_report || %{}
       assert report["overallRisk"] in ["LowRisk", nil]
     end
 
@@ -126,7 +126,7 @@ defmodule MedicaidClaimsChecker.Claims.IntegrationTest do
 
       assert file.status == "evaluated",
              "preventive CLM100004 should pass all rules; got status=#{file.status}, " <>
-               "report=#{inspect(file.json_output)}"
+               "report=#{inspect(file.evaluation_report)}"
     end
 
     test "both fixture claims in one batch both evaluate cleanly" do
@@ -166,8 +166,8 @@ defmodule MedicaidClaimsChecker.Claims.IntegrationTest do
 
       [file] = ingest_and_evaluate!([%{"filename" => "no_claim_id.json", "claim" => claim}])
 
-      assert file.status == "fraudulent",
-             "claim without claim_id must be rejected; got status=#{file.status}"
+      assert Claims.flagged_for_review?(file.evaluation_report),
+             "claim without claim_id must be flagged for review; got report=#{inspect(file.evaluation_report)}"
     end
 
     test "amount > $750K triggers ExcessiveTotalCharges" do
@@ -183,10 +183,10 @@ defmodule MedicaidClaimsChecker.Claims.IntegrationTest do
 
       [file] = ingest_and_evaluate!([%{"filename" => "excessive.json", "claim" => claim}])
 
-      assert file.status in ["fraudulent", "evaluated"],
-             "excessive charges must be flagged; got status=#{file.status}"
+      assert Claims.flagged_for_review?(file.evaluation_report),
+             "excessive charges must be flagged for review; got report=#{inspect(file.evaluation_report)}"
 
-      report = file.json_output || %{}
+      report = file.evaluation_report || %{}
 
       matched =
         (report["results"] || [])
@@ -208,8 +208,8 @@ defmodule MedicaidClaimsChecker.Claims.IntegrationTest do
 
       [file] = ingest_and_evaluate!([%{"filename" => "future_date.json", "claim" => claim}])
 
-      assert file.status == "fraudulent",
-             "future service date must be rejected; got status=#{file.status}"
+      assert Claims.flagged_for_review?(file.evaluation_report),
+             "future service date must be flagged for review; got report=#{inspect(file.evaluation_report)}"
     end
   end
 end

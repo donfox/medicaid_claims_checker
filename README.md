@@ -15,13 +15,25 @@ Medicaid Claims Checker is one of three independent healthcare-related projects 
 ## Editions
 
 - **Edition 2** (the current version, in active development) is built on one principle: the system recommends and a named analyst decides. Rule results, NPPES checks and optional ML risk scores are evidence for an analyst and never a fraud determination. A planned AI assistant will advise the analyst in the same way (see [Roadmap](#roadmap)).
-- **Edition 1** is preserved as completed: [Edition 1 release](https://github.com/donfox/medicaid_claims_checker/releases/tag/edition-1). In Edition 1, claims the engine rated High or Critical risk were labelled fraudulent automatically.
+- **Edition 1** is preserved as completed: [Edition 1 release](https://github.com/donfox/medicaid_claims_checker/releases/tag/edition-1). In Edition 1, claims the engine rated High or Critical risk, and claims whose provider failed the NPPES check, were labelled fraudulent automatically.
+
+Each edition is a Git tag; `main` always holds the latest edition. To look at Edition 1:
+
+- [Browse Edition 1's code](https://github.com/donfox/medicaid_claims_checker/tree/edition-1) or [see what has changed since Edition 1](https://github.com/donfox/medicaid_claims_checker/compare/edition-1...main).
+- To run it locally, check out the tag, then follow the usual setup:
+
+  ```bash
+  git switch --detach edition-1
+  ./setup.sh
+  ```
+
+  Return to the current version with `git switch main` and run `./setup.sh` again.
 
 ## Roadmap
 
 Planned for Edition 2:
 
-- **Analyst review workflow:** a case queue, decisions recorded with the analyst, reason and evidence, and supervisor confirmation for adverse decisions.
+- **Analyst review workflow:** a case queue, decisions recorded with the analyst, reason and evidence, and supervisor confirmation for serious decisions.
 - **Advisory AI assistant:** an API connection to a large language model (LLM) that summarises a claim's findings and drafts review notes for the analyst. Its output will be labelled advisory; it will not be able to change a claim's status or record a decision, and it will be used only with synthetic data.
 
 ## Getting Started

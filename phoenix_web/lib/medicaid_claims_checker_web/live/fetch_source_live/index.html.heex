@@ -681,7 +681,7 @@
             </svg>
             <h2 class="text-xl font-semibold text-gray-900">Jobs History (manual & batch)</h2>
             <span class="text-sm font-normal text-gray-800">
-              — <%= @history_total %> batches<%= if @history_hidden_count > 0 do %> (<%= @history_hidden_count %> hidden)<% end %>
+              — <%= pluralize(@history_total, "batch", "batches") %><%= if @history_hidden_count > 0 do %> (<%= @history_hidden_count %> hidden)<% end %>
             </span>
           </div>
         </button>
@@ -811,8 +811,8 @@
                     </div>
                   </div>
                   <div class="flex items-center gap-4 text-sm text-gray-800">
-                    <span><%= batch.file_count %> claims</span>
-                    <span><%= Calendar.strftime(batch.inserted_at, "%b %d, %Y %H:%M") %></span>
+                    <span><%= pluralize(batch.file_count, "claim", "claims") %></span>
+                    <span><%= local_time(batch.inserted_at) %></span>
                     <svg aria-hidden="true" class={[
                       "w-5 h-5 text-gray-400 transition-transform",
                       if(MapSet.member?(@expanded_batch_ids, batch.id), do: "rotate-180", else: "")

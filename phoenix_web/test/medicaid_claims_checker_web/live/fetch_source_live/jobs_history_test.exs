@@ -83,4 +83,16 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.JobsHistoryTest do
     assert html =~ "Batch 05"
     refute html =~ "Batch 25"
   end
+
+  test "batch times are shown in the same zone as batch names", %{conn: conn} do
+    # 01:29 UTC on Oct 9 is 9:29 PM EDT on Oct 8.
+    insert_batch("Evening upload", ~U[2026-10-09 01:29:00Z])
+
+    html = conn |> open_history() |> render()
+
+    assert html =~ "Oct 08, 2026 09:29 PM EDT"
+    refute html =~ "Oct 09, 2026"
+    assert html =~ "1 batch"
+    assert html =~ "1 claim<"
+  end
 end

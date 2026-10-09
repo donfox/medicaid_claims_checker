@@ -1076,6 +1076,17 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     end
   end
 
+  # Timestamps are stored in UTC; show them in the same zone as batch names
+  # and the date filter, so one upload never appears under two dates.
+  defp local_time(%DateTime{} = dt) do
+    dt |> DateTime.shift_zone!(@history_tz) |> Calendar.strftime("%b %d, %Y %I:%M %p %Z")
+  end
+
+  defp local_time(_), do: ""
+
+  defp pluralize(1, singular, _plural), do: "1 #{singular}"
+  defp pluralize(n, _singular, plural), do: "#{n} #{plural}"
+
   # Dates are entered in the app's display time zone; "to" is inclusive.
   defp history_date_opts(from, to) do
     from_opt =

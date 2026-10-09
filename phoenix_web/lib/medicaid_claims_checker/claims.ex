@@ -54,6 +54,45 @@ defmodule MedicaidClaimsChecker.Claims do
     |> Repo.all()
   end
 
+  @doc """
+  Returns one page of batches, newest first, plus the total number of
+  batches matching the filters (for paging).
+
+  Options:
+    * `:inserted_after` - only batches inserted after this `DateTime`
+      (used to hide batches the user cleared from their display)
+    * `:from` / `:to` - inclusive `DateTime` bounds on `inserted_at`
+    * `:page` (default 1) and `:per_page` (default 20)
+
+  Read-only; nothing is deleted or hidden at the database level.
+  """
+  def list_batches_page(opts \\ []) do
+    page = max(Keyword.get(opts, :page, 1), 1)
+    per_page = Keyword.get(opts, :per_page, 20)
+    query = filter_batches(opts)
+
+    batches =
+      query
+      |> order_by(desc: :inserted_at, desc: :id)
+      |> limit(^per_page)
+      |> offset(^((page - 1) * per_page))
+      |> Repo.all()
+
+    {batches, Repo.aggregate(query, :count)}
+  end
+
+  @doc "Counts batches matching the same filters as `list_batches_page/1`."
+  def count_batches(opts \\ []), do: opts |> filter_batches() |> Repo.aggregate(:count)
+
+  defp filter_batches(opts) do
+    Enum.reduce(opts, Batch, fn
+      {:inserted_after, %DateTime{} = t}, q -> where(q, [b], b.inserted_at > ^t)
+      {:from, %DateTime{} = t}, q -> where(q, [b], b.inserted_at >= ^t)
+      {:to, %DateTime{} = t}, q -> where(q, [b], b.inserted_at <= ^t)
+      _, q -> q
+    end)
+  end
+
   # --- Batch ingest ---
 
   @doc """

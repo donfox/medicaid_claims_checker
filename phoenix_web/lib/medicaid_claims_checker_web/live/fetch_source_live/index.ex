@@ -1,6 +1,7 @@
 defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
   use MedicaidClaimsCheckerWeb, :live_view
 
+  alias MedicaidClaimsChecker.Accounts
   alias MedicaidClaimsChecker.Claims
   alias MedicaidClaimsChecker.Claims.Evaluator
   alias MedicaidClaimsChecker.Ingestion
@@ -8,7 +9,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
   alias MedicaidClaimsChecker.X12.{ClaimSplitter, Converter, SegmentMapper}
 
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(_params, session, socket) do
     if connected?(socket) do
       Phoenix.PubSub.subscribe(MedicaidClaimsChecker.PubSub, Nppes.topic())
       Phoenix.PubSub.subscribe(MedicaidClaimsChecker.PubSub, Evaluator.topic())
@@ -57,7 +58,12 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
      |> assign(:nppes_rows_imported, 0)
      |> assign(:nppes_elapsed_display, elapsed_display)
      |> assign(:nppes_elapsed_timer, timer)
-     |> assign(:batch_history, load_batch_history())
+     |> assign(:current_user, user_from_session(session))
+     |> assign(:show_all_history, false)
+     |> assign(:history_page, 1)
+     |> assign(:history_from, "")
+     |> assign(:history_to, "")
+     |> load_batch_history()
      |> assign(:show_batch_history, false)
      |> assign(:expanded_batch_ids, MapSet.new())
      |> assign(:expanded_batch_file_ids, MapSet.new())
@@ -615,8 +621,65 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
   def handle_event("refresh_batch_history", _params, socket) do
     {:noreply,
      socket
-     |> assign(:batch_history, load_batch_history())
+     |> load_batch_history()
      |> put_flash(:info, "Batch history refreshed")}
+  end
+
+  # Clearing the display only records a per-user cutoff time; batches and
+  # claims stay in the database and remain reachable via "Show all".
+  def handle_event("clear_history_display", _params, socket) do
+    case socket.assigns.current_user do
+      nil ->
+        {:noreply, put_flash(socket, :error, "You must be signed in to clear the display.")}
+
+      user ->
+        {:ok, user} = Accounts.set_history_cleared_at(user, DateTime.utc_now(:second))
+
+        {:noreply,
+         socket
+         |> assign(:current_user, user)
+         |> assign(:show_all_history, false)
+         |> assign(:history_page, 1)
+         |> assign(:expanded_batch_ids, MapSet.new())
+         |> load_batch_history()
+         |> put_flash(:info, "Display cleared. All records are kept — use \"Show all\" to see them.")}
+    end
+  end
+
+  def handle_event("toggle_show_all_history", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_all_history, !socket.assigns.show_all_history)
+     |> assign(:history_page, 1)
+     |> load_batch_history()}
+  end
+
+  def handle_event("history_page", %{"page" => page}, socket) do
+    case Integer.parse(page) do
+      {n, ""} when n >= 1 ->
+        {:noreply, socket |> assign(:history_page, n) |> load_batch_history()}
+
+      _ ->
+        {:noreply, put_flash(socket, :error, "Invalid request.")}
+    end
+  end
+
+  def handle_event("filter_history_dates", params, socket) do
+    {:noreply,
+     socket
+     |> assign(:history_from, Map.get(params, "from", ""))
+     |> assign(:history_to, Map.get(params, "to", ""))
+     |> assign(:history_page, 1)
+     |> load_batch_history()}
+  end
+
+  def handle_event("reset_history_dates", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:history_from, "")
+     |> assign(:history_to, "")
+     |> assign(:history_page, 1)
+     |> load_batch_history()}
   end
 
   def handle_event("dismiss_batch", %{"id" => id}, socket) do
@@ -705,12 +768,10 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
 
       case Claims.ingest_batch(params) do
         {:ok, %{batch: batch}} ->
-          new_entry = build_batch_entry(batch)
-
           socket
           |> assign(:upload_status, :processing)
           |> assign(:upload_message, "#{length(claims)} JSON claim(s) submitted for evaluation — evaluating...")
-          |> assign(:batch_history, [new_entry | socket.assigns.batch_history])
+          |> show_newest_history()
           |> assign(:pending_upload_batch_ids, MapSet.put(socket.assigns.pending_upload_batch_ids, batch.batch_id))
 
         {:error, reason} ->
@@ -774,14 +835,13 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
 
       case Claims.ingest_batch(params) do
         {:ok, %{batch: batch}} ->
-          new_entry = build_batch_entry(batch)
           base = "#{length(claims)} X12/EDI claim(s) translated — evaluating..."
           message = "#{base}#{failure_suffix}"
 
           socket
           |> assign(:upload_status, :processing)
           |> assign(:upload_message, if(prior, do: "#{prior} #{message}", else: message))
-          |> assign(:batch_history, [new_entry | socket.assigns.batch_history])
+          |> show_newest_history()
           |> assign(:pending_upload_batch_ids, MapSet.put(socket.assigns.pending_upload_batch_ids, batch.batch_id))
 
         {:error, reason} ->
@@ -979,10 +1039,85 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
 
   # --- Batch History helpers ---
 
-  defp load_batch_history do
-    Claims.list_recent_batches(20)
-    |> Enum.map(&build_batch_entry/1)
+  @history_per_page 20
+  @history_tz "America/New_York"
+
+  defp load_batch_history(socket) do
+    a = socket.assigns
+    date_opts = history_date_opts(a.history_from, a.history_to)
+    cleared_at = a.current_user && a.current_user.history_cleared_at
+
+    cutoff_opts =
+      if cleared_at && !a.show_all_history, do: [inserted_after: cleared_at], else: []
+
+    {batches, total} =
+      Claims.list_batches_page(
+        date_opts ++ cutoff_opts ++ [page: a.history_page, per_page: @history_per_page]
+      )
+
+    # How many matching batches the user's "clear" is currently hiding.
+    hidden =
+      if cutoff_opts == [] do
+        0
+      else
+        Claims.count_batches(date_opts) - total
+      end
+
+    total_pages = max(div(total + @history_per_page - 1, @history_per_page), 1)
+
+    if a.history_page > total_pages do
+      socket |> assign(:history_page, total_pages) |> load_batch_history()
+    else
+      socket
+      |> assign(:batch_history, Enum.map(batches, &build_batch_entry/1))
+      |> assign(:history_total, total)
+      |> assign(:history_total_pages, total_pages)
+      |> assign(:history_hidden_count, hidden)
+    end
   end
+
+  # Dates are entered in the app's display time zone; "to" is inclusive.
+  defp history_date_opts(from, to) do
+    from_opt =
+      case Date.from_iso8601(from || "") do
+        {:ok, d} -> [from: local_to_utc(d, ~T[00:00:00])]
+        _ -> []
+      end
+
+    to_opt =
+      case Date.from_iso8601(to || "") do
+        {:ok, d} -> [to: local_to_utc(d, ~T[23:59:59])]
+        _ -> []
+      end
+
+    from_opt ++ to_opt
+  end
+
+  defp local_to_utc(date, time) do
+    case DateTime.new(date, time, @history_tz) do
+      {:ok, dt} -> DateTime.shift_zone!(dt, "Etc/UTC")
+      {:ambiguous, dt, _} -> DateTime.shift_zone!(dt, "Etc/UTC")
+      {:gap, _, dt} -> DateTime.shift_zone!(dt, "Etc/UTC")
+    end
+  end
+
+  # After an upload, jump to the first unfiltered page so the new batch is visible.
+  defp show_newest_history(socket) do
+    socket
+    |> assign(:history_page, 1)
+    |> assign(:history_from, "")
+    |> assign(:history_to, "")
+    |> load_batch_history()
+  end
+
+  defp user_from_session(%{"user_token" => token}) when is_binary(token) do
+    case Accounts.get_user_by_session_token(token) do
+      {user, _inserted_at} -> user
+      _ -> nil
+    end
+  end
+
+  defp user_from_session(_session), do: nil
 
   defp build_batch_entry(batch) do
     files = Claims.list_files_for_batch(batch.id)
@@ -1035,14 +1170,13 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
         updated = build_batch_entry(batch)
         history = socket.assigns.batch_history
 
-        new_history =
-          if Enum.any?(history, &(&1.batch_id == batch_id)) do
-            Enum.map(history, fn b -> if b.batch_id == batch_id, do: updated, else: b end)
-          else
-            [updated | history]
-          end
-
-        assign(socket, :batch_history, new_history)
+        if Enum.any?(history, &(&1.batch_id == batch_id)) do
+          new_history = Enum.map(history, fn b -> if b.batch_id == batch_id, do: updated, else: b end)
+          assign(socket, :batch_history, new_history)
+        else
+          # A batch not on screen yet: reload so paging, filters and counts stay right.
+          load_batch_history(socket)
+        end
     end
   end
 

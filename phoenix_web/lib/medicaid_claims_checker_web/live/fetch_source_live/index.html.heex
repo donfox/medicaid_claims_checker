@@ -681,14 +681,14 @@
             </svg>
             <h2 class="text-xl font-semibold text-gray-900">Jobs History (manual & batch)</h2>
             <span class="text-sm font-normal text-gray-800">
-              — <%= length(@batch_history) %> batches
+              — <%= @history_total %> batches<%= if @history_hidden_count > 0 do %> (<%= @history_hidden_count %> hidden)<% end %>
             </span>
           </div>
         </button>
 
       <%= if @show_batch_history do %>
       <div id="batch-history-panel" class="px-6 pb-6">
-      <p class="mb-3 text-sm text-gray-800">All processed claim batches — manual uploads and scheduled fetch imports</p>
+      <p class="mb-3 text-sm text-gray-800">All processed claim batches — manual uploads and scheduled fetch imports. Clearing the display never deletes records.</p>
       <div class="flex items-center justify-between gap-2 mb-4 flex-wrap">
         <!-- Risk level filter pills -->
         <div class="flex items-center gap-1.5 flex-wrap">
@@ -715,8 +715,29 @@
           <% end %>
         </div>
 
-        <!-- Refresh -->
-        <div class="flex items-center gap-2">
+        <!-- Display controls: clearing hides batches from this view only; records are kept -->
+        <div class="flex items-center gap-2 flex-wrap">
+          <%= if @current_user && @current_user.history_cleared_at do %>
+            <button
+              type="button"
+              id="toggle-show-all-history"
+              phx-click="toggle_show_all_history"
+              aria-pressed={to_string(@show_all_history)}
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 cursor-pointer"
+            >
+              <%= if @show_all_history, do: "Hide cleared", else: "Show all" %>
+            </button>
+          <% end %>
+          <button
+            type="button"
+            id="clear-history-display"
+            phx-click="clear_history_display"
+            data-confirm="Hide all current batches from this display? No records are deleted — use “Show all” to see them again."
+            title="Hides batches from this view only. Records stay in the database."
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 cursor-pointer"
+          >
+            Clear display
+          </button>
           <button
             type="button"
             phx-click="refresh_batch_history"
@@ -731,13 +752,34 @@
         </div>
       </div>
 
+      <form id="history-date-filter" phx-change="filter_history_dates" class="flex items-center gap-2 flex-wrap mb-4 text-xs">
+        <span class="font-medium text-gray-500">Received:</span>
+        <label class="flex items-center gap-1 text-gray-700">
+          from <input type="date" name="from" value={@history_from} class="rounded-md border-gray-300 text-xs py-1" />
+        </label>
+        <label class="flex items-center gap-1 text-gray-700">
+          to <input type="date" name="to" value={@history_to} class="rounded-md border-gray-300 text-xs py-1" />
+        </label>
+        <%= if @history_from != "" or @history_to != "" do %>
+          <button type="button" phx-click="reset_history_dates" class="text-blue-700 hover:underline cursor-pointer">Any date</button>
+        <% end %>
+      </form>
+
       <%= if @batch_history == [] do %>
         <div class="text-center py-8 text-gray-800">
           <svg aria-hidden="true" class="mx-auto w-12 h-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
           </svg>
-          <p class="text-sm font-medium">No batches received yet</p>
-          <p class="text-xs mt-1">Batches will appear here as claims are ingested</p>
+          <%= cond do %>
+            <% @history_hidden_count > 0 -> %>
+              <p class="text-sm font-medium">Display cleared</p>
+              <p class="text-xs mt-1">New batches will appear here. Earlier batches are kept — use “Show all” to see them.</p>
+            <% @history_from != "" or @history_to != "" -> %>
+              <p class="text-sm font-medium">No batches in this date range</p>
+            <% true -> %>
+              <p class="text-sm font-medium">No batches received yet</p>
+              <p class="text-xs mt-1">Batches will appear here as claims are ingested</p>
+          <% end %>
         </div>
       <% else %>
         <div class="space-y-3">
@@ -1040,6 +1082,29 @@
             </div>
           <% end %>
         </div>
+        <%= if @history_total_pages > 1 do %>
+          <nav id="history-pagination" aria-label="Jobs History pages" class="flex items-center justify-between mt-4 text-sm text-gray-800">
+            <button
+              type="button"
+              phx-click="history_page"
+              phx-value-page={@history_page - 1}
+              disabled={@history_page <= 1}
+              class="px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:bg-gray-50 cursor-pointer disabled:opacity-40 disabled:cursor-default"
+            >
+              ← Newer
+            </button>
+            <span>Page <%= @history_page %> of <%= @history_total_pages %></span>
+            <button
+              type="button"
+              phx-click="history_page"
+              phx-value-page={@history_page + 1}
+              disabled={@history_page >= @history_total_pages}
+              class="px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:bg-gray-50 cursor-pointer disabled:opacity-40 disabled:cursor-default"
+            >
+              Older →
+            </button>
+          </nav>
+        <% end %>
       <% end %>
       </div>
       <% end %>

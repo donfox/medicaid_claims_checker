@@ -88,6 +88,17 @@ defmodule MedicaidClaimsChecker.Accounts do
     |> Repo.update()
   end
 
+  @doc """
+  Sets (or with `nil`, resets) the time before which batches are hidden
+  from the user's Jobs History display. Display-only: no batch or claim
+  record is changed.
+  """
+  def set_history_cleared_at(user, cleared_at) do
+    user
+    |> Ecto.Changeset.change(history_cleared_at: cleared_at)
+    |> Repo.update()
+  end
+
   ## User registration
 
   @doc """

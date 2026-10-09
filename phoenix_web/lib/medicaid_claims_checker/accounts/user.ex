@@ -13,6 +13,7 @@ defmodule MedicaidClaimsChecker.Accounts.User do
     field :last_name, :string
     field :is_admin, :boolean, default: false
     field :active, :boolean, default: true
+    field :history_cleared_at, :utc_datetime
 
     timestamps(type: :utc_datetime)
   end

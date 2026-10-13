@@ -2,6 +2,7 @@
 
 module Main (main) where
 
+import Control.Exception (evaluate)
 import Data.Aeson (object, (.=))
 import Data.Aeson qualified as Aeson
 import Data.String (fromString)
@@ -1028,6 +1029,65 @@ main = hspec $ do
         Right rule -> do
           let doc = object ["patient" .= object ["dob" .= ("1880-01-01" :: String)]]
           resultMatched (evaluateRuleSimple testDay doc rule) `shouldBe` False
+
+  -- ----------------------------------------------------------------
+  -- Numeric equality, number formatting, helper scope
+  -- ----------------------------------------------------------------
+
+  describe "Numeric values and helper scope" $ do
+    let matches input doc = case parseRule input of
+          Left err -> expectationFailure ("Parse failed: " ++ show err) >> pure False
+          Right rule -> pure (resultMatched (evaluateRuleSimple testDay doc rule))
+        amountDoc = object ["amount" .= (100 :: Int)]
+
+    it "= matches a JSON integer against a number literal" $
+      matches "RULE t \"T\" WHEN amount = 100 THEN FLAG_FRAUD \"x\";" amountDoc `shouldReturn` True
+
+    it "= matches a JSON decimal against a number literal" $
+      matches "RULE t \"T\" WHEN amount = 99.5 THEN FLAG_FRAUD \"x\";" (object ["amount" .= (99.5 :: Double)]) `shouldReturn` True
+
+    it "= does not match a different number" $
+      matches "RULE t \"T\" WHEN amount = 101 THEN FLAG_FRAUD \"x\";" amountDoc `shouldReturn` False
+
+    it "!= matches a different number" $
+      matches "RULE t \"T\" WHEN amount != 5 THEN FLAG_FRAUD \"x\";" amountDoc `shouldReturn` True
+
+    it "!= does not match an equal number" $
+      matches "RULE t \"T\" WHEN amount != 100 THEN FLAG_FRAUD \"x\";" amountDoc `shouldReturn` False
+
+    it "= against a number literal does not match a missing field" $
+      matches "RULE t \"T\" WHEN other = 100 THEN FLAG_FRAUD \"x\";" amountDoc `shouldReturn` False
+
+    it "a JSON integer compares equal to the same digits as a string" $
+      matches "RULE t \"T\" WHEN amount = \"100\" THEN FLAG_FRAUD \"x\";" amountDoc `shouldReturn` True
+
+    it "a numeric NPI keeps its digits for is_npi_format" $
+      matches "RULE t \"T\" WHEN is_npi_format(npi) THEN FLAG_FRAUD \"x\";" (object ["npi" .= (1234567893 :: Int)]) `shouldReturn` True
+
+    it "a numeric NPI passes is_valid_npi" $
+      matches "RULE t \"T\" WHEN is_valid_npi(npi) THEN FLAG_FRAUD \"x\";" (object ["npi" .= (1234567893 :: Int)]) `shouldReturn` True
+
+    it "in_list matches a numeric field against number literals" $
+      matches "RULE t \"T\" WHEN in_list(code, [99213, 99214]) THEN FLAG_FRAUD \"x\";" (object ["code" .= (99213 :: Int)]) `shouldReturn` True
+
+    it "helpers can read a named EXISTS variable" $
+      matches
+        "RULE t \"T\" WHEN EXISTS l IN service_lines WHERE is_weekend(l.date) THEN FLAG_FRAUD \"x\";"
+        (object ["service_lines" .= [object ["date" .= ("2026-02-27" :: String)], object ["date" .= ("2026-02-28" :: String)]]])
+        `shouldReturn` True
+
+    it "helpers can read a named FORALL variable" $
+      matches
+        "RULE t \"T\" WHEN FORALL l IN service_lines WHERE is_high_amount(l.amount, 500) THEN FLAG_FRAUD \"x\";"
+        (object ["service_lines" .= [object ["amount" .= (600 :: Int)], object ["amount" .= (900 :: Int)]]])
+        `shouldReturn` True
+
+    it "reportMatchedRules forces every rule's predicate (the server's timeout relies on this)" $ do
+      case loadRules "RULE t \"T\" WHEN amount > 1 THEN FLAG_FRAUD \"x\";" of
+        Left err -> expectationFailure err
+        Right engine ->
+          evaluate (reportMatchedRules (evaluateSimpleJson engine testDay (error "document was read")))
+            `shouldThrow` errorCall "document was read"
 
   -- ----------------------------------------------------------------
   -- Default Rule DSL Texts — Parse Validation

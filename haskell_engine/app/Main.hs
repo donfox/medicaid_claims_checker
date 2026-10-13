@@ -282,7 +282,9 @@ handleBatchEvaluate sem request respond = do
                         bracket_ (waitQSem sem) (signalQSem sem) $ do
                           mReport <- timeout evalTimeoutMicros $ do
                             let report = evaluateSimpleJson engine today doc
-                            _ <- evaluate (reportTotalRules report)
+                            -- Forcing the match count runs every predicate here, inside the
+                            -- timeout and the semaphore; the rule list length alone does not.
+                            _ <- evaluate (reportMatchedRules report)
                             pure report
                           pure $ case mReport of
                             Just report ->
@@ -441,7 +443,9 @@ processEvaluation req = do
       let today = utctDay now
       mReport <- timeout evalTimeoutMicros $ do
         let report = evaluateSimpleJson engine today (evalDocument req)
-        _ <- evaluate (reportTotalRules report)
+        -- Forcing the match count runs every predicate here, inside the
+        -- timeout; the rule list length alone does not.
+        _ <- evaluate (reportMatchedRules report)
         pure report
       case mReport of
         Nothing -> return $ Left "Evaluation timed out after 30 s"

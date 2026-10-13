@@ -63,7 +63,8 @@ import Data.Char (isDigit)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (isJust, isNothing)
-import Data.Scientific (toRealFloat)
+import Data.Int (Int64)
+import Data.Scientific (Scientific, toBoundedInteger, toRealFloat)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Time (Day, DayOfWeek (Saturday, Sunday), dayOfWeek, defaultTimeLocale, parseTimeM, toGregorian)
@@ -116,7 +117,11 @@ evaluateWithEnv env = \case
   -- Boolean literals
   Syntax.PTrue -> True
   Syntax.PFalse -> False
-  -- Equality comparisons
+  -- Equality comparisons (numeric when the literal is a number)
+  Syntax.Equals fieldRef val@(Syntax.NumberValue _) ->
+    compareNumericField env fieldRef val (==)
+  Syntax.NotEquals fieldRef val@(Syntax.NumberValue _) ->
+    compareNumericField env fieldRef val (/=)
   Syntax.Equals fieldRef val ->
     compareField env fieldRef val (==)
   Syntax.NotEquals fieldRef val ->
@@ -165,7 +170,7 @@ evaluateWithEnv env = \case
   Syntax.Count path op n ->
     compareInt (length $ findArrayItems path (envDoc env)) op n
   Syntax.HelperCall helperName args ->
-    evaluateHelperCall (envToday env) (envLetBindings env) (envDoc env) helperName args
+    evaluateHelperCall env helperName args
   -- String operations
   Syntax.Contains fieldRef val ->
     case (lookupFieldWithEnv env fieldRef, val) of
@@ -223,86 +228,86 @@ buildBindingContext today doc = foldM step Map.empty
             Just value -> Right $ Map.insert (Syntax.bindingName binding) value ctx
             Nothing -> Left $ "Could not resolve LET binding '" <> Syntax.bindingName binding <> "'"
 
-evaluateHelperCall :: Day -> Map Text Text -> Aeson.Value -> Text -> [Syntax.Value] -> Bool
-evaluateHelperCall today bindings doc helperName args =
+evaluateHelperCall :: EvalEnv -> Text -> [Syntax.Value] -> Bool
+evaluateHelperCall env helperName args =
   case T.toLower helperName of
     "is_weekend" ->
       case args of
-        [arg] -> maybe False isWeekend (resolveArgText today bindings doc arg)
+        [arg] -> maybe False isWeekend (resolveArgText env arg)
         _ -> False
     "is_high_amount" ->
       case args of
         [actualArg, thresholdArg] ->
-          case (resolveArgNumber today bindings doc actualArg, resolveArgNumber today bindings doc thresholdArg) of
+          case (resolveArgNumber env actualArg, resolveArgNumber env thresholdArg) of
             (Just actual, Just threshold) -> actual > threshold
             _ -> False
         _ -> False
     "starts_with" ->
       case args of
         [textArg, prefixArg] ->
-          case (resolveArgText today bindings doc textArg, resolveArgText today bindings doc prefixArg) of
+          case (resolveArgText env textArg, resolveArgText env prefixArg) of
             (Just textVal, Just prefixVal) -> T.isPrefixOf prefixVal textVal
             _ -> False
         _ -> False
     "in_list" ->
       case args of
         [textArg, listArg] ->
-          case (resolveArgText today bindings doc textArg, resolveArgTextList today bindings doc listArg) of
+          case (resolveArgText env textArg, resolveArgTextList env listArg) of
             (Just textVal, Just values) -> textVal `elem` values
             _ -> False
         _ -> False
     "is_future_date" ->
       case args of
-        [arg] -> maybe False (> today) (resolveArgText today bindings doc arg >>= parseDate)
+        [arg] -> maybe False (> envToday env) (resolveArgText env arg >>= parseDate)
         _ -> False
     "is_date_before" ->
       case args of
         [dateArg, cutoffArg] ->
-          case (resolveArgText today bindings doc dateArg >>= parseDate, resolveArgText today bindings doc cutoffArg >>= parseDate) of
+          case (resolveArgText env dateArg >>= parseDate, resolveArgText env cutoffArg >>= parseDate) of
             (Just d, Just cutoff) -> d < cutoff
             _ -> False
         _ -> False
     "is_valid_npi" ->
       case args of
-        [arg] -> maybe False isValidNpi (resolveArgText today bindings doc arg)
+        [arg] -> maybe False isValidNpi (resolveArgText env arg)
         _ -> False
     "is_npi_format" ->
       case args of
-        [arg] -> maybe False isNpiFormat (resolveArgText today bindings doc arg)
+        [arg] -> maybe False isNpiFormat (resolveArgText env arg)
         _ -> False
     "is_age_valid" ->
       case args of
         [dobArg, minArg, maxArg] ->
-          case (resolveArgText today bindings doc dobArg >>= parseDate, resolveArgNumber today bindings doc minArg, resolveArgNumber today bindings doc maxArg) of
+          case (resolveArgText env dobArg >>= parseDate, resolveArgNumber env minArg, resolveArgNumber env maxArg) of
             (Just dob, Just minAge, Just maxAge) ->
-              let age = yearsBetween dob today
+              let age = yearsBetween dob (envToday env)
                in fromIntegral age >= minAge && fromIntegral age <= maxAge
             _ -> False
         _ -> False
     _ -> False
 
-resolveArgText :: Day -> Map Text Text -> Aeson.Value -> Syntax.Value -> Maybe Text
-resolveArgText today bindings doc arg =
+resolveArgText :: EvalEnv -> Syntax.Value -> Maybe Text
+resolveArgText env arg =
   case arg of
     Syntax.StringValue t -> Just t
-    Syntax.NumberValue d -> Just (T.pack (show d))
+    Syntax.NumberValue d -> Just (doubleToText d)
     Syntax.DateValue t -> Just t
-    Syntax.FieldRefValue fieldRef -> lookupFieldWithEnv (mkEnv today bindings doc) fieldRef
+    Syntax.FieldRefValue fieldRef -> lookupFieldWithEnv env fieldRef
     Syntax.ListValue _ -> Nothing
 
-resolveArgNumber :: Day -> Map Text Text -> Aeson.Value -> Syntax.Value -> Maybe Double
-resolveArgNumber today bindings doc arg =
+resolveArgNumber :: EvalEnv -> Syntax.Value -> Maybe Double
+resolveArgNumber env arg =
   case arg of
     Syntax.NumberValue d -> Just d
     Syntax.StringValue t -> textToDouble t
     Syntax.DateValue _ -> Nothing
-    Syntax.FieldRefValue fieldRef -> lookupFieldWithEnv (mkEnv today bindings doc) fieldRef >>= textToDouble
+    Syntax.FieldRefValue fieldRef -> lookupFieldWithEnv env fieldRef >>= textToDouble
     Syntax.ListValue _ -> Nothing
 
-resolveArgTextList :: Day -> Map Text Text -> Aeson.Value -> Syntax.Value -> Maybe [Text]
-resolveArgTextList today bindings doc arg =
+resolveArgTextList :: EvalEnv -> Syntax.Value -> Maybe [Text]
+resolveArgTextList env arg =
   case arg of
-    Syntax.ListValue values -> mapM (resolveArgText today bindings doc) values
+    Syntax.ListValue values -> mapM (resolveArgText env) values
     _ -> Nothing
 
 isWeekend :: Text -> Bool
@@ -457,11 +462,32 @@ lookupPath (key : rest) val = case val of
 valueToText :: Aeson.Value -> Maybe Text
 valueToText = \case
   Aeson.String t -> Just t
-  Aeson.Number n -> Just $ T.pack $ show (toRealFloat n :: Double)
+  Aeson.Number n -> Just $ scientificToText n
   Aeson.Bool True -> Just "true"
   Aeson.Bool False -> Just "false"
   Aeson.Null -> Nothing
   _ -> Nothing -- Arrays and objects can't be compared as text
+
+-- | Render a JSON number the way it would be written in a claim.
+--
+-- Whole numbers keep every digit (@1234567893@, not @1.234567893e9@), so
+-- numeric NPIs, codes and IDs compare correctly as text. Values outside
+-- the 'Int64' range fall back to 'Double' rather than expanding a huge
+-- exponent into a giant 'Integer'.
+scientificToText :: Scientific -> Text
+scientificToText n =
+  case toBoundedInteger n :: Maybe Int64 of
+    Just i -> T.pack (show i)
+    Nothing -> doubleToText (toRealFloat n)
+
+-- | Render a 'Double', dropping the @.0@ from whole numbers so a DSL
+-- literal like @99213@ reads the same as the JSON number @99213@.
+doubleToText :: Double -> Text
+doubleToText d
+  | d == fromIntegral i && abs d < 1e15 = T.pack (show i)
+  | otherwise = T.pack (show d)
+  where
+    i = round d :: Integer
 
 -- ----------------------------------------------------------------------------
 -- Array Navigation for Quantifiers

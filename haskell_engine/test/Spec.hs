@@ -1090,6 +1090,88 @@ main = hspec $ do
             `shouldThrow` errorCall "document was read"
 
   -- ----------------------------------------------------------------
+  -- Helper-name validation and deep field paths
+  -- ----------------------------------------------------------------
+
+  describe "Helper validation" $ do
+    let parseError input = either show (const "") (parseRule input)
+
+    it "rejects an unknown helper name" $
+      parseError "RULE t \"T\" WHEN is_weekand(code) THEN FLAG_FRAUD \"x\";"
+        `shouldContain` "Unknown helper function: is_weekand"
+
+    it "rejects a known helper called with too few arguments" $
+      parseError "RULE t \"T\" WHEN is_date_before(dos) THEN FLAG_FRAUD \"x\";"
+        `shouldContain` "is_date_before takes 2 arguments, got 1"
+
+    it "rejects a known helper called with too many arguments" $
+      parseError "RULE t \"T\" WHEN is_weekend(dos, other) THEN FLAG_FRAUD \"x\";"
+        `shouldContain` "is_weekend takes 1 argument, got 2"
+
+    it "accepts helper names in any letter case, as the evaluator does" $
+      parseRule "RULE t \"T\" WHEN IS_WEEKEND(dos) THEN FLAG_FRAUD \"x\";" `shouldSatisfy` isRight
+
+    it "accepts every documented helper with its argument count" $
+      mapM_
+        (\call -> (call, parseRule ("RULE t \"T\" WHEN " <> call <> " THEN FLAG_FRAUD \"x\";")) `shouldSatisfy` (isRight . snd))
+        [ "is_weekend(dos)"
+        , "is_high_amount(amount, 500)"
+        , "starts_with(code, \"99\")"
+        , "in_list(code, [\"A\", \"B\"])"
+        , "is_future_date(dos)"
+        , "is_date_before(dos, \"1900-01-01\")"
+        , "is_valid_npi(npi)"
+        , "is_npi_format(npi)"
+        , "is_age_valid(dob, 0, 130)"
+        ]
+
+  describe "Field paths longer than three parts" $ do
+    let deepDoc = object
+          [ "claim" .= object
+              [ "billing_provider" .= object
+                  [ "address" .= object ["zip" .= ("02139" :: String)] ]
+              ]
+          , "service_lines" .=
+              [ object ["provider" .= object ["address" .= object ["state" .= ("MA" :: String)]]] ]
+          ]
+        matches input = case parseRule input of
+          Left err -> expectationFailure ("Parse failed: " ++ show err) >> pure False
+          Right rule -> pure (resultMatched (evaluateRuleSimple testDay deepDoc rule))
+
+    it "compares a four-part field" $
+      matches "RULE t \"T\" WHEN claim.billing_provider.address.zip = \"02139\" THEN FLAG_FRAUD \"x\";"
+        `shouldReturn` True
+
+    it "does not match a four-part field with a different value" $
+      matches "RULE t \"T\" WHEN claim.billing_provider.address.zip = \"10001\" THEN FLAG_FRAUD \"x\";"
+        `shouldReturn` False
+
+    it "treats a missing four-part field as NULL" $
+      matches "RULE t \"T\" WHEN claim.billing_provider.address.city IS NULL THEN FLAG_FRAUD \"x\";"
+        `shouldReturn` True
+
+    it "binds a four-part field with LET" $
+      matches "RULE t \"T\" LET z = claim.billing_provider.address.zip WHEN z = \"02139\" THEN FLAG_FRAUD \"x\";"
+        `shouldReturn` True
+
+    it "reads a deep path under a quantifier variable" $
+      matches "RULE t \"T\" WHEN EXISTS l IN service_lines WHERE l.provider.address.state = \"MA\" THEN FLAG_FRAUD \"x\";"
+        `shouldReturn` True
+
+    it "compares a deep field against another field" $
+      matches "RULE t \"T\" WHEN claim.billing_provider.address.zip = claim.billing_provider.address.zip THEN FLAG_FRAUD \"x\";"
+        `shouldReturn` True
+
+    it "treats alpha-equivalent quantifiers over deep paths as redundant" $ do
+      let parsed = mapM parseRule
+            [ "RULE a \"A\" WHEN EXISTS l IN service_lines WHERE l.provider.address.state = \"MA\" THEN FLAG_FRAUD \"x\";"
+            , "RULE b \"B\" WHEN EXISTS s IN service_lines WHERE s.provider.address.state = \"MA\" THEN FLAG_FRAUD \"x\";"
+            ]
+      case parsed of
+        Right [a, b] -> checkRedundancy a [b] `shouldSatisfy` (not . null)
+        other -> expectationFailure ("Parse failed: " ++ show other)
+
+  -- ----------------------------------------------------------------
   -- Default Rule DSL Texts — Parse Validation
   -- ----------------------------------------------------------------
 

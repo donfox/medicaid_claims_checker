@@ -98,8 +98,13 @@ safeStrings =
 safeLetNames :: [Text]
 safeLetNames = ["amt", "prov", "svc_date"]
 
-safeHelpers :: [Text]
-safeHelpers = ["is_weekend", "in_list", "starts_with"]
+-- | A helper call with the argument count the parser requires.
+genHelperCall :: Gen Predicate
+genHelperCall = oneof
+  [ HelperCall "is_weekend" . (: []) <$> arbitrary
+  , (\a b -> HelperCall "in_list" [a, ListValue b]) <$> arbitrary <*> listOf1 genScalar
+  , (\a b -> HelperCall "starts_with" [a, b]) <$> arbitrary <*> arbitrary
+  ]
 
 -- | Valid POSIX extended patterns of the kind analysts write.
 safePatterns :: [Text]
@@ -139,10 +144,25 @@ instance Arbitrary FieldRef where
     [ Field        <$> pickFrom safeFieldNames
     , SegmentField <$> pickFrom safeSegments <*> pickFrom safeFieldNames
     , LoopField    <$> pickFrom safeLoops    <*> pickFrom safeSegments <*> pickFrom safeFieldNames
+    , genDeepField
     ]
   shrink (SegmentField _ f)   = [Field f]
   shrink (LoopField _ seg f)  = [SegmentField seg f, Field f]
+  shrink (Field path)
+    | [l, seg, f] <- lastThree (T.splitOn "." path) = [LoopField l seg f]
+    where
+      lastThree parts = if length parts > 3 then drop (length parts - 3) parts else []
   shrink _                    = []
+
+-- | A path of four or five parts, stored as a dotted 'Field'.
+genDeepField :: Gen FieldRef
+genDeepField = do
+  extra <- choose (1, 2 :: Int)
+  prefix <- vectorOf extra (pickFrom safeSegments)
+  loop <- pickFrom safeLoops
+  seg <- pickFrom safeSegments
+  field <- pickFrom safeFieldNames
+  pure $ Field (T.intercalate "." (loop : prefix ++ [seg, field]))
 
 instance Arbitrary Value where
   arbitrary = frequency
@@ -205,8 +225,7 @@ genAtomic = oneof
   , HasDiagnosis <$> genScalar
   , HasProcedure <$> genScalar
   , Count <$> genSegmentPath <*> elements [EQ, NE, GT, LT, GTE, LTE] <*> choose (0, 50)
-  , HelperCall <$> pickFrom safeHelpers
-               <*> listOf (oneof [arbitrary, ListValue <$> listOf1 genScalar])
+  , genHelperCall
   ]
 
 -- | Generate a single (non-composite) action.

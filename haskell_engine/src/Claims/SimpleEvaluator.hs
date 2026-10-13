@@ -49,6 +49,9 @@ module Claims.SimpleEvaluator
     -- * Field Lookup (exported for testing)
     lookupJsonField,
 
+    -- * Helper Functions
+    helperArity,
+
     -- * Regular Expressions
     compileRegex,
   )
@@ -227,6 +230,29 @@ buildBindingContext today doc = foldM step Map.empty
        in case lookupFieldWithEnv env (Syntax.bindingField binding) of
             Just value -> Right $ Map.insert (Syntax.bindingName binding) value ctx
             Nothing -> Left $ "Could not resolve LET binding '" <> Syntax.bindingName binding <> "'"
+
+-- | Argument count of each built-in helper, keyed by lower-case name.
+-- The parser checks calls against this table, so a misspelled helper or a
+-- wrong argument count is a parse error instead of a rule that never fires.
+-- Keep it in step with 'evaluateHelperCall'.
+helperArities :: Map Text Int
+helperArities =
+  Map.fromList
+    [ ("is_weekend", 1),
+      ("is_high_amount", 2),
+      ("starts_with", 2),
+      ("in_list", 2),
+      ("is_future_date", 1),
+      ("is_date_before", 2),
+      ("is_valid_npi", 1),
+      ("is_npi_format", 1),
+      ("is_age_valid", 3)
+    ]
+
+-- | Argument count of a built-in helper (any letter case), or 'Nothing'
+-- if no helper has that name.
+helperArity :: Text -> Maybe Int
+helperArity name = Map.lookup (T.toLower name) helperArities
 
 evaluateHelperCall :: EvalEnv -> Text -> [Syntax.Value] -> Bool
 evaluateHelperCall env helperName args =

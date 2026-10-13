@@ -97,7 +97,7 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Text.Parsec hiding ((<|>))
 import Text.Parsec.Text
-import Claims.SimpleEvaluator (compileRegex)
+import Claims.SimpleEvaluator (compileRegex, helperArity)
 import Claims.Syntax (Action, Binding, FieldRef, Predicate, Rule, SegmentPath, Value)
 import Claims.Syntax qualified as Syntax
 
@@ -310,6 +310,9 @@ atomicAt depth =
 -- Examples:
 -- * @is_weekend(claim.service_date)@
 -- * @is_high_amount(claim.amount, 50000)@
+--
+-- The name and argument count are checked against the evaluator's helper
+-- table, so a typo fails here rather than producing a rule that never fires.
 helperCallPred :: Parser Predicate
 helperCallPred = do
   helperName <- identifier
@@ -318,7 +321,14 @@ helperCallPred = do
       (char '(' *> spaces)
       (spaces *> char ')')
       (sepBy helperArgParser (spaces *> char ',' *> spaces))
-  pure $ Syntax.HelperCall (T.pack helperName) args
+  case helperArity (T.pack helperName) of
+    Nothing -> fail $ "Unknown helper function: " ++ helperName
+    Just arity
+      | arity /= length args ->
+          fail $
+            helperName ++ " takes " ++ show arity ++ " argument" ++ (if arity == 1 then "" else "s")
+              ++ ", got " ++ show (length args)
+      | otherwise -> pure $ Syntax.HelperCall (T.pack helperName) args
 
 helperArgParser :: Parser Value
 helperArgParser = try listValueParser <|> valueParser
@@ -517,24 +527,16 @@ segmentPath =
 -- * __Simple__: @amount@ - direct field name lookup
 -- * __Segment-qualified__: @CLM.amount@ - field within a segment
 -- * __Loop-qualified__: @2300.CLM.amount@ - field within a segment within a loop
---
--- The parser tries the most specific (loop-qualified) first, then falls back
--- to less specific forms.
+-- * __Deeper paths__: @claim.billing_provider.address.zip@ - stored as a
+--   dotted 'Syntax.Field', which the evaluator splits into its parts
 fieldRef :: Parser FieldRef
-fieldRef = try loopField <|> try segmentField <|> simpleField
-  where
-    simpleField = Syntax.Field . T.pack <$> identifier
-
-    segmentField =
-      Syntax.SegmentField
-        <$> (T.pack <$> identifier <* char '.')
-        <*> (T.pack <$> identifier)
-
-    loopField =
-      Syntax.LoopField
-        <$> (T.pack <$> identifier <* char '.')
-        <*> (T.pack <$> identifier <* char '.')
-        <*> (T.pack <$> identifier)
+fieldRef = do
+  parts <- map T.pack <$> sepBy1 identifier (try (char '.' <* lookAhead (alphaNum <|> char '_')))
+  pure $ case parts of
+    [field] -> Syntax.Field field
+    [seg, field] -> Syntax.SegmentField seg field
+    [loop, seg, field] -> Syntax.LoopField loop seg field
+    _ -> Syntax.Field (T.intercalate "." parts)
 
 -- ----------------------------------------------------------------------------
 -- Value and Operator Parsers

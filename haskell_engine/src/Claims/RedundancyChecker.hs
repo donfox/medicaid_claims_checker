@@ -348,13 +348,18 @@ alphaNormalize depth (Just oldName) body =
    in (Just canonical, renameVar oldName canonical body)
 
 -- | Substitute all occurrences of a bound variable name in a predicate.
--- Bound variables appear as the first component of 'SegmentField'.
+-- Bound variables appear as the first component of 'SegmentField',
+-- 'LoopField', or a dotted 'Field' (paths of four or more parts).
 -- Stops at nested quantifiers that shadow the same variable name.
 renameVar :: Text -> Text -> Predicate -> Predicate
 renameVar old new = go
   where
     renameField (SegmentField seg f) | seg == old = SegmentField new f
     renameField (LoopField l s f)    | l == old   = LoopField new s f
+    renameField (Field path)
+      | (first : rest@(_ : _)) <- T.splitOn "." path,
+        first == old =
+          Field (T.intercalate "." (new : rest))
     renameField other                              = other
 
     go pred' = case pred' of

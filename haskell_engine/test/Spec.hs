@@ -863,6 +863,46 @@ main = hspec $ do
                 ]
           resultMatched (evaluateRuleSimple testDay doc rule) `shouldBe` True
 
+    it "EXISTS resolves every component of a nested collection path" $ do
+      let input = "RULE test \"Test\" WHEN EXISTS dx IN claim.diagnosis_codes WHERE dx.code = \"E11.9\" THEN FLAG_FRAUD \"found\";"
+      case parseRule input of
+        Left err -> expectationFailure $ "Parse failed: " ++ show err
+        Right rule -> do
+          let doc = object
+                [ "claim" .= object
+                    [ "diagnosis_codes" .=
+                        [ object ["code" .= ("E11.9" :: String)]
+                        , object ["code" .= ("I10" :: String)]
+                        ]
+                    ]
+                ]
+          resultMatched (evaluateRuleSimple testDay doc rule) `shouldBe` True
+
+    it "COUNT resolves every component of a nested collection path" $ do
+      let input = "RULE test \"Test\" WHEN COUNT(claim.diagnosis_codes) = 2 THEN FLAG_FRAUD \"count\";"
+      case parseRule input of
+        Left err -> expectationFailure $ "Parse failed: " ++ show err
+        Right rule -> do
+          let doc = object
+                [ "claim" .= object
+                    [ "diagnosis_codes" .=
+                        [ object ["code" .= ("E11.9" :: String)]
+                        , object ["code" .= ("I10" :: String)]
+                        ]
+                    ]
+                ]
+          resultMatched (evaluateRuleSimple testDay doc rule) `shouldBe` True
+
+    it "COUNT of an empty nested collection is zero" $ do
+      let input = "RULE test \"Test\" WHEN COUNT(2400.SV1) = 0 THEN FLAG_FRAUD \"empty\";"
+      case parseRule input of
+        Left err -> expectationFailure $ "Parse failed: " ++ show err
+        Right rule -> do
+          let doc = object
+                [ "2400" .= object ["SV1" .= ([] :: [Aeson.Value])]
+                ]
+          resultMatched (evaluateRuleSimple testDay doc rule) `shouldBe` True
+
     it "named FORALL evaluates correctly" $ do
       let input = "RULE test \"Test\" WHEN FORALL line IN service_lines WHERE line.amount > 0 THEN RISK_SCORE 10;"
       case parseRule input of

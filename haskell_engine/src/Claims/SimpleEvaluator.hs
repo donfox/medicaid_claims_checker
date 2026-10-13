@@ -473,8 +473,8 @@ valueToText = \case
 -- If the path points to an object, returns it as a single-element list.
 -- Otherwise returns an empty list.
 findArrayItems :: Syntax.SegmentPath -> Aeson.Value -> [Aeson.Value]
-findArrayItems (Syntax.SegmentPath pathStr _) doc =
-  case lookupPathRaw (T.splitOn "." pathStr) doc of
+findArrayItems (Syntax.SegmentPath pathStr pathParts) doc =
+  case lookupPathRaw (pathStr : pathParts) doc of
     Just (Aeson.Array arr) -> V.toList arr
     Just obj@(Aeson.Object _) -> [obj] -- Single object as list of one
     _ -> []

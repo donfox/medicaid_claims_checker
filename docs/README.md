@@ -14,6 +14,10 @@ This folder is split into two groups:
 - `TEST_PROCEDURE.md` — practical local validation and smoke-test workflow
 - `SYNTAX_GUIDE.md` — business-rule DSL guide for analysts and implementers
 
+### Planning notes
+
+- `ML_INTEGRATION_NOTES.md` — the engine's current ML scorer contract and open issues for the planned Python model service
+
 ### Formal statement
 
 - `MODULE_CAPABILITY_STATEMENT.md` — formal capability statement for procurement/review use

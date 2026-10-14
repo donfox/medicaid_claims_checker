@@ -33,7 +33,9 @@ if config_env() == :prod and (System.get_env("RULE_ENGINE_SECRET") || "") == "" 
   """
 end
 
-if System.get_env("BREVO_MAIL_USERNAME") do
+# Tests always use Swoosh.Adapters.Test (config/test.exs), even when the
+# shell has Brevo credentials set.
+if config_env() != :test and System.get_env("BREVO_MAIL_USERNAME") do
   config :swoosh, :api_client, Swoosh.ApiClient.Finch
 
   config :medicaid_claims_checker, MedicaidClaimsChecker.Mailer,

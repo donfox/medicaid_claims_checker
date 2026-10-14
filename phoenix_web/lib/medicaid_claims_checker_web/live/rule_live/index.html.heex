@@ -500,7 +500,7 @@ END</code></pre>
                   <tbody>
                     <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">AND</td><td class="p-1.5 text-gray-800">Both must be true</td></tr>
                     <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">OR</td><td class="p-1.5 text-gray-800">At least one true</td></tr>
-                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">NOT</td><td class="p-1.5 text-gray-800">Negates predicate</td></tr>
+                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">NOT</td><td class="p-1.5 text-gray-800">Negates a definite result; unknown stays unknown</td></tr>
                     <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">CONTAINS</td><td class="p-1.5 text-gray-800">Text contains</td></tr>
                     <tr><td class="p-1.5 font-mono text-gray-900">MATCHES</td><td class="p-1.5 text-gray-800">Regex match</td></tr>
                   </tbody>
@@ -510,11 +510,43 @@ END</code></pre>
                 <p class="text-xs font-medium text-gray-800 mb-1">Quantifiers</p>
                 <table class="text-xs w-full bg-white rounded border border-gray-300">
                   <tbody>
-                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">EXISTS</td><td class="p-1.5 text-gray-800">At least one match</td></tr>
-                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">FORALL</td><td class="p-1.5 text-gray-800">All items match</td></tr>
-                    <tr><td class="p-1.5 font-mono text-gray-900">COUNT()</td><td class="p-1.5 text-gray-800">Number of items</td></tr>
+                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">EXISTS</td><td class="p-1.5 text-gray-800">At least one item matches</td></tr>
+                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">FORALL</td><td class="p-1.5 text-gray-800">Every item matches (none if empty)</td></tr>
+                    <tr><td class="p-1.5 font-mono text-gray-900">COUNT()</td><td class="p-1.5 text-gray-800">Number of items (0 if missing)</td></tr>
                   </tbody>
                 </table>
+              </div>
+            </div>
+
+            <!-- Missing data -->
+            <div class="mt-4 p-3 bg-white rounded border border-gray-300">
+              <p class="text-xs font-semibold text-gray-900 mb-1">Missing data never makes a rule match by itself</p>
+              <p class="text-xs text-gray-800 mb-2">
+                A condition that needs data the claim does not have is <span class="font-semibold">unknown</span>: an absent field, text where a number is expected, an unreadable date, or an absent or empty list of items.
+                A rule fires only when its condition is definitely true, and <code class="bg-gray-100 px-1 rounded">NOT</code> does not turn unknown into true.
+                <code class="bg-gray-100 px-1 rounded">OR</code> is still true if the other side is true, and <code class="bg-gray-100 px-1 rounded">AND</code> is still false if the other side is false.
+              </p>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <table class="text-xs w-full bg-white rounded border border-gray-300">
+                  <thead>
+                    <tr class="border-b border-gray-200 bg-gray-50">
+                      <th class="p-1.5 text-left font-medium text-gray-800">Condition</th>
+                      <th class="p-1.5 text-left font-medium text-gray-800">Amount 500</th>
+                      <th class="p-1.5 text-left font-medium text-gray-800">No amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">amount &lt;= 10000</td><td class="p-1.5 text-gray-800">match</td><td class="p-1.5 text-gray-800">no match</td></tr>
+                    <tr><td class="p-1.5 font-mono text-gray-900">NOT amount &gt; 10000</td><td class="p-1.5 text-gray-800">match</td><td class="p-1.5 text-gray-800">no match</td></tr>
+                  </tbody>
+                </table>
+                <div>
+                  <p class="text-xs font-medium text-gray-800 mb-1">To act on missing data, say so explicitly</p>
+                  <pre class="text-[11px] bg-gray-50 p-2 rounded border border-gray-300 overflow-x-auto text-gray-900"><code>provider.npi IS NULL
+  OR NOT (provider.npi MATCHES "^[0-9]{10}$")
+
+COUNT(service_lines) = 0</code></pre>
+                </div>
               </div>
             </div>
           </div>
@@ -583,7 +615,8 @@ END</code></pre>
                   <tbody>
                     <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">field_name</td><td class="p-1.5 text-gray-800">Simple field</td></tr>
                     <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">CLM.claim_amount</td><td class="p-1.5 text-gray-800">Segment.field</td></tr>
-                    <tr><td class="p-1.5 font-mono text-gray-900">2300.CLM.claim_amount</td><td class="p-1.5 text-gray-800">Loop.segment.field</td></tr>
+                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">2300.CLM.claim_amount</td><td class="p-1.5 text-gray-800">Loop.segment.field</td></tr>
+                    <tr><td class="p-1.5 font-mono text-gray-900">claim.billing_provider.address.zip</td><td class="p-1.5 text-gray-800">Any deeper path</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -659,12 +692,13 @@ THEN REJECT "Provider not eligible";</code></pre>
                   <li>Ensure quotes are balanced</li>
                   <li>Verify keyword spelling (RULE, WHEN, THEN)</li>
                   <li>Check parentheses are matched</li>
+                  <li>Check helper names and argument counts: <code class="bg-gray-100 px-1 rounded">Unknown helper function: is_weekand</code></li>
                 </ul>
               </div>
               <div>
                 <p class="text-xs font-medium text-gray-800 mb-1">Runtime Errors</p>
                 <ul class="text-xs text-gray-900 list-disc pl-5 space-y-0.5">
-                  <li>Verify field names match claim JSON structure</li>
+                  <li>Verify field names match claim JSON structure — a misspelled field is missing data, so the rule silently does not match</li>
                   <li>Use numbers for numeric comparisons, not strings</li>
                   <li>Check loop IDs are correct (2300, 2400, etc.)</li>
                 </ul>

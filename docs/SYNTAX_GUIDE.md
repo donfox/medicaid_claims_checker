@@ -34,7 +34,7 @@ THEN <action>;
 | `rule_name` | Unique identifier using letters, numbers, and underscores |
 | `DESCRIPTION` | Human-readable description in quotes |
 | `WHEN` | Introduces the condition to test |
-| `predicate` | Logical expression that evaluates to true or false |
+| `predicate` | Logical expression that evaluates to true, false, or unknown when data is missing (see [Missing data](#missing-data)) |
 | `THEN` | Introduces the action to take when the predicate matches |
 | `action` | The outcome triggered by the rule |
 | `END` | Ends the rule block |
@@ -107,6 +107,37 @@ predicate1 OR predicate2
 NOT predicate
 ```
 
+### Missing data
+
+A condition that depends on data the claim does not have is **unknown**, not true or false. Data counts as missing when:
+
+- the field is absent or null;
+- a number is expected but the field holds text;
+- a date is expected but cannot be read;
+- a collection (`EXISTS`, `FORALL`) is absent or empty.
+
+A rule fires only when its condition is definitely true, so **missing data never makes a rule match by itself**.
+
+`NOT`, `AND` and `OR` keep this rule:
+
+| Condition | Amount 500, status `"paid"` | No amount, status `"paid"` |
+|---|---|---|
+| `amount <= 10000` | match | no match |
+| `NOT amount > 10000` | match | no match |
+| `amount > 10000 OR status = "paid"` | match | match — the `OR` is true because of `status` |
+| `NOT (amount > 10000 AND status = "denied")` | match | match — the `AND` is false because of `status` |
+
+To act on missing data, say so explicitly:
+
+```text
+provider.npi IS NULL
+COUNT(service_lines) = 0
+```
+
+`IS NULL`, `IS NOT NULL` and `COUNT` always give a definite answer. `COUNT` treats a missing collection as zero items.
+
+When a rule does not match because of missing data, the engine's result for that rule (in the evaluation report, not yet shown in the app) says `Rule did not match: missing or unusable data`.
+
 ### Range checks
 
 ```text
@@ -144,6 +175,10 @@ COUNT(loop.segment) > n
 
 Use these forms when you need to inspect repeated structures such as service lines.
 
+- `EXISTS` matches when at least one item definitely matches.
+- `FORALL` matches when every item definitely matches. An item that is missing the field makes `FORALL` unknown, not true.
+- Over an absent or empty collection, both are unknown, so neither `EXISTS`, `FORALL`, `NOT EXISTS` nor `NOT FORALL` matches. Use `COUNT(path) = 0` to find claims with no items.
+
 ### Named quantifier variables
 
 You can bind an element to a variable using `IN`. This is especially useful for nested logic because the outer variable stays accessible inside the inner expression.
@@ -173,12 +208,18 @@ field MATCHES "regex"
 - `CONTAINS` is true when the field's text includes the given substring.
 - `MATCHES` uses POSIX extended regular expressions. It searches anywhere in the value unless the pattern is anchored: `^` and `$` refer to the start and end of the whole field value.
 - An invalid pattern is reported as a parse error when the rule is saved, rather than silently never matching.
-- A missing field never matches either operator.
+- A missing field never matches either operator, and `NOT` does not change that (see [Missing data](#missing-data)).
 
 Example:
 
 ```text
 NOT (provider.npi MATCHES "^[0-9]{10}$")
+```
+
+This matches an NPI that is present but malformed. It does not match a claim with no NPI (see [Missing data](#missing-data)). To catch both:
+
+```text
+provider.npi IS NULL OR NOT (provider.npi MATCHES "^[0-9]{10}$")
 ```
 
 ### String helper operations
@@ -192,6 +233,7 @@ Notes:
 
 - `starts_with` checks for a text prefix.
 - `in_list` checks membership in a list.
+- A misspelled helper name, or a helper called with the wrong number of arguments, is reported as an error when the rule is saved (for example `Unknown helper function: is_weekand`).
 
 ## Field References
 
@@ -220,6 +262,7 @@ Common legacy segment labels:
 field_name
 CLM.claim_amount
 2300.CLM.claim_amount
+claim.billing_provider.address.zip
 ```
 
 These correspond to:
@@ -227,6 +270,7 @@ These correspond to:
 - simple field reference
 - segment + field
 - loop + segment + field
+- any deeper path: each part names the next level of the claim JSON
 
 ### Reusable bindings with `LET`
 
@@ -505,14 +549,17 @@ Check for:
 - unbalanced quotes
 - misspelled keywords such as `RULE`, `WHEN`, or `THEN`
 - unmatched parentheses
+- misspelled helper names or the wrong number of helper arguments
 
 ### Runtime errors
 
 Check for:
 
-- field names that do not match your claim JSON structure
+- field names that do not match your claim JSON structure. A misspelled field is treated as missing data, so the rule silently does not match.
 - numeric comparisons written as strings
 - incorrect loop IDs such as `2300` or `2400`
+
+If a rule never fires, check that the claims actually contain every field the rule uses, and that numbers and dates are in a readable form. Missing or unreadable data makes a condition unknown, and an unknown condition never fires (see [Missing data](#missing-data)).
 
 ## Need Help?
 

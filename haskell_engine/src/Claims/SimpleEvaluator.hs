@@ -102,7 +102,8 @@ mkEnv today lets doc = EvalEnv lets Map.empty doc today
 
 -- | Evaluate a predicate against a JSON value.
 --
--- Returns 'True' if the predicate matches the JSON document, 'False' otherwise.
+-- Returns 'True' only if the predicate is definitely true for the document.
+-- A predicate that depends on missing or unusable data is not a match.
 --
 -- ==== Example
 --
@@ -112,14 +113,69 @@ mkEnv today lets doc = EvalEnv lets Map.empty doc today
 -- evaluatePredicateSimple doc pred  -- Returns True
 -- @
 evaluatePredicateSimple :: Day -> Aeson.Value -> Syntax.Predicate -> Bool
-evaluatePredicateSimple today doc = evaluateWithEnv (mkEnv today Map.empty doc)
+evaluatePredicateSimple today doc = (== Yes) . evaluateWithEnv (mkEnv today Map.empty doc)
+
+-- ----------------------------------------------------------------------------
+-- Three-valued logic
+-- ----------------------------------------------------------------------------
+
+-- | The result of a predicate. 'Unknown' means the predicate depends on data
+-- that is missing or unusable (an absent field, text where a number was
+-- expected, an unreadable date, an empty or absent collection).
+--
+-- The connectives follow SQL: @NOT Unknown@ is 'Unknown', @Unknown OR Yes@ is
+-- 'Yes', @Unknown AND No@ is 'No'. A rule fires only on 'Yes', so missing data
+-- never makes a rule match by itself; analysts test for it explicitly with
+-- @IS NULL@ or @COUNT(...) = 0@.
+data Truth = Yes | No | Unknown
+  deriving (Eq, Show)
+
+-- | A definite result.
+known :: Bool -> Truth
+known b = if b then Yes else No
+
+-- | 'Nothing' (data missing or unusable) becomes 'Unknown'.
+fromMaybeBool :: Maybe Bool -> Truth
+fromMaybeBool = maybe Unknown known
+
+tNot :: Truth -> Truth
+tNot = \case
+  Yes -> No
+  No -> Yes
+  Unknown -> Unknown
+
+-- | Kleene AND; does not evaluate the second argument when the first is 'No'.
+tAnd :: Truth -> Truth -> Truth
+tAnd No _ = No
+tAnd a b = case b of
+  No -> No
+  Yes -> a
+  Unknown -> Unknown
+
+-- | Kleene OR; does not evaluate the second argument when the first is 'Yes'.
+tOr :: Truth -> Truth -> Truth
+tOr Yes _ = Yes
+tOr a b = case b of
+  Yes -> Yes
+  No -> a
+  Unknown -> Unknown
+
+-- | EXISTS over a collection: 'Unknown' when there is nothing to examine.
+tAny :: [Truth] -> Truth
+tAny [] = Unknown
+tAny ts = foldr tOr No ts
+
+-- | FORALL over a collection: 'Unknown' when there is nothing to examine.
+tAll :: [Truth] -> Truth
+tAll [] = Unknown
+tAll ts = foldr tAnd Yes ts
 
 -- | Internal evaluator carrying the full environment.
-evaluateWithEnv :: EvalEnv -> Syntax.Predicate -> Bool
+evaluateWithEnv :: EvalEnv -> Syntax.Predicate -> Truth
 evaluateWithEnv env = \case
   -- Boolean literals
-  Syntax.PTrue -> True
-  Syntax.PFalse -> False
+  Syntax.PTrue -> Yes
+  Syntax.PFalse -> No
   -- Equality comparisons (numeric when the literal is a number)
   Syntax.Equals fieldRef val@(Syntax.NumberValue _) ->
     compareNumericField env fieldRef val (==)
@@ -144,46 +200,42 @@ evaluateWithEnv env = \case
   -- Domain-specific checks
   Syntax.HasDiagnosis val -> evaluateHasDiagnosis env val
   Syntax.HasProcedure val -> evaluateHasProcedure env val
-  -- Null checks
+  -- Null checks are always definite
   Syntax.IsNull fieldRef ->
-    isNothing $ lookupFieldWithEnv env fieldRef
+    known $ isNothing $ lookupFieldWithEnv env fieldRef
   Syntax.IsNotNull fieldRef ->
-    isJust $ lookupFieldWithEnv env fieldRef
+    known $ isJust $ lookupFieldWithEnv env fieldRef
   -- Boolean logic (recursive)
   Syntax.And p1 p2 ->
-    evaluateWithEnv env p1 && evaluateWithEnv env p2
+    evaluateWithEnv env p1 `tAnd` evaluateWithEnv env p2
   Syntax.Or p1 p2 ->
-    evaluateWithEnv env p1 || evaluateWithEnv env p2
+    evaluateWithEnv env p1 `tOr` evaluateWithEnv env p2
   Syntax.Not p ->
-    not $ evaluateWithEnv env p
+    tNot $ evaluateWithEnv env p
   -- Quantifiers over arrays — unnamed: shift doc (backward compatible)
   Syntax.Exists Nothing path innerPred ->
-    any (\item -> evaluateWithEnv (env { envDoc = item }) innerPred)
-        (findArrayItems path (envDoc env))
+    tAny [evaluateWithEnv (env { envDoc = item }) innerPred | item <- findArrayItems path (envDoc env)]
   Syntax.ForAll Nothing path innerPred ->
-    all (\item -> evaluateWithEnv (env { envDoc = item }) innerPred)
-        (findArrayItems path (envDoc env))
+    tAll [evaluateWithEnv (env { envDoc = item }) innerPred | item <- findArrayItems path (envDoc env)]
   -- Quantifiers over arrays — named: bind variable, doc stays unchanged
   Syntax.Exists (Just varName) path innerPred ->
-    any (\item -> evaluateWithEnv (bindScope varName item env) innerPred)
-        (findArrayItems path (envDoc env))
+    tAny [evaluateWithEnv (bindScope varName item env) innerPred | item <- findArrayItems path (envDoc env)]
   Syntax.ForAll (Just varName) path innerPred ->
-    all (\item -> evaluateWithEnv (bindScope varName item env) innerPred)
-        (findArrayItems path (envDoc env))
+    tAll [evaluateWithEnv (bindScope varName item env) innerPred | item <- findArrayItems path (envDoc env)]
+  -- COUNT is definite: a missing collection counts as zero
   Syntax.Count path op n ->
-    compareInt (length $ findArrayItems path (envDoc env)) op n
+    known $ compareInt (length $ findArrayItems path (envDoc env)) op n
   Syntax.HelperCall helperName args ->
-    evaluateHelperCall env helperName args
+    fromMaybeBool $ evaluateHelperCall env helperName args
   -- String operations
   Syntax.Contains fieldRef val ->
-    case (lookupFieldWithEnv env fieldRef, val) of
-      (Just fieldVal, Syntax.StringValue searchStr) ->
-        T.isInfixOf searchStr fieldVal
-      _ -> False
+    fromMaybeBool $ do
+      fieldVal <- lookupFieldWithEnv env fieldRef
+      case val of
+        Syntax.StringValue searchStr -> Just (T.isInfixOf searchStr fieldVal)
+        _ -> Nothing
   Syntax.Matches fieldRef pattern ->
-    case (lookupFieldWithEnv env fieldRef, compileRegex pattern) of
-      (Just fieldVal, Just regex) -> matchTest regex fieldVal
-      _ -> False
+    fromMaybeBool $ matchTest <$> compileRegex pattern <*> lookupFieldWithEnv env fieldRef
 
 -- | Add a quantifier-bound variable to the environment.
 bindScope :: Text -> Aeson.Value -> EvalEnv -> EvalEnv
@@ -206,15 +258,16 @@ evaluateRuleSimple today doc rule =
         }
     Right bindings ->
       let env = mkEnv today bindings doc
-          matched = evaluateWithEnv env (Syntax.ruleCondition rule)
+          truth = evaluateWithEnv env (Syntax.ruleCondition rule)
+          matched = truth == Yes
           action =
             if matched
               then Just (Syntax.ruleAction rule)
               else Nothing
-          details =
-            if matched
-              then "Rule matched: " <> Syntax.ruleDescription rule
-              else "Rule did not match"
+          details = case truth of
+            Yes -> "Rule matched: " <> Syntax.ruleDescription rule
+            No -> "Rule did not match"
+            Unknown -> "Rule did not match: missing or unusable data"
        in RuleResult
             { resultRuleName = Syntax.ruleName rule,
               resultMatched = matched,
@@ -254,63 +307,38 @@ helperArities =
 helperArity :: Text -> Maybe Int
 helperArity name = Map.lookup (T.toLower name) helperArities
 
-evaluateHelperCall :: EvalEnv -> Text -> [Syntax.Value] -> Bool
+-- | Run a built-in helper. 'Nothing' means an argument was missing or
+-- unusable (or the call is unknown), which the caller treats as 'Unknown'.
+evaluateHelperCall :: EvalEnv -> Text -> [Syntax.Value] -> Maybe Bool
 evaluateHelperCall env helperName args =
-  case T.toLower helperName of
-    "is_weekend" ->
-      case args of
-        [arg] -> maybe False isWeekend (resolveArgText env arg)
-        _ -> False
-    "is_high_amount" ->
-      case args of
-        [actualArg, thresholdArg] ->
-          case (resolveArgNumber env actualArg, resolveArgNumber env thresholdArg) of
-            (Just actual, Just threshold) -> actual > threshold
-            _ -> False
-        _ -> False
-    "starts_with" ->
-      case args of
-        [textArg, prefixArg] ->
-          case (resolveArgText env textArg, resolveArgText env prefixArg) of
-            (Just textVal, Just prefixVal) -> T.isPrefixOf prefixVal textVal
-            _ -> False
-        _ -> False
-    "in_list" ->
-      case args of
-        [textArg, listArg] ->
-          case (resolveArgText env textArg, resolveArgTextList env listArg) of
-            (Just textVal, Just values) -> textVal `elem` values
-            _ -> False
-        _ -> False
-    "is_future_date" ->
-      case args of
-        [arg] -> maybe False (> envToday env) (resolveArgText env arg >>= parseDate)
-        _ -> False
-    "is_date_before" ->
-      case args of
-        [dateArg, cutoffArg] ->
-          case (resolveArgText env dateArg >>= parseDate, resolveArgText env cutoffArg >>= parseDate) of
-            (Just d, Just cutoff) -> d < cutoff
-            _ -> False
-        _ -> False
-    "is_valid_npi" ->
-      case args of
-        [arg] -> maybe False isValidNpi (resolveArgText env arg)
-        _ -> False
-    "is_npi_format" ->
-      case args of
-        [arg] -> maybe False isNpiFormat (resolveArgText env arg)
-        _ -> False
-    "is_age_valid" ->
-      case args of
-        [dobArg, minArg, maxArg] ->
-          case (resolveArgText env dobArg >>= parseDate, resolveArgNumber env minArg, resolveArgNumber env maxArg) of
-            (Just dob, Just minAge, Just maxAge) ->
-              let age = yearsBetween dob (envToday env)
-               in fromIntegral age >= minAge && fromIntegral age <= maxAge
-            _ -> False
-        _ -> False
-    _ -> False
+  case (T.toLower helperName, args) of
+    ("is_weekend", [arg]) ->
+      isWeekend <$> date arg
+    ("is_high_amount", [actualArg, thresholdArg]) ->
+      (>) <$> number actualArg <*> number thresholdArg
+    ("starts_with", [textArg, prefixArg]) ->
+      flip T.isPrefixOf <$> text textArg <*> text prefixArg
+    ("in_list", [textArg, listArg]) ->
+      elem <$> text textArg <*> resolveArgTextList env listArg
+    ("is_future_date", [arg]) ->
+      (> envToday env) <$> date arg
+    ("is_date_before", [dateArg, cutoffArg]) ->
+      (<) <$> date dateArg <*> date cutoffArg
+    ("is_valid_npi", [arg]) ->
+      isValidNpi <$> text arg
+    ("is_npi_format", [arg]) ->
+      isNpiFormat <$> text arg
+    ("is_age_valid", [dobArg, minArg, maxArg]) -> do
+      dob <- date dobArg
+      minAge <- number minArg
+      maxAge <- number maxArg
+      let age = fromIntegral (yearsBetween dob (envToday env))
+      pure (age >= minAge && age <= maxAge)
+    _ -> Nothing
+  where
+    text = resolveArgText env
+    number = resolveArgNumber env
+    date arg = resolveArgText env arg >>= parseDate
 
 resolveArgText :: EvalEnv -> Syntax.Value -> Maybe Text
 resolveArgText env arg =
@@ -336,13 +364,8 @@ resolveArgTextList env arg =
     Syntax.ListValue values -> mapM (resolveArgText env) values
     _ -> Nothing
 
-isWeekend :: Text -> Bool
-isWeekend dateText =
-  case parseDate dateText of
-    Just day ->
-      let dow = dayOfWeek day
-       in dow == Saturday || dow == Sunday
-    Nothing -> False
+isWeekend :: Day -> Bool
+isWeekend day = dayOfWeek day == Saturday || dayOfWeek day == Sunday
 
 parseDate :: Text -> Maybe Day
 parseDate dateText =
@@ -355,39 +378,38 @@ parseDate dateText =
 -- ----------------------------------------------------------------------------
 
 -- | Compare a field's string value against an expected value or another field.
+-- 'Unknown' if either side is missing.
 compareField ::
   EvalEnv ->
   Syntax.FieldRef ->
   Syntax.Value ->
   (Text -> Text -> Bool) ->
-  Bool
+  Truth
 compareField env fieldRef val cmp =
-  case (lookupFieldWithEnv env fieldRef, val) of
-    (Just fieldVal, Syntax.StringValue expectedVal) -> cmp fieldVal expectedVal
-    (Just fieldVal, Syntax.FieldRefValue otherFieldRef) ->
-      case lookupFieldWithEnv env otherFieldRef of
-        Just otherVal -> cmp fieldVal otherVal
-        Nothing -> False
-    _ -> False
+  fromMaybeBool $ do
+    fieldVal <- lookupFieldWithEnv env fieldRef
+    expectedVal <- case val of
+      Syntax.StringValue t -> Just t
+      Syntax.FieldRefValue otherFieldRef -> lookupFieldWithEnv env otherFieldRef
+      _ -> Nothing
+    pure (cmp fieldVal expectedVal)
 
 -- | Compare a field's numeric value against an expected value or another field.
+-- 'Unknown' if either side is missing or not a number.
 compareNumericField ::
   EvalEnv ->
   Syntax.FieldRef ->
   Syntax.Value ->
   (Double -> Double -> Bool) ->
-  Bool
+  Truth
 compareNumericField env fieldRef val cmp =
-  case (lookupFieldWithEnv env fieldRef, val) of
-    (Just fieldVal, Syntax.NumberValue expectedVal) ->
-      case textToDouble fieldVal of
-        Just actualVal -> cmp actualVal expectedVal
-        Nothing -> False
-    (Just fieldVal, Syntax.FieldRefValue otherFieldRef) ->
-      case (textToDouble fieldVal, lookupFieldWithEnv env otherFieldRef >>= textToDouble) of
-        (Just actualVal, Just otherVal) -> cmp actualVal otherVal
-        _ -> False
-    _ -> False
+  fromMaybeBool $ do
+    actualVal <- lookupFieldWithEnv env fieldRef >>= textToDouble
+    expectedVal <- case val of
+      Syntax.NumberValue n -> Just n
+      Syntax.FieldRefValue otherFieldRef -> lookupFieldWithEnv env otherFieldRef >>= textToDouble
+      _ -> Nothing
+    pure (cmp actualVal expectedVal)
 
 -- | Compare two integers using a comparison operator.
 compareInt :: Int -> Syntax.CompOp -> Int -> Bool
@@ -550,56 +572,67 @@ lookupPathRaw (key : rest) val = case val of
 -- ----------------------------------------------------------------------------
 
 -- | Evaluate @field BETWEEN lo AND hi@ (inclusive).
-evaluateBetween :: EvalEnv -> Syntax.FieldRef -> Syntax.Value -> Syntax.Value -> Bool
+evaluateBetween :: EvalEnv -> Syntax.FieldRef -> Syntax.Value -> Syntax.Value -> Truth
 evaluateBetween env fieldRef loVal hiVal =
-  case lookupFieldWithEnv env fieldRef >>= textToDouble of
-    Just actual ->
-      case (valueToDouble loVal, valueToDouble hiVal) of
-        (Just lo, Just hi) -> actual >= lo && actual <= hi
-        _ -> False
-    Nothing -> False
+  fromMaybeBool $ do
+    actual <- lookupFieldWithEnv env fieldRef >>= textToDouble
+    lo <- valueToDouble loVal
+    hi <- valueToDouble hiVal
+    pure (actual >= lo && actual <= hi)
   where
     valueToDouble (Syntax.NumberValue n) = Just n
     valueToDouble _ = Nothing
 
--- | Evaluate @claim.has_diagnosis "code"@.
+-- | Evaluate @claim.has_diagnosis "code"@ by searching
+-- @diagnosis_codes[*].code@.
 --
--- Searches @diagnosis_codes[*].code@ and
--- @service_lines[*].diagnosis_codes[*]@ (when stored as plain strings).
-evaluateHasDiagnosis :: EvalEnv -> Syntax.Value -> Bool
+-- 'Unknown' when the claim has no diagnosis codes to search.
+evaluateHasDiagnosis :: EvalEnv -> Syntax.Value -> Truth
 evaluateHasDiagnosis env val =
   case val of
     Syntax.StringValue searchCode ->
-      let doc = envDoc env
-       in anyCodeInArray doc ["diagnosis_codes"] "code" searchCode
-    _ -> False
+      searchSources [anyCodeInArray (envDoc env) ["diagnosis_codes"] "code" searchCode]
+    _ -> Unknown
 
 -- | Evaluate @claim.has_procedure "code"@.
 --
 -- Searches @procedure_codes[*].code@, @service_lines[*].procedure_code@,
--- and the top-level @procedure_code@ field.
-evaluateHasProcedure :: EvalEnv -> Syntax.Value -> Bool
+-- and the top-level @procedure_code@ field. 'Unknown' when none of those
+-- is present.
+evaluateHasProcedure :: EvalEnv -> Syntax.Value -> Truth
 evaluateHasProcedure env val =
   case val of
     Syntax.StringValue searchCode ->
       let doc = envDoc env
-       in anyCodeInArray doc ["procedure_codes"] "code" searchCode
-            || anyFieldInArray doc ["service_lines"] "procedure_code" searchCode
-            || lookupPath ["procedure_code"] doc == Just searchCode
-    _ -> False
+       in searchSources
+            [ anyCodeInArray doc ["procedure_codes"] "code" searchCode,
+              anyFieldInArray doc ["service_lines"] "procedure_code" searchCode,
+              (== searchCode) <$> lookupPath ["procedure_code"] doc
+            ]
+    _ -> Unknown
 
--- | Check if any element in an array at @rootPath@ has a sub-field matching
--- the target.  E.g. @diagnosis_codes[*].code == "E11.9"@.
-anyCodeInArray :: Aeson.Value -> [Text] -> Text -> Text -> Bool
+-- | Combine searches of several places a code may appear. 'Nothing' means
+-- that place is absent from the claim. Found anywhere → 'Yes'; some place
+-- searched without finding it → 'No'; nowhere to search → 'Unknown'.
+searchSources :: [Maybe Bool] -> Truth
+searchSources results
+  | Just True `elem` results = Yes
+  | any isJust results = No
+  | otherwise = Unknown
+
+-- | Check if any element in a non-empty array at @rootPath@ has a sub-field
+-- matching the target. E.g. @diagnosis_codes[*].code == "E11.9"@.
+-- 'Nothing' if there is no such array or it is empty.
+anyCodeInArray :: Aeson.Value -> [Text] -> Text -> Text -> Maybe Bool
 anyCodeInArray doc rootPath fieldName target =
   case lookupPathRaw rootPath doc of
-    Just (Aeson.Array arr) ->
-      V.any (matchField fieldName target) arr
-    _ -> False
+    Just (Aeson.Array arr)
+      | not (V.null arr) -> Just (V.any (matchField fieldName target) arr)
+    _ -> Nothing
 
 -- | Check if any element in an array at @rootPath@ has a direct field matching
 -- the target.  E.g. @service_lines[*].procedure_code == "99213"@.
-anyFieldInArray :: Aeson.Value -> [Text] -> Text -> Text -> Bool
+anyFieldInArray :: Aeson.Value -> [Text] -> Text -> Text -> Maybe Bool
 anyFieldInArray = anyCodeInArray  -- same implementation, different intent
 
 -- | Does a JSON object's named field equal the target text?

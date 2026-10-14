@@ -1172,6 +1172,98 @@ main = hspec $ do
         other -> expectationFailure ("Parse failed: " ++ show other)
 
   -- ----------------------------------------------------------------
+  -- Missing data is unknown: it never makes a rule match by itself
+  -- ----------------------------------------------------------------
+
+  describe "Missing data (three-valued logic)" $ do
+    let doc = object
+          [ "amount" .= (500 :: Int)
+          , "npi" .= ("12345" :: String)
+          , "dos" .= ("not a date" :: String)
+          , "status" .= ("pending" :: String)
+          , "diagnosis_codes" .= [object ["code" .= ("I10" :: String)]]
+          , "empty_lines" .= ([] :: [Aeson.Value])
+          , "lines" .=
+              [ object ["amount" .= (10 :: Int), "code" .= ("A" :: String)]
+              , object ["code" .= ("B" :: String)]
+              ]
+          , "bad_lines" .=
+              [ object ["amount" .= (10 :: Int)]
+              , object ["amount" .= (-5 :: Int)]
+              ]
+          ]
+        run cond = case parseRule ("RULE t \"T\" WHEN " <> cond <> " THEN FLAG_FRAUD \"x\";") of
+          Left err -> error ("Parse failed: " ++ show err)
+          Right rule -> evaluateRuleSimple testDay doc rule
+        matches cond = resultMatched (run cond)
+
+    describe "NOT" $ do
+      it "NOT of a comparison on a missing field does not match" $
+        matches "NOT missing > 5" `shouldBe` False
+      it "NOT of a comparison on a present field still matches" $
+        matches "NOT amount > 10000" `shouldBe` True
+      it "NOT of MATCHES on a missing field does not match" $
+        matches "NOT (missing MATCHES \"^[0-9]{10}$\")" `shouldBe` False
+      it "NOT of MATCHES on a present, failing field matches" $
+        matches "NOT (npi MATCHES \"^[0-9]{10}$\")" `shouldBe` True
+      it "an explicit IS NULL guard catches the missing field" $
+        matches "missing IS NULL OR NOT (missing MATCHES \"^[0-9]{10}$\")" `shouldBe` True
+      it "NOT of a helper on a missing field does not match" $
+        matches "NOT is_weekend(missing)" `shouldBe` False
+      it "NOT of a helper on an unreadable date does not match" $
+        matches "NOT is_weekend(dos)" `shouldBe` False
+      it "NOT of a numeric comparison on non-numeric text does not match" $
+        matches "NOT status > 5" `shouldBe` False
+      it "NOT has_diagnosis matches when the claim has other codes" $
+        matches "NOT claim.has_diagnosis \"E11.9\"" `shouldBe` True
+      it "NOT has_diagnosis does not match a claim with no diagnosis codes" $
+        case parseRule "RULE t \"T\" WHEN NOT claim.has_diagnosis \"E11.9\" THEN FLAG_FRAUD \"x\";" of
+          Left err -> expectationFailure (show err)
+          Right rule -> resultMatched (evaluateRuleSimple testDay (object ["amount" .= (1 :: Int)]) rule) `shouldBe` False
+
+    describe "AND / OR" $ do
+      it "unknown OR true matches" $
+        matches "missing > 5 OR amount = 500" `shouldBe` True
+      it "unknown OR false does not match" $
+        matches "missing > 5 OR amount = 1" `shouldBe` False
+      it "NOT (unknown AND false) matches, because the AND is definitely false" $
+        matches "NOT (missing > 5 AND amount = 1)" `shouldBe` True
+      it "NOT (unknown AND true) does not match" $
+        matches "NOT (missing > 5 AND amount = 500)" `shouldBe` False
+
+    describe "Quantifiers" $ do
+      it "FORALL over a missing collection does not match" $
+        matches "FORALL l IN no_lines WHERE l.amount > 0" `shouldBe` False
+      it "FORALL over an empty collection does not match" $
+        matches "FORALL l IN empty_lines WHERE l.amount > 0" `shouldBe` False
+      it "NOT FORALL over an empty collection does not match" $
+        matches "NOT FORALL l IN empty_lines WHERE l.amount > 0" `shouldBe` False
+      it "FORALL does not match when a line lacks the field" $
+        matches "FORALL l IN lines WHERE l.amount > 0" `shouldBe` False
+      it "NOT FORALL does not match when the only doubt is a missing field" $
+        matches "NOT FORALL l IN lines WHERE l.amount > 0" `shouldBe` False
+      it "NOT FORALL matches when a line definitely fails" $
+        matches "NOT FORALL l IN bad_lines WHERE l.amount > 0" `shouldBe` True
+      it "EXISTS over an empty collection does not match" $
+        matches "EXISTS l IN empty_lines WHERE l.amount > 0" `shouldBe` False
+      it "NOT EXISTS over an empty collection does not match" $
+        matches "NOT EXISTS l IN empty_lines WHERE l.amount > 0" `shouldBe` False
+      it "NOT EXISTS over a missing collection does not match" $
+        matches "NOT EXISTS l IN no_lines WHERE l.amount > 0" `shouldBe` False
+      it "NOT EXISTS matches when every line definitely fails" $
+        matches "NOT EXISTS l IN bad_lines WHERE l.amount > 100" `shouldBe` True
+      it "EXISTS matches when one line passes even if another is unknown" $
+        matches "EXISTS l IN lines WHERE l.amount > 0" `shouldBe` True
+      it "COUNT(...) = 0 is the explicit check for a missing collection" $
+        matches "COUNT(no_lines) = 0" `shouldBe` True
+
+    describe "Result details" $ do
+      it "say when a rule was undecided because of missing data" $
+        resultDetails (run "NOT missing > 5") `shouldBe` "Rule did not match: missing or unusable data"
+      it "keep the plain wording when the rule was definitely false" $
+        resultDetails (run "amount > 10000") `shouldBe` "Rule did not match"
+
+  -- ----------------------------------------------------------------
   -- Default Rule DSL Texts — Parse Validation
   -- ----------------------------------------------------------------
 

@@ -960,14 +960,15 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
     |> Enum.reduce_while({:ok, []}, fn chunk, {:ok, acc} ->
       body = Jason.encode!(PayloadBuilder.build_batch_evaluate_payload(rules_text, chunk))
 
-      case HTTPoison.post(
+      case Req.post(
              "#{rule_engine_url()}/api/batch-evaluate",
-             body,
-             engine_headers(),
-             timeout: 120_000,
-             recv_timeout: 120_000
+             body: body,
+             headers: engine_headers(),
+             decode_body: false,
+             connect_options: [timeout: 120_000],
+             receive_timeout: 120_000
            ) do
-        {:ok, %{status_code: 200, body: resp_body}} ->
+        {:ok, %{status: 200, body: resp_body}} ->
           case Jason.decode(resp_body) do
             {:ok, %{"batchResults" => results}} -> {:cont, {:ok, acc ++ results}}
             {:ok, _} -> {:halt, {:error, "Unexpected response format from evaluator"}}
@@ -998,14 +999,15 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
   defp call_batch_compile(rules_text) do
     body = Jason.encode!(%{rulesText: normalize_dsl_text(rules_text)})
 
-    case HTTPoison.post(
+    case Req.post(
            "#{rule_engine_url()}/api/compile-rules",
-           body,
-           engine_headers(),
-           timeout: 120_000,
-           recv_timeout: 120_000
+           body: body,
+           headers: engine_headers(),
+           decode_body: false,
+           connect_options: [timeout: 120_000],
+           receive_timeout: 120_000
          ) do
-      {:ok, %{status_code: 200, body: resp_body}} ->
+      {:ok, %{status: 200, body: resp_body}} ->
         Jason.decode(resp_body)
 
       {:ok, %{body: resp_body}} ->
@@ -1039,12 +1041,15 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
   defp parse_rule(text) do
     normalized_text = normalize_dsl_text(text)
 
-    case HTTPoison.post(
+    case Req.post(
            "#{rule_engine_url()}/api/parse-rule",
-           Jason.encode!(%{ruleText: normalized_text}),
-           engine_headers()
+           body: Jason.encode!(%{ruleText: normalized_text}),
+           headers: engine_headers(),
+           decode_body: false,
+           connect_options: [timeout: 8_000],
+           receive_timeout: 5_000
          ) do
-      {:ok, %{status_code: 200, body: body}} ->
+      {:ok, %{status: 200, body: body}} ->
         Jason.decode(body)
 
       {:ok, %{body: body}} ->
@@ -1085,14 +1090,15 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
           existingRulesTexts: Enum.map(existing_rules, &normalize_dsl_text/1)
         })
 
-      case HTTPoison.post(
+      case Req.post(
              "#{rule_engine_url()}/api/check-redundancy",
-             body,
-             engine_headers(),
-             timeout: 10_000,
-             recv_timeout: 10_000
+             body: body,
+             headers: engine_headers(),
+             decode_body: false,
+             connect_options: [timeout: 10_000],
+             receive_timeout: 10_000
            ) do
-        {:ok, %{status_code: 200, body: resp_body}} ->
+        {:ok, %{status: 200, body: resp_body}} ->
           case Jason.decode(resp_body) do
             {:ok, %{"success" => true, "matches" => matches}} -> {:ok, matches}
             {:ok, %{"success" => false, "error" => err}} -> {:error, err}

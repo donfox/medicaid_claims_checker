@@ -138,14 +138,15 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
     |> Enum.reduce_while({:ok, []}, fn chunk, {:ok, acc} ->
       body = Jason.encode!(PayloadBuilder.build_batch_evaluate_payload(rules_text, chunk))
 
-      case HTTPoison.post(
+      case Req.post(
              "#{rule_engine_url()}/api/batch-evaluate",
-             body,
-             engine_headers(),
-             timeout: 120_000,
-             recv_timeout: 120_000
+             body: body,
+             headers: engine_headers(),
+             decode_body: false,
+             connect_options: [timeout: 120_000],
+             receive_timeout: 120_000
            ) do
-        {:ok, %{status_code: 200, body: resp_body}} ->
+        {:ok, %{status: 200, body: resp_body}} ->
           case Jason.decode(resp_body) do
             {:ok, %{"batchResults" => results}} -> {:cont, {:ok, acc ++ results}}
             {:ok, _} -> {:halt, {:error, "Unexpected response format from evaluator"}}

@@ -185,30 +185,35 @@ valuesOverlap CEq v1 CEq v2 = v1 == v2
 valuesOverlap _ _ _ _ = False
 
 -- | Do two numeric constraints on the same field have overlapping ranges?
--- We model each constraint as a half-line and check if the intersection
--- is non-empty.
+-- We model each constraint as an interval whose ends may be open or closed
+-- and check if the intersection is non-empty. @> 5@ and @< 5@ do not overlap;
+-- @>= 5@ and @<= 5@ do.
 numericRangesOverlap :: ConstraintOp -> Double -> ConstraintOp -> Double -> Bool
 numericRangesOverlap op1 n1 op2 n2 =
-  let (lo1, hi1) = opToRange op1 n1
-      (lo2, hi2) = opToRange op2 n2
-      lo = max lo1 lo2
-      hi = min hi1 hi2
-   in lo < hi || (lo == hi && lo /= inf && lo /= negInf)
+  let (lo, loClosed) = tighter (>) (lowerBound op1 n1) (lowerBound op2 n2)
+      (hi, hiClosed) = tighter (<) (upperBound op1 n1) (upperBound op2 n2)
+   in lo < hi || (lo == hi && loClosed && hiClosed)
   where
-    inf = 1 / 0 :: Double
-    negInf = -1 / 0 :: Double
+    -- Pick the tighter of two bounds; on a tie the result is closed only
+    -- when both are.
+    tighter better (a, ca) (b, cb)
+      | a `better` b = (a, ca)
+      | b `better` a = (b, cb)
+      | otherwise = (a, ca && cb)
 
--- | Convert a comparison operator + value into a (lo, hi) interval.
-opToRange :: ConstraintOp -> Double -> (Double, Double)
-opToRange CEq n = (n, n)
-opToRange CNe _ = (negInf, inf)
-  where
-    inf = 1 / 0
-    negInf = -1 / 0
-opToRange CGt n = (n, inf) where inf = 1 / 0
-opToRange CGte n = (n, inf) where inf = 1 / 0
-opToRange CLt n = (negInf, n) where negInf = -1 / 0
-opToRange CLte n = (negInf, n) where negInf = -1 / 0
+-- | The lower end of a constraint's interval and whether it is included.
+lowerBound :: ConstraintOp -> Double -> (Double, Bool)
+lowerBound CEq n = (n, True)
+lowerBound CGt n = (n, False)
+lowerBound CGte n = (n, True)
+lowerBound _ _ = (-1 / 0, False)
+
+-- | The upper end of a constraint's interval and whether it is included.
+upperBound :: ConstraintOp -> Double -> (Double, Bool)
+upperBound CEq n = (n, True)
+upperBound CLt n = (n, False)
+upperBound CLte n = (n, True)
+upperBound _ _ = (1 / 0, False)
 
 -- ----------------------------------------------------------------------------
 -- Level 3: Subsumption
@@ -255,15 +260,17 @@ predicateImplies _ PTrue = True
 predicateImplies PFalse _ = True
 -- Reflexive (after normalization)
 predicateImplies p q | p == q = True
+-- And on the right: p implies (a AND b) exactly when p implies both.
+-- This must come before splitting an And on the left, or
+-- (x > 1000 AND s = "NY") would never be found to imply (x > 500 AND s = "NY").
+predicateImplies p (And a b) =
+  predicateImplies p a && predicateImplies p b
 -- And: if p = (a AND b), then p implies q if either conjunct implies q
 predicateImplies (And a b) q =
   predicateImplies a q || predicateImplies b q
 -- Or: p implies (a OR b) if p implies either disjunct
 predicateImplies p (Or a b) =
   predicateImplies p a || predicateImplies p b
--- And on the right: p implies (a AND b) if p implies both
-predicateImplies p (And a b) =
-  predicateImplies p a && predicateImplies p b
 -- Numeric tightening: stricter bound implies looser bound
 predicateImplies (GreaterThan f1 (NumberValue n1)) (GreaterThan f2 (NumberValue n2)) =
   f1 == f2 && n1 >= n2

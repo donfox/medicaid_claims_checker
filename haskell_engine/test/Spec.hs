@@ -719,6 +719,28 @@ main = hspec $ do
       length matches `shouldBe` 1
       matchLevel (head matches) `shouldBe` Shadowed
 
+    it "detects shadowed between two AND rules (stricter amount, same state)" $ do
+      let stateNY = Equals (Field "state") (StringValue "NY")
+          ruleA = mkRule "stricter" (And (GreaterThan (Field "amount") (NumberValue 1000)) stateNY) (FlagFraud "ny high")
+          ruleB = mkRule "looser" (And (GreaterThan (Field "amount") (NumberValue 500)) stateNY) (RequireReview "ny")
+      map matchLevel (checkRedundancy ruleA [ruleB]) `shouldBe` [Shadowed]
+      map matchLevel (checkRedundancy ruleB [ruleA]) `shouldBe` [Shadowed]
+
+    it "strict bounds on the same value do not overlap (> 5 vs < 5)" $ do
+      let ruleA = mkRule "above" (GreaterThan (Field "amount") (NumberValue 5)) (FlagFraud "above")
+          ruleB = mkRule "below" (LessThan (Field "amount") (NumberValue 5)) (RequireReview "below")
+      checkRedundancy ruleA [ruleB] `shouldBe` []
+
+    it "a strict bound excludes an equal value (> 5 vs = 5)" $ do
+      let ruleA = mkRule "above" (GreaterThan (Field "amount") (NumberValue 5)) (FlagFraud "above")
+          ruleB = mkRule "five" (Equals (Field "amount") (NumberValue 5)) (RequireReview "five")
+      checkRedundancy ruleA [ruleB] `shouldBe` []
+
+    it "inclusive bounds on the same value overlap (>= 5 vs <= 5)" $ do
+      let ruleA = mkRule "atLeast" (GreaterThanOrEqual (Field "amount") (NumberValue 5)) (FlagFraud "at least")
+          ruleB = mkRule "atMost" (LessThanOrEqual (Field "amount") (NumberValue 5)) (RequireReview "at most")
+      map matchLevel (checkRedundancy ruleA [ruleB]) `shouldBe` [ConditionOverlap]
+
     it "NOT does not produce false overlap" $ do
       let ruleA = mkRule "rule_a" (Not (GreaterThan (Field "amount") (NumberValue 50000))) (RequireReview "low")
           ruleB = mkRule "rule_b" (GreaterThan (Field "amount") (NumberValue 40000)) (FlagFraud "high")

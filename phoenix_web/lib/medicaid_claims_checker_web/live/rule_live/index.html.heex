@@ -676,12 +676,11 @@ THEN REJECT "Provider not eligible";</code></pre>
               <h3 class="font-semibold text-sm text-gray-900 mb-2">Risk Score Ranges</h3>
               <table class="text-xs w-full bg-white rounded border border-gray-300">
                 <tbody>
-                  <tr class="border-b border-gray-200"><td class="p-1.5 font-semibold text-gray-900">0-30</td><td class="p-1.5 text-gray-800">Low risk, informational</td></tr>
-                  <tr class="border-b border-gray-200"><td class="p-1.5 font-semibold text-yellow-700">31-60</td><td class="p-1.5 text-gray-800">Medium, review recommended</td></tr>
-                  <tr class="border-b border-gray-200"><td class="p-1.5 font-semibold text-orange-700">61-85</td><td class="p-1.5 text-gray-800">High, review required</td></tr>
-                  <tr><td class="p-1.5 font-semibold text-red-700">86-100</td><td class="p-1.5 text-gray-800">Critical, immediate action</td></tr>
+                  <tr class="border-b border-gray-200"><td class="p-1.5 font-semibold text-gray-900">0-69</td><td class="p-1.5 text-gray-800">Recorded with the rule; does not flag the claim by itself</td></tr>
+                  <tr><td class="p-1.5 font-semibold text-orange-700">70-100</td><td class="p-1.5 text-gray-800">Flags the claim for analyst review (HighRisk)</td></tr>
                 </tbody>
               </table>
+              <p class="text-xs text-gray-800 mt-2">REQUIRE_REVIEW also flags a claim for review; FLAG_FRAUD and REJECT make it CriticalRisk.</p>
             </div>
           </div>
 

@@ -555,7 +555,7 @@ Check for:
 
 Check for:
 
-- field names that do not match your claim JSON structure. A misspelled field is treated as missing data, so the rule silently does not match.
+- field names that do not match your claim JSON structure. A misspelled field is treated as missing data, so the rule does not match and is listed as not checked.
 - numeric comparisons written as strings
 - incorrect loop IDs such as `2300` or `2400`
 

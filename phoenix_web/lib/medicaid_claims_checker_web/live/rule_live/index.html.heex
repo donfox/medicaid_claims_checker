@@ -528,6 +528,7 @@ END</code></pre>
                 A condition that needs data the claim does not have is <span class="font-semibold">unknown</span>: an absent field, text where a number is expected, an unreadable date, or an absent or empty list of items.
                 A rule fires only when its condition is definitely true, and <code class="bg-gray-100 px-1 rounded">NOT</code> does not turn unknown into true.
                 <code class="bg-gray-100 px-1 rounded">OR</code> is still true if the other side is true, and <code class="bg-gray-100 px-1 rounded">AND</code> is still false if the other side is false.
+                A rule left undecided this way is listed in the claim's results as <span class="font-semibold">not checked</span>, and the claim is not called clean.
               </p>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <table class="text-xs w-full bg-white rounded border border-gray-300">
@@ -570,12 +571,12 @@ COUNT(service_lines) = 0</code></pre>
               </div>
               <div class="p-2 bg-gray-50 rounded border border-gray-200">
                 <p class="font-mono text-xs font-semibold text-gray-900">REQUIRE_REVIEW</p>
-                <p class="text-[10px] text-gray-800 mt-1">Flag for manual review</p>
+                <p class="text-[10px] text-gray-800 mt-1">Flag for analyst review (HighRisk)</p>
                 <code class="text-[10px] text-gray-800">REQUIRE_REVIEW "note"</code>
               </div>
               <div class="p-2 bg-gray-50 rounded border border-gray-200">
                 <p class="font-mono text-xs font-semibold text-gray-900">RISK_SCORE</p>
-                <p class="text-[10px] text-gray-800 mt-1">Assign risk score 0-100</p>
+                <p class="text-[10px] text-gray-800 mt-1">Assign risk score 0-100; 70+ flags for review</p>
                 <code class="text-[10px] text-gray-800">RISK_SCORE 75</code>
               </div>
             </div>
@@ -701,7 +702,7 @@ THEN REJECT "Provider not eligible";</code></pre>
               <div>
                 <p class="text-xs font-medium text-gray-800 mb-1">Runtime Errors</p>
                 <ul class="text-xs text-gray-900 list-disc pl-5 space-y-0.5">
-                  <li>Verify field names match claim JSON structure — a misspelled field is missing data, so the rule silently does not match</li>
+                  <li>Verify field names match claim JSON structure — a misspelled field is missing data, so the rule does not match and is listed as not checked</li>
                   <li>Use numbers for numeric comparisons, not strings</li>
                   <li>Check loop IDs are correct (2300, 2400, etc.)</li>
                 </ul>

@@ -338,7 +338,7 @@ REJECT "Reason for rejection"
 
 ### `REQUIRE_REVIEW`
 
-Routes the claim to manual review with a reviewer note.
+Flags the claim for analyst review (overall risk HighRisk) with a reviewer note.
 
 ```text
 REQUIRE_REVIEW "Note for reviewer"
@@ -346,7 +346,7 @@ REQUIRE_REVIEW "Note for reviewer"
 
 ### `RISK_SCORE`
 
-Assigns a numeric risk score from `0` to `100`.
+Assigns a numeric risk score from `0` to `100`. A score of `70` or more flags the claim for analyst review (overall risk HighRisk); a lower score is recorded with the rule but does not flag the claim by itself.
 
 ```text
 RISK_SCORE 75
@@ -458,10 +458,10 @@ THEN [FLAG_FRAUD "Multiple issues", RISK_SCORE 90];
 
 ### 5. Use risk scores consistently
 
-- `0–30` — low risk, informational
-- `31–60` — medium risk, review recommended
-- `61–85` — high risk, review required
-- `86–100` — critical risk, immediate action
+- `0–69` — recorded with the matched rule; does not flag the claim by itself
+- `70–100` — flags the claim for analyst review (overall risk HighRisk)
+
+To flag a claim for review regardless of score, add `REQUIRE_REVIEW`. `FLAG_FRAUD` and `REJECT` make the overall risk CriticalRisk.
 
 ## Common Patterns
 

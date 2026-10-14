@@ -10,8 +10,8 @@ Phoenix LiveView application providing the user interface for claim ingestion, r
 - NPPES pre-validation: claims with unrecognised provider NPIs are hard-rejected before rule evaluation
 - Business rule catalogue with type-based management (Default Rules, BA Rules, ML Models)
 - In-browser DSL editor with real-time syntax validation and redundancy detection
-- Batch evaluation history with per-claim risk level and matched rule details
-- Risk-level scoring display (CriticalRisk, HighRisk, MediumRisk, LowRisk)
+- Batch evaluation history with per-claim risk level, matched rule details, and rules not checked because of missing data
+- Risk-level display (CriticalRisk, HighRisk, LowRisk); HighRisk and CriticalRisk claims are flagged for analyst review
 
 ## Pages
 

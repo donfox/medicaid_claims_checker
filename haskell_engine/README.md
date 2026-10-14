@@ -73,26 +73,23 @@ The server starts on port 8080.
 
 ## Fraud Detection Scoring
 
-The UI displays two metrics per evaluated claim under **Fraud Detection Details**:
+The UI shows, per evaluated claim under **Fraud Detection Details**, the number of rules triggered, a weighted score, the overall risk level, the triggered rules, and any rules that could not be checked.
 
-### Rule-Based Score
+### Overall risk level
 
-Shows the ratio of matched (triggered) rules to total rules evaluated, e.g. `3 / 17`. The bar fills proportionally. This answers: **how many rules fired?**
+A classification derived from the *actions* of the matched rules, not just their count. The `determineRiskLevel` function in `RuleEngine.hs` computes it, looking inside composite actions:
 
-### Overall Risk Assessment
+| Level | Condition |
+|---|---|
+| CriticalRisk | Any matched rule has `REJECT` or `FLAG_FRAUD` |
+| HighRisk | Any matched rule has `REQUIRE_REVIEW`, or a `RISK_SCORE` of 70 or more |
+| LowRisk | Anything else |
 
-A severity classification (0-100 scale) derived from the *actions* of the matched rules, not just the count. This answers: **how bad are the rules that fired?**
+The app counts HighRisk and CriticalRisk claims as flagged for analyst review. `MediumRisk` is kept in the report format for stored reports but is not currently produced. A claim can trigger several rules and remain LowRisk if none of them asks for review or scores 70 or more.
 
-The `determineRiskLevel` function in `RuleEngine.hs` computes the level:
+### Rules not checked
 
-| Level | Score | Condition |
-|---|---|---|
-| CriticalRisk | 90 | Any matched rule triggers `RejectClaim` or `FlagFraud` |
-| HighRisk | 65 | 3+ matched rules have `AssignRiskScore >= 70` |
-| MediumRisk | 35 | 1-2 matched rules have `AssignRiskScore >= 70` |
-| LowRisk | 5 | No high-severity actions |
-
-A claim can trigger many rules but remain LowRisk if they are all low-severity. Conversely, a single `REJECT` match produces CriticalRisk.
+A rule whose condition depends on missing or unusable data does not match. Its result has `resultUndecided: true`, the report's `undecidedRules` counts such rules, and the app lists them as not checked instead of calling the claim clean. See the Missing data section of `docs/SYNTAX_GUIDE.md`.
 
 ## Parse and Cache Pipeline
 

@@ -66,7 +66,7 @@ module Claims.Syntax
   )
 where
 
-import Data.Aeson (FromJSON (..), ToJSON (..), object, withObject, (.:), (.:?), (.=))
+import Data.Aeson (FromJSON (..), ToJSON (..), object, withObject, (.!=), (.:), (.:?), (.=))
 import Data.Aeson qualified as Aeson
 import Data.Aeson.KeyMap qualified as KeyMap
 import Data.Maybe (fromMaybe)
@@ -356,6 +356,9 @@ data RuleResult = RuleResult
   , resultMatched  :: Bool
   , resultAction   :: Maybe Action
   , resultDetails  :: Text
+  , resultUndecided :: Bool
+    -- ^ The rule could not be decided because data it needs is missing or
+    -- unusable. Always 'False' when 'resultMatched' is 'True'.
   } deriving (Show, Eq, Generic)
 
 -- | The JSON encoding is a wire contract with the Phoenix app and with
@@ -370,6 +373,7 @@ instance ToJSON RuleResult where
       , "resultMatched"  .= resultMatched r
       , "resultAction"   .= fmap (retagActions (<> "'") . toJSON) (resultAction r)
       , "resultDetails"  .= resultDetails r
+      , "resultUndecided" .= resultUndecided r
       ]
 
 instance FromJSON RuleResult where
@@ -379,6 +383,8 @@ instance FromJSON RuleResult where
       <*> o .: "resultMatched"
       <*> (traverse (parseJSON . retagActions unprime) =<< o .:? "resultAction")
       <*> o .: "resultDetails"
+      -- Reports stored before this field existed omit it.
+      <*> o .:? "resultUndecided" .!= False
     where
       unprime t = fromMaybe t (T.stripSuffix "'" t)
 

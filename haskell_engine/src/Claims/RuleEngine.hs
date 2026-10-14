@@ -127,15 +127,17 @@ evaluateSimpleJson engine today doc =
   let results    = map (evaluateRuleSimple today doc) (engineRules engine)
       matched    = filter resultMatched results
       matchCount = length matched
+      undecided  = length (filter resultUndecided results)
       totalCount = length results
       riskLevel  = determineRiskLevel results
-      summary    = generateSummary matchCount totalCount riskLevel
+      summary    = generateSummary matchCount undecided totalCount riskLevel
   in EvaluationReport
-       { reportResults      = results
-       , reportTotalRules   = totalCount
-       , reportMatchedRules = matchCount
-       , reportOverallRisk  = riskLevel
-       , reportSummary      = summary
+       { reportResults        = results
+       , reportTotalRules     = totalCount
+       , reportMatchedRules   = matchCount
+       , reportUndecidedRules = undecided
+       , reportOverallRisk    = riskLevel
+       , reportSummary        = summary
        }
 
 -- ----------------------------------------------------------------------------
@@ -150,6 +152,8 @@ data EvaluationReport = EvaluationReport
     -- ^ Total number of rules evaluated
   , reportMatchedRules :: Int
     -- ^ Number of rules that matched
+  , reportUndecidedRules :: Int
+    -- ^ Number of rules that could not be decided because of missing data
   , reportOverallRisk  :: RiskLevel
     -- ^ Aggregated risk assessment
   , reportSummary      :: Text
@@ -205,9 +209,12 @@ flattenAction (CompositeAction as) = concatMap flattenAction as
 flattenAction a                    = [a]
 
 -- | Generate a human-readable summary of evaluation results.
-generateSummary :: Int -> Int -> RiskLevel -> Text
-generateSummary matched total risk = T.concat
+generateSummary :: Int -> Int -> Int -> RiskLevel -> Text
+generateSummary matched undecided total risk = T.concat
   [ "Evaluated ", T.pack (show total), " rules, "
-  , T.pack (show matched), " matched. "
+  , T.pack (show matched), " matched"
+  , if undecided > 0
+      then ", " <> T.pack (show undecided) <> " not checked (missing data). "
+      else ". "
   , "Overall risk: ", T.pack (show risk)
   ]

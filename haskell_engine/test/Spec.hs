@@ -177,7 +177,8 @@ main = hspec $ do
                            object ["tag" .= ("AssignRiskScore'" :: String), "contents" .= (90 :: Int)]
                          ]
                   ],
-              "resultDetails" .= ("matched" :: String)
+              "resultDetails" .= ("matched" :: String),
+              "resultUndecided" .= False
             ]
 
     it "keeps the primed action tags Phoenix and stored reports rely on" $
@@ -192,8 +193,20 @@ main = hspec $ do
           [ "resultRuleName" .= ("r" :: String),
             "resultMatched" .= False,
             "resultAction" .= Aeson.Null,
-            "resultDetails" .= ("no" :: String)
+            "resultDetails" .= ("no" :: String),
+            "resultUndecided" .= False
           ]
+
+    it "decodes a stored result that has no resultUndecided field" $
+      Aeson.fromJSON
+        ( object
+            [ "resultRuleName" .= ("r" :: String),
+              "resultMatched" .= False,
+              "resultAction" .= Aeson.Null,
+              "resultDetails" .= ("no" :: String)
+            ]
+        )
+        `shouldBe` Aeson.Success (mkResult "r" False Nothing "no")
 
   describe "PolicyCombiner" $ do
     it "DSL reject always wins even with low ML risk" $ do
@@ -1295,6 +1308,31 @@ main = hspec $ do
       it "keep the plain wording when the rule was definitely false" $
         resultDetails (run "amount > 10000") `shouldBe` "Rule did not match"
 
+    describe "Undecided flag" $ do
+      it "is set when a rule depends on missing data" $
+        resultUndecided (run "missing > 5") `shouldBe` True
+      it "is set when a rule depends on unusable data" $
+        resultUndecided (run "is_future_date(dos)") `shouldBe` True
+      it "is not set when a rule is definitely false" $
+        resultUndecided (run "amount > 10000") `shouldBe` False
+      it "is not set when a rule matches" $
+        resultUndecided (run "amount > 100") `shouldBe` False
+      it "is set when a LET binding cannot be resolved" $
+        case parseRule "RULE t \"T\" LET x = missing WHEN x = \"y\" THEN FLAG_FRAUD \"x\";" of
+          Left err -> expectationFailure ("Parse failed: " ++ show err)
+          Right rule -> resultUndecided (evaluateRuleSimple testDay doc rule) `shouldBe` True
+      it "is counted in the report" $
+        case loadRules "RULE a \"A\" WHEN missing > 5 THEN FLAG_FRAUD \"x\"; \
+                       \RULE b \"B\" WHEN amount > 10000 THEN FLAG_FRAUD \"x\"; \
+                       \RULE c \"C\" WHEN amount > 100 THEN REQUIRE_REVIEW \"x\";" of
+          Left err -> expectationFailure ("Parse failed: " ++ err)
+          Right engine -> do
+            let report = evaluateSimpleJson engine testDay doc
+            reportMatchedRules report `shouldBe` 1
+            reportUndecidedRules report `shouldBe` 1
+            reportSummary report
+              `shouldBe` "Evaluated 3 rules, 1 matched, 1 not checked (missing data). Overall risk: HighRisk"
+
   -- ----------------------------------------------------------------
   -- Default Rule DSL Texts — Parse Validation
   -- ----------------------------------------------------------------
@@ -1347,5 +1385,6 @@ mkResult name matched action details =
     { resultRuleName = fromString name,
       resultMatched = matched,
       resultAction = action,
-      resultDetails = fromString details
+      resultDetails = fromString details,
+      resultUndecided = False
     }

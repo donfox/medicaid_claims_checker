@@ -254,7 +254,8 @@ evaluateRuleSimple today doc rule =
         { resultRuleName = Syntax.ruleName rule,
           resultMatched = False,
           resultAction = Nothing,
-          resultDetails = "Rule binding error: " <> err
+          resultDetails = "Rule binding error: " <> err,
+          resultUndecided = True
         }
     Right bindings ->
       let env = mkEnv today bindings doc
@@ -272,7 +273,8 @@ evaluateRuleSimple today doc rule =
             { resultRuleName = Syntax.ruleName rule,
               resultMatched = matched,
               resultAction = action,
-              resultDetails = details
+              resultDetails = details,
+              resultUndecided = truth == Unknown
             }
 
 buildBindingContext :: Day -> Aeson.Value -> [Syntax.Binding] -> Either Text (Map Text Text)

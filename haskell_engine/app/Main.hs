@@ -398,6 +398,7 @@ reportToJSON report =
     [ "results" .= reportResults report,
       "totalRules" .= reportTotalRules report,
       "matchedRules" .= reportMatchedRules report,
+      "undecidedRules" .= reportUndecidedRules report,
       "overallRisk" .= show (reportOverallRisk report),
       "summary" .= reportSummary report
     ]

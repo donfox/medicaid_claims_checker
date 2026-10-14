@@ -215,6 +215,39 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
       assert hd(files).evaluation_report["overallRisk"] == "CriticalRisk"
     end
 
+    # No Bypass expectation is set: any request to the engine fails the test.
+    test "refuses a batch over the claim limit without calling the engine" do
+      create_rule!(
+        "some_rule",
+        ~s|RULE test "Test" WHEN 2300.CLM.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|
+      )
+
+      batch = ingest_batch!([make_claim("first.json", 100)])
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      1..Evaluator.max_batch_claims()
+      |> Enum.map(fn i ->
+        %{
+          filename: "extra_#{i}.json",
+          file_path: "extra_#{i}.json",
+          json_output: %{"claim_id" => "CLM-#{i}"},
+          status: "translated",
+          batch_id: batch.id,
+          inserted_at: now,
+          updated_at: now
+        }
+      end)
+      |> Enum.chunk_every(5_000)
+      |> Enum.each(&Repo.insert_all(MedicaidClaimsChecker.Claims.EdiFile, &1))
+
+      Phoenix.PubSub.subscribe(MedicaidClaimsChecker.PubSub, Evaluator.topic())
+      Evaluator.evaluate_batch(batch)
+
+      assert Claims.get_batch_by_batch_id(batch.batch_id).status == "failed"
+      assert_receive {:batch_failed, %{reason: reason}}
+      assert reason =~ "This batch has 15001 claims; the limit is 15000."
+    end
+
     test "marks batch failed when engine returns error", %{bypass: bypass} do
       create_rule!(
         "some_rule",

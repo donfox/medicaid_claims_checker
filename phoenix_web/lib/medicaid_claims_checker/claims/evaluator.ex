@@ -25,6 +25,22 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
     [{"Content-Type", "application/json"}, {"Authorization", "Bearer #{engine_secret()}"}]
   end
 
+  # Batches are sent to the engine in chunks of @batch_chunk_size (200), and
+  # the engine accepts at most 100 requests a minute on one connection, so a
+  # batch over about 20,000 claims would be rejected partway through. The cap
+  # leaves room for other requests on the same connection. Revisit it if the
+  # chunk size or the engine's rate limit (haskell_engine/app/Main.hs) changes.
+  @max_batch_claims 15_000
+
+  @doc "Largest number of claims a single batch may send to the engine."
+  def max_batch_claims, do: @max_batch_claims
+
+  @doc "Message shown when a batch has more claims than `max_batch_claims/0`."
+  def batch_too_large_message(claim_count) do
+    "This batch has #{claim_count} claims; the limit is #{@max_batch_claims}. " <>
+      "Split the files into smaller batches and try again."
+  end
+
   @doc """
   Evaluates all edi_files in a batch that are in "translated" status.
 
@@ -47,15 +63,24 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
       Claims.list_files_for_batch(batch.id)
       |> Enum.filter(&(&1.status == "translated"))
 
-    if edi_files == [] do
-      result =
-        Claims.update_batch(batch, %{status: "completed", completed_at: DateTime.utc_now()})
+    cond do
+      edi_files == [] ->
+        result =
+          Claims.update_batch(batch, %{status: "completed", completed_at: DateTime.utc_now()})
 
-      broadcast_completed(batch)
-      result
-    else
-      Claims.update_batch(batch, %{status: "processing"})
-      do_evaluate(batch, edi_files)
+        broadcast_completed(batch)
+        result
+
+      length(edi_files) > @max_batch_claims ->
+        reason = batch_too_large_message(length(edi_files))
+        Logger.error("Batch evaluation refused for #{batch.batch_id}: #{reason}")
+        result = Claims.update_batch(batch, %{status: "failed"})
+        broadcast_failed(batch, reason)
+        result
+
+      true ->
+        Claims.update_batch(batch, %{status: "processing"})
+        do_evaluate(batch, edi_files)
     end
   end
 

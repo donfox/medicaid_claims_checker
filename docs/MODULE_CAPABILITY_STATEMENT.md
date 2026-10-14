@@ -28,7 +28,7 @@ This module is a **pre-adjudication tool**. It does not adjudicate claims, make 
 - Evaluates claims against a configurable library of business rules authored in a domain-specific language (DSL)
 - Supports three rule types: Default Rules (system-defined), BA Rules (business-analyst-authored), and ML Model scoring
 - Detects redundant or conflicting rules in the rule library before activation
-- Produces per-claim risk findings: CriticalRisk, HighRisk, MediumRisk, LowRisk
+- Produces per-claim risk findings: CriticalRisk, HighRisk, LowRisk
 - Produces per-claim weighted fraud scores based on the severity of triggered rules
 - Stores evaluation history and per-claim audit trail in a PostgreSQL database
 - Accepts claim files via SFTP, HTTP, local directory, or Databricks on configurable cron or interval schedules
@@ -67,9 +67,10 @@ Each evaluated claim receives an overall risk classification based on the action
 | Risk Level | Condition |
 |---|---|
 | **CriticalRisk** | Any rule triggers RejectClaim or FlagFraud, or NPI validation fails |
-| **HighRisk** | 3 or more rules trigger risk scores ≥ 70 |
-| **MediumRisk** | 1–2 rules trigger risk scores ≥ 70 |
+| **HighRisk** | Any rule triggers RequireReview, or a risk score ≥ 70 |
 | **LowRisk** | No high-severity rule actions triggered |
+
+HighRisk and CriticalRisk claims are counted as flagged for analyst review. MediumRisk is no longer produced by the engine.
 
 A weighted score is also computed per claim based on the severity of each triggered rule action (Reject = 3 pts, FlagFraud = 2 pts, RequireReview = 1 pt).
 

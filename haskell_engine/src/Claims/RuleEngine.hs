@@ -38,9 +38,10 @@ main = do
 The engine assigns an overall risk level based on matched rules:
 
 * 'CriticalRisk' - Any 'FlagFraud' or 'RejectClaim' action
-* 'HighRisk' - More than 2 rules with risk score >= 70
-* 'MediumRisk' - 1-2 rules with risk score >= 70
+* 'HighRisk' - Any 'RequireReview' action, or any risk score >= 70
 * 'LowRisk' - No significant risk indicators
+
+'MediumRisk' is kept for the wire format but is not currently produced.
 
 == Thread Safety
 
@@ -158,8 +159,8 @@ data EvaluationReport = EvaluationReport
 -- | Overall risk level for a claim based on matched rules.
 data RiskLevel
   = LowRisk       -- ^ No significant risk indicators
-  | MediumRisk    -- ^ Some elevated risk (1-2 high-risk rules)
-  | HighRisk      -- ^ Significant risk (3+ high-risk rules)
+  | MediumRisk    -- ^ Not currently produced; kept for the wire format
+  | HighRisk      -- ^ Review requested, or a risk score >= 70
   | CriticalRisk  -- ^ Fraud flag or rejection triggered
   deriving (Show, Eq, Ord)
 
@@ -169,55 +170,39 @@ data RiskLevel
 
 -- | Determine overall risk level from rule evaluation results.
 --
--- Logic:
+-- Logic, over the actions of matched rules (composite actions included):
 --
--- 1. If any rule triggers 'FlagFraud' or 'RejectClaim' → 'CriticalRisk'
--- 2. If 3+ rules have risk score >= 70 → 'HighRisk'
--- 3. If 1-2 rules have risk score >= 70 → 'MediumRisk'
--- 4. Otherwise → 'LowRisk'
+-- 1. Any 'FlagFraud' or 'RejectClaim' → 'CriticalRisk'
+-- 2. Any 'RequireReview', or any risk score >= 70 → 'HighRisk'
+-- 3. Otherwise → 'LowRisk'
+--
+-- Phoenix counts HighRisk and CriticalRisk as flagged for analyst review,
+-- so a rule that asks for review, or scores a claim as high risk, must
+-- reach at least 'HighRisk' on its own. 'MediumRisk' is not produced.
 determineRiskLevel :: [RuleResult] -> RiskLevel
-determineRiskLevel results =
-  let matchedResults = filter resultMatched results
-      hasReject      = any isRejectAction matchedResults
-      hasFraud       = any isFraudFlag matchedResults
-      highRiskCount  = length $ filter isHighRiskAction matchedResults
-  in if hasReject || hasFraud
-     then CriticalRisk
-     else if highRiskCount > 2
-          then HighRisk
-          else if highRiskCount > 0
-               then MediumRisk
-               else LowRisk
-
--- | Check if a result contains a reject action.
-isRejectAction :: RuleResult -> Bool
-isRejectAction result = case resultAction result of
-  Just (RejectClaim _)           -> True
-  Just (CompositeAction actions) -> any isReject actions
-  _                              -> False
+determineRiskLevel results
+  | any isCritical actions   = CriticalRisk
+  | any needsReview actions  = HighRisk
+  | otherwise                = LowRisk
   where
-    isReject (RejectClaim _) = True
-    isReject _               = False
+    actions = concatMap (maybe [] flattenAction . resultAction) (filter resultMatched results)
 
--- | Check if a result contains a fraud flag action.
-isFraudFlag :: RuleResult -> Bool
-isFraudFlag result = case resultAction result of
-  Just (FlagFraud _)             -> True
-  Just (CompositeAction actions) -> any isFraud actions
-  _                              -> False
-  where
-    isFraud (FlagFraud _) = True
-    isFraud _             = False
+    isCritical (FlagFraud _)   = True
+    isCritical (RejectClaim _) = True
+    isCritical _               = False
 
--- | Check if a result contains a high risk score (>= 70).
-isHighRiskAction :: RuleResult -> Bool
-isHighRiskAction result = case resultAction result of
-  Just (AssignRiskScore score)   -> score >= 70
-  Just (CompositeAction actions) -> any isHighRisk actions
-  _                              -> False
-  where
-    isHighRisk (AssignRiskScore score) = score >= 70
-    isHighRisk _                       = False
+    needsReview (RequireReview _)       = True
+    needsReview (AssignRiskScore score) = score >= highRiskScore
+    needsReview _                       = False
+
+-- | Risk scores at or above this put a claim at 'HighRisk'.
+highRiskScore :: Int
+highRiskScore = 70
+
+-- | The individual actions inside an action, unpacking composites.
+flattenAction :: Action -> [Action]
+flattenAction (CompositeAction as) = concatMap flattenAction as
+flattenAction a                    = [a]
 
 -- | Generate a human-readable summary of evaluation results.
 generateSummary :: Int -> Int -> RiskLevel -> Text

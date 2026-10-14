@@ -414,8 +414,8 @@ main = hspec $ do
     it "CLM002 high value ($75k, Tue): high_value_review fires → REQUIRE_REVIEW" $ do
       let report = evaluateSimpleJson claimEngine testDay (mkX12Claim 75000 "11" "TUE" "Outpatient")
       reportMatchedRules report `shouldBe` 1
-      -- REQUIRE_REVIEW action does not elevate RiskLevel; only FlagFraud/Reject/RISK_SCORE>=70 do
-      reportOverallRisk report `shouldBe` LowRisk
+      -- REQUIRE_REVIEW asks for analyst review, so the claim is HighRisk
+      reportOverallRisk report `shouldBe` HighRisk
 
     it "CLM003 weekend office visit ($800, pos=11, SAT): weekend_office_visit fires" $ do
       let report = evaluateSimpleJson claimEngine testDay (mkX12Claim 800 "11" "SAT" "Outpatient")
@@ -637,8 +637,8 @@ main = hspec $ do
       let claim  = mkRichClaim 4000  "11" "TUE" "2026-02-24" "M54.5" "MT" "1234567890" "Outpatient"
           report = evaluateSimpleJson extEngine testDay claim
       reportMatchedRules report `shouldBe` 1
-      -- REQUIRE_REVIEW does not raise RiskLevel
-      reportOverallRisk  report `shouldBe` LowRisk
+      -- REQUIRE_REVIEW asks for analyst review, so the claim is HighRisk
+      reportOverallRisk  report `shouldBe` HighRisk
 
     --  CLM021 ─ $35k: medium_value_range fires via LET binding; high_value_review does NOT
     it "CLM021 medium value ($35k, Tue, LET binding): medium_value_range only" $ do
@@ -1174,6 +1174,38 @@ main = hspec $ do
   -- ----------------------------------------------------------------
   -- Missing data is unknown: it never makes a rule match by itself
   -- ----------------------------------------------------------------
+
+  describe "Overall risk level" $ do
+    let riskOf rulesText = case loadRules rulesText of
+          Left err -> error err
+          Right engine -> reportOverallRisk (evaluateSimpleJson engine testDay (object ["amount" .= (20000 :: Int)]))
+
+    it "no matched rule is LowRisk" $
+      riskOf "RULE a \"d\" WHEN amount > 50000 THEN FLAG_FRAUD \"x\";" `shouldBe` LowRisk
+
+    it "a matched REQUIRE_REVIEW is HighRisk" $
+      riskOf "RULE a \"d\" WHEN amount > 100 THEN REQUIRE_REVIEW \"check\";" `shouldBe` HighRisk
+
+    it "a single matched RISK_SCORE of 70 or more is HighRisk" $ do
+      riskOf "RULE a \"d\" WHEN amount > 100 THEN RISK_SCORE 70;" `shouldBe` HighRisk
+      riskOf "RULE a \"d\" WHEN amount > 100 THEN RISK_SCORE 100;" `shouldBe` HighRisk
+
+    it "a matched RISK_SCORE below 70 is LowRisk" $
+      riskOf "RULE a \"d\" WHEN amount > 100 THEN RISK_SCORE 69;" `shouldBe` LowRisk
+
+    it "REQUIRE_REVIEW inside a composite action is HighRisk" $
+      riskOf "RULE a \"d\" WHEN amount > 100 THEN [RISK_SCORE 10, REQUIRE_REVIEW \"x\"];" `shouldBe` HighRisk
+
+    it "FLAG_FRAUD or REJECT outranks review" $ do
+      riskOf "RULE a \"d\" WHEN amount > 100 THEN [REQUIRE_REVIEW \"x\", FLAG_FRAUD \"y\"];" `shouldBe` CriticalRisk
+      riskOf "RULE a \"d\" WHEN amount > 100 THEN REQUIRE_REVIEW \"x\"; \
+             \RULE b \"d\" WHEN amount > 100 THEN REJECT \"y\";" `shouldBe` CriticalRisk
+
+    it "APPROVE alone is LowRisk" $
+      riskOf "RULE a \"d\" WHEN amount > 100 THEN APPROVE \"ok\";" `shouldBe` LowRisk
+
+    it "a REQUIRE_REVIEW rule that did not match is ignored" $
+      riskOf "RULE a \"d\" WHEN missing_field > 100 THEN REQUIRE_REVIEW \"x\";" `shouldBe` LowRisk
 
   describe "Missing data (three-valued logic)" $ do
     let doc = object

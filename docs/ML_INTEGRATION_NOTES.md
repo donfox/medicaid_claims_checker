@@ -56,6 +56,14 @@ Before sending, the engine removes these fields from the claim JSON:
 
 `PolicyCombiner` compares the risk score with fixed thresholds: 0.35 (low), 0.80 (high) and 0.93 (SIU). A score at or above 0.35 sends the claim to review, and higher bands send it to more senior queues. If the scorer fails, only the rule results are used.
 
+## The scorer will be an LLM
+
+The planned Python service calls an LLM through an API. The current contract was designed for a trained risk model, which raises three points:
+
+- **Scores are not calibrated.** An LLM can return a number, but it is not a probability, and the same claim can score differently from run to run. The fixed bands (0.35 / 0.80 / 0.93) assume a calibrated score.
+- **The useful output is the explanation.** The contract has no free-text field, only `top_factors`. Under Edition 2 the LLM's reasons are the evidence an analyst needs, so the contract probably needs a rationale field.
+- **Categories may fit better than a score.** For example *no concern / worth a look / needs review*. `MediumRisk` is not produced by the rules (see item 6) and is reserved: "worth a look" is a natural candidate for it.
+
 ## Issues to resolve before building the Python service
 
 1. **A local Python service is refused.** `validateMlScorerUrl` requires `https://` and blocks any host containing `localhost`, so a development service at `http://localhost:8000` is rejected with only a log warning. It needs a development setting that is clearly separate from production. The same check also wrongly blocks any host starting with `fd` (for example `fd-scorer.example.com`) and does not block the `172.16.0.0/12` private range.
@@ -70,3 +78,4 @@ Before sending, the engine removes these fields from the claim JSON:
 6. **Decisions are worded as outcomes.**
    - A matched `REJECT` rule produces status `REJECT` in queue `"denied"`, which goes against "the system recommends, an analyst decides". `PolicyCombiner` outputs should be reworded as recommendations.
    - `RuleEngine` also computes its own `overallRisk` (any `FLAG_FRAUD` = `CriticalRisk`) separately from `PolicyCombiner`. Settle on a single place where a recommendation is made.
+   - `overallRisk` is what Phoenix uses to flag claims for review today. Since the October 2026 review, a matched `REQUIRE_REVIEW` or a risk score ≥ 70 gives `HighRisk` (before, these stayed Low or Medium and were not flagged), and `MediumRisk` is no longer produced. When ML scores join the decision, an ML band should be able to raise a claim to flagged in the same way.

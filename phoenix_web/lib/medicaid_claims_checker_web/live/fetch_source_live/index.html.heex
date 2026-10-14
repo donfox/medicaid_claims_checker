@@ -837,7 +837,7 @@
                 <div class="border-t border-gray-200 px-4 py-3 bg-gray-50">
                   <% visible_files = case @batch_risk_filter do
                     nil -> batch.files
-                    "Clean" -> Enum.filter(batch.files, &(&1.matched_rules == 0))
+                    "Clean" -> Enum.filter(batch.files, &(&1.matched_rules == 0 and &1.not_checked == []))
                     level -> Enum.filter(batch.files, &(&1.risk == level))
                   end %>
                   <%= if batch.files == [] do %>
@@ -916,7 +916,10 @@
                               <%= (file.matched_results |> List.first()).rule %>
                               <%= if length(file.matched_results) > 1, do: "+ #{length(file.matched_results) - 1} more" %>
                             <% else %>
-                              <span class="text-green-600">No rules triggered</span>
+                              <span class={if(file.not_checked != [], do: "text-gray-700", else: "text-green-600")}>No rules triggered</span>
+                            <% end %>
+                            <%= if file.not_checked != [] do %>
+                              <div class="text-amber-700"><%= length(file.not_checked) %> not checked (missing data)</div>
                             <% end %>
                           </td>
                         </tr>
@@ -990,7 +993,11 @@
                                         </div>
                                       <% end %>
                                       <%= if file.weighted_score == 0 do %>
-                                        <div class="text-green-600">No weighted triggers — claim is clean</div>
+                                        <%= if file.not_checked == [] do %>
+                                          <div class="text-green-600">No weighted triggers — claim is clean</div>
+                                        <% else %>
+                                          <div class="text-gray-700">No weighted triggers</div>
+                                        <% end %>
                                       <% end %>
                                     </div>
                                   </div>
@@ -1060,10 +1067,26 @@
                                         <span class="text-sm font-medium text-gray-600">Evaluation did not run — rule engine was unavailable when this batch was processed.</span>
                                       </div>
                                     <% else %>
-                                      <div class="bg-green-50 border border-green-200 rounded-lg p-3">
-                                        <span class="text-sm font-medium text-green-800">No rules triggered — claim is clean</span>
-                                      </div>
+                                      <%= if file.not_checked == [] do %>
+                                        <div class="bg-green-50 border border-green-200 rounded-lg p-3">
+                                          <span class="text-sm font-medium text-green-800">No rules triggered — claim is clean</span>
+                                        </div>
+                                      <% else %>
+                                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                                          <span class="text-sm font-medium text-gray-800">No rules triggered</span>
+                                        </div>
+                                      <% end %>
                                     <% end %>
+                                  <% end %>
+
+                                  <!-- Rules that could not be checked -->
+                                  <%= if file.not_checked != [] do %>
+                                    <div class="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                                      <h5 class="text-xs font-semibold text-amber-900 uppercase mb-1">Not checked — missing or unusable data</h5>
+                                      <p class="text-xs text-amber-800">
+                                        <%= Enum.join(file.not_checked, ", ") %>
+                                      </p>
+                                    </div>
                                   <% end %>
 
                                 </div>

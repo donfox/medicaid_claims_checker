@@ -136,7 +136,7 @@ COUNT(service_lines) = 0
 
 `IS NULL`, `IS NOT NULL` and `COUNT` always give a definite answer. `COUNT` treats a missing collection as zero items.
 
-When a rule does not match because of missing data, the engine's result for that rule (in the evaluation report, not yet shown in the app) says `Rule did not match: missing or unusable data`.
+When a rule does not match because of missing data, the claim's results list it under **Not checked — missing or unusable data**, and the claim is not called clean or included in the **Clean** filter. In the evaluation report, the rule's result has `resultUndecided: true` and the details `Rule did not match: missing or unusable data`, and `undecidedRules` counts such rules. A `LET` binding whose field is missing counts the same way.
 
 ### Range checks
 

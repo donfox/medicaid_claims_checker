@@ -1155,7 +1155,8 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
           risk: report["overallRisk"] || "N/A",
           matched_rules: report["matchedRules"] || 0,
           weighted_score: report["weightedScore"] || 0,
-          matched_results: matched_results
+          matched_results: matched_results,
+          not_checked: not_checked_rule_names(report)
         }
       end)
 
@@ -1248,4 +1249,12 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
   defp action_label(%{"tag" => "CompositeAction'", "contents" => [first | _]}),
     do: action_label(first)
   defp action_label(_), do: "UNKNOWN"
+
+  # Rules the engine could not decide because data they need is missing or
+  # unusable. Reports stored before the engine reported this have none.
+  defp not_checked_rule_names(report) do
+    (report["results"] || [])
+    |> Enum.filter(& &1["resultUndecided"])
+    |> Enum.map(& &1["resultRuleName"])
+  end
 end

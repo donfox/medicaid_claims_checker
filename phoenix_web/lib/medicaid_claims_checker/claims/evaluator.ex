@@ -186,7 +186,8 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
           risk: report["overallRisk"] || "LowRisk",
           matched_rules: report["matchedRules"] || 0,
           weighted_score: report["weightedScore"] || 0,
-          matched_results: matched_results
+          matched_results: matched_results,
+          not_checked_count: report["undecidedRules"] || 0
         }
       end)
 

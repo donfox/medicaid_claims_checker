@@ -28,12 +28,6 @@ defmodule MedicaidClaimsChecker.Claims do
 
   # --- Batch operations ---
 
-  def create_batch(attrs) do
-    %Batch{}
-    |> Batch.changeset(attrs)
-    |> Repo.insert()
-  end
-
   def get_batch(id), do: Repo.get(Batch, id)
   def get_batch!(id), do: Repo.get!(Batch, id)
 
@@ -45,13 +39,6 @@ defmodule MedicaidClaimsChecker.Claims do
     batch
     |> Batch.changeset(attrs)
     |> Repo.update()
-  end
-
-  def list_recent_batches(limit \\ 20) do
-    Batch
-    |> order_by(desc: :inserted_at)
-    |> limit(^limit)
-    |> Repo.all()
   end
 
   @doc """
@@ -170,14 +157,6 @@ defmodule MedicaidClaimsChecker.Claims do
 
   # --- EDI File operations ---
 
-  def create_edi_file(attrs) do
-    %EdiFile{}
-    |> EdiFile.changeset(attrs)
-    |> Repo.insert()
-  end
-
-  def get_edi_file!(id), do: Repo.get!(EdiFile, id)
-
   def update_edi_file_evaluation(%EdiFile{} = edi_file, attrs) do
     edi_file
     |> EdiFile.changeset(attrs)
@@ -237,12 +216,6 @@ defmodule MedicaidClaimsChecker.Claims do
     |> Repo.aggregate(:count)
   end
 
-  def list_business_rules do
-    BusinessRule
-    |> order_by(asc: :name)
-    |> Repo.all()
-  end
-
   def list_active_business_rules do
     BusinessRule
     |> where([r], r.active == true)
@@ -266,8 +239,6 @@ defmodule MedicaidClaimsChecker.Claims do
     Repo.delete(business_rule)
   end
 
-  def get_business_rule(id), do: Repo.get(BusinessRule, id)
-
   def get_business_rule_by_name(name), do: Repo.get_by(BusinessRule, name: name)
 
   def toggle_business_rule_active(%BusinessRule{} = business_rule) do
@@ -283,10 +254,6 @@ defmodule MedicaidClaimsChecker.Claims do
   end
 
   def get_catalogue_entry(id), do: Repo.get(RuleCatalogue, id)
-
-  def get_catalogue_entry_by_name(name) do
-    Repo.get_by(RuleCatalogue, name: name)
-  end
 
   def create_catalogue_entry(attrs) do
     %RuleCatalogue{}

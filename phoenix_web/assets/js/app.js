@@ -25,87 +25,11 @@ import { LiveSocket } from "phoenix_live_view"
 import { hooks as colocatedHooks } from "phoenix-colocated/medicaid_claims_checker"
 import topbar from "../vendor/topbar"
 
-// Custom hooks for textarea management
-const Hooks = {
-  ScrollIntoView: {
-    mounted() {
-      this.el.scrollIntoView({ behavior: "smooth", block: "nearest" })
-    },
-    updated() {
-      this.el.scrollIntoView({ behavior: "smooth", block: "nearest" })
-    }
-  },
-  DownloadHook: {
-    mounted() {
-      this.handleEvent("download", ({ filename, data }) => {
-        const blob = new Blob([data], { type: "application/json" })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement("a")
-        a.href = url
-        a.download = filename
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
-      })
-    }
-  },
-  ClaimTextarea: {
-    mounted() {
-      // Handle server-initiated text updates
-      this.handleEvent("set_claim_text", ({ text }) => {
-        this.el.value = text
-      })
-
-      // Send value to server on blur or input (debounced)
-      let timeout = null
-      const sendValue = () => {
-        this.pushEvent("update_claim_text", { text: this.el.value })
-      }
-
-      this.el.addEventListener("blur", sendValue)
-      this.el.addEventListener("input", () => {
-        clearTimeout(timeout)
-        timeout = setTimeout(sendValue, 300)
-      })
-
-      // Explicitly handle paste events - paste may not trigger input in all browsers
-      this.el.addEventListener("paste", () => {
-        // Use setTimeout to read value after paste operation completes
-        setTimeout(sendValue, 50)
-      })
-
-      // Drag-and-drop: accept a JSON file dropped directly onto the textarea
-      this.el.addEventListener("dragover", (e) => {
-        e.preventDefault()
-        this.el.classList.add("border-blue-500", "bg-blue-50")
-      })
-
-      this.el.addEventListener("dragleave", () => {
-        this.el.classList.remove("border-blue-500", "bg-blue-50")
-      })
-
-      this.el.addEventListener("drop", (e) => {
-        e.preventDefault()
-        this.el.classList.remove("border-blue-500", "bg-blue-50")
-        const file = e.dataTransfer.files[0]
-        if (!file) return
-        const reader = new FileReader()
-        reader.onload = (ev) => {
-          this.el.value = ev.target.result
-          sendValue()
-        }
-        reader.readAsText(file)
-      })
-    }
-  }
-}
-
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: { _csrf_token: csrfToken },
-  hooks: { ...colocatedHooks, ...Hooks },
+  hooks: { ...colocatedHooks },
 })
 
 // Show progress bar on live navigation and form submits

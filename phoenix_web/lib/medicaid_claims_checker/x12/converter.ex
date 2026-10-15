@@ -1,9 +1,9 @@
 defmodule MedicaidClaimsChecker.X12.Converter do
   @moduledoc """
-  X12 to JSON Converter & Builder
+  X12 to JSON Converter
 
   Converts X12 837 (Healthcare Claims) EDI files into semantic,
-  hierarchical JSON format, and reconstructs X12 from JSON.
+  hierarchical JSON format.
 
   Supports:
   - 837P (Professional Claims) - uses SV1 segments
@@ -12,42 +12,11 @@ defmodule MedicaidClaimsChecker.X12.Converter do
 
   The output structure organizes claims with nested service lines,
   making the data easier to work with for developers.
-
-  The Builder functionality reconstructs X12 EDI from the JSON
-  output for round-trip validation to ensure data integrity.
   """
 
   alias MedicaidClaimsChecker.X12.Parser
 
-  @max_file_size_bytes 50 * 1024 * 1024
   @processing_timeout_ms 30_000
-
-  @doc """
-  Convert X12 file to JSON with timeout protection
-  """
-  def convert_file(filepath) do
-    case File.stat(filepath) do
-      {:ok, %File.Stat{size: size}} when size > @max_file_size_bytes ->
-        size_mb = Float.round(size / (1024 * 1024), 2)
-        max_mb = Float.round(@max_file_size_bytes / (1024 * 1024), 2)
-        {:error, "File too large: #{size_mb} MB exceeds maximum of #{max_mb} MB"}
-
-      {:ok, _stat} ->
-        case File.read(filepath) do
-          {:ok, content} ->
-            do_convert_content(content)
-
-          {:error, :enoent} ->
-            {:error, "File not found: #{filepath}"}
-
-          {:error, reason} ->
-            {:error, "Failed to read file: #{inspect(reason)}"}
-        end
-
-      {:error, reason} ->
-        {:error, "Failed to access file: #{inspect(reason)}"}
-    end
-  end
 
   @doc """
   Convert X12 content string to JSON with timeout protection
@@ -109,43 +78,5 @@ defmodule MedicaidClaimsChecker.X12.Converter do
       end)
 
     {:ok, %{all_segments: all_segments}}
-  end
-
-  @doc """
-  Build X12 content from structured JSON data
-  Returns {:ok, x12_content} or {:error, reason}
-  """
-  def build_from_structure(structured_data, delimiters \\ nil) do
-    delimiters = delimiters || %{element: "*", sub_element: ":", segment: "~"}
-
-    try do
-      if all_segments =
-           Map.get(structured_data, :all_segments) || Map.get(structured_data, "all_segments") do
-        if is_list(all_segments) and length(all_segments) > 0 do
-          segments_list =
-            all_segments
-            |> Enum.map(fn seg ->
-              elements = Map.get(seg, :elements) || Map.get(seg, "elements") || []
-              Enum.join(elements, delimiters.element)
-            end)
-
-          x12_content = Enum.join(segments_list, delimiters.segment)
-
-          x12_content =
-            if String.ends_with?(x12_content, delimiters.segment),
-              do: x12_content,
-              else: x12_content <> delimiters.segment
-
-          {:ok, x12_content}
-        else
-          {:error, "No segments to build X12 from."}
-        end
-      else
-        {:error, "all_segments field missing in structured data."}
-      end
-    rescue
-      e ->
-        {:error, "Failed to build X12: #{Exception.message(e)}"}
-    end
   end
 end

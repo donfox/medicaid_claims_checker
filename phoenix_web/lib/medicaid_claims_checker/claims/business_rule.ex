@@ -11,9 +11,9 @@ defmodule MedicaidClaimsChecker.Claims.BusinessRule do
 
   1. A BA Rule is authored in the UI as free-form DSL text.
   2. On save, `changeset/2` validates and persists the text here.
-  3. At evaluation time the Haskell engine receives the `rule_text` via
-     `POST /api/compile-rules` (parse + cache) or `POST /api/evaluate`
-     (parse + run inline).
+  3. At evaluation time `Evaluator` sends the active rules' `rule_text` to
+     the Haskell engine's `POST /api/batch-evaluate`, which parses and runs
+     them on every request.
 
   Default Rules and ML Models do NOT have rows in this table — their
   logic lives in the Haskell engine or an external ML service respectively.

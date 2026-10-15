@@ -7,8 +7,7 @@ Haskell-based engine for parsing, evaluating, and compiling fraud detection rule
 - Domain-Specific Language (DSL) for fraud detection rules
 - Parser for business-analyst-friendly syntax
 - Predicate evaluator for rule matching against JSON claim documents
-- Parsed rule cache (thread-safe via STM)
-- HTTP API server for rule parsing, evaluation, and preflight caching
+- HTTP API server for rule parsing, evaluation, and redundancy checks
 - Support for complex predicates (AND, OR, NOT, EXISTS, FORALL, COUNT, BETWEEN)
 - Named quantifier variables for nested quantifier correlation (`EXISTS x IN path WHERE ...`)
 - Domain predicates (`claim.has_diagnosis`, `claim.has_procedure`)
@@ -24,7 +23,6 @@ Haskell-based engine for parsing, evaluating, and compiling fraud detection rule
 | `Claims.Parser` | Parsec-based DSL parser |
 | `Claims.Pretty` | Render rule ASTs back to DSL text; `parseRule . prettyRule` is the identity on parsed rules |
 | `Claims.SimpleEvaluator` | Evaluate predicates against generic JSON claim payloads |
-| `Claims.RuleCache` | Thread-safe STM cache of parsed rule ASTs, keyed by rule name |
 | `Claims.RuleEngine` | Multi-rule evaluation engine and reporting |
 | `Claims.PolicyCombiner` | Merge DSL results with ML scoring into a combined policy envelope |
 | `Claims.RedundancyChecker` | Detect redundant rules: exact duplicates, condition overlap, and subsumption |
@@ -69,7 +67,6 @@ The server starts on port 8080.
 | `/api/parse-rule` | POST | Parse DSL rule text and return AST |
 | `/api/evaluate` | POST | Evaluate rules against a JSON claim payload |
 | `/api/batch-evaluate` | POST | Evaluate one ruleset against many claim payloads |
-| `/api/compile-rules` | POST | Parse a full ruleset, cache ASTs, return preflight counts |
 
 ## Fraud Detection Scoring
 
@@ -91,13 +88,13 @@ The app counts HighRisk and CriticalRisk claims as flagged for analyst review. `
 
 A rule whose condition depends on missing or unusable data does not match. Its result has `resultUndecided: true`, the report's `undecidedRules` counts such rules, and the app lists them as not checked instead of calling the claim clean. See the Missing data section of `docs/SYNTAX_GUIDE.md`.
 
-## Parse and Cache Pipeline
+## Parse and Evaluate Pipeline
 
 ```
-DSL Text  -->  Parser  -->  Rule AST  -->  RuleCache  -->  evaluateRuleSimple
+DSL Text  -->  Parser  -->  Rule AST  -->  evaluateRuleSimple
 ```
 
-Rules are parsed once per request (or pre-cached via `/api/compile-rules`) and evaluated directly against JSON claim payloads using `SimpleEvaluator`. No Haskell code generation or GHC invocation.
+Rules are parsed on every request and evaluated directly against JSON claim payloads using `SimpleEvaluator`. No Haskell code generation or GHC invocation.
 
 ## License
 

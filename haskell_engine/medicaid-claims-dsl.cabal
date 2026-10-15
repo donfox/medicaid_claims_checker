@@ -24,7 +24,6 @@ library
                     , Claims.Pretty
                     , Claims.SimpleEvaluator
                     , Claims.RuleEngine
-                    , Claims.RuleCache
                     , Claims.PolicyCombiner
                     , Claims.MLClient
                     , Claims.EvaluationContract
@@ -37,7 +36,6 @@ library
                     , bytestring >= 0.11.0
                     , scientific >= 0.3.7
                     , vector >= 0.12.0
-                    , stm >= 2.5
                     , time >= 1.9
                     , http-conduit >= 2.3
                     , http-client >= 0.7
@@ -57,7 +55,6 @@ executable medicaid-claims-dsl-server
                     , warp >= 3.3.0
                     , wai >= 3.2.0
                     , http-types >= 0.12.3
-                    , stm >= 2.5
                     , time >= 1.9
                     , containers >= 0.6.5
                     , async >= 2.2

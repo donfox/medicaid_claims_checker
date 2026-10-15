@@ -8,7 +8,6 @@
 --
 -- * @post /api/evaluate@          — evaluate one claim against a rule set
 -- * @post /api/batch-evaluate@    — evaluate multiple claims in one request
--- * @post /api/compile-rules@     — parse and cache a rule set, return preflight counts
 -- * @post /api/parse-rule@        — parse a single rule and return its AST as JSON
 -- * @post /api/check-redundancy@  — detect overlap between a candidate and existing rules
 -- * @get  /api/health@            — liveness probe
@@ -52,20 +51,12 @@ import Claims.PolicyCombiner
     mlErrorResult,
     mlStubResult,
   )
-import Claims.RuleCache
-  ( CompilationResult (..),
-    CompiledRuleCache,
-    cacheCompiledRule,
-    compileRules,
-    newCompiledRuleCache,
-  )
 import Claims.RedundancyChecker (checkRedundancy)
 import Claims.RuleEngine (EvaluationReport (..), evaluateSimpleJson, loadRules)
 
 main :: IO ()
 main = do
   putStrLn "Starting JSON Claims Integrity DSL Server on port 8080..."
-  cache <- newCompiledRuleCache
   numCaps <- getNumCapabilities
   let workerCount = max 1 numCaps
   sem <- newQSem workerCount
@@ -74,7 +65,7 @@ main = do
   putStrLn $ "Worker pool: " ++ show workerCount ++ " concurrent claim evaluations"
   putStrLn $ "Auth: " ++ if BS8.null secret then "WARNING — RULE_ENGINE_SECRET not set, all requests will be rejected" else "shared-secret enabled"
   putStrLn $ "Rate limit: " ++ show rateLimitMax ++ " requests per " ++ show rateLimitWindowSecs ++ " s per IP"
-  run 8080 (rateLimitMiddleware rateRef (authMiddleware secret (app cache sem)))
+  run 8080 (rateLimitMiddleware rateRef (authMiddleware secret (app sem)))
 
 -- | Reject every request that lacks a matching Bearer token.
 -- The /api/health liveness probe is always allowed through unauthenticated
@@ -189,12 +180,11 @@ readBodyLimited req = go 0 []
                 then pure $ Left "Request body exceeds the 10 MB limit"
                 else go newTotal (chunk : chunks)
 
-app :: CompiledRuleCache -> QSem -> Application
-app cache sem request respond = do
+app :: QSem -> Application
+app sem request respond = do
   case pathInfo request of
     ["api", "evaluate"] -> handleEvaluate request respond
     ["api", "batch-evaluate"] -> handleBatchEvaluate sem request respond
-    ["api", "compile-rules"] -> handleCompileRules cache request respond
     ["api", "parse-rule"] -> handleParseRule request respond
     ["api", "check-redundancy"] -> handleCheckRedundancy request respond
     ["api", "health"] -> handleHealth respond
@@ -306,43 +296,6 @@ handleBatchEvaluate sem request respond = do
                           "totalClaims" .= length claims
                         ]
 
--- | Parse a DSL rule set, cache the ASTs, and return preflight results.
-handleCompileRules :: CompiledRuleCache -> Request -> (Response -> IO ResponseReceived) -> IO ResponseReceived
-handleCompileRules cache request respond = do
-  bodyResult <- readBodyLimited request
-  case bodyResult of
-    Left sizeErr ->
-      respond $ jsonResponse status400 $ object ["error" .= sizeErr, "success" .= False]
-    Right body ->
-      case decode body of
-        Nothing ->
-          respond $
-            jsonResponse status400 $
-              object ["error" .= ("Invalid JSON" :: String), "success" .= False]
-        Just req ->
-          if T.length (compileRulesText req) > maxRulesTextChars
-            then
-              respond $
-                jsonResponse status400 $
-                  object ["error" .= ("rulesText exceeds the 512 KB limit" :: String), "success" .= False]
-            else
-          case parseRules (compileRulesText req) of
-            Left err ->
-              respond $
-                jsonResponse status400 $
-                  object ["error" .= show err, "success" .= False]
-            Right rules -> do
-              results <- compileRules rules
-              let successes = [c | CompilationSuccess c <- results]
-              mapM_ (cacheCompiledRule cache) successes
-              respond $
-                jsonResponse status200 $
-                  object
-                    [ "success" .= True,
-                      "compiledCount" .= length successes,
-                      "totalRules" .= length rules
-                    ]
-
 -- | Parse a single DSL rule and return its AST as JSON. Useful for editor
 -- tooling and rule authoring validation without running a full evaluation.
 handleParseRule :: Request -> (Response -> IO ResponseReceived) -> IO ResponseReceived
@@ -423,15 +376,6 @@ instance FromJSON BatchEvaluationRequest where
     BatchEvaluationRequest
       <$> v .: "rulesText"
       <*> v .: "claims"
-
-newtype CompileRulesRequest = CompileRulesRequest
-  { compileRulesText :: T.Text
-  }
-  deriving (Show)
-
-instance FromJSON CompileRulesRequest where
-  parseJSON = withObject "CompileRulesRequest" $ \v ->
-    CompileRulesRequest <$> v .: "rulesText"
 
 -- Business logic
 

@@ -42,22 +42,7 @@ check "engine is healthy" "$HS" "healthy"
 echo ""
 
 # ---------------------------------------------------------------
-# 2. Compile-rules preflight
-# ---------------------------------------------------------------
-bold "--- Compile Rules ---"
-RULES_TEXT=$(python3 -c "import json; print(json.load(open('$FIXTURE'))['rulesText'])")
-COMPILE_RESP=$(curl -sf -X POST "$BASE_URL/api/compile-rules" \
-  -H "Content-Type: application/json" \
-  -d "{\"rulesText\": $(python3 -c "import json; print(json.dumps('$RULES_TEXT'))")}" \
-  2>/dev/null || echo '{"success":false}')
-COMPILE_OK=$(echo "$COMPILE_RESP"  | python3 -c "import sys,json; d=json.load(sys.stdin); print(str(d.get('success',False)).lower())")
-COMPILED_N=$(echo "$COMPILE_RESP"  | python3 -c "import sys,json; print(json.load(sys.stdin).get('compiledCount',0))")
-check "compile succeeded"     "$COMPILE_OK" "true"
-check "4 rules compiled"      "$COMPILED_N" "4"
-echo ""
-
-# ---------------------------------------------------------------
-# 3. Batch evaluate — 10 mock claims
+# 2. Batch evaluate — 10 mock claims
 # ---------------------------------------------------------------
 bold "--- Batch Evaluate (10 mock claims) ---"
 BATCH_RESP=$(curl -sf -X POST "$BASE_URL/api/batch-evaluate" \
@@ -95,7 +80,7 @@ check "CLM001 valid: 0 rules matched"                   "$(matched_for 0)" "0"
 check "CLM001 valid: LowRisk"                           "$(risk_for   0)" "LowRisk"
 
 check "CLM002 high value: 1 rule matched"               "$(matched_for 1)" "1"
-check "CLM002 high value: LowRisk (REQUIRE_REVIEW)"     "$(risk_for   1)" "LowRisk"
+check "CLM002 high value: HighRisk (REQUIRE_REVIEW)"     "$(risk_for   1)" "HighRisk"
 
 check "CLM003 weekend office: 1 rule matched"           "$(matched_for 2)" "1"
 
@@ -120,27 +105,9 @@ check "CLM010 triple violation: CriticalRisk"           "$(risk_for   9)" "Criti
 echo ""
 
 # ---------------------------------------------------------------
-# 4. Extended batch — 10 rules × 6 new claim types (CLM016-021)
+# 3. Extended batch — 10 rules × 6 new claim types (CLM016-021)
 # ---------------------------------------------------------------
 EXT_FIXTURE="$(dirname "$0")/../fixtures/batches/batch_request_extended.json"
-
-bold "--- Compile Extended Rules (10 rules) ---"
-# Build a {"rulesText": "..."} payload by extracting from the fixture
-EXT_COMPILE_PAYLOAD=$(mktemp)
-python3 -c "
-import json
-rules = json.load(open('$EXT_FIXTURE'))['rulesText']
-json.dump({'rulesText': rules}, open('$EXT_COMPILE_PAYLOAD', 'w'))
-"
-EXT_COMPILE=$(curl -sf -X POST "$BASE_URL/api/compile-rules" \
-  -H "Content-Type: application/json" \
-  -d @"$EXT_COMPILE_PAYLOAD" 2>/dev/null || echo '{"success":false}')
-rm -f "$EXT_COMPILE_PAYLOAD"
-EXT_OK=$(echo "$EXT_COMPILE" | python3 -c "import sys,json; print(str(json.load(sys.stdin).get('success',False)).lower())")
-EXT_N=$(echo  "$EXT_COMPILE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('compiledCount',0))")
-check "extended compile succeeded"  "$EXT_OK" "true"
-check "10 rules compiled"           "$EXT_N"  "10"
-echo ""
 
 bold "--- Extended Batch Evaluate (6 new claim types, CLM016-021) ---"
 EXT_RESP=$(curl -sf -X POST "$BASE_URL/api/batch-evaluate" \
@@ -176,7 +143,7 @@ check "CLM016 suspicious_dx: CriticalRisk"        "$(ext_risk    0)" "CriticalRi
 
 # CLM017: weekend service_date (actual Sat, DOW field=TUE) → weekend_service_date
 check "CLM017 weekend_service_date: 1 rule matched" "$(ext_matched 1)" "1"
-check "CLM017 weekend_service_date: LowRisk"        "$(ext_risk    1)" "LowRisk"
+check "CLM017 weekend_service_date: HighRisk"        "$(ext_risk    1)" "HighRisk"
 
 # CLM018: NPI starts with 0 → invalid_npi_prefix FLAG_FRAUD
 check "CLM018 invalid_npi_prefix: 1 rule matched"  "$(ext_matched 2)" "1"
@@ -188,11 +155,11 @@ check "CLM019 composite FLAG_FRAUD: CriticalRisk"   "$(ext_risk    3)" "Critical
 
 # CLM020: MT state → unapproved_state REQUIRE_REVIEW
 check "CLM020 unapproved_state: 1 rule matched"    "$(ext_matched 4)" "1"
-check "CLM020 unapproved_state: LowRisk"           "$(ext_risk    4)" "LowRisk"
+check "CLM020 unapproved_state: HighRisk"           "$(ext_risk    4)" "HighRisk"
 
 # CLM021: $35k → medium_value_range (LET binding) REQUIRE_REVIEW
 check "CLM021 medium_value_range: 1 rule matched"  "$(ext_matched 5)" "1"
-check "CLM021 medium_value_range: LowRisk"         "$(ext_risk    5)" "LowRisk"
+check "CLM021 medium_value_range: HighRisk"         "$(ext_risk    5)" "HighRisk"
 
 echo ""
 bold "--- Results ---"

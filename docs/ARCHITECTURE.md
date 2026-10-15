@@ -21,7 +21,6 @@ In normal operation, the Phoenix app sends rule text plus claim payloads to the 
 | `/api/parse-rule` | POST | Parse DSL text and return the parse result |
 | `/api/evaluate` | POST | Evaluate rules against a single claim using the DSL + ML pipeline |
 | `/api/batch-evaluate` | POST | Evaluate rules against multiple claims using the DSL only |
-| `/api/compile-rules` | POST | Parse a ruleset and warm the in-memory rule cache |
 | `/api/check-redundancy` | POST | Detect duplicate, overlapping, or subsuming rules |
 
 ## Core Engine Modules
@@ -33,7 +32,6 @@ In normal operation, the Phoenix app sends rule text plus claim payloads to the 
 | `Pretty.hs` | AST → DSL text; inverse of the parser (QuickCheck round-trip) |
 | `SimpleEvaluator.hs` | Predicate and action evaluation against JSON claims |
 | `RuleEngine.hs` | Rule orchestration and report aggregation |
-| `RuleCache.hs` | STM-based cache of parsed rules |
 | `PolicyCombiner.hs` | DSL + ML policy merge logic |
 | `RedundancyChecker.hs` | Rule redundancy analysis |
 | `MLClient.hs` | Optional ML scoring client |
@@ -47,13 +45,7 @@ In normal operation, the Phoenix app sends rule text plus claim payloads to the 
 2. The engine parses the rules, evaluates predicates and actions, and computes the overall decision and risk.
 3. The engine returns a structured JSON response for the UI and downstream handling.
 
-### 2. Preflight and Caching
-
-1. A client posts `rulesText` to `/api/compile-rules`.
-2. The engine parses the rules and stores the AST in a process-local STM cache.
-3. The response returns parse status plus the compiled-rule count.
-
-### 3. Scheduled X12 Ingestion Pipeline
+### 2. Scheduled X12 Ingestion Pipeline
 
 1. A Quantum scheduler triggers a `FetchRunner` job when a `fetch_schedules` entry is due.
 2. `RemoteFetcher` downloads files from the configured `fetch_sources` URI using SFTP or HTTPS.
@@ -61,7 +53,7 @@ In normal operation, the Phoenix app sends rule text plus claim payloads to the 
 4. `Claims.ingest_batch/1` writes one `batches` row and one `edi_files` row per claim in a single transaction.
 5. After a successful ingest, `Task.Supervisor` starts `Evaluator.evaluate_batch/1` asynchronously.
 
-### 4. Batch Evaluation with NPPES Pre-validation
+### 3. Batch Evaluation with NPPES Pre-validation
 
 1. `Evaluator` collects all active BA rule text and the translated `edi_files` for the batch.
 2. Before rule evaluation, `Claims.validate_claim_providers/1` checks each claim's provider NPI against `nppes_providers`.
@@ -71,7 +63,7 @@ In normal operation, the Phoenix app sends rule text plus claim payloads to the 
 6. Results are written back to `edi_files`, and the batch status is updated to `completed` or `failed`.
 7. Phoenix PubSub broadcasts `batch_completed` or `batch_failed` to the LiveView UI.
 
-### 5. NPPES Data Refresh
+### 4. NPPES Data Refresh
 
 1. `Nppes.RefreshWorker` starts on application boot after a 10-second initial delay.
 2. On each tick, it reads `nppes_refresh_config` and checks whether `interval_seconds` have elapsed since `last_refresh_at`.
@@ -86,9 +78,7 @@ These are active design and implementation constraints, not future goals:
 
 - DSL rules are the deterministic policy source of truth.
 - JSON claim evaluation is the primary active execution path.
-- The rule cache is in memory and process-local on the Haskell side.
-- Only `/api/compile-rules` populates the rule cache.
-- `/api/batch-evaluate` reparses rules on every request.
+- `/api/batch-evaluate` reparses rules on every request; there is no rule cache.
 - Batch evaluation uses a hardcoded chunk size of `200` claims per Haskell request.
 - Claims inside a single Haskell request are evaluated sequentially.
 - Larger batches therefore become CPU-bound.
@@ -102,7 +92,6 @@ These are active design and implementation constraints, not future goals:
 - Warp can handle concurrent HTTP requests across batches.
 - Claims inside one batch request are evaluated **sequentially**.
 - Rules inside a claim are also evaluated sequentially.
-- The STM/TVar rule cache is thread-safe across concurrent requests.
 
 ### Main bottleneck
 

@@ -1,8 +1,8 @@
 # fresh_rules.dsl
 # -----------------------------------------------------------------------
 # Fresh BA Rule set for interactive testing.
-# Load via:  POST http://localhost:8080/api/compile-rules
-#            { "rulesText": "<contents of this file>" }
+# Check:     POST http://localhost:8080/api/parse-rule
+#            { "ruleText": "<contents of this file>" }
 # Evaluate:  POST http://localhost:8080/api/evaluate
 #            { "rulesText": "...", "document": <claim JSON>, "claimId": "..." }
 # -----------------------------------------------------------------------

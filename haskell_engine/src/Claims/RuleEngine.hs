@@ -51,7 +51,6 @@ across threads for concurrent evaluation.
 module Claims.RuleEngine
   ( -- * Rule Engine
     RuleEngine
-  , newRuleEngine
   , loadRules
   , engineRules
     -- * Evaluation
@@ -75,18 +74,12 @@ import Claims.Syntax (Action (..), Rule, RuleResult (..))
 
 -- | Container for loaded fraud detection rules.
 --
--- Create with 'newRuleEngine' (empty) or 'loadRules' (from DSL text).
+-- Create with 'loadRules' (from DSL text).
 -- Once created, the engine is immutable and thread-safe.
 data RuleEngine = RuleEngine
   { engineRules :: [Rule]
     -- ^ The loaded rules (in order they were defined)
   } deriving (Show)
-
--- | Create an empty rule engine with no rules loaded.
---
--- Useful as a starting point or for testing.
-newRuleEngine :: RuleEngine
-newRuleEngine = RuleEngine []
 
 -- | Parse DSL text and create a rule engine.
 --

@@ -133,7 +133,6 @@ The frontend calls the Haskell engine at `http://localhost:8080` via HTTPoison.
 | Endpoint | Method | Purpose |
 |---|---|---|
 | `/api/parse-rule` | POST | Validate DSL syntax without execution |
-| `/api/compile-rules` | POST | Parse and cache a full ruleset before evaluation |
 | `/api/batch-evaluate` | POST | Evaluate claims against active rules (chunked at 200 claims/request) |
 | `/api/check-redundancy` | POST | Detect overlap between a candidate rule and existing rules |
 

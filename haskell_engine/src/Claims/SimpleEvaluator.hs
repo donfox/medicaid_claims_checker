@@ -43,7 +43,6 @@
 -- @
 module Claims.SimpleEvaluator
   ( -- * Evaluation Functions
-    evaluatePredicateSimple,
     evaluateRuleSimple,
 
     -- * Field Lookup (exported for testing)
@@ -95,25 +94,6 @@ data EvalEnv = EvalEnv
 -- | Build an initial environment from a document.
 mkEnv :: Day -> Map Text Text -> Aeson.Value -> EvalEnv
 mkEnv today lets doc = EvalEnv lets Map.empty doc today
-
--- ----------------------------------------------------------------------------
--- Public API
--- ----------------------------------------------------------------------------
-
--- | Evaluate a predicate against a JSON value.
---
--- Returns 'True' only if the predicate is definitely true for the document.
--- A predicate that depends on missing or unusable data is not a match.
---
--- ==== Example
---
--- @
--- let doc = Aeson.object ["amount" .= (15000 :: Int)]
---     pred = Syntax.GreaterThan (Syntax.Field "amount") (Syntax.NumberValue 10000)
--- evaluatePredicateSimple doc pred  -- Returns True
--- @
-evaluatePredicateSimple :: Day -> Aeson.Value -> Syntax.Predicate -> Bool
-evaluatePredicateSimple today doc = (== Yes) . evaluateWithEnv (mkEnv today Map.empty doc)
 
 -- ----------------------------------------------------------------------------
 -- Three-valued logic

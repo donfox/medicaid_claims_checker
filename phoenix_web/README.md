@@ -6,6 +6,7 @@ Phoenix LiveView application providing the user interface for claim ingestion, r
 
 - Scheduled X12 file ingestion via configured SFTP/HTTP sources with cron or interval-based schedules
 - Manual file upload with in-process X12/EDI-to-JSON translation (supports `.json`, `.x12`, `.edi`, `.zip`)
+  - Each `.json` file must hold one claim (an object with `claim_id`, or the X12 converter's output with a `claim` object); other JSON files are refused and named in the upload message
 - NPPES provider database with configurable auto-refresh (weekly by default)
 - NPPES pre-validation: claims with unrecognised provider NPIs are hard-rejected before rule evaluation
 - Business rule catalogue with type-based management (Default Rules, BA Rules, ML Models)

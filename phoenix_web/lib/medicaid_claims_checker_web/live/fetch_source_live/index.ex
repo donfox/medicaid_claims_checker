@@ -3,7 +3,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
 
   alias MedicaidClaimsChecker.Accounts
   alias MedicaidClaimsChecker.Claims
-  alias MedicaidClaimsChecker.Claims.Evaluator
+  alias MedicaidClaimsChecker.Claims.{Evaluator, JsonClaim}
   alias MedicaidClaimsChecker.Ingestion
   alias MedicaidClaimsChecker.Nppes
   alias MedicaidClaimsChecker.X12.{ClaimSplitter, Converter, SegmentMapper}
@@ -750,13 +750,16 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
       |> DateTime.shift_zone!("America/New_York")
       |> Calendar.strftime("%b %d, %Y %I:%M %p %Z")
 
-    claims =
-      Enum.flat_map(json_files, fn {filename, content} ->
-        case Jason.decode(content) do
-          {:ok, claim} -> [%{"filename" => filename, "claim" => SegmentMapper.normalize(claim)}]
-          {:error, _} -> []
+    {claims, refused} =
+      Enum.reduce(json_files, {[], []}, fn {filename, content}, {claims_acc, refused_acc} ->
+        case JsonClaim.parse(content) do
+          {:ok, claim} -> {[%{"filename" => filename, "claim" => claim} | claims_acc], refused_acc}
+          {:error, reason} -> {claims_acc, ["#{filename}: #{reason}" | refused_acc]}
         end
       end)
+
+    claims = Enum.reverse(claims)
+    refused_suffix = format_refused_json(Enum.reverse(refused))
 
     if claims != [] do
       params = %{
@@ -770,7 +773,10 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
         {:ok, %{batch: batch}} ->
           socket
           |> assign(:upload_status, :processing)
-          |> assign(:upload_message, "#{length(claims)} JSON claim(s) submitted for evaluation — evaluating...")
+          |> assign(
+            :upload_message,
+            "#{length(claims)} JSON claim(s) submitted for evaluation — evaluating...#{refused_suffix}"
+          )
           |> show_newest_history()
           |> assign(:pending_upload_batch_ids, MapSet.put(socket.assigns.pending_upload_batch_ids, batch.batch_id))
 
@@ -788,10 +794,21 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
       |> assign(:upload_status, :error)
       |> assign(
         :upload_message,
-        (socket.assigns.upload_message || "") <>
-          " No valid JSON claims found in uploaded files."
+        String.trim(
+          (socket.assigns.upload_message || "") <>
+            " No claims found in the uploaded JSON files.#{refused_suffix}"
+        )
       )
     end
+  end
+
+  defp format_refused_json([]), do: ""
+
+  defp format_refused_json(refused) do
+    shown = refused |> Enum.take(3) |> Enum.join(" | ")
+    more_count = max(length(refused) - 3, 0)
+    more_text = if more_count > 0, do: " (and #{more_count} more)", else: ""
+    " Not accepted: #{shown}#{more_text}"
   end
 
   defp process_x12_files(socket, []), do: socket

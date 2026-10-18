@@ -93,21 +93,30 @@ defmodule MedicaidClaimsChecker.Nppes.Importer do
 
     case :zip.unzip(String.to_charlist(zip_path), [{:cwd, String.to_charlist(dest_dir)}]) do
       {:ok, files} ->
-        csv_file =
-          files
-          |> Enum.map(&to_string/1)
-          |> Enum.find(&String.ends_with?(&1, ".csv"))
+        case files |> Enum.map(&to_string/1) |> provider_csv() do
+          nil ->
+            {:error, "No npidata_pfile CSV found in ZIP archive"}
 
-        if csv_file do
-          Logger.info("NPPES: Found CSV #{Path.basename(csv_file)}")
-          {:ok, csv_file}
-        else
-          {:error, "No CSV file found in ZIP archive"}
+          csv_file ->
+            Logger.info("NPPES: Found CSV #{Path.basename(csv_file)}")
+            {:ok, csv_file}
         end
 
       {:error, reason} ->
         {:error, "Failed to extract ZIP: #{inspect(reason)}"}
     end
+  end
+
+  @doc false
+  # The CMS zip holds several CSVs (npidata, othername, endpoint, pl) plus a
+  # _fileheader.csv for each; the providers are in npidata_pfile_*.csv.
+  def provider_csv(paths) do
+    Enum.find(paths, fn path ->
+      name = Path.basename(path)
+
+      String.starts_with?(name, "npidata_pfile") and String.ends_with?(name, ".csv") and
+        not String.ends_with?(name, "_fileheader.csv")
+    end)
   end
 
   # --- CSV import ---

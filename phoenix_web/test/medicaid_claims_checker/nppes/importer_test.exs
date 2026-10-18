@@ -151,6 +151,19 @@ defmodule MedicaidClaimsChecker.Nppes.ImporterTest do
     assert {:ok, 1} = Importer.import_from_file(path)
   end
 
+  test "picks the provider file out of the CMS zip listing" do
+    listing = [
+      "/tmp/x/othername_pfile_20050523-20261011.csv",
+      "/tmp/x/othername_pfile_20050523-20261011_fileheader.csv",
+      "/tmp/x/npidata_pfile_20050523-20261011_fileheader.csv",
+      "/tmp/x/npidata_pfile_20050523-20261011.csv",
+      "/tmp/x/pl_pfile_20050523-20261011.csv"
+    ]
+
+    assert Importer.provider_csv(listing) == "/tmp/x/npidata_pfile_20050523-20261011.csv"
+    assert Importer.provider_csv(["/tmp/x/othername_pfile_1.csv"]) == nil
+  end
+
   test "refuses a file missing a needed column, importing nothing" do
     header = List.delete(@nppes_header, "NPI Deactivation Date")
     values = Enum.map(header, &Map.get(@active_org, &1, ""))

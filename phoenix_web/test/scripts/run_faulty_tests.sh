@@ -3,6 +3,8 @@
 # These rules SHOULD fail to parse
 
 API_URL="http://localhost:8080/api/parse-rule"
+# Same default as start.sh; the engine rejects requests without this token.
+AUTH_HEADER="Authorization: Bearer ${RULE_ENGINE_SECRET:-dev-secret-change-in-production}"
 FAULTY_RULES_FILE="$(dirname "$0")/../fixtures/rules/faulty_rules.dsl"
 
 echo "=========================================="
@@ -51,6 +53,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
 
             # Send to API
             response=$(curl -s -X POST "$API_URL" \
+                -H "$AUTH_HEADER" \
                 -H "Content-Type: application/json" \
                 -d "{\"ruleText\": $(echo "$current_rule" | jq -Rs .)}")
 
@@ -86,6 +89,7 @@ if [[ -n "$current_rule" ]]; then
     echo "  Expected fault: $expected_fault"
 
     response=$(curl -s -X POST "$API_URL" \
+        -H "$AUTH_HEADER" \
         -H "Content-Type: application/json" \
         -d "{\"ruleText\": $(echo "$current_rule" | jq -Rs .)}")
 

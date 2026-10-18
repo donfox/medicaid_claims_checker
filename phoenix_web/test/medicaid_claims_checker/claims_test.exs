@@ -2,6 +2,8 @@ defmodule MedicaidClaimsChecker.ClaimsTest do
   use MedicaidClaimsChecker.DataCase
 
   alias MedicaidClaimsChecker.Claims
+  alias MedicaidClaimsChecker.Claims.NppesProvider
+  alias MedicaidClaimsChecker.Repo
 
   @valid_batch_params %{
     "batch_id" => "test-batch-001",
@@ -196,6 +198,43 @@ defmodule MedicaidClaimsChecker.ClaimsTest do
       claim = %{
         "provider" => %{"name" => "Test"},
         "service_lines" => [%{"date_of_service" => "2026-01-15"}]
+      }
+
+      assert :ok = Claims.validate_claim_providers(claim)
+    end
+
+    test "checks the rendering provider's NPI, not only the billing provider's" do
+      Repo.insert!(%NppesProvider{
+        npi: "1122334455",
+        entity_type: 2,
+        provider_name: "Billing Clinic"
+      })
+
+      Repo.insert!(%NppesProvider{
+        npi: "1111111112",
+        entity_type: 1,
+        provider_name: "Deactivated Doctor",
+        deactivation_date: ~D[2023-06-15]
+      })
+
+      claim = %{
+        "provider" => %{"npi" => "1122334455"},
+        "billing_provider" => %{"npi" => "1122334455"},
+        "rendering_provider" => %{"npi" => "1111111112"},
+        "service_lines" => [%{"date_of_service" => "20260901"}]
+      }
+
+      assert {:reject, "Provider NPI 1111111112 was deactivated" <> _} =
+               Claims.validate_claim_providers(claim)
+
+      assert :ok = Claims.validate_claim_providers(Map.delete(claim, "rendering_provider"))
+    end
+
+    test "ignores blank NPIs" do
+      claim = %{
+        "provider" => %{"npi" => ""},
+        "billing_provider" => %{"npi" => "  "},
+        "service_lines" => [%{"date_of_service" => "20260901"}]
       }
 
       assert :ok = Claims.validate_claim_providers(claim)

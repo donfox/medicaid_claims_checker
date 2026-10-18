@@ -27,10 +27,16 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
       iex> {:ok, result} = SegmentMapper.map_segments(all_segments)
       iex> result.transaction_type
       "837P"
+
+  Options:
+    * `:sub_element_separator` - the composite separator from ISA16 (default `":"`)
   """
-  @spec map_segments(list(map())) :: {:ok, map()} | {:error, String.t()}
-  def map_segments(segments) when is_list(segments) and length(segments) > 0 do
+  @spec map_segments(list(map()), keyword()) :: {:ok, map()} | {:error, String.t()}
+  def map_segments(segments, opts \\ [])
+
+  def map_segments(segments, opts) when is_list(segments) and length(segments) > 0 do
     transaction_type = detect_transaction_type(segments)
+    sub = Keyword.get(opts, :sub_element_separator) || ":"
 
     result = %{
       transaction_type: transaction_type,
@@ -39,14 +45,14 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
       submitter: extract_submitter(segments),
       receiver: extract_receiver(segments),
       billing_provider: extract_billing_provider(segments),
-      claim: extract_claim(segments, transaction_type)
+      claim: extract_claim(segments, transaction_type, sub)
     }
 
     {:ok, normalize(result)}
   end
 
-  def map_segments([]), do: {:error, "No segments provided"}
-  def map_segments(_), do: {:error, "Expected a list of segment maps"}
+  def map_segments([], _opts), do: {:error, "No segments provided"}
+  def map_segments(_, _opts), do: {:error, "Expected a list of segment maps"}
 
   @doc """
   Convenience: decodes a JSON string containing all_segments and maps it.
@@ -58,8 +64,8 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
   @spec map_from_json(String.t()) :: {:ok, map()} | {:error, String.t()}
   def map_from_json(json_string) when is_binary(json_string) do
     case Jason.decode(json_string) do
-      {:ok, %{"all_segments" => segments}} when is_list(segments) ->
-        map_segments(segments)
+      {:ok, %{"all_segments" => segments} = doc} when is_list(segments) ->
+        map_segments(segments, sub_element_separator: doc["sub_element_separator"])
 
       {:ok, _} ->
         {:error, "JSON missing all_segments key"}
@@ -101,12 +107,12 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
     end)
   end
 
-  # Split composite element on ":" sub-element separator.
-  defp split_composite(element) when is_binary(element) do
-    String.split(element, ":", trim: false)
+  # Split a composite element on the file's sub-element separator (ISA16).
+  defp split_composite(element, sub) when is_binary(element) do
+    String.split(element, sub, trim: false)
   end
 
-  defp split_composite(_), do: []
+  defp split_composite(_, _sub), do: []
 
   # Returns segments that appear after the first occurrence of `after_seg`
   # (a specific segment map) until hitting a segment whose ID is in `stop_ids`.
@@ -272,15 +278,16 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
   # Claim extraction (orchestrates sub-extractors)
   # ---------------------------------------------------------------------------
 
-  defp extract_claim(segments, transaction_type) do
+  defp extract_claim(segments, transaction_type, sub) do
     clm = find_seg(segments, "CLM")
 
     if clm do
       # Parse CLM-05 composite: place_of_service:facility_type:frequency_code
-      clm05_parts = split_composite(get_el(clm, 5))
+      clm05_parts = split_composite(get_el(clm, 5), sub)
 
       # Claim-level segments (between CLM and first LX)
       claim_segs = claim_level_segments(segments)
+      prior_auth = find_qualified(claim_segs, "REF", 1, "G1")
 
       %{
         claim_id: get_el(clm, 1),
@@ -288,15 +295,16 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
         place_of_service: Enum.at(clm05_parts, 0, ""),
         facility_type: Enum.at(clm05_parts, 1, ""),
         frequency_code: Enum.at(clm05_parts, 2, ""),
+        prior_authorization: if(prior_auth, do: get_el(prior_auth, 2), else: nil),
         claim_filing_indicator: extract_claim_filing_indicator(segments),
         subscriber: extract_subscriber(segments),
         payer: extract_payer(segments),
         dates: extract_dates(claim_segs),
-        diagnosis_codes: extract_diagnosis_codes(claim_segs),
+        diagnosis_codes: extract_diagnosis_codes(claim_segs, sub),
         rendering_provider: extract_rendering_provider(claim_segs),
         attending_provider: extract_attending_provider(claim_segs),
         institutional_claim: extract_institutional_claim(claim_segs),
-        service_lines: extract_service_lines(segments, transaction_type)
+        service_lines: extract_service_lines(segments, transaction_type, sub)
       }
     else
       nil
@@ -371,7 +379,7 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
   defp date_qualifier_to_key("439"), do: :accident_date
   defp date_qualifier_to_key(code), do: String.to_atom("date_#{code}")
 
-  defp extract_diagnosis_codes(claim_segs) do
+  defp extract_diagnosis_codes(claim_segs, sub) do
     claim_segs
     |> find_segs("HI")
     |> Enum.flat_map(fn hi ->
@@ -382,7 +390,7 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
       |> Enum.drop(1)
       |> Enum.reject(&(&1 == ""))
       |> Enum.map(fn composite ->
-        parts = split_composite(composite)
+        parts = split_composite(composite, sub)
         %{qualifier: Enum.at(parts, 0, ""), code: Enum.at(parts, 1, "")}
       end)
     end)
@@ -442,7 +450,7 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
   # Service line extraction
   # ---------------------------------------------------------------------------
 
-  defp extract_service_lines(segments, transaction_type) do
+  defp extract_service_lines(segments, transaction_type, sub) do
     segments
     |> service_line_groups()
     |> Enum.map(fn line_segs ->
@@ -455,25 +463,30 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
       }
 
       case transaction_type do
-        "837P" -> Map.merge(base, extract_sv1_line(line_segs))
-        "837I" -> Map.merge(base, extract_sv2_line(line_segs))
-        "837D" -> Map.merge(base, extract_sv3_line(line_segs))
-        _ -> Map.merge(base, extract_sv1_line(line_segs))
+        "837P" -> Map.merge(base, extract_sv1_line(line_segs, sub))
+        "837I" -> Map.merge(base, extract_sv2_line(line_segs, sub))
+        "837D" -> Map.merge(base, extract_sv3_line(line_segs, sub))
+        _ -> Map.merge(base, extract_sv1_line(line_segs, sub))
       end
     end)
   end
 
-  defp extract_sv1_line(line_segs) do
+  defp extract_sv1_line(line_segs, sub) do
     case find_seg(line_segs, "SV1") do
       nil ->
         %{
-          procedure_qualifier: nil, procedure_code: nil,
-          charge_amount: nil, unit_type: nil, units: nil,
-          diagnosis_pointer: nil, revenue_code: nil, tooth_info: nil
+          procedure_qualifier: nil,
+          procedure_code: nil,
+          charge_amount: nil,
+          unit_type: nil,
+          units: nil,
+          diagnosis_pointer: nil,
+          revenue_code: nil,
+          tooth_info: nil
         }
 
       sv1 ->
-        proc_parts = split_composite(get_el(sv1, 1))
+        proc_parts = split_composite(get_el(sv1, 1), sub)
 
         %{
           procedure_qualifier: Enum.at(proc_parts, 0, ""),
@@ -481,6 +494,8 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
           charge_amount: get_el(sv1, 2),
           unit_type: get_el(sv1, 3),
           units: get_el(sv1, 4),
+          # SV1-05 overrides the claim's place of service for this line
+          place_of_service: get_el(sv1, 5),
           diagnosis_pointer: get_el(sv1, 7),
           revenue_code: nil,
           tooth_info: nil
@@ -488,17 +503,22 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
     end
   end
 
-  defp extract_sv2_line(line_segs) do
+  defp extract_sv2_line(line_segs, sub) do
     case find_seg(line_segs, "SV2") do
       nil ->
         %{
-          procedure_qualifier: nil, procedure_code: nil,
-          charge_amount: nil, unit_type: nil, units: nil,
-          diagnosis_pointer: nil, revenue_code: nil, tooth_info: nil
+          procedure_qualifier: nil,
+          procedure_code: nil,
+          charge_amount: nil,
+          unit_type: nil,
+          units: nil,
+          diagnosis_pointer: nil,
+          revenue_code: nil,
+          tooth_info: nil
         }
 
       sv2 ->
-        proc_parts = split_composite(get_el(sv2, 2))
+        proc_parts = split_composite(get_el(sv2, 2), sub)
 
         %{
           revenue_code: get_el(sv2, 1),
@@ -513,17 +533,22 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
     end
   end
 
-  defp extract_sv3_line(line_segs) do
+  defp extract_sv3_line(line_segs, sub) do
     case find_seg(line_segs, "SV3") do
       nil ->
         %{
-          procedure_qualifier: nil, procedure_code: nil,
-          charge_amount: nil, unit_type: nil, units: nil,
-          diagnosis_pointer: nil, revenue_code: nil, tooth_info: nil
+          procedure_qualifier: nil,
+          procedure_code: nil,
+          charge_amount: nil,
+          unit_type: nil,
+          units: nil,
+          diagnosis_pointer: nil,
+          revenue_code: nil,
+          tooth_info: nil
         }
 
       sv3 ->
-        proc_parts = split_composite(get_el(sv3, 1))
+        proc_parts = split_composite(get_el(sv3, 1), sub)
 
         %{
           procedure_qualifier: Enum.at(proc_parts, 0, ""),
@@ -533,19 +558,19 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
           units: get_el(sv3, 5),
           diagnosis_pointer: nil,
           revenue_code: nil,
-          tooth_info: extract_tooth_info(line_segs)
+          tooth_info: extract_tooth_info(line_segs, sub)
         }
     end
   end
 
-  defp extract_tooth_info(line_segs) do
+  defp extract_tooth_info(line_segs, sub) do
     case find_seg(line_segs, "TOO") do
       nil ->
         nil
 
       too ->
         # Element 2 may be a composite like "19:MO" (tooth_number:surface)
-        tooth_parts = split_composite(get_el(too, 2))
+        tooth_parts = split_composite(get_el(too, 2), sub)
 
         %{
           tooth_code_qualifier: get_el(too, 1),
@@ -587,20 +612,30 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
     subscriber = nf(claim, "subscriber") || %{}
     total_charge_raw = nf(claim, "total_charge_amount")
     total_charge = parse_money(total_charge_raw)
+    place_of_service = blank_to_nil(nf(claim, "place_of_service"))
 
     service_lines =
       (nf(claim, "service_lines") || [])
-      |> Enum.map(&normalize_service_line/1)
+      |> Enum.map(&normalize_service_line(&1, place_of_service))
+
+    # X12 elements that are absent come through as "", which rules would
+    # treat as present; identifiers and codes become nil instead.
+    billing_npi = blank_to_nil(nf(billing, "npi"))
+    billing_taxonomy = blank_to_nil(nf(billing, "taxonomy_code"))
+    billing_tax_id = blank_to_nil(nf(billing, "tax_id"))
 
     %{
-      "claim_id" => nf(claim, "claim_id"),
+      "claim_id" => blank_to_nil(nf(claim, "claim_id")),
       "transaction_type" => nf(x12_map, "transaction_type"),
       "provider" => %{
-        "npi" => nf(billing, "npi"),
+        "npi" => billing_npi,
         "name" => nf(billing, "name"),
-        "taxonomy" => nf(billing, "taxonomy_code"),
-        "tax_id" => nf(billing, "tax_id"),
+        "taxonomy" => billing_taxonomy,
+        "tax_id" => billing_tax_id,
         "tenure_days" => nil
+      },
+      "claim_details" => %{
+        "place_of_service" => place_of_service
       },
       "patient" => %{
         "date_of_birth" => nf(subscriber, "date_of_birth"),
@@ -620,14 +655,14 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
         "total_charges" => total_charge
       },
       "billing_provider" => %{
-        "npi" => nf(billing, "npi"),
+        "npi" => billing_npi,
         "name" => nf(billing, "name"),
-        "taxonomy" => nf(billing, "taxonomy_code"),
-        "tax_id" => nf(billing, "tax_id"),
+        "taxonomy" => billing_taxonomy,
+        "tax_id" => billing_tax_id,
         "address" => nf(billing, "address")
       },
       "authorization" => %{
-        "authorization_number" => nil
+        "authorization_number" => blank_to_nil(nf(claim, "prior_authorization"))
       },
       "interchange" => nf(x12_map, "interchange"),
       "functional_group" => nf(x12_map, "functional_group"),
@@ -641,11 +676,12 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
 
   def normalize(other), do: other
 
-  defp normalize_service_line(line) when is_map(line) do
+  defp normalize_service_line(line, claim_place_of_service) when is_map(line) do
     # date_of_service may already be renamed, or still be service_date (X12 schema)
     date = nf(line, "service_date") || nf(line, "date_of_service")
 
     %{
+      "place_of_service" => blank_to_nil(nf(line, "place_of_service")) || claim_place_of_service,
       "line_number" => nf(line, "line_number"),
       "date_of_service" => date,
       "procedure_code" => nf(line, "procedure_code"),
@@ -659,7 +695,13 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
     }
   end
 
-  defp normalize_service_line(other), do: other
+  defp normalize_service_line(other, _claim_place_of_service), do: other
+
+  defp blank_to_nil(value) when is_binary(value) do
+    if String.trim(value) == "", do: nil, else: value
+  end
+
+  defp blank_to_nil(value), do: value
 
   # Access a field by string key, falling back to atom key.
   defp nf(map, str_key) when is_map(map) do

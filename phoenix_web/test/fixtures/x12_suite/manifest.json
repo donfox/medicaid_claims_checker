@@ -1,0 +1,751 @@
+{
+  "about": "Expected results for each file in files/. `matched` is the exact set of rules that should match; `not_checked` must be among the rules reported as not checked; `known_issue` marks cases the current code gets wrong. Expectations assume the business rules seeded by priv/repo/seeds.exs as of 2026-10-16.",
+  "cases": [
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "CLEAN001",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/01_clean_office_visit.x12",
+      "purpose": "Clean low-value office visit; no rule should match"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "CLEAN002",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/02_clean_multi_line.x12",
+      "purpose": "Clean claim with three service lines and two diagnoses"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "HIGHVAL01",
+            "matched": [
+              "HighValueClaim",
+              "UnauthorizedProcedure"
+            ],
+            "not_checked": [
+              "NewProviderLargeSubmission"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/03_high_value_claim.x12",
+      "purpose": "Claim over $50,000 → HighValueClaim review"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "ERVISIT01",
+            "matched": [
+              "HighComplexityERVisit",
+              "UnauthorizedProcedure"
+            ],
+            "not_checked": [
+              "NewProviderLargeSubmission"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/04_er_high_complexity.x12",
+      "purpose": "99285 over $10,000 → HighComplexityERVisit review"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "EXCESS01",
+            "matched": [
+              "ExcessiveTotalCharges",
+              "HighValueClaim",
+              "UnauthorizedProcedure"
+            ],
+            "not_checked": [
+              "NewProviderLargeSubmission"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/05_excessive_charges.x12",
+      "purpose": "Total over $750,000 → ExcessiveTotalCharges"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "EXTREME01",
+            "matched": [
+              "ExtremeAmounts",
+              "ExcessiveTotalCharges",
+              "HighValueClaim",
+              "UnauthorizedProcedure"
+            ],
+            "not_checked": [
+              "NewProviderLargeSubmission"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/06_extreme_amount.x12",
+      "purpose": "Total over $1,000,000 → ExtremeAmounts and ExcessiveTotalCharges"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "LOWCHG01",
+            "matched": [
+              "SuspiciouslyLowCharge"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/07_suspicious_low_charge.x12",
+      "purpose": "Total under $5 → SuspiciouslyLowCharge"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "FUTURE01",
+            "matched": [
+              "FutureServiceDate",
+              "ImpossibleDates"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/08_future_service_date.x12",
+      "purpose": "Service date in 2099 → FutureServiceDate and ImpossibleDates"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "OLDDATE01",
+            "matched": [
+              "ImpossibleDates"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/09_service_before_1900.x12",
+      "purpose": "Service date before 1900 → ImpossibleDates"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "NODX01",
+            "matched": [
+              "MissingDiagnosisCodes"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/10_missing_diagnosis.x12",
+      "purpose": "No HI segment → MissingDiagnosisCodes"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "NODOB01",
+            "matched": [
+              "MissingRequiredFields"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/11_missing_dob.x12",
+      "purpose": "No DMG segment (no date of birth) → MissingRequiredFields"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "OLDPT01",
+            "matched": [
+              "PatientAgeOutOfRange"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/12_patient_too_old.x12",
+      "purpose": "Born 1880 → PatientAgeOutOfRange"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "FUTDOB01",
+            "matched": [
+              "PatientAgeOutOfRange"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/13_dob_in_future.x12",
+      "purpose": "Born 2099 (negative age) → PatientAgeOutOfRange"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "NPIFMT01",
+            "matched": [
+              "InvalidNPIFormat",
+              "InvalidProviderNPI"
+            ],
+            "nppes": "not found in NPPES"
+          }
+        ]
+      },
+      "file": "single/14_npi_bad_format.x12",
+      "purpose": "9-digit billing NPI → InvalidNPIFormat, InvalidProviderNPI; NPPES rejects"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "NPILUHN01",
+            "matched": [
+              "InvalidProviderNPI"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/15_npi_bad_checksum.x12",
+      "purpose": "Billing NPI fails Luhn (but is in mock NPPES) → InvalidProviderNPI"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "NPIUNK01",
+            "matched": [],
+            "nppes": "not found in NPPES"
+          }
+        ]
+      },
+      "file": "single/16_npi_not_in_nppes.x12",
+      "purpose": "Luhn-valid NPI absent from NPPES → NPPES rejects; no engine rule"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "NPIDEAC01",
+            "matched": [],
+            "nppes": "was deactivated"
+          }
+        ]
+      },
+      "file": "single/17_npi_deactivated.x12",
+      "purpose": "Provider deactivated 2023-06-15, service 2026 → NPPES rejects"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "NPIDEAC02",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/18_npi_deactivated_later.x12",
+      "purpose": "Same deactivated provider, service before deactivation → NPPES ok"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "NPIREAC01",
+            "matched": [
+              "InvalidProviderNPI"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/19_npi_reactivated.x12",
+      "purpose": "Provider deactivated then reactivated → NPPES ok (this mock NPI also fails Luhn)"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "NOTAX01",
+            "matched": [
+              "MissingProviderTaxonomy"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/20_missing_taxonomy.x12",
+      "purpose": "No PRV*BI, $2,500 → MissingProviderTaxonomy"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "NOTAX02",
+            "matched": [
+              "MissingProviderTaxonomy",
+              "UnauthorizedProcedure"
+            ],
+            "not_checked": [
+              "TaxonomyMismatchNewProvider"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/21_missing_taxonomy_new_provider.x12",
+      "purpose": "No taxonomy, $8,000 → MissingProviderTaxonomy, UnauthorizedProcedure; TaxonomyMismatchNewProvider not checked (no tenure)"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "NOAUTH01",
+            "matched": [
+              "UnauthorizedProcedure"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/22_no_prior_auth.x12",
+      "purpose": "$7,500 with no prior authorization → UnauthorizedProcedure"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "AUTH01",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/23_with_prior_auth.x12",
+      "purpose": "$7,500 with REF*G1 prior authorization → no rule should match"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "WEEKEND01",
+            "matched": [
+              "WeekendOfficeVisit"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/24_weekend_office_visit.x12",
+      "purpose": "Office visit (POS 11) on Saturday 2026-09-05, $650 → WeekendOfficeVisit review"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "NONPI01",
+            "matched": [
+              "MissingRequiredFields"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/25_missing_billing_npi.x12",
+      "purpose": "NM1*85 with no NPI → MissingRequiredFields"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "REND01",
+            "matched": [],
+            "nppes": "was deactivated"
+          }
+        ]
+      },
+      "file": "single/26_rendering_npi_deactivated.x12",
+      "purpose": "Valid billing NPI, deactivated rendering provider (NM1*82) → NPPES should reject"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "COMBO01",
+            "matched": [
+              "FutureServiceDate",
+              "ImpossibleDates",
+              "HighComplexityERVisit",
+              "MissingProviderTaxonomy",
+              "UnauthorizedProcedure"
+            ],
+            "not_checked": [
+              "NewProviderLargeSubmission",
+              "TaxonomyMismatchNewProvider"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/27_many_rules.x12",
+      "purpose": "ER 99285, $15,000, no taxonomy, service in 2099 → five rules at once"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "BOUND01",
+            "matched": [
+              "UnauthorizedProcedure"
+            ],
+            "not_checked": [
+              "NewProviderLargeSubmission"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/28_boundary_50000.x12",
+      "purpose": "Exactly $50,000.00 → HighValueClaim must NOT match (> not >=)"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "BOUND02",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/29_boundary_5000.x12",
+      "purpose": "Exactly $5,000.00 → UnauthorizedProcedure must NOT match"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "BOUND03",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/30_boundary_5.x12",
+      "purpose": "Exactly $5.00 → SuspiciouslyLowCharge must NOT match"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "WEEKEND02",
+            "matched": [
+              "WeekendOfficeVisit"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/31_weekend_office_sunday.x12",
+      "purpose": "Office visit (POS 11) on Sunday 2026-09-06, $650 → WeekendOfficeVisit"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "WEEKEND03",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/32_weekday_office_visit.x12",
+      "purpose": "Office visit (POS 11) on Friday 2026-09-04, $650 → no match"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "WEEKEND04",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/33_weekend_not_office.x12",
+      "purpose": "Home visit (POS 12) on Saturday 2026-09-05, $650 → no match"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "WEEKEND05",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/34_weekend_office_500.x12",
+      "purpose": "Office visit on Saturday, exactly $500.00 → no match (> not >=)"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "INST01",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "formats/01_institutional_837i.x12",
+      "purpose": "837I institutional claim (SV2, CL1), clean"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "DENT01",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "formats/02_dental_837d.x12",
+      "purpose": "837D dental claim (SV3, TOO), clean"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "ONELINE01",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "formats/03_single_line_no_newlines.x12",
+      "purpose": "Whole file on one line (no newlines), clean"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "CRLF01",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "formats/04_crlf_line_endings.x12",
+      "purpose": "Windows CRLF line endings, clean"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "ALTDELIM01",
+            "matched": [
+              "HighComplexityERVisit",
+              "UnauthorizedProcedure"
+            ],
+            "not_checked": [
+              "NewProviderLargeSubmission"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "formats/05_alternate_delimiters.edi",
+      "purpose": "Element separator | and sub-element separator > (both legal per ISA); ER 99285 over $10,000"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "MULTI01",
+            "matched": [],
+            "nppes": "ok"
+          },
+          {
+            "claim_id": "MULTI02",
+            "matched": [
+              "HighValueClaim",
+              "HighComplexityERVisit",
+              "UnauthorizedProcedure"
+            ],
+            "not_checked": [
+              "NewProviderLargeSubmission"
+            ],
+            "nppes": "ok"
+          },
+          {
+            "claim_id": "MULTI03",
+            "matched": [
+              "MissingDiagnosisCodes"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "multi/01_three_claims.x12",
+      "purpose": "Three subscribers, one claim each, in one transaction set"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "TXA01",
+            "matched": [],
+            "nppes": "ok"
+          },
+          {
+            "claim_id": "TXA02",
+            "matched": [
+              "SuspiciouslyLowCharge"
+            ],
+            "nppes": "ok"
+          },
+          {
+            "claim_id": "TXB01",
+            "matched": [],
+            "nppes": "ok"
+          },
+          {
+            "claim_id": "TXB02",
+            "matched": [
+              "PatientAgeOutOfRange"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "multi/02_two_transaction_sets.x12",
+      "purpose": "One interchange, two ST..SE transaction sets with two claims each"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "SAMESUB01",
+            "matched": [],
+            "nppes": "ok"
+          },
+          {
+            "claim_id": "SAMESUB02",
+            "matched": [
+              "SuspiciouslyLowCharge"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "multi/03_two_claims_same_subscriber.x12",
+      "purpose": "One subscriber with two claims (two CLMs under one HL)"
+    },
+    {
+      "expect": { "error": "incomplete transmission" },
+      "file": "errors/01_truncated_file.x12",
+      "purpose": "File cut off mid-way through the second claim (no SE/GE/IEA) → reject as incomplete"
+    },
+    {
+      "expect": { "error": "SE segment count" },
+      "file": "errors/02_wrong_se_count.x12",
+      "purpose": "SE segment count off by 3 → reject"
+    },
+    {
+      "expect": { "error": "interchange control number mismatch" },
+      "file": "errors/03_control_number_mismatch.x12",
+      "purpose": "IEA control number differs from ISA → reject"
+    },
+    {
+      "expect": { "error": "must start with ISA" },
+      "file": "errors/04_not_x12.edi",
+      "purpose": "Plain text that is not X12 → reject"
+    },
+    {
+      "expect": { "error": "too short" },
+      "file": "errors/05_too_short.x12",
+      "purpose": "File shorter than an ISA segment → reject"
+    },
+    {
+      "expect": { "error": "no claims found" },
+      "file": "errors/06_envelope_no_claims.x12",
+      "purpose": "Valid envelope with a billing provider but no CLM → rejected, no claims"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "ZIPX12A",
+            "matched": [],
+            "nppes": "ok"
+          },
+          {
+            "claim_id": "ZIPEDIB",
+            "matched": [
+              "MissingDiagnosisCodes"
+            ],
+            "nppes": "ok"
+          },
+          {
+            "claim_id": "ZIPJSON01",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "zip/01_mixed_bundle.zip",
+      "purpose": "Zip holding an .x12, an .edi, a .json and a .txt (ignored)"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "ESCAPE01",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "zip/02_path_traversal.zip",
+      "purpose": "Zip whose only entry is ../escape.x12 → Erlang's in-memory unzip strips the ../ and the entry is read as escape.x12; nothing is written to disk"
+    }
+  ]
+}
+

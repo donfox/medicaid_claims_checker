@@ -304,19 +304,26 @@ defmodule MedicaidClaimsChecker.Claims do
   @doc """
   Validates all NPIs on a claim against the NPPES registry.
 
-  Checks both the rendering provider (`provider.npi` / `claim.rendering_provider.npi`)
-  and the billing provider (`billing_provider.npi`), using the earliest service
-  date on the claim. Returns `:ok` if all NPIs are valid and active on that
+  Checks the provider (`provider.npi`), the rendering provider
+  (`rendering_provider.npi`, or `claim.rendering_provider.npi` in the X12
+  schema) and the billing provider (`billing_provider.npi`), using the
+  earliest service date on the claim. Returns `:ok` if all NPIs are valid and active on that
   date, `{:reject, reason}` on the first failure.
 
   Returns `:ok` when no NPIs are present (NPI presence is enforced elsewhere).
   """
   def validate_claim_providers(claim_json) do
-    provider_npi =
-      get_in(claim_json, ["provider", "npi"]) ||
-        get_in(claim_json, ["claim", "rendering_provider", "npi"])
+    npis =
+      [
+        ["provider", "npi"],
+        ["rendering_provider", "npi"],
+        ["claim", "rendering_provider", "npi"],
+        ["billing_provider", "npi"]
+      ]
+      |> Enum.map(&get_in(claim_json, &1))
+      |> Enum.filter(&(is_binary(&1) and String.trim(&1) != ""))
+      |> Enum.uniq()
 
-    billing_npi = get_in(claim_json, ["billing_provider", "npi"])
     service_date = extract_earliest_service_date(claim_json)
 
     case service_date do
@@ -324,11 +331,6 @@ defmodule MedicaidClaimsChecker.Claims do
         {:reject, "No service date found on claim — cannot validate provider NPI"}
 
       date ->
-        npis =
-          [provider_npi, billing_npi]
-          |> Enum.reject(&is_nil/1)
-          |> Enum.uniq()
-
         case npis do
           [] ->
             :ok

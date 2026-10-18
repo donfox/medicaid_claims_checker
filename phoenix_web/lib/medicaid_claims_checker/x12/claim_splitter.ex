@@ -32,6 +32,8 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitter do
 
   alias MedicaidClaimsChecker.X12.Parser
 
+  @no_claims "No claims found: the transaction set has no CLM segment"
+
   @doc """
   Splits a multi-claim X12 file into individual claim JSONs.
 
@@ -52,13 +54,11 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitter do
   def split_claims(x12_content) when is_binary(x12_content) do
     case Parser.parse(x12_content) do
       {:ok, %{segments: segments}} ->
-        clm_count = segments |> Enum.count(&(&1.id == "CLM"))
-
-        if clm_count <= 1 do
+        case Enum.count(segments, &(&1.id == "CLM")) do
+          0 -> {:error, @no_claims}
           # Single claim - no splitting needed
-          {:ok, nil}
-        else
-          do_split(segments)
+          1 -> {:ok, nil}
+          _ -> do_split(segments)
         end
 
       {:error, reason} ->
@@ -76,20 +76,153 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitter do
 
   This must be called BEFORE `split_claims_to_x12/1` when processing raw EDI
   files that may have been batched with multiple transaction sets per envelope.
+
+  It is the entry point for a whole file, so it also checks the envelope
+  (see `check_envelope/1`) and returns `{:error, reason}` for a file that is
+  truncated or whose trailers don't match its headers.
   """
   def split_transaction_sets(x12_content) when is_binary(x12_content) do
-    case Parser.parse(x12_content) do
-      {:ok, %{segments: segments}} ->
-        st_count = Enum.count(segments, &(&1.id == "ST"))
+    with {:ok, %{segments: segments}} <- parse(x12_content),
+         :ok <- check_envelope(segments) do
+      st_count = Enum.count(segments, &(&1.id == "ST"))
 
-        if st_count <= 1 do
-          {:ok, nil}
-        else
-          do_split_transaction_sets(segments)
+      if st_count <= 1 do
+        {:ok, nil}
+      else
+        do_split_transaction_sets(segments)
+      end
+    end
+  end
+
+  defp parse(x12_content) do
+    case Parser.parse(x12_content) do
+      {:ok, _} = ok -> ok
+      {:error, reason} -> {:error, "Parse failed: #{inspect(reason)}"}
+    end
+  end
+
+  @doc """
+  Checks the interchange envelope of a whole X12 file.
+
+  The file must end with an IEA trailer, every ST/GS must be closed by its
+  SE/GE, each SE count must equal the segments from ST to SE inclusive, the
+  GE and IEA counts must match the transaction sets and groups they close,
+  and every trailer's control number must match its header's. Returns `:ok`
+  or `{:error, reason}`.
+  """
+  def check_envelope(segments) when is_list(segments) do
+    case List.last(segments) do
+      %{id: "IEA"} ->
+        segments
+        |> Enum.with_index()
+        |> Enum.reduce_while(%{isa: nil, gs: nil, st: nil, sets: 0, groups: 0}, &check_segment/2)
+        |> case do
+          {:error, _} = error -> error
+          _ -> :ok
         end
 
-      {:error, reason} ->
-        {:error, "Parse failed: #{inspect(reason)}"}
+      last ->
+        ended_at = if last, do: "a #{last.id} segment", else: "no segments"
+
+        {:error,
+         "Incomplete transmission: the file ends with #{ended_at} instead of the IEA trailer, " <>
+           "so it may have been cut off in transfer"}
+    end
+  end
+
+  defp check_segment({%{id: "ISA"} = seg, _idx}, state), do: {:cont, %{state | isa: seg}}
+
+  defp check_segment({%{id: "GS"} = seg, _idx}, state) do
+    if state.gs,
+      do: halt("Incomplete transmission: functional group #{el(state.gs, 6)} has no GE trailer"),
+      else: {:cont, %{state | gs: seg, sets: 0}}
+  end
+
+  defp check_segment({%{id: "ST"} = seg, idx}, state) do
+    if state.st,
+      do:
+        halt(
+          "Incomplete transmission: transaction set #{el(elem(state.st, 0), 2)} has no SE trailer"
+        ),
+      else: {:cont, %{state | st: {seg, idx}}}
+  end
+
+  defp check_segment({%{id: "SE"} = seg, idx}, %{st: {st, st_idx}} = state) do
+    actual = idx - st_idx + 1
+
+    cond do
+      count(seg, 1) != actual ->
+        halt(
+          "SE segment count is #{el(seg, 1)} but transaction set #{el(st, 2)} has #{actual} segments"
+        )
+
+      el(seg, 2) != el(st, 2) ->
+        halt(
+          "Transaction set control number mismatch: ST02 is #{el(st, 2)} but SE02 is #{el(seg, 2)}"
+        )
+
+      true ->
+        {:cont, %{state | st: nil, sets: state.sets + 1}}
+    end
+  end
+
+  defp check_segment({%{id: "SE"}, _idx}, _state), do: halt("SE segment without a matching ST")
+
+  defp check_segment({%{id: "GE"} = seg, _idx}, state) do
+    cond do
+      state.st ->
+        halt(
+          "Incomplete transmission: transaction set #{el(elem(state.st, 0), 2)} has no SE trailer"
+        )
+
+      state.gs == nil ->
+        halt("GE segment without a matching GS")
+
+      count(seg, 1) != state.sets ->
+        halt("GE says #{el(seg, 1)} transaction sets but the group has #{state.sets}")
+
+      el(seg, 2) != el(state.gs, 6) ->
+        halt(
+          "Functional group control number mismatch: GS06 is #{el(state.gs, 6)} but GE02 is #{el(seg, 2)}"
+        )
+
+      true ->
+        {:cont, %{state | gs: nil, groups: state.groups + 1}}
+    end
+  end
+
+  defp check_segment({%{id: "IEA"} = seg, _idx}, state) do
+    cond do
+      state.st ->
+        halt(
+          "Incomplete transmission: transaction set #{el(elem(state.st, 0), 2)} has no SE trailer"
+        )
+
+      state.gs ->
+        halt("Incomplete transmission: functional group #{el(state.gs, 6)} has no GE trailer")
+
+      count(seg, 1) != state.groups ->
+        halt("IEA says #{el(seg, 1)} functional groups but the file has #{state.groups}")
+
+      state.isa && el(seg, 2) != el(state.isa, 13) ->
+        halt(
+          "Interchange control number mismatch: ISA13 is #{el(state.isa, 13)} but IEA02 is #{el(seg, 2)}"
+        )
+
+      true ->
+        {:cont, state}
+    end
+  end
+
+  defp check_segment(_, state), do: {:cont, state}
+
+  defp halt(reason), do: {:halt, {:error, reason}}
+  defp el(seg, pos), do: seg |> Parser.get_element(pos) |> String.trim()
+
+  defp count(seg, pos) do
+    case Integer.parse(el(seg, pos)) do
+      {n, ""} -> n
+      _ -> nil
     end
   end
 
@@ -154,12 +287,10 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitter do
   def split_claims_to_x12(x12_content) when is_binary(x12_content) do
     case Parser.parse(x12_content) do
       {:ok, %{segments: segments}} ->
-        clm_count = segments |> Enum.count(&(&1.id == "CLM"))
-
-        if clm_count <= 1 do
-          {:ok, nil}
-        else
-          do_split_to_x12(segments)
+        case Enum.count(segments, &(&1.id == "CLM")) do
+          0 -> {:error, @no_claims}
+          1 -> {:ok, nil}
+          _ -> do_split_to_x12(segments)
         end
 
       {:error, reason} ->
@@ -224,65 +355,74 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitter do
 
   Returns `{shared_header, [claim_block_1, claim_block_2, ...], trailers}`
 
-  The split point is the HL segment that begins each subscriber loop
-  preceding a CLM segment.
+  The shared header is everything before the first HL. Each claim block is
+  self-contained: the billing-provider (HL 20), subscriber (HL 22) and
+  patient (HL 23) loops the claim sits under, followed by the claim's own
+  segments up to the next HL or CLM. Several claims under one subscriber
+  each get a copy of that subscriber's loop.
   """
   def partition_segments(segments) do
-    # Find indices of all CLM segments
-    clm_indices =
-      segments
-      |> Enum.with_index()
-      |> Enum.reduce([], fn {seg, idx}, acc ->
-        if seg.id == "CLM", do: [idx | acc], else: acc
-      end)
-      |> Enum.reverse()
-
-    # For each CLM, find where its subscriber block starts
-    # by looking backward for the nearest HL segment
-    split_points =
-      Enum.map(clm_indices, fn clm_idx ->
-        find_subscriber_start(segments, clm_idx)
-      end)
-
-    # Shared header = everything before the first split point
-    first_split = List.first(split_points)
-
-    # Trailers = SE, GE, IEA at the end
     trailer_start = find_trailer_start(segments)
 
-    shared_header = Enum.slice(segments, 0, first_split)
+    body_start =
+      Enum.find_index(segments, &(&1.id in ["HL", "CLM"])) || trailer_start
 
-    # Build claim blocks: from each split point to the next (or to trailers)
-    claim_blocks =
-      split_points
-      |> Enum.with_index()
-      |> Enum.map(fn {start_idx, i} ->
-        end_idx =
-          case Enum.at(split_points, i + 1) do
-            nil -> trailer_start
-            next_start -> next_start
-          end
-
-        Enum.slice(segments, start_idx, end_idx - start_idx)
-      end)
-
+    shared_header = Enum.slice(segments, 0, body_start)
+    body = Enum.slice(segments, body_start, trailer_start - body_start)
     trailers = Enum.slice(segments, trailer_start, length(segments) - trailer_start)
 
-    {shared_header, claim_blocks, trailers}
+    {shared_header, claim_blocks(body), trailers}
   end
 
-  # Walk backward from CLM to find the nearest HL segment
-  # That HL begins the subscriber loop for this claim
-  defp find_subscriber_start(segments, clm_idx) do
-    clm_idx
-    |> Range.new(0, -1)
-    |> Enum.find(fn idx ->
-      seg = Enum.at(segments, idx)
-      seg.id == "HL"
+  # Walks the body keeping the segments of the HL loops currently open.
+  # Loops and blocks are built in reverse and flipped when closed.
+  defp claim_blocks(body) do
+    init = %{loops: %{"20" => [], "22" => [], "23" => []}, level: "20", claim: nil, blocks: []}
+
+    body
+    |> Enum.reduce(init, fn seg, state ->
+      case seg.id do
+        "HL" ->
+          level = hl_level(seg)
+          state = close_claim(state)
+
+          loops =
+            case level do
+              "20" -> %{"20" => [seg], "22" => [], "23" => []}
+              "22" -> %{state.loops | "22" => [seg], "23" => []}
+              "23" -> %{state.loops | "23" => [seg]}
+            end
+
+          %{state | loops: loops, level: level}
+
+        "CLM" ->
+          state = close_claim(state)
+          context = Enum.flat_map(["20", "22", "23"], &Enum.reverse(state.loops[&1]))
+          %{state | claim: Enum.reverse(context, [seg])}
+
+        _ when state.claim != nil ->
+          %{state | claim: [seg | state.claim]}
+
+        _ ->
+          %{state | loops: Map.update!(state.loops, state.level, &[seg | &1])}
+      end
     end)
-    |> case do
-      nil -> clm_idx
-      idx -> idx
+    |> close_claim()
+    |> Map.fetch!(:blocks)
+    |> Enum.reverse()
+  end
+
+  defp close_claim(%{claim: nil} = state), do: state
+
+  defp close_claim(state),
+    do: %{state | claim: nil, blocks: [Enum.reverse(state.claim) | state.blocks]}
+
+  # HL03 is the hierarchical level code: 20 billing provider, 22 subscriber,
+  # 23 patient. Anything else is treated as a patient-level child loop.
+  defp hl_level(seg) do
+    case Parser.get_element(seg, 3) do
+      code when code in ["20", "22"] -> code
+      _ -> "23"
     end
   end
 

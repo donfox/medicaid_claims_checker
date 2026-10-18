@@ -7,6 +7,8 @@
 set -euo pipefail
 
 BASE_URL="${HASKELL_ENGINE_URL:-http://localhost:8080}"
+# Same default as start.sh; the engine rejects requests without this token.
+AUTH_HEADER="Authorization: Bearer ${RULE_ENGINE_SECRET:-dev-secret-change-in-production}"
 FIXTURE="$(dirname "$0")/../fixtures/batches/batch_request.json"
 PASS=0
 FAIL=0
@@ -47,6 +49,7 @@ echo ""
 bold "--- Batch Evaluate (10 mock claims) ---"
 BATCH_RESP=$(curl -sf -X POST "$BASE_URL/api/batch-evaluate" \
   -H "Content-Type: application/json" \
+  -H "$AUTH_HEADER" \
   -d @"$FIXTURE" 2>/dev/null || echo '{}')
 
 total_claims=$(echo "$BATCH_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('totalClaims',0))")
@@ -112,6 +115,7 @@ EXT_FIXTURE="$(dirname "$0")/../fixtures/batches/batch_request_extended.json"
 bold "--- Extended Batch Evaluate (6 new claim types, CLM016-021) ---"
 EXT_RESP=$(curl -sf -X POST "$BASE_URL/api/batch-evaluate" \
   -H "Content-Type: application/json" \
+  -H "$AUTH_HEADER" \
   -d @"$EXT_FIXTURE" 2>/dev/null || echo '{}')
 
 ext_total=$(echo "$EXT_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('totalClaims',0))")

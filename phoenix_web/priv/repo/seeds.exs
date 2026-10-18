@@ -365,7 +365,7 @@ rules = [
       END
       """
       |> String.trim(),
-    active: true,
+    active: false,
     inserted_at: now,
     updated_at: now
   },
@@ -375,9 +375,9 @@ rules = [
       """
       RULE weekend_office_visit
       DESCRIPTION \"Office visit on weekend with elevated amount\"
-      WHEN 2400.SV1.place_of_service = \"11\"
-           AND 2400.DTP.service_day_of_week = \"SAT\"
-           AND 2300.CLM.claim_amount > 500
+      WHEN financial.claim_amount > 500
+           AND EXISTS line IN service_lines
+               WHERE is_weekend(line.date_of_service) AND line.place_of_service = \"11\"
       THEN REQUIRE_REVIEW \"Weekend office visit requires verification\"
       END
       """
@@ -501,9 +501,9 @@ Repo.insert_all(
 ba_catalogue_entries = [
   %{
     name: "HighValueReview",
-    description: "Flag high-value claims over $50,000 for manual review",
+    description: "Flag high-value claims over $50,000 for manual review — inactive, duplicates HighValueClaim",
     entry_type: "BA Rule",
-    status: "Active",
+    status: "Inactive",
     editable: true,
     removable: true,
     redundant: false,

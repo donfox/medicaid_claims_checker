@@ -66,7 +66,7 @@ defmodule MedicaidClaimsChecker.X12.Converter do
   @doc """
   Build structured data from parsed segments
   """
-  def build_structure(segments, _delimiters) when is_list(segments) do
+  def build_structure(segments, delimiters) when is_list(segments) do
     all_segments =
       Enum.map(segments, fn seg ->
         %{
@@ -77,6 +77,8 @@ defmodule MedicaidClaimsChecker.X12.Converter do
         }
       end)
 
-    {:ok, %{all_segments: all_segments}}
+    # SegmentMapper needs ISA16 to split composite elements.
+    sub = if delimiters, do: delimiters.sub_element, else: nil
+    {:ok, %{sub_element_separator: sub, all_segments: all_segments}}
   end
 end

@@ -55,3 +55,6 @@ phoenix_web/config/dev.secret.exs
 
 # Security review documents — keep local only
 *_security_review.pdf
+
+# Large-batch X12 test zips — regenerate with test/fixtures/x12_suite/generate.exs --large N
+phoenix_web/test/fixtures/x12_suite/files/large/

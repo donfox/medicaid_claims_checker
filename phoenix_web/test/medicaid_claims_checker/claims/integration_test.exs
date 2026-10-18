@@ -27,6 +27,7 @@ defmodule MedicaidClaimsChecker.Claims.IntegrationTest do
 
   setup do
     Application.put_env(:medicaid_claims_checker, :rule_engine_url, "http://localhost:8080")
+
     Application.put_env(
       :medicaid_claims_checker,
       :rule_engine_secret,
@@ -55,6 +56,18 @@ defmodule MedicaidClaimsChecker.Claims.IntegrationTest do
       enumeration_date: ~D[2010-01-01],
       deactivation_date: nil
     })
+
+    # Rendering providers (NM1*82) on the two fixtures are checked too.
+    for npi <- ["1003000423", "1003000142"] do
+      Repo.insert!(%NppesProvider{
+        npi: npi,
+        entity_type: 1,
+        provider_name: "Test Rendering Provider",
+        state: "IL",
+        enumeration_date: ~D[2010-01-01],
+        deactivation_date: nil
+      })
+    end
 
     :ok
   end

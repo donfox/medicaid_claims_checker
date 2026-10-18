@@ -459,6 +459,7 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
   describe "evaluate_batch/1 with real X12 fixture claims" do
     test "lab_work 837P — normalizes correctly and evaluates as LowRisk", %{bypass: bypass} do
       insert_active_nppes_provider("1003001850")
+      insert_active_nppes_provider("1003000423")
 
       create_rule!(
         "missing_required_fields",
@@ -524,6 +525,7 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
 
     test "preventive 837P — normalizes correctly and evaluates as LowRisk", %{bypass: bypass} do
       insert_active_nppes_provider("1003000118")
+      insert_active_nppes_provider("1003000142")
 
       create_rule!(
         "missing_required_fields",
@@ -559,7 +561,9 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
       end)
 
       normalized = SegmentMapper.normalize(@preventive)
-      batch = ingest_batch!([%{"filename" => "valid_837p_preventive.json", "claim" => normalized}])
+
+      batch =
+        ingest_batch!([%{"filename" => "valid_837p_preventive.json", "claim" => normalized}])
 
       Evaluator.evaluate_batch(batch)
 
@@ -576,6 +580,8 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
     test "both real X12 claims in one batch are each evaluated correctly", %{bypass: bypass} do
       insert_active_nppes_provider("1003001850")
       insert_active_nppes_provider("1003000118")
+      insert_active_nppes_provider("1003000423")
+      insert_active_nppes_provider("1003000142")
 
       create_rule!(
         "missing_required_fields",
@@ -608,7 +614,10 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
       end)
 
       claims = [
-        %{"filename" => "valid_837p_lab_work.json", "claim" => SegmentMapper.normalize(@lab_work)},
+        %{
+          "filename" => "valid_837p_lab_work.json",
+          "claim" => SegmentMapper.normalize(@lab_work)
+        },
         %{
           "filename" => "valid_837p_preventive.json",
           "claim" => SegmentMapper.normalize(@preventive)

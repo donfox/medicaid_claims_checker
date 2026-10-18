@@ -85,7 +85,7 @@ The app counts HighRisk and CriticalRisk claims as flagged for analyst review. `
 
 ### Rules not checked
 
-A rule whose condition depends on missing or unusable data does not match. Its result has `resultUndecided: true`, the report's `undecidedRules` counts such rules, and the app lists them as not checked instead of calling the claim clean. See the Missing data section of `docs/SYNTAX_GUIDE.md`.
+A rule whose condition depends on missing or unusable data does not match. Its result has `resultUndecided: true` and its `resultDetails` names the fields that were missing or unusable, the report's `undecidedRules` counts such rules, and the app lists them as not checked instead of calling the claim clean. See the Missing data section of `docs/SYNTAX_GUIDE.md`.
 
 ## Parse and Evaluate Pipeline
 

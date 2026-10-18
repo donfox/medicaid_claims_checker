@@ -1365,8 +1365,33 @@ main = hspec $ do
         matches "COUNT(no_lines) = 0" `shouldBe` True
 
     describe "Result details" $ do
-      it "say when a rule was undecided because of missing data" $
-        resultDetails (run "NOT missing > 5") `shouldBe` "Rule did not match: missing or unusable data"
+      it "say when a rule was undecided because of missing data, naming the field" $
+        resultDetails (run "NOT missing > 5") `shouldBe` "Rule did not match: missing or unusable data (missing missing)"
+      it "name every missing field when both sides of an AND are unknown" $
+        resultDetails (run "claim.amount > 5 AND provider.npi = \"1\"")
+          `shouldBe` "Rule did not match: missing or unusable data (claim.amount missing; provider.npi missing)"
+      it "name only the unknown side when the other side is true" $
+        resultDetails (run "amount = 500 AND provider.npi = \"1\"")
+          `shouldBe` "Rule did not match: missing or unusable data (provider.npi missing)"
+      it "name a field that is present but not a number" $
+        resultDetails (run "status > 5") `shouldBe` "Rule did not match: missing or unusable data (status is not a number)"
+      it "name a helper argument that is not a valid date" $
+        resultDetails (run "is_future_date(dos)") `shouldBe` "Rule did not match: missing or unusable data (dos is not a valid date)"
+      it "name an empty collection" $
+        resultDetails (run "EXISTS l IN empty_lines WHERE l.amount > 0")
+          `shouldBe` "Rule did not match: missing or unusable data (empty_lines missing or empty)"
+      it "name a field inside a collection by the collection's name, once" $
+        resultDetails (run "FORALL l IN lines WHERE l.amount > 0")
+          `shouldBe` "Rule did not match: missing or unusable data (lines[].amount missing)"
+      it "name a field inside an anonymous quantifier by the collection's name" $
+        resultDetails (run "FORALL lines WHERE amount > 0")
+          `shouldBe` "Rule did not match: missing or unusable data (lines[].amount missing)"
+      it "name missing diagnosis codes" $
+        case parseRule "RULE t \"T\" WHEN claim.has_diagnosis \"E11.9\" THEN FLAG_FRAUD \"x\";" of
+          Left err -> expectationFailure (show err)
+          Right rule ->
+            resultDetails (evaluateRuleSimple testDay (object ["amount" .= (1 :: Int)]) rule)
+              `shouldBe` "Rule did not match: missing or unusable data (diagnosis_codes missing or empty)"
       it "keep the plain wording when the rule was definitely false" $
         resultDetails (run "amount > 10000") `shouldBe` "Rule did not match"
 

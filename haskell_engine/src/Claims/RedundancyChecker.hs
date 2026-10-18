@@ -11,7 +11,7 @@
 -- * __Exact duplicate__: same condition and action
 -- * __Subsumption__: one condition implies the other, same action (redundant)
 -- * __Shadowed__: one condition implies the other, different action (conflict)
--- * __Condition overlap__: constraints on the same field whose ranges overlap
+-- * __Condition overlap__: constraints on a shared field that can all hold at once
 --
 -- Every check is conservative: it reports only what it can prove.
 module Claims.RedundancyChecker
@@ -22,7 +22,7 @@ module Claims.RedundancyChecker
 where
 
 import Data.Aeson (ToJSON)
-import Data.List (sort)
+import Data.List (nub, sort)
 import Data.Text (Text)
 import qualified Data.Text as T
 import GHC.Generics (Generic)
@@ -62,6 +62,8 @@ compareRules :: Rule -> Rule -> [RedundancyMatch]
 compareRules candidate existing
   | pc == pe && sameAction =
       [match ExactDuplicate ("Condition and action are identical to " <> quote existing)]
+  | pc == pe =
+      [match Shadowed ("Same condition as " <> quote existing <> " but a different action — conflict")]
   | candidateNarrower || predicateImplies pe pc =
       [match (if sameAction then Subsumption else Shadowed) subsumption]
   | hasConditionOverlap candidate existing =
@@ -85,15 +87,22 @@ compareRules candidate existing
 -- ----------------------------------------------------------------------------
 -- Condition overlap
 -- ----------------------------------------------------------------------------
--- ----------------------------------------------------------------------------
 
--- | Two rules overlap if they share constraints on the same field
--- with overlapping value ranges.
+-- | Two rules overlap if, on some field both constrain, their constraints
+-- can all hold at once. Each rule's constraints on a field are combined
+-- before comparing, so @BETWEEN 1 AND 5@ and @BETWEEN 7 AND 14@ do not
+-- overlap even though @>= 1@ and @>= 7@ would on their own.
 hasConditionOverlap :: Rule -> Rule -> Bool
 hasConditionOverlap a b =
-  let consA = extractConstraints (ruleCondition a)
-      consB = extractConstraints (ruleCondition b)
-   in any (\ca -> any (constraintsOverlap ca) consB) consA
+  let consA = filter usable (extractConstraints (ruleCondition a))
+      consB = filter usable (extractConstraints (ruleCondition b))
+      keys = nub (map key consA)
+      onKey k = filter ((== k) . key)
+   in any
+        (\k -> not (null (onKey k consB)) && satisfiable (onKey k consA ++ onKey k consB))
+        keys
+  where
+    key c = (fcScope c, fcField c)
 
 -- | A leaf constraint extracted from a predicate tree, tagged with the
 -- quantifier scope (if any) it was extracted under.
@@ -131,30 +140,35 @@ extractConstraints = go Nothing
       Count _ _ _     -> []
       HelperCall _ _  -> []
 
--- | Do two constraints on the same field have overlapping value ranges?
--- Constraints must share the same scope (quantifier path) to overlap.
-constraintsOverlap :: FieldConstraint -> FieldConstraint -> Bool
-constraintsOverlap a b
-  | fcScope a /= fcScope b = False
-  | fcField a /= fcField b = False
-  | otherwise = valuesOverlap (fcOp a) (fcValue a) (fcOp b) (fcValue b)
+-- | Constraints we can reason about: numeric comparisons and equality.
+-- Anything else (e.g. @>@ on a string) is ignored. Conservative: an
+-- ignored constraint never produces an overlap.
+usable :: FieldConstraint -> Bool
+usable c = case (fcOp c, fcValue c) of
+  (_, NumberValue _) -> True
+  (EQ, _)            -> True
+  _                  -> False
 
--- | Check if two (operator, value) pairs on the same field overlap.
-valuesOverlap :: CompOp -> Value -> CompOp -> Value -> Bool
-valuesOverlap op1 (NumberValue n1) op2 (NumberValue n2) =
-  numericRangesOverlap op1 n1 op2 n2
-valuesOverlap EQ v1 EQ v2 = v1 == v2
--- Conservative: if we can't determine, don't flag overlap
-valuesOverlap _ _ _ _ = False
+-- | Can every constraint in the list hold at once? All are on one field.
+-- Numbers must leave a non-empty interval; other values must all be
+-- equal; a number and a non-number cannot both be the field's value.
+satisfiable :: [FieldConstraint] -> Bool
+satisfiable cs =
+  case ([(fcOp c, n) | c <- cs, NumberValue n <- [fcValue c]], [v | c <- cs, let v = fcValue c, not (isNumber v)]) of
+    (nums, []) -> intervalNonEmpty nums
+    ([], v : vs) -> all (== v) vs
+    _ -> False
+  where
+    isNumber (NumberValue _) = True
+    isNumber _ = False
 
--- | Do two numeric constraints on the same field have overlapping ranges?
--- We model each constraint as an interval whose ends may be open or closed
--- and check if the intersection is non-empty. @> 5@ and @< 5@ do not overlap;
--- @>= 5@ and @<= 5@ do.
-numericRangesOverlap :: CompOp -> Double -> CompOp -> Double -> Bool
-numericRangesOverlap op1 n1 op2 n2 =
-  let (lo, loClosed) = tighter (>) (lowerBound op1 n1) (lowerBound op2 n2)
-      (hi, hiClosed) = tighter (<) (upperBound op1 n1) (upperBound op2 n2)
+-- | Is the intersection of these numeric constraints non-empty? Each is
+-- an interval whose ends may be open or closed. @> 5@ and @< 5@ leave
+-- nothing; @>= 5@ and @<= 5@ leave 5.
+intervalNonEmpty :: [(CompOp, Double)] -> Bool
+intervalNonEmpty cs =
+  let (lo, loClosed) = foldr1 (tighter (>)) [lowerBound op n | (op, n) <- cs]
+      (hi, hiClosed) = foldr1 (tighter (<)) [upperBound op n | (op, n) <- cs]
    in lo < hi || (lo == hi && loClosed && hiClosed)
   where
     -- Pick the tighter of two bounds; on a tie the result is closed only

@@ -742,6 +742,45 @@ main = hspec $ do
           ruleB = mkRule "atMost" (Compare LTE (Path ["amount"]) (NumberValue 5)) (RequireReview "at most")
       map matchLevel (checkRedundancy ruleA [ruleB]) `shouldBe` [ConditionOverlap]
 
+    it "disjoint BETWEEN ranges do not overlap (1-5 vs 7-14)" $ do
+      let short = mkRule "short" (Between (Path ["days_stay"]) (NumberValue 1) (NumberValue 5)) (RequireReview "short")
+          medium = mkRule "medium" (Between (Path ["days_stay"]) (NumberValue 7) (NumberValue 14)) (RequireReview "medium")
+      checkRedundancy short [medium] `shouldBe` []
+      checkRedundancy medium [short] `shouldBe` []
+
+    it "intersecting BETWEEN ranges overlap (7-14 vs 10-21)" $ do
+      let medium = mkRule "medium" (Between (Path ["days_stay"]) (NumberValue 7) (NumberValue 14)) (RequireReview "medium")
+          long = mkRule "long" (Between (Path ["days_stay"]) (NumberValue 10) (NumberValue 21)) (FlagFraud "long")
+      map matchLevel (checkRedundancy long [medium]) `shouldBe` [ConditionOverlap]
+
+    it "a range above a BETWEEN does not overlap it (> 14 vs 7-14)" $ do
+      let medium = mkRule "medium" (Between (Path ["days_stay"]) (NumberValue 7) (NumberValue 14)) (RequireReview "medium")
+          longStay =
+            mkRule "long_stay_high_amount"
+              (And (Compare GT (Path ["amount"]) (NumberValue 50000)) (Compare GT (Path ["days_stay"]) (NumberValue 14)))
+              (RequireReview "long")
+      checkRedundancy longStay [medium] `shouldBe` []
+
+    it "a rule's own bounds on a field are combined (5 < x < 10 vs x > 20)" $ do
+      let band = mkRule "band" (And (Compare GT (Path ["x"]) (NumberValue 5)) (Compare LT (Path ["x"]) (NumberValue 10))) (FlagFraud "band")
+          high = mkRule "high" (Compare GT (Path ["x"]) (NumberValue 20)) (RequireReview "high")
+      checkRedundancy band [high] `shouldBe` []
+      checkRedundancy high [band] `shouldBe` []
+
+    it "different equality values on a field do not overlap" $ do
+      let ruleA = mkRule "ca" (And (Compare EQ (Path ["state"]) (StringValue "CA")) (Compare GT (Path ["x"]) (NumberValue 1))) (FlagFraud "ca")
+          ruleB = mkRule "ny" (And (Compare EQ (Path ["state"]) (StringValue "NY")) (Compare LT (Path ["x"]) (NumberValue 0))) (RequireReview "ny")
+      checkRedundancy ruleA [ruleB] `shouldBe` []
+
+    it "same condition with a different action is reported as a conflict, not as 'more specific'" $ do
+      let cond = Compare EQ (Path ["diagnosis_code"]) (StringValue "E11.9")
+          flag = mkRule "diabetes_flag" cond (FlagFraud "flag")
+          reject = mkRule "diabetes_reject" cond (RejectClaim "reject")
+          matches = checkRedundancy reject [flag]
+      map matchLevel matches `shouldBe` [Shadowed]
+      matchExplanation (head matches)
+        `shouldBe` "Same condition as 'diabetes_flag' but a different action — conflict"
+
     it "NOT does not produce false overlap" $ do
       let ruleA = mkRule "rule_a" (Not (Compare GT (Path ["amount"]) (NumberValue 50000))) (RequireReview "low")
           ruleB = mkRule "rule_b" (Compare GT (Path ["amount"]) (NumberValue 40000)) (FlagFraud "high")

@@ -1,0 +1,351 @@
+[
+  {
+    "submission_type": "healthcare_claim_997",
+    "interchange_header": {
+      "sender_id": "PROVIDER101",
+      "receiver_id": "PAYER101",
+      "timestamp": "2026-02-20T10:00:00Z",
+      "interchange_control_number": "000000101"
+    },
+    "functional_group": {
+      "application_sender": "PROVIDER",
+      "application_receiver": "PAYER",
+      "group_control_number": "101"
+    },
+    "claim_id": "CLM-ROUTINE-001",
+    "claim_header": {
+      "claim_control_number": "CLM20260220101",
+      "claim_submission_reason": "Original",
+      "claim_type": "Outpatient",
+      "patient_control_number": "PAT-20260219-101"
+    },
+    "provider": {
+      "name": "Riverside Family Practice",
+      "npi": "1234567890",
+      "tax_id": "45-6789012",
+      "type": "Clinic",
+      "address": {
+        "street": "1200 Oak Avenue",
+        "city": "Springfield",
+        "state": "IL",
+        "postal_code": "62701",
+        "country": "USA"
+      },
+      "contact": {
+        "phone": "217-555-0101",
+        "fax": "217-555-0102"
+      },
+      "tenure_days": 1825,
+      "risk_score": 12,
+      "credentialing_date": "2021-02-19",
+      "specialty": "Family Medicine",
+      "taxonomy": "207Q00000X"
+    },
+    "billing_provider": {
+      "npi": "1234567890",
+      "taxonomy": "207Q00000X",
+      "name": "Riverside Family Practice",
+      "address": {
+        "street": "1200 Oak Avenue",
+        "city": "Springfield",
+        "state": "IL",
+        "postal_code": "62701"
+      }
+    },
+    "patient": {
+      "name": {
+        "first": "Maria",
+        "middle": "L",
+        "last": "Gonzalez",
+        "suffix": ""
+      },
+      "date_of_birth": "1978-04-22",
+      "gender": "Female",
+      "patient_id": "PAT-101",
+      "ssn": "111-22-3333",
+      "address": {
+        "street": "45 Maple Street",
+        "city": "Springfield",
+        "state": "IL",
+        "postal_code": "62702",
+        "country": "USA"
+      },
+      "contact": {
+        "phone": "217-555-1001",
+        "email": "m.gonzalez@email.com"
+      }
+    },
+    "subscriber": {
+      "subscriber_id": "SUB-111223333",
+      "relationship": "Self",
+      "group_number": "GRP-00101",
+      "plan_id": "PLAN-101"
+    },
+    "payer": {
+      "payer_id": "PAYER101",
+      "payer_name": "Blue Cross Blue Shield",
+      "address": {
+        "street": "100 Insurance Plaza",
+        "city": "Chicago",
+        "state": "IL",
+        "postal_code": "60601"
+      },
+      "contact": {
+        "phone": "312-555-0001"
+      }
+    },
+    "claim_details": {
+      "admission_date": "2026-02-19",
+      "discharge_date": "2026-02-19",
+      "admission_type": "Ambulatory",
+      "admission_source": "Walk-in",
+      "discharge_status": "Discharged",
+      "patient_status": "Discharged",
+      "service_type": "Office Visit",
+      "place_of_service": "11"
+    },
+    "diagnosis_codes": [
+      {
+        "code": "Z00.00",
+        "description": "Encounter for general adult medical examination without abnormal findings",
+        "qualifier": "Principal",
+        "present_on_admission": "N"
+      }
+    ],
+    "procedure_codes": [
+      {
+        "code": "99213",
+        "description": "Office visit \u2014 established patient, low complexity",
+        "units": 1,
+        "date_performed": "2026-02-19"
+      }
+    ],
+    "service_lines": [
+      {
+        "service_line_number": 1,
+        "procedure_code": "99213",
+        "description": "Office visit \u2014 established patient, low complexity",
+        "units": 1,
+        "unit_rate": 150.0,
+        "line_amount": 150.0,
+        "date_of_service": "2026-02-19",
+        "place_of_service": "11",
+        "diagnosis_pointers": [
+          "1"
+        ]
+      }
+    ],
+    "claim_totals": {
+      "total_submitted": 150.0,
+      "total_charges": 150.0,
+      "total_patient_responsibility": 25.0,
+      "total_payer_liability": 125.0,
+      "total_units": 1
+    },
+    "financial": {
+      "claim_amount": 150.0,
+      "patient_deductible": 0.0,
+      "patient_coinsurance": 0.0,
+      "patient_copay": 25.0,
+      "coordination_of_benefits": 0.0
+    },
+    "authorization": {
+      "authorization_number": "AUTH-101001",
+      "authorization_date": "2026-02-19",
+      "authorization_period_start": "2026-02-19",
+      "authorization_period_end": "2026-02-19",
+      "authorization_status": "Active",
+      "authorized_amount": 200.0,
+      "approved_units": 1
+    },
+    "claim_metadata": {
+      "submission_date": "2026-02-20",
+      "claim_frequency": "Original",
+      "claim_received_date": "2026-02-20",
+      "claim_processing_status": "Pending",
+      "test_rule": "none",
+      "expected_result": "APPROVED",
+      "notes": "Standard low-complexity office visit. Passes all rules."
+    }
+  },
+  {
+    "_id": "NOT-A-CLAIM",
+    "note": "no claim_id or claim field: refused as entry 2"
+  },
+  {
+    "submission_type": "healthcare_claim_997",
+    "interchange_header": {
+      "sender_id": "PROVIDER207",
+      "receiver_id": "PAYER207",
+      "timestamp": "2026-02-26T12:30:00Z",
+      "interchange_control_number": "000000207"
+    },
+    "functional_group": {
+      "application_sender": "PROVIDER",
+      "application_receiver": "PAYER",
+      "group_control_number": "207"
+    },
+    "claim_id": "CLM-HIGHVAL-001",
+    "claim_header": {
+      "claim_control_number": "CLM20260226207",
+      "claim_submission_reason": "Original",
+      "claim_type": "Inpatient",
+      "patient_control_number": "PAT-20260218-207"
+    },
+    "provider": {
+      "name": "University Orthopedic Hospital",
+      "npi": "1654321987",
+      "tax_id": "55-4433221",
+      "type": "Hospital",
+      "address": {
+        "street": "2000 University Drive",
+        "city": "Pittsburgh",
+        "state": "PA",
+        "postal_code": "15213",
+        "country": "USA"
+      },
+      "contact": {
+        "phone": "412-555-0207",
+        "fax": "412-555-0208"
+      },
+      "tenure_days": 3285,
+      "risk_score": 10,
+      "credentialing_date": "2017-02-26",
+      "specialty": "Orthopedic Surgery",
+      "taxonomy": "207X00000X"
+    },
+    "billing_provider": {
+      "npi": "1654321987",
+      "taxonomy": "207X00000X",
+      "name": "University Orthopedic Hospital",
+      "address": {
+        "street": "2000 University Drive",
+        "city": "Pittsburgh",
+        "state": "PA",
+        "postal_code": "15213"
+      }
+    },
+    "patient": {
+      "name": {
+        "first": "Barbara",
+        "middle": "J",
+        "last": "Kowalski",
+        "suffix": ""
+      },
+      "date_of_birth": "1948-01-25",
+      "gender": "Female",
+      "patient_id": "PAT-207",
+      "ssn": "345-67-8901",
+      "address": {
+        "street": "800 Penn Avenue",
+        "city": "Pittsburgh",
+        "state": "PA",
+        "postal_code": "15222",
+        "country": "USA"
+      },
+      "contact": {
+        "phone": "412-555-7001",
+        "email": "b.kowalski@email.com"
+      }
+    },
+    "subscriber": {
+      "subscriber_id": "SUB-345678901",
+      "relationship": "Self",
+      "group_number": "GRP-00207",
+      "plan_id": "PLAN-207"
+    },
+    "payer": {
+      "payer_id": "PAYER207",
+      "payer_name": "UPMC Health Plan",
+      "address": {
+        "street": "600 Grant Street",
+        "city": "Pittsburgh",
+        "state": "PA",
+        "postal_code": "15219"
+      },
+      "contact": {
+        "phone": "412-555-0007"
+      }
+    },
+    "claim_details": {
+      "admission_date": "2026-02-18",
+      "discharge_date": "2026-02-22",
+      "admission_type": "Scheduled",
+      "admission_source": "Physician Referral",
+      "discharge_status": "Discharged to Home",
+      "patient_status": "Discharged",
+      "service_type": "Inpatient Surgery",
+      "place_of_service": "21"
+    },
+    "diagnosis_codes": [
+      {
+        "code": "M17.11",
+        "description": "Primary osteoarthritis, right knee",
+        "qualifier": "Principal",
+        "present_on_admission": "Y"
+      },
+      {
+        "code": "Z96.641",
+        "description": "Presence of right artificial knee joint",
+        "qualifier": "Secondary",
+        "present_on_admission": "N"
+      }
+    ],
+    "procedure_codes": [
+      {
+        "code": "27447",
+        "description": "Arthroplasty, knee, condyle and plateau \u2014 total knee replacement",
+        "units": 1,
+        "date_performed": "2026-02-19"
+      }
+    ],
+    "service_lines": [
+      {
+        "service_line_number": 1,
+        "procedure_code": "27447",
+        "description": "Total knee arthroplasty",
+        "units": 1,
+        "unit_rate": 65000.0,
+        "line_amount": 65000.0,
+        "date_of_service": "2026-02-19",
+        "place_of_service": "21",
+        "diagnosis_pointers": [
+          "1"
+        ]
+      }
+    ],
+    "claim_totals": {
+      "total_submitted": 65000.0,
+      "total_charges": 65000.0,
+      "total_patient_responsibility": 3000.0,
+      "total_payer_liability": 62000.0,
+      "total_units": 1
+    },
+    "financial": {
+      "claim_amount": 65000.0,
+      "patient_deductible": 3000.0,
+      "patient_coinsurance": 0.0,
+      "patient_copay": 0.0,
+      "coordination_of_benefits": 0.0
+    },
+    "authorization": {
+      "authorization_number": "AUTH-207001",
+      "authorization_date": "2026-02-10",
+      "authorization_period_start": "2026-02-18",
+      "authorization_period_end": "2026-02-22",
+      "authorization_status": "Active",
+      "authorized_amount": 70000.0,
+      "approved_units": 1
+    },
+    "claim_metadata": {
+      "submission_date": "2026-02-26",
+      "claim_frequency": "Original",
+      "claim_received_date": "2026-02-26",
+      "claim_processing_status": "Pending",
+      "test_rule": "HighValueClaim",
+      "expected_result": "REQUIRE_REVIEW",
+      "notes": "claim_amount ($65,000) exceeds the $50,000 HighValueClaim threshold. Authorization is present and valid \u2014 rule fires on amount alone."
+    }
+  },
+  "entry 4 is a string, not a claim"
+]

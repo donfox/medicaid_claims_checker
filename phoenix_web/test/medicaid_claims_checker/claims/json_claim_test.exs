@@ -25,6 +25,15 @@ defmodule MedicaidClaimsChecker.Claims.JsonClaimTest do
       end
     end
 
+    test "the multi-claim fixtures" do
+      assert {:ok, claims, []} = JsonClaim.parse(fixture("batches/claims_list_mixed_risk.json"))
+      assert length(claims) == 8
+
+      assert {:ok, [%{"claim_id" => "CLM-ROUTINE-001"}, %{"claim_id" => "CLM-HIGHVAL-001"}],
+              [{2, _}, {4, _}]} =
+               JsonClaim.parse(fixture("batches/claims_list_with_bad_entries.json"))
+    end
+
     test "a bare list of claims, in order" do
       assert {:ok, [%{"claim_id" => "C1"}, %{"claim_id" => "C2"}], []} =
                JsonClaim.parse(~s([{"claim_id": "C1"}, {"claim_id": "C2"}]))

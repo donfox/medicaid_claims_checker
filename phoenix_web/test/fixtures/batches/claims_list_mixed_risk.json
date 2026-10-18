@@ -1,0 +1,1361 @@
+{
+  "claims": [
+    {
+      "submission_type": "healthcare_claim_997",
+      "interchange_header": {
+        "sender_id": "PROVIDER104",
+        "receiver_id": "PAYER104",
+        "timestamp": "2026-02-24T14:00:00Z",
+        "interchange_control_number": "000000104"
+      },
+      "functional_group": {
+        "application_sender": "PROVIDER",
+        "application_receiver": "PAYER",
+        "group_control_number": "104"
+      },
+      "claim_id": "CLM-LAB-001",
+      "claim_header": {
+        "claim_control_number": "CLM20260224104",
+        "claim_submission_reason": "Original",
+        "claim_type": "Outpatient",
+        "patient_control_number": "PAT-20260223-104"
+      },
+      "provider": {
+        "name": "Midwest Diagnostics Laboratory",
+        "npi": "1555666777",
+        "tax_id": "77-8899001",
+        "type": "Laboratory",
+        "address": {
+          "street": "300 Science Park",
+          "city": "Columbus",
+          "state": "OH",
+          "postal_code": "43215",
+          "country": "USA"
+        },
+        "contact": {
+          "phone": "614-555-0401",
+          "fax": "614-555-0402"
+        },
+        "tenure_days": 4380,
+        "risk_score": 4,
+        "credentialing_date": "2014-02-24",
+        "specialty": "Clinical Pathology",
+        "taxonomy": "207ZP0102X"
+      },
+      "billing_provider": {
+        "npi": "1555666777",
+        "taxonomy": "207ZP0102X",
+        "name": "Midwest Diagnostics Laboratory",
+        "address": {
+          "street": "300 Science Park",
+          "city": "Columbus",
+          "state": "OH",
+          "postal_code": "43215"
+        }
+      },
+      "patient": {
+        "name": {
+          "first": "David",
+          "middle": "K",
+          "last": "Okafor",
+          "suffix": ""
+        },
+        "date_of_birth": "1955-06-18",
+        "gender": "Male",
+        "patient_id": "PAT-104",
+        "ssn": "444-55-6666",
+        "address": {
+          "street": "77 Broad Street",
+          "city": "Columbus",
+          "state": "OH",
+          "postal_code": "43216",
+          "country": "USA"
+        },
+        "contact": {
+          "phone": "614-555-4001",
+          "email": "d.okafor@email.com"
+        }
+      },
+      "subscriber": {
+        "subscriber_id": "SUB-444556666",
+        "relationship": "Self",
+        "group_number": "GRP-00104",
+        "plan_id": "PLAN-104"
+      },
+      "payer": {
+        "payer_id": "PAYER104",
+        "payer_name": "Cigna Health",
+        "address": {
+          "street": "900 Cottage Grove Road",
+          "city": "Bloomfield",
+          "state": "CT",
+          "postal_code": "06002"
+        },
+        "contact": {
+          "phone": "860-555-0004"
+        }
+      },
+      "claim_details": {
+        "admission_date": "2026-02-23",
+        "discharge_date": "2026-02-23",
+        "admission_type": "Ambulatory",
+        "admission_source": "Physician Order",
+        "discharge_status": "Discharged",
+        "patient_status": "Discharged",
+        "service_type": "Laboratory",
+        "place_of_service": "81"
+      },
+      "diagnosis_codes": [
+        {
+          "code": "Z13.220",
+          "description": "Encounter for screening for lipoid disorders",
+          "qualifier": "Principal",
+          "present_on_admission": "N"
+        }
+      ],
+      "procedure_codes": [
+        {
+          "code": "85025",
+          "description": "Complete CBC with automated differential",
+          "units": 1,
+          "date_performed": "2026-02-23"
+        }
+      ],
+      "service_lines": [
+        {
+          "service_line_number": 1,
+          "procedure_code": "85025",
+          "description": "Complete CBC with automated differential",
+          "units": 1,
+          "unit_rate": 85.0,
+          "line_amount": 85.0,
+          "date_of_service": "2026-02-23",
+          "place_of_service": "81",
+          "diagnosis_pointers": [
+            "1"
+          ]
+        }
+      ],
+      "claim_totals": {
+        "total_submitted": 85.0,
+        "total_charges": 85.0,
+        "total_patient_responsibility": 0.0,
+        "total_payer_liability": 85.0,
+        "total_units": 1
+      },
+      "financial": {
+        "claim_amount": 85.0,
+        "patient_deductible": 0.0,
+        "patient_coinsurance": 0.0,
+        "patient_copay": 0.0,
+        "coordination_of_benefits": 0.0
+      },
+      "authorization": {
+        "authorization_number": "AUTH-104001",
+        "authorization_date": "2026-02-23",
+        "authorization_period_start": "2026-02-23",
+        "authorization_period_end": "2026-02-23",
+        "authorization_status": "Active",
+        "authorized_amount": 100.0,
+        "approved_units": 1
+      },
+      "claim_metadata": {
+        "submission_date": "2026-02-24",
+        "claim_frequency": "Original",
+        "claim_received_date": "2026-02-24",
+        "claim_processing_status": "Pending",
+        "test_rule": "none",
+        "expected_result": "APPROVED",
+        "notes": "Routine outpatient lab. Low amount, established lab provider, valid diagnosis. Passes all rules."
+      }
+    },
+    {
+      "submission_type": "healthcare_claim_997",
+      "interchange_header": {
+        "sender_id": "PROVIDER103",
+        "receiver_id": "PAYER103",
+        "timestamp": "2026-02-22T08:00:00Z",
+        "interchange_control_number": "000000103"
+      },
+      "functional_group": {
+        "application_sender": "PROVIDER",
+        "application_receiver": "PAYER",
+        "group_control_number": "103"
+      },
+      "claim_id": "CLM-PREVENTIVE-001",
+      "claim_header": {
+        "claim_control_number": "CLM20260222103",
+        "claim_submission_reason": "Original",
+        "claim_type": "Outpatient",
+        "patient_control_number": "PAT-20260221-103"
+      },
+      "provider": {
+        "name": "Northside Primary Care",
+        "npi": "1122334455",
+        "tax_id": "33-4455667",
+        "type": "Clinic",
+        "address": {
+          "street": "55 Wellness Way",
+          "city": "Denver",
+          "state": "CO",
+          "postal_code": "80202",
+          "country": "USA"
+        },
+        "contact": {
+          "phone": "303-555-0301",
+          "fax": "303-555-0302"
+        },
+        "tenure_days": 3650,
+        "risk_score": 5,
+        "credentialing_date": "2016-02-22",
+        "specialty": "Internal Medicine",
+        "taxonomy": "207R00000X"
+      },
+      "billing_provider": {
+        "npi": "1122334455",
+        "taxonomy": "207R00000X",
+        "name": "Northside Primary Care",
+        "address": {
+          "street": "55 Wellness Way",
+          "city": "Denver",
+          "state": "CO",
+          "postal_code": "80202"
+        }
+      },
+      "patient": {
+        "name": {
+          "first": "Susan",
+          "middle": "A",
+          "last": "Park",
+          "suffix": ""
+        },
+        "date_of_birth": "1970-12-03",
+        "gender": "Female",
+        "patient_id": "PAT-103",
+        "ssn": "333-44-5555",
+        "address": {
+          "street": "910 Cherry Creek Drive",
+          "city": "Denver",
+          "state": "CO",
+          "postal_code": "80203",
+          "country": "USA"
+        },
+        "contact": {
+          "phone": "303-555-3001",
+          "email": "s.park@email.com"
+        }
+      },
+      "subscriber": {
+        "subscriber_id": "SUB-333445555",
+        "relationship": "Self",
+        "group_number": "GRP-00103",
+        "plan_id": "PLAN-103"
+      },
+      "payer": {
+        "payer_id": "PAYER103",
+        "payer_name": "UnitedHealthcare",
+        "address": {
+          "street": "9900 Bren Road East",
+          "city": "Minnetonka",
+          "state": "MN",
+          "postal_code": "55343"
+        },
+        "contact": {
+          "phone": "952-555-0003"
+        }
+      },
+      "claim_details": {
+        "admission_date": "2026-02-21",
+        "discharge_date": "2026-02-21",
+        "admission_type": "Ambulatory",
+        "admission_source": "Walk-in",
+        "discharge_status": "Discharged",
+        "patient_status": "Discharged",
+        "service_type": "Preventive Care",
+        "place_of_service": "11"
+      },
+      "diagnosis_codes": [
+        {
+          "code": "Z00.00",
+          "description": "Encounter for general adult medical examination without abnormal findings",
+          "qualifier": "Principal",
+          "present_on_admission": "N"
+        }
+      ],
+      "procedure_codes": [
+        {
+          "code": "G0438",
+          "description": "Annual wellness visit \u2014 initial visit",
+          "units": 1,
+          "date_performed": "2026-02-21"
+        }
+      ],
+      "service_lines": [
+        {
+          "service_line_number": 1,
+          "procedure_code": "G0438",
+          "description": "Annual wellness visit \u2014 initial visit",
+          "units": 1,
+          "unit_rate": 200.0,
+          "line_amount": 200.0,
+          "date_of_service": "2026-02-21",
+          "place_of_service": "11",
+          "diagnosis_pointers": [
+            "1"
+          ]
+        }
+      ],
+      "claim_totals": {
+        "total_submitted": 200.0,
+        "total_charges": 200.0,
+        "total_patient_responsibility": 0.0,
+        "total_payer_liability": 200.0,
+        "total_units": 1
+      },
+      "financial": {
+        "claim_amount": 200.0,
+        "patient_deductible": 0.0,
+        "patient_coinsurance": 0.0,
+        "patient_copay": 0.0,
+        "coordination_of_benefits": 0.0
+      },
+      "authorization": {
+        "authorization_number": "AUTH-103001",
+        "authorization_date": "2026-02-21",
+        "authorization_period_start": "2026-02-21",
+        "authorization_period_end": "2026-02-21",
+        "authorization_status": "Active",
+        "authorized_amount": 200.0,
+        "approved_units": 1
+      },
+      "claim_metadata": {
+        "submission_date": "2026-02-22",
+        "claim_frequency": "Original",
+        "claim_received_date": "2026-02-22",
+        "claim_processing_status": "Pending",
+        "test_rule": "none",
+        "expected_result": "APPROVED",
+        "notes": "Annual wellness visit. No-cost preventive benefit, well-established provider. Passes all rules."
+      }
+    },
+    {
+      "submission_type": "healthcare_claim_997",
+      "interchange_header": {
+        "sender_id": "PROVIDER101",
+        "receiver_id": "PAYER101",
+        "timestamp": "2026-02-20T10:00:00Z",
+        "interchange_control_number": "000000101"
+      },
+      "functional_group": {
+        "application_sender": "PROVIDER",
+        "application_receiver": "PAYER",
+        "group_control_number": "101"
+      },
+      "claim_id": "CLM-ROUTINE-001",
+      "claim_header": {
+        "claim_control_number": "CLM20260220101",
+        "claim_submission_reason": "Original",
+        "claim_type": "Outpatient",
+        "patient_control_number": "PAT-20260219-101"
+      },
+      "provider": {
+        "name": "Riverside Family Practice",
+        "npi": "1234567890",
+        "tax_id": "45-6789012",
+        "type": "Clinic",
+        "address": {
+          "street": "1200 Oak Avenue",
+          "city": "Springfield",
+          "state": "IL",
+          "postal_code": "62701",
+          "country": "USA"
+        },
+        "contact": {
+          "phone": "217-555-0101",
+          "fax": "217-555-0102"
+        },
+        "tenure_days": 1825,
+        "risk_score": 12,
+        "credentialing_date": "2021-02-19",
+        "specialty": "Family Medicine",
+        "taxonomy": "207Q00000X"
+      },
+      "billing_provider": {
+        "npi": "1234567890",
+        "taxonomy": "207Q00000X",
+        "name": "Riverside Family Practice",
+        "address": {
+          "street": "1200 Oak Avenue",
+          "city": "Springfield",
+          "state": "IL",
+          "postal_code": "62701"
+        }
+      },
+      "patient": {
+        "name": {
+          "first": "Maria",
+          "middle": "L",
+          "last": "Gonzalez",
+          "suffix": ""
+        },
+        "date_of_birth": "1978-04-22",
+        "gender": "Female",
+        "patient_id": "PAT-101",
+        "ssn": "111-22-3333",
+        "address": {
+          "street": "45 Maple Street",
+          "city": "Springfield",
+          "state": "IL",
+          "postal_code": "62702",
+          "country": "USA"
+        },
+        "contact": {
+          "phone": "217-555-1001",
+          "email": "m.gonzalez@email.com"
+        }
+      },
+      "subscriber": {
+        "subscriber_id": "SUB-111223333",
+        "relationship": "Self",
+        "group_number": "GRP-00101",
+        "plan_id": "PLAN-101"
+      },
+      "payer": {
+        "payer_id": "PAYER101",
+        "payer_name": "Blue Cross Blue Shield",
+        "address": {
+          "street": "100 Insurance Plaza",
+          "city": "Chicago",
+          "state": "IL",
+          "postal_code": "60601"
+        },
+        "contact": {
+          "phone": "312-555-0001"
+        }
+      },
+      "claim_details": {
+        "admission_date": "2026-02-19",
+        "discharge_date": "2026-02-19",
+        "admission_type": "Ambulatory",
+        "admission_source": "Walk-in",
+        "discharge_status": "Discharged",
+        "patient_status": "Discharged",
+        "service_type": "Office Visit",
+        "place_of_service": "11"
+      },
+      "diagnosis_codes": [
+        {
+          "code": "Z00.00",
+          "description": "Encounter for general adult medical examination without abnormal findings",
+          "qualifier": "Principal",
+          "present_on_admission": "N"
+        }
+      ],
+      "procedure_codes": [
+        {
+          "code": "99213",
+          "description": "Office visit \u2014 established patient, low complexity",
+          "units": 1,
+          "date_performed": "2026-02-19"
+        }
+      ],
+      "service_lines": [
+        {
+          "service_line_number": 1,
+          "procedure_code": "99213",
+          "description": "Office visit \u2014 established patient, low complexity",
+          "units": 1,
+          "unit_rate": 150.0,
+          "line_amount": 150.0,
+          "date_of_service": "2026-02-19",
+          "place_of_service": "11",
+          "diagnosis_pointers": [
+            "1"
+          ]
+        }
+      ],
+      "claim_totals": {
+        "total_submitted": 150.0,
+        "total_charges": 150.0,
+        "total_patient_responsibility": 25.0,
+        "total_payer_liability": 125.0,
+        "total_units": 1
+      },
+      "financial": {
+        "claim_amount": 150.0,
+        "patient_deductible": 0.0,
+        "patient_coinsurance": 0.0,
+        "patient_copay": 25.0,
+        "coordination_of_benefits": 0.0
+      },
+      "authorization": {
+        "authorization_number": "AUTH-101001",
+        "authorization_date": "2026-02-19",
+        "authorization_period_start": "2026-02-19",
+        "authorization_period_end": "2026-02-19",
+        "authorization_status": "Active",
+        "authorized_amount": 200.0,
+        "approved_units": 1
+      },
+      "claim_metadata": {
+        "submission_date": "2026-02-20",
+        "claim_frequency": "Original",
+        "claim_received_date": "2026-02-20",
+        "claim_processing_status": "Pending",
+        "test_rule": "none",
+        "expected_result": "APPROVED",
+        "notes": "Standard low-complexity office visit. Passes all rules."
+      }
+    },
+    {
+      "submission_type": "healthcare_claim_997",
+      "interchange_header": {
+        "sender_id": "PROVIDER102",
+        "receiver_id": "PAYER102",
+        "timestamp": "2026-02-21T09:30:00Z",
+        "interchange_control_number": "000000102"
+      },
+      "functional_group": {
+        "application_sender": "PROVIDER",
+        "application_receiver": "PAYER",
+        "group_control_number": "102"
+      },
+      "claim_id": "CLM-SPECIALIST-001",
+      "claim_header": {
+        "claim_control_number": "CLM20260221102",
+        "claim_submission_reason": "Original",
+        "claim_type": "Outpatient",
+        "patient_control_number": "PAT-20260220-102"
+      },
+      "provider": {
+        "name": "Capitol Orthopedic Specialists",
+        "npi": "1987654321",
+        "tax_id": "55-9876543",
+        "type": "Specialist Practice",
+        "address": {
+          "street": "800 Medical Center Drive",
+          "city": "Austin",
+          "state": "TX",
+          "postal_code": "78701",
+          "country": "USA"
+        },
+        "contact": {
+          "phone": "512-555-0201",
+          "fax": "512-555-0202"
+        },
+        "tenure_days": 2190,
+        "risk_score": 8,
+        "credentialing_date": "2020-02-20",
+        "specialty": "Orthopedic Surgery",
+        "taxonomy": "207X00000X"
+      },
+      "billing_provider": {
+        "npi": "1987654321",
+        "taxonomy": "207X00000X",
+        "name": "Capitol Orthopedic Specialists",
+        "address": {
+          "street": "800 Medical Center Drive",
+          "city": "Austin",
+          "state": "TX",
+          "postal_code": "78701"
+        }
+      },
+      "patient": {
+        "name": {
+          "first": "Robert",
+          "middle": "J",
+          "last": "Chambers",
+          "suffix": ""
+        },
+        "date_of_birth": "1965-08-14",
+        "gender": "Male",
+        "patient_id": "PAT-102",
+        "ssn": "222-33-4444",
+        "address": {
+          "street": "200 Pecan Street",
+          "city": "Austin",
+          "state": "TX",
+          "postal_code": "78702",
+          "country": "USA"
+        },
+        "contact": {
+          "phone": "512-555-2001",
+          "email": "r.chambers@email.com"
+        }
+      },
+      "subscriber": {
+        "subscriber_id": "SUB-222334444",
+        "relationship": "Self",
+        "group_number": "GRP-00102",
+        "plan_id": "PLAN-102"
+      },
+      "payer": {
+        "payer_id": "PAYER102",
+        "payer_name": "Aetna Health",
+        "address": {
+          "street": "300 Aetna Way",
+          "city": "Hartford",
+          "state": "CT",
+          "postal_code": "06103"
+        },
+        "contact": {
+          "phone": "860-555-0002"
+        }
+      },
+      "claim_details": {
+        "admission_date": "2026-02-20",
+        "discharge_date": "2026-02-20",
+        "admission_type": "Scheduled",
+        "admission_source": "Referral",
+        "discharge_status": "Discharged",
+        "patient_status": "Discharged",
+        "service_type": "Specialist Consultation",
+        "place_of_service": "11"
+      },
+      "diagnosis_codes": [
+        {
+          "code": "M54.50",
+          "description": "Low back pain, unspecified",
+          "qualifier": "Principal",
+          "present_on_admission": "Y"
+        },
+        {
+          "code": "M51.16",
+          "description": "Intervertebral disc degeneration, lumbar region",
+          "qualifier": "Secondary",
+          "present_on_admission": "Y"
+        }
+      ],
+      "procedure_codes": [
+        {
+          "code": "99244",
+          "description": "Office consultation \u2014 moderate complexity",
+          "units": 1,
+          "date_performed": "2026-02-20"
+        }
+      ],
+      "service_lines": [
+        {
+          "service_line_number": 1,
+          "procedure_code": "99244",
+          "description": "Office consultation \u2014 moderate complexity",
+          "units": 1,
+          "unit_rate": 350.0,
+          "line_amount": 350.0,
+          "date_of_service": "2026-02-20",
+          "place_of_service": "11",
+          "diagnosis_pointers": [
+            "1",
+            "2"
+          ]
+        }
+      ],
+      "claim_totals": {
+        "total_submitted": 350.0,
+        "total_charges": 350.0,
+        "total_patient_responsibility": 50.0,
+        "total_payer_liability": 300.0,
+        "total_units": 1
+      },
+      "financial": {
+        "claim_amount": 350.0,
+        "patient_deductible": 0.0,
+        "patient_coinsurance": 0.0,
+        "patient_copay": 50.0,
+        "coordination_of_benefits": 0.0
+      },
+      "authorization": {
+        "authorization_number": "AUTH-102001",
+        "authorization_date": "2026-02-18",
+        "authorization_period_start": "2026-02-20",
+        "authorization_period_end": "2026-02-20",
+        "authorization_status": "Active",
+        "authorized_amount": 400.0,
+        "approved_units": 1
+      },
+      "claim_metadata": {
+        "submission_date": "2026-02-21",
+        "claim_frequency": "Original",
+        "claim_received_date": "2026-02-21",
+        "claim_processing_status": "Pending",
+        "test_rule": "none",
+        "expected_result": "APPROVED",
+        "notes": "Specialist consultation with valid referral auth. Below high-value threshold. Passes all rules."
+      }
+    },
+    {
+      "submission_type": "healthcare_claim_997",
+      "interchange_header": {
+        "sender_id": "PROVIDER202",
+        "receiver_id": "PAYER202",
+        "timestamp": "2026-02-26T10:00:00Z",
+        "interchange_control_number": "000000202"
+      },
+      "functional_group": {
+        "application_sender": "PROVIDER",
+        "application_receiver": "PAYER",
+        "group_control_number": "202"
+      },
+      "claim_id": "CLM-EXTREME-001",
+      "claim_header": {
+        "claim_control_number": "CLM20260226202",
+        "claim_submission_reason": "Original",
+        "claim_type": "Inpatient",
+        "patient_control_number": "PAT-20260210-202"
+      },
+      "provider": {
+        "name": "Metro Regional Hospital",
+        "npi": "1098765432",
+        "tax_id": "22-3344556",
+        "type": "Hospital",
+        "address": {
+          "street": "1 Hospital Drive",
+          "city": "New York",
+          "state": "NY",
+          "postal_code": "10001",
+          "country": "USA"
+        },
+        "contact": {
+          "phone": "212-555-0202",
+          "fax": "212-555-0203"
+        },
+        "tenure_days": 5000,
+        "risk_score": 20,
+        "credentialing_date": "2012-06-01",
+        "specialty": "Cardiothoracic Surgery",
+        "taxonomy": "208G00000X"
+      },
+      "billing_provider": {
+        "npi": "1098765432",
+        "taxonomy": "208G00000X",
+        "name": "Metro Regional Hospital",
+        "address": {
+          "street": "1 Hospital Drive",
+          "city": "New York",
+          "state": "NY",
+          "postal_code": "10001"
+        }
+      },
+      "patient": {
+        "name": {
+          "first": "Patricia",
+          "middle": "M",
+          "last": "Sullivan",
+          "suffix": ""
+        },
+        "date_of_birth": "1952-09-30",
+        "gender": "Female",
+        "patient_id": "PAT-202",
+        "ssn": "666-77-8888",
+        "address": {
+          "street": "500 Park Avenue",
+          "city": "New York",
+          "state": "NY",
+          "postal_code": "10022",
+          "country": "USA"
+        },
+        "contact": {
+          "phone": "212-555-2002",
+          "email": "p.sullivan@email.com"
+        }
+      },
+      "subscriber": {
+        "subscriber_id": "SUB-666778888",
+        "relationship": "Self",
+        "group_number": "GRP-00202",
+        "plan_id": "PLAN-202"
+      },
+      "payer": {
+        "payer_id": "PAYER202",
+        "payer_name": "Empire Blue Cross",
+        "address": {
+          "street": "1 Liberty Plaza",
+          "city": "New York",
+          "state": "NY",
+          "postal_code": "10006"
+        },
+        "contact": {
+          "phone": "212-555-0022"
+        }
+      },
+      "claim_details": {
+        "admission_date": "2026-02-10",
+        "discharge_date": "2026-02-20",
+        "admission_type": "Emergency",
+        "admission_source": "Emergency Room",
+        "discharge_status": "Discharged to Skilled Nursing",
+        "patient_status": "Transferred",
+        "service_type": "Inpatient Surgery",
+        "place_of_service": "21"
+      },
+      "diagnosis_codes": [
+        {
+          "code": "I25.10",
+          "description": "Atherosclerotic heart disease of native coronary artery without angina pectoris",
+          "qualifier": "Principal",
+          "present_on_admission": "Y"
+        },
+        {
+          "code": "I50.9",
+          "description": "Heart failure, unspecified",
+          "qualifier": "Secondary",
+          "present_on_admission": "Y"
+        }
+      ],
+      "procedure_codes": [
+        {
+          "code": "33533",
+          "description": "Coronary artery bypass \u2014 arterial graft, single",
+          "units": 1,
+          "date_performed": "2026-02-11"
+        }
+      ],
+      "service_lines": [
+        {
+          "service_line_number": 1,
+          "procedure_code": "33533",
+          "description": "Coronary artery bypass \u2014 arterial graft, single",
+          "units": 1,
+          "unit_rate": 850000.0,
+          "line_amount": 850000.0,
+          "date_of_service": "2026-02-11",
+          "place_of_service": "21",
+          "diagnosis_pointers": [
+            "1",
+            "2"
+          ]
+        }
+      ],
+      "claim_totals": {
+        "total_submitted": 850000.0,
+        "total_charges": 850000.0,
+        "total_patient_responsibility": 0.0,
+        "total_payer_liability": 850000.0,
+        "total_units": 1
+      },
+      "financial": {
+        "claim_amount": 850000.0,
+        "patient_deductible": 0.0,
+        "patient_coinsurance": 0.0,
+        "patient_copay": 0.0,
+        "coordination_of_benefits": 0.0
+      },
+      "authorization": {
+        "authorization_number": "AUTH-202001",
+        "authorization_date": "2026-02-10",
+        "authorization_period_start": "2026-02-10",
+        "authorization_period_end": "2026-02-20",
+        "authorization_status": "Active",
+        "authorized_amount": 500000.0,
+        "approved_units": 1
+      },
+      "claim_metadata": {
+        "submission_date": "2026-02-26",
+        "claim_frequency": "Original",
+        "claim_received_date": "2026-02-26",
+        "claim_processing_status": "Pending",
+        "test_rule": "ExcessiveTotalCharges",
+        "expected_result": "FLAG_FRAUD",
+        "notes": "Total charges $850,000 exceed the $750,000 ExcessiveTotalCharges threshold."
+      }
+    },
+    {
+      "submission_type": "healthcare_claim_997",
+      "interchange_header": {
+        "sender_id": "PROVIDER201",
+        "receiver_id": "PAYER201",
+        "timestamp": "2026-02-26T09:00:00Z",
+        "interchange_control_number": "000000201"
+      },
+      "functional_group": {
+        "application_sender": "PROVIDER",
+        "application_receiver": "PAYER",
+        "group_control_number": "201"
+      },
+      "claim_id": "CLM-FUTUREDATE-001",
+      "claim_header": {
+        "claim_control_number": "CLM20260226201",
+        "claim_submission_reason": "Original",
+        "claim_type": "Outpatient",
+        "patient_control_number": "PAT-20260226-201"
+      },
+      "provider": {
+        "name": "Eastside Medical Group",
+        "npi": "1234509876",
+        "tax_id": "11-2233445",
+        "type": "Clinic",
+        "address": {
+          "street": "400 Future Lane",
+          "city": "Phoenix",
+          "state": "AZ",
+          "postal_code": "85001",
+          "country": "USA"
+        },
+        "contact": {
+          "phone": "602-555-0201",
+          "fax": "602-555-0202"
+        },
+        "tenure_days": 600,
+        "risk_score": 15,
+        "credentialing_date": "2024-06-15",
+        "specialty": "General Practice",
+        "taxonomy": "208D00000X"
+      },
+      "billing_provider": {
+        "npi": "1234509876",
+        "taxonomy": "208D00000X",
+        "name": "Eastside Medical Group",
+        "address": {
+          "street": "400 Future Lane",
+          "city": "Phoenix",
+          "state": "AZ",
+          "postal_code": "85001"
+        }
+      },
+      "patient": {
+        "name": {
+          "first": "James",
+          "middle": "T",
+          "last": "Harrison",
+          "suffix": ""
+        },
+        "date_of_birth": "1990-03-15",
+        "gender": "Male",
+        "patient_id": "PAT-201",
+        "ssn": "555-66-7777",
+        "address": {
+          "street": "12 Cactus Road",
+          "city": "Phoenix",
+          "state": "AZ",
+          "postal_code": "85002",
+          "country": "USA"
+        },
+        "contact": {
+          "phone": "602-555-2001",
+          "email": "j.harrison@email.com"
+        }
+      },
+      "subscriber": {
+        "subscriber_id": "SUB-555667777",
+        "relationship": "Self",
+        "group_number": "GRP-00201",
+        "plan_id": "PLAN-201"
+      },
+      "payer": {
+        "payer_id": "PAYER201",
+        "payer_name": "Humana Health",
+        "address": {
+          "street": "500 West Main Street",
+          "city": "Louisville",
+          "state": "KY",
+          "postal_code": "40202"
+        },
+        "contact": {
+          "phone": "502-555-0201"
+        }
+      },
+      "claim_details": {
+        "admission_date": "2026-08-15",
+        "discharge_date": "2026-08-15",
+        "admission_type": "Scheduled",
+        "admission_source": "Referral",
+        "discharge_status": "Discharged",
+        "patient_status": "Discharged",
+        "service_type": "Office Visit",
+        "place_of_service": "11"
+      },
+      "diagnosis_codes": [
+        {
+          "code": "J06.9",
+          "description": "Acute upper respiratory infection, unspecified",
+          "qualifier": "Principal",
+          "present_on_admission": "Y"
+        }
+      ],
+      "procedure_codes": [
+        {
+          "code": "99213",
+          "description": "Office visit \u2014 established patient, low complexity",
+          "units": 1,
+          "date_performed": "2026-08-15"
+        }
+      ],
+      "service_lines": [
+        {
+          "service_line_number": 1,
+          "procedure_code": "99213",
+          "description": "Office visit \u2014 established patient, low complexity",
+          "units": 1,
+          "unit_rate": 250.0,
+          "line_amount": 250.0,
+          "date_of_service": "2026-08-15",
+          "place_of_service": "11",
+          "diagnosis_pointers": [
+            "1"
+          ]
+        }
+      ],
+      "claim_totals": {
+        "total_submitted": 250.0,
+        "total_charges": 250.0,
+        "total_patient_responsibility": 30.0,
+        "total_payer_liability": 220.0,
+        "total_units": 1
+      },
+      "financial": {
+        "claim_amount": 250.0,
+        "patient_deductible": 0.0,
+        "patient_coinsurance": 0.0,
+        "patient_copay": 30.0,
+        "coordination_of_benefits": 0.0
+      },
+      "authorization": {
+        "authorization_number": "AUTH-201001",
+        "authorization_date": "2026-02-26",
+        "authorization_period_start": "2026-08-15",
+        "authorization_period_end": "2026-08-15",
+        "authorization_status": "Active",
+        "authorized_amount": 300.0,
+        "approved_units": 1
+      },
+      "claim_metadata": {
+        "submission_date": "2026-02-26",
+        "claim_frequency": "Original",
+        "claim_received_date": "2026-02-26",
+        "claim_processing_status": "Pending",
+        "test_rule": "FutureServiceDate",
+        "expected_result": "REJECT",
+        "notes": "Service date (2026-08-15) is 6 months in the future. Triggers FutureServiceDate default rule."
+      }
+    },
+    {
+      "submission_type": "healthcare_claim_997",
+      "interchange_header": {
+        "sender_id": "PROVIDER204",
+        "receiver_id": "PAYER204",
+        "timestamp": "2026-02-26T11:00:00Z",
+        "interchange_control_number": "000000204"
+      },
+      "functional_group": {
+        "application_sender": "PROVIDER",
+        "application_receiver": "PAYER",
+        "group_control_number": "204"
+      },
+      "claim_id": "CLM-BADNPI-001",
+      "claim_header": {
+        "claim_control_number": "CLM20260226204",
+        "claim_submission_reason": "Original",
+        "claim_type": "Outpatient",
+        "patient_control_number": "PAT-20260225-204"
+      },
+      "provider": {
+        "name": "Unclear Medical Services",
+        "npi": "1234567",
+        "tax_id": "99-1234567",
+        "type": "Clinic",
+        "address": {
+          "street": "999 Unknown Street",
+          "city": "Las Vegas",
+          "state": "NV",
+          "postal_code": "89101",
+          "country": "USA"
+        },
+        "contact": {
+          "phone": "702-555-0204",
+          "fax": "702-555-0205"
+        },
+        "tenure_days": 200,
+        "risk_score": 60,
+        "credentialing_date": "2025-07-30",
+        "specialty": "General Practice",
+        "taxonomy": "208D00000X"
+      },
+      "billing_provider": {
+        "npi": "1234567",
+        "taxonomy": "208D00000X",
+        "name": "Unclear Medical Services",
+        "address": {
+          "street": "999 Unknown Street",
+          "city": "Las Vegas",
+          "state": "NV",
+          "postal_code": "89101"
+        }
+      },
+      "patient": {
+        "name": {
+          "first": "Thomas",
+          "middle": "E",
+          "last": "Walsh",
+          "suffix": ""
+        },
+        "date_of_birth": "1975-02-28",
+        "gender": "Male",
+        "patient_id": "PAT-204",
+        "ssn": "888-99-0000",
+        "address": {
+          "street": "10 Desert Palm Drive",
+          "city": "Las Vegas",
+          "state": "NV",
+          "postal_code": "89102",
+          "country": "USA"
+        },
+        "contact": {
+          "phone": "702-555-4001",
+          "email": "t.walsh@email.com"
+        }
+      },
+      "subscriber": {
+        "subscriber_id": "SUB-888990000",
+        "relationship": "Self",
+        "group_number": "GRP-00204",
+        "plan_id": "PLAN-204"
+      },
+      "payer": {
+        "payer_id": "PAYER204",
+        "payer_name": "Nevada Health Connect",
+        "address": {
+          "street": "1 Casino Center Blvd",
+          "city": "Las Vegas",
+          "state": "NV",
+          "postal_code": "89101"
+        },
+        "contact": {
+          "phone": "702-555-0004"
+        }
+      },
+      "claim_details": {
+        "admission_date": "2026-02-25",
+        "discharge_date": "2026-02-25",
+        "admission_type": "Ambulatory",
+        "admission_source": "Walk-in",
+        "discharge_status": "Discharged",
+        "patient_status": "Discharged",
+        "service_type": "Office Visit",
+        "place_of_service": "11"
+      },
+      "diagnosis_codes": [
+        {
+          "code": "R05.9",
+          "description": "Cough, unspecified",
+          "qualifier": "Principal",
+          "present_on_admission": "Y"
+        }
+      ],
+      "procedure_codes": [
+        {
+          "code": "99213",
+          "description": "Office visit \u2014 established patient, low complexity",
+          "units": 1,
+          "date_performed": "2026-02-25"
+        }
+      ],
+      "service_lines": [
+        {
+          "service_line_number": 1,
+          "procedure_code": "99213",
+          "description": "Office visit \u2014 established patient, low complexity",
+          "units": 1,
+          "unit_rate": 200.0,
+          "line_amount": 200.0,
+          "date_of_service": "2026-02-25",
+          "place_of_service": "11",
+          "diagnosis_pointers": [
+            "1"
+          ]
+        }
+      ],
+      "claim_totals": {
+        "total_submitted": 200.0,
+        "total_charges": 200.0,
+        "total_patient_responsibility": 30.0,
+        "total_payer_liability": 170.0,
+        "total_units": 1
+      },
+      "financial": {
+        "claim_amount": 200.0,
+        "patient_deductible": 0.0,
+        "patient_coinsurance": 0.0,
+        "patient_copay": 30.0,
+        "coordination_of_benefits": 0.0
+      },
+      "authorization": {
+        "authorization_number": "AUTH-204001",
+        "authorization_date": "2026-02-25",
+        "authorization_period_start": "2026-02-25",
+        "authorization_period_end": "2026-02-25",
+        "authorization_status": "Active",
+        "authorized_amount": 250.0,
+        "approved_units": 1
+      },
+      "claim_metadata": {
+        "submission_date": "2026-02-26",
+        "claim_frequency": "Original",
+        "claim_received_date": "2026-02-26",
+        "claim_processing_status": "Pending",
+        "test_rule": "InvalidNPIFormat",
+        "expected_result": "REJECT",
+        "notes": "NPI '1234567' is only 7 digits (must be exactly 10). Triggers InvalidNPIFormat default rule."
+      }
+    },
+    {
+      "submission_type": "healthcare_claim_997",
+      "interchange_header": {
+        "sender_id": "PROVIDER203",
+        "receiver_id": "PAYER203",
+        "timestamp": "2026-02-26T10:30:00Z",
+        "interchange_control_number": "000000203"
+      },
+      "functional_group": {
+        "application_sender": "PROVIDER",
+        "application_receiver": "PAYER",
+        "group_control_number": "203"
+      },
+      "claim_id": "CLM-NODX-001",
+      "claim_header": {
+        "claim_control_number": "CLM20260226203",
+        "claim_submission_reason": "Original",
+        "claim_type": "Outpatient",
+        "patient_control_number": "PAT-20260225-203"
+      },
+      "provider": {
+        "name": "Westfield Urgent Care",
+        "npi": "1357924680",
+        "tax_id": "44-5566778",
+        "type": "Urgent Care",
+        "address": {
+          "street": "22 Commerce Boulevard",
+          "city": "Atlanta",
+          "state": "GA",
+          "postal_code": "30301",
+          "country": "USA"
+        },
+        "contact": {
+          "phone": "404-555-0203",
+          "fax": "404-555-0204"
+        },
+        "tenure_days": 730,
+        "risk_score": 22,
+        "credentialing_date": "2024-02-25",
+        "specialty": "Urgent Care",
+        "taxonomy": "261QU0200X"
+      },
+      "billing_provider": {
+        "npi": "1357924680",
+        "taxonomy": "261QU0200X",
+        "name": "Westfield Urgent Care",
+        "address": {
+          "street": "22 Commerce Boulevard",
+          "city": "Atlanta",
+          "state": "GA",
+          "postal_code": "30301"
+        }
+      },
+      "patient": {
+        "name": {
+          "first": "Angela",
+          "middle": "R",
+          "last": "Brooks",
+          "suffix": ""
+        },
+        "date_of_birth": "1985-11-07",
+        "gender": "Female",
+        "patient_id": "PAT-203",
+        "ssn": "777-88-9999",
+        "address": {
+          "street": "88 Peachtree Street",
+          "city": "Atlanta",
+          "state": "GA",
+          "postal_code": "30302",
+          "country": "USA"
+        },
+        "contact": {
+          "phone": "404-555-3001",
+          "email": "a.brooks@email.com"
+        }
+      },
+      "subscriber": {
+        "subscriber_id": "SUB-777889999",
+        "relationship": "Self",
+        "group_number": "GRP-00203",
+        "plan_id": "PLAN-203"
+      },
+      "payer": {
+        "payer_id": "PAYER203",
+        "payer_name": "Anthem Blue Cross",
+        "address": {
+          "street": "120 Monument Circle",
+          "city": "Indianapolis",
+          "state": "IN",
+          "postal_code": "46204"
+        },
+        "contact": {
+          "phone": "317-555-0003"
+        }
+      },
+      "claim_details": {
+        "admission_date": "2026-02-25",
+        "discharge_date": "2026-02-25",
+        "admission_type": "Ambulatory",
+        "admission_source": "Walk-in",
+        "discharge_status": "Discharged",
+        "patient_status": "Discharged",
+        "service_type": "Office Visit",
+        "place_of_service": "20"
+      },
+      "diagnosis_codes": [],
+      "procedure_codes": [
+        {
+          "code": "99213",
+          "description": "Office visit \u2014 established patient, low complexity",
+          "units": 1,
+          "date_performed": "2026-02-25"
+        }
+      ],
+      "service_lines": [
+        {
+          "service_line_number": 1,
+          "procedure_code": "99213",
+          "description": "Office visit \u2014 established patient, low complexity",
+          "units": 1,
+          "unit_rate": 300.0,
+          "line_amount": 300.0,
+          "date_of_service": "2026-02-25",
+          "place_of_service": "20",
+          "diagnosis_pointers": []
+        }
+      ],
+      "claim_totals": {
+        "total_submitted": 300.0,
+        "total_charges": 300.0,
+        "total_patient_responsibility": 40.0,
+        "total_payer_liability": 260.0,
+        "total_units": 1
+      },
+      "financial": {
+        "claim_amount": 300.0,
+        "patient_deductible": 0.0,
+        "patient_coinsurance": 0.0,
+        "patient_copay": 40.0,
+        "coordination_of_benefits": 0.0
+      },
+      "authorization": {
+        "authorization_number": "AUTH-203001",
+        "authorization_date": "2026-02-25",
+        "authorization_period_start": "2026-02-25",
+        "authorization_period_end": "2026-02-25",
+        "authorization_status": "Active",
+        "authorized_amount": 350.0,
+        "approved_units": 1
+      },
+      "claim_metadata": {
+        "submission_date": "2026-02-26",
+        "claim_frequency": "Original",
+        "claim_received_date": "2026-02-26",
+        "claim_processing_status": "Pending",
+        "test_rule": "MissingDiagnosisCodes",
+        "expected_result": "REJECT",
+        "notes": "diagnosis_codes array is empty. Triggers MissingDiagnosisCodes default rule."
+      }
+    }
+  ]
+}

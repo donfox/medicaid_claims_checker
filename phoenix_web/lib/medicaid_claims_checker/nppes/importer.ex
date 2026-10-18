@@ -15,19 +15,24 @@ defmodule MedicaidClaimsChecker.Nppes.Importer do
   @batch_size 5_000
   @progress_interval 100_000
 
-  # Column indices in the NPPES dissemination CSV (0-based).
-  @col_npi 0
-  @col_entity_type 1
-  @col_org_name 4
-  @col_last_name 5
-  @col_first_name 6
-  @col_credential 10
-  @col_practice_state 29
-  @col_enumeration_date 36
-  @col_last_update_date 37
-  @col_deactivation_date 40
-  @col_reactivation_date 41
-  @col_taxonomy 47
+  # Columns are found by their header names in the NPPES dissemination CSV,
+  # so a change in CMS's column order cannot shift data into the wrong field.
+  # (Fixed positions did: state was read from the second address line and
+  # the deactivation date from the reactivation column.)
+  @columns %{
+    npi: "NPI",
+    entity_type: "Entity Type Code",
+    org_name: "Provider Organization Name (Legal Business Name)",
+    last_name: "Provider Last Name (Legal Name)",
+    first_name: "Provider First Name",
+    credential: "Provider Credential Text",
+    practice_state: "Provider Business Practice Location Address State Name",
+    enumeration_date: "Provider Enumeration Date",
+    last_update_date: "Last Update Date",
+    deactivation_date: "NPI Deactivation Date",
+    reactivation_date: "NPI Reactivation Date",
+    taxonomy: "Healthcare Provider Taxonomy Code_1"
+  }
 
   @doc """
   Imports NPPES providers from a local CSV file.
@@ -114,33 +119,9 @@ defmodule MedicaidClaimsChecker.Nppes.Importer do
     Logger.info("NPPES: Starting import from #{path}")
 
     try do
-      {count, _} =
-        path
-        |> File.stream!(read_ahead: 128 * 1024)
-        |> NimbleCSV.RFC4180.parse_stream(skip_headers: true)
-        |> Stream.map(&parse_row(&1, now))
-        |> Stream.reject(&is_nil/1)
-        |> Stream.chunk_every(@batch_size)
-        |> Enum.reduce({0, 0}, fn batch, {total, _} ->
-          Repo.insert_all(
-            NppesProvider,
-            batch,
-            on_conflict: {:replace_all_except, [:npi]},
-            conflict_target: [:npi]
-          )
-
-          new_total = total + length(batch)
-
-          if rem(new_total, @progress_interval) < @batch_size do
-            Logger.info("NPPES: #{new_total} rows imported")
-            on_progress.(new_total)
-          end
-
-          {new_total, 0}
-        end)
-
-      Logger.info("NPPES: Import complete — #{count} providers")
-      {:ok, count}
+      with {:ok, cols} <- read_columns(path) do
+        import_rows(path, cols, now, on_progress)
+      end
     rescue
       e ->
         Logger.error("NPPES: Import failed — #{Exception.message(e)}")
@@ -148,24 +129,91 @@ defmodule MedicaidClaimsChecker.Nppes.Importer do
     end
   end
 
+  defp read_columns(path) do
+    path
+    |> File.stream!(read_ahead: 128 * 1024)
+    |> NimbleCSV.RFC4180.parse_stream(skip_headers: false)
+    |> Enum.take(1)
+    |> case do
+      [header] -> column_indices(header)
+      [] -> {:error, "NPPES file is empty"}
+    end
+  end
+
+  @doc false
+  # Maps each needed field to its position in `header`, or names the
+  # missing columns.
+  def column_indices(header) do
+    positions =
+      header
+      |> Enum.map(&(&1 |> String.replace_prefix("\uFEFF", "") |> String.trim()))
+      |> Enum.with_index()
+      |> Map.new()
+
+    {found, missing} =
+      Enum.reduce(@columns, {%{}, []}, fn {field, name}, {found, missing} ->
+        case Map.fetch(positions, name) do
+          {:ok, index} -> {Map.put(found, field, index), missing}
+          :error -> {found, [name | missing]}
+        end
+      end)
+
+    case missing do
+      [] -> {:ok, found}
+      _ -> {:error, "NPPES file is missing columns: #{missing |> Enum.sort() |> Enum.join(", ")}"}
+    end
+  end
+
+  defp import_rows(path, cols, now, on_progress) do
+    {count, _} =
+      path
+      |> File.stream!(read_ahead: 128 * 1024)
+      |> NimbleCSV.RFC4180.parse_stream(skip_headers: true)
+      |> Stream.map(&parse_row(&1, cols, now))
+      |> Stream.reject(&is_nil/1)
+      |> Stream.chunk_every(@batch_size)
+      |> Enum.reduce({0, 0}, fn batch, {total, _} ->
+        Repo.insert_all(
+          NppesProvider,
+          batch,
+          on_conflict: {:replace_all_except, [:npi]},
+          conflict_target: [:npi]
+        )
+
+        new_total = total + length(batch)
+
+        if rem(new_total, @progress_interval) < @batch_size do
+          Logger.info("NPPES: #{new_total} rows imported")
+          on_progress.(new_total)
+        end
+
+        {new_total, 0}
+      end)
+
+    Logger.info("NPPES: Import complete — #{count} providers")
+    {:ok, count}
+  end
+
   # --- Row parsing (extracted from Mix.Tasks.Nppes.Import) ---
 
-  defp parse_row(row, now) do
-    npi = safe_col(row, @col_npi)
+  @doc false
+  def parse_row(row, cols, now) do
+    col = fn field -> safe_col(row, Map.fetch!(cols, field)) end
+    npi = col.(:npi)
 
     if npi == nil or String.length(npi) != 10 do
       nil
     else
-      entity_type = parse_entity_type(safe_col(row, @col_entity_type))
+      entity_type = parse_entity_type(col.(:entity_type))
 
       provider_name =
         case entity_type do
           2 ->
-            safe_col(row, @col_org_name) || "Unknown Organization"
+            col.(:org_name) || "Unknown Organization"
 
           _ ->
-            last = safe_col(row, @col_last_name) || ""
-            first = safe_col(row, @col_first_name) || ""
+            last = col.(:last_name) || ""
+            first = col.(:first_name) || ""
             name = String.trim("#{last}, #{first}", ", ")
             if name == "", do: "Unknown Provider", else: name
         end
@@ -174,13 +222,13 @@ defmodule MedicaidClaimsChecker.Nppes.Importer do
         npi: npi,
         entity_type: entity_type,
         provider_name: provider_name,
-        credential: safe_col(row, @col_credential),
-        taxonomy: safe_col(row, @col_taxonomy),
-        state: safe_col(row, @col_practice_state),
-        enumeration_date: parse_date(safe_col(row, @col_enumeration_date)),
-        deactivation_date: parse_date(safe_col(row, @col_deactivation_date)),
-        reactivation_date: parse_date(safe_col(row, @col_reactivation_date)),
-        last_update_date: parse_date(safe_col(row, @col_last_update_date)),
+        credential: col.(:credential),
+        taxonomy: col.(:taxonomy),
+        state: col.(:practice_state),
+        enumeration_date: parse_date(col.(:enumeration_date)),
+        deactivation_date: parse_date(col.(:deactivation_date)),
+        reactivation_date: parse_date(col.(:reactivation_date)),
+        last_update_date: parse_date(col.(:last_update_date)),
         inserted_at: now,
         updated_at: now
       }

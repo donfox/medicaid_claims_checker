@@ -52,8 +52,10 @@ defmodule MedicaidClaimsChecker.Claims.NppesProvider do
   Logic:
   - No deactivation date → active (provider never deactivated)
   - Service date on or before deactivation → active (treatment before deactivation)
-  - Reactivation date after deactivation → active (provider was reinstated)
-  - Otherwise → deactivated at time of service
+  - Reactivated after the deactivation, and service on or after the
+    reactivation → active (provider was reinstated)
+  - Otherwise → deactivated at time of service, including a service date
+    between deactivation and reactivation
   """
   def active_on_date?(%__MODULE__{deactivation_date: nil}, _service_date), do: true
 
@@ -62,9 +64,15 @@ defmodule MedicaidClaimsChecker.Claims.NppesProvider do
         service_date
       ) do
     cond do
-      Date.compare(service_date, deact) in [:lt, :eq] -> true
-      react != nil and Date.compare(react, deact) == :gt -> true
-      true -> false
+      Date.compare(service_date, deact) in [:lt, :eq] ->
+        true
+
+      react != nil and Date.compare(react, deact) == :gt and
+          Date.compare(service_date, react) != :lt ->
+        true
+
+      true ->
+        false
     end
   end
 end

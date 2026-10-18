@@ -18,6 +18,7 @@ import Claims.RuleEngine (EvaluationReport (..), RiskLevel (..), evaluateSimpleJ
 import Claims.RedundancyChecker
 import Claims.SimpleEvaluator (evaluateRuleSimple)
 import Claims.Syntax
+import Prelude hiding (EQ, GT, LT)
 
 -- | Fixed test date: 2026-02-28 (Saturday)
 testDay :: Day
@@ -669,15 +670,15 @@ main = hspec $ do
     let mkRule name cond act = Rule name "" [] cond act
 
     it "detects exact duplicate (same condition and action, different name)" $ do
-      let ruleA = mkRule "rule_a" (GreaterThan (SegmentField "financial" "claim_amount") (NumberValue 50000)) (RequireReview "high value")
-          ruleB = mkRule "rule_b" (GreaterThan (SegmentField "financial" "claim_amount") (NumberValue 50000)) (RequireReview "high value")
+      let ruleA = mkRule "rule_a" (Compare GT (Path ["financial", "claim_amount"]) (NumberValue 50000)) (RequireReview "high value")
+          ruleB = mkRule "rule_b" (Compare GT (Path ["financial", "claim_amount"]) (NumberValue 50000)) (RequireReview "high value")
           matches = checkRedundancy ruleA [ruleB]
       length matches `shouldBe` 1
       matchLevel (head matches) `shouldBe` ExactDuplicate
 
     it "detects exact duplicate with commutative AND" $ do
-      let condA = And (Equals (Field "state") (StringValue "CA")) (GreaterThan (Field "amount") (NumberValue 1000))
-          condB = And (GreaterThan (Field "amount") (NumberValue 1000)) (Equals (Field "state") (StringValue "CA"))
+      let condA = And (Compare EQ (Path ["state"]) (StringValue "CA")) (Compare GT (Path ["amount"]) (NumberValue 1000))
+          condB = And (Compare GT (Path ["amount"]) (NumberValue 1000)) (Compare EQ (Path ["state"]) (StringValue "CA"))
           ruleA = mkRule "rule_a" condA (FlagFraud "test")
           ruleB = mkRule "rule_b" condB (FlagFraud "test")
           matches = checkRedundancy ruleA [ruleB]
@@ -686,76 +687,76 @@ main = hspec $ do
 
     it "detects condition overlap on same field with overlapping numeric ranges" $ do
       -- > 40000 vs < 60000: ranges overlap but neither implies the other
-      let ruleA = mkRule "rule_a" (GreaterThan (Field "amount") (NumberValue 40000)) (RequireReview "review 40k")
-          ruleB = mkRule "rule_b" (LessThan (Field "amount") (NumberValue 60000)) (FlagFraud "low amount")
+      let ruleA = mkRule "rule_a" (Compare GT (Path ["amount"]) (NumberValue 40000)) (RequireReview "review 40k")
+          ruleB = mkRule "rule_b" (Compare LT (Path ["amount"]) (NumberValue 60000)) (FlagFraud "low amount")
           matches = checkRedundancy ruleA [ruleB]
       length matches `shouldBe` 1
       matchLevel (head matches) `shouldBe` ConditionOverlap
 
     it "detects shadowed: broader rule subsumes narrower with different action" $ do
-      let ruleA = mkRule "broad" (GreaterThan (Field "amount") (NumberValue 50000)) (RequireReview "high")
-          ruleB = mkRule "narrow" (And (GreaterThan (Field "amount") (NumberValue 50000)) (Equals (Field "state") (StringValue "CA"))) (FlagFraud "ca high")
+      let ruleA = mkRule "broad" (Compare GT (Path ["amount"]) (NumberValue 50000)) (RequireReview "high")
+          ruleB = mkRule "narrow" (And (Compare GT (Path ["amount"]) (NumberValue 50000)) (Compare EQ (Path ["state"]) (StringValue "CA"))) (FlagFraud "ca high")
           matches = checkRedundancy ruleB [ruleA]
       length matches `shouldBe` 1
       matchLevel (head matches) `shouldBe` Shadowed
 
     it "detects subsumption with same action (truly redundant)" $ do
-      let ruleA = mkRule "broad" (GreaterThan (Field "amount") (NumberValue 50000)) (RequireReview "high")
-          ruleB = mkRule "narrow" (And (GreaterThan (Field "amount") (NumberValue 50000)) (Equals (Field "state") (StringValue "CA"))) (RequireReview "high")
+      let ruleA = mkRule "broad" (Compare GT (Path ["amount"]) (NumberValue 50000)) (RequireReview "high")
+          ruleB = mkRule "narrow" (And (Compare GT (Path ["amount"]) (NumberValue 50000)) (Compare EQ (Path ["state"]) (StringValue "CA"))) (RequireReview "high")
           matches = checkRedundancy ruleB [ruleA]
       length matches `shouldBe` 1
       matchLevel (head matches) `shouldBe` Subsumption
 
     it "no match for completely different fields" $ do
-      let ruleA = mkRule "rule_a" (GreaterThan (Field "amount") (NumberValue 50000)) (RequireReview "amount")
-          ruleB = mkRule "rule_b" (Equals (Field "state") (StringValue "CA")) (RequireReview "state")
+      let ruleA = mkRule "rule_a" (Compare GT (Path ["amount"]) (NumberValue 50000)) (RequireReview "amount")
+          ruleB = mkRule "rule_b" (Compare EQ (Path ["state"]) (StringValue "CA")) (RequireReview "state")
           matches = checkRedundancy ruleA [ruleB]
       length matches `shouldBe` 0
 
     it "detects shadowed with numeric tightening (> 60000 implies > 50000, different text)" $ do
-      let ruleA = mkRule "stricter" (GreaterThan (Field "amount") (NumberValue 60000)) (RequireReview "60k")
-          ruleB = mkRule "looser" (GreaterThan (Field "amount") (NumberValue 50000)) (RequireReview "50k")
+      let ruleA = mkRule "stricter" (Compare GT (Path ["amount"]) (NumberValue 60000)) (RequireReview "60k")
+          ruleB = mkRule "looser" (Compare GT (Path ["amount"]) (NumberValue 50000)) (RequireReview "50k")
           matches = checkRedundancy ruleA [ruleB]
       length matches `shouldBe` 1
       matchLevel (head matches) `shouldBe` Shadowed
 
     it "detects shadowed between two AND rules (stricter amount, same state)" $ do
-      let stateNY = Equals (Field "state") (StringValue "NY")
-          ruleA = mkRule "stricter" (And (GreaterThan (Field "amount") (NumberValue 1000)) stateNY) (FlagFraud "ny high")
-          ruleB = mkRule "looser" (And (GreaterThan (Field "amount") (NumberValue 500)) stateNY) (RequireReview "ny")
+      let stateNY = Compare EQ (Path ["state"]) (StringValue "NY")
+          ruleA = mkRule "stricter" (And (Compare GT (Path ["amount"]) (NumberValue 1000)) stateNY) (FlagFraud "ny high")
+          ruleB = mkRule "looser" (And (Compare GT (Path ["amount"]) (NumberValue 500)) stateNY) (RequireReview "ny")
       map matchLevel (checkRedundancy ruleA [ruleB]) `shouldBe` [Shadowed]
       map matchLevel (checkRedundancy ruleB [ruleA]) `shouldBe` [Shadowed]
 
     it "strict bounds on the same value do not overlap (> 5 vs < 5)" $ do
-      let ruleA = mkRule "above" (GreaterThan (Field "amount") (NumberValue 5)) (FlagFraud "above")
-          ruleB = mkRule "below" (LessThan (Field "amount") (NumberValue 5)) (RequireReview "below")
+      let ruleA = mkRule "above" (Compare GT (Path ["amount"]) (NumberValue 5)) (FlagFraud "above")
+          ruleB = mkRule "below" (Compare LT (Path ["amount"]) (NumberValue 5)) (RequireReview "below")
       checkRedundancy ruleA [ruleB] `shouldBe` []
 
     it "a strict bound excludes an equal value (> 5 vs = 5)" $ do
-      let ruleA = mkRule "above" (GreaterThan (Field "amount") (NumberValue 5)) (FlagFraud "above")
-          ruleB = mkRule "five" (Equals (Field "amount") (NumberValue 5)) (RequireReview "five")
+      let ruleA = mkRule "above" (Compare GT (Path ["amount"]) (NumberValue 5)) (FlagFraud "above")
+          ruleB = mkRule "five" (Compare EQ (Path ["amount"]) (NumberValue 5)) (RequireReview "five")
       checkRedundancy ruleA [ruleB] `shouldBe` []
 
     it "inclusive bounds on the same value overlap (>= 5 vs <= 5)" $ do
-      let ruleA = mkRule "atLeast" (GreaterThanOrEqual (Field "amount") (NumberValue 5)) (FlagFraud "at least")
-          ruleB = mkRule "atMost" (LessThanOrEqual (Field "amount") (NumberValue 5)) (RequireReview "at most")
+      let ruleA = mkRule "atLeast" (Compare GTE (Path ["amount"]) (NumberValue 5)) (FlagFraud "at least")
+          ruleB = mkRule "atMost" (Compare LTE (Path ["amount"]) (NumberValue 5)) (RequireReview "at most")
       map matchLevel (checkRedundancy ruleA [ruleB]) `shouldBe` [ConditionOverlap]
 
     it "NOT does not produce false overlap" $ do
-      let ruleA = mkRule "rule_a" (Not (GreaterThan (Field "amount") (NumberValue 50000))) (RequireReview "low")
-          ruleB = mkRule "rule_b" (GreaterThan (Field "amount") (NumberValue 40000)) (FlagFraud "high")
+      let ruleA = mkRule "rule_a" (Not (Compare GT (Path ["amount"]) (NumberValue 50000))) (RequireReview "low")
+          ruleB = mkRule "rule_b" (Compare GT (Path ["amount"]) (NumberValue 40000)) (FlagFraud "high")
           matches = checkRedundancy ruleA [ruleB]
       length matches `shouldBe` 0
 
     it "!= does not produce false overlap" $ do
-      let ruleA = mkRule "rule_a" (NotEquals (Field "status") (StringValue "approved")) (RequireReview "not approved")
-          ruleB = mkRule "rule_b" (GreaterThan (Field "status") (NumberValue 0)) (FlagFraud "positive")
+      let ruleA = mkRule "rule_a" (Compare NE (Path ["status"]) (StringValue "approved")) (RequireReview "not approved")
+          ruleB = mkRule "rule_b" (Compare GT (Path ["status"]) (NumberValue 0)) (FlagFraud "positive")
           matches = checkRedundancy ruleA [ruleB]
       length matches `shouldBe` 0
 
     it "returns most specific level only (exact dup wins over overlap)" $ do
-      let ruleA = mkRule "rule_a" (GreaterThan (Field "amount") (NumberValue 50000)) (RequireReview "same")
-          ruleB = mkRule "rule_b" (GreaterThan (Field "amount") (NumberValue 50000)) (RequireReview "same")
+      let ruleA = mkRule "rule_a" (Compare GT (Path ["amount"]) (NumberValue 50000)) (RequireReview "same")
+          ruleB = mkRule "rule_b" (Compare GT (Path ["amount"]) (NumberValue 50000)) (RequireReview "same")
           matches = checkRedundancy ruleA [ruleB]
       length matches `shouldBe` 1
       matchLevel (head matches) `shouldBe` ExactDuplicate

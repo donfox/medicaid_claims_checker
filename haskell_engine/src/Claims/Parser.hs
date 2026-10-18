@@ -3,141 +3,51 @@
 
 -- |
 -- Module      : Claims.Parser
--- Description : Parsec-based parser for the X12 fraud detection DSL
--- Stability   : experimental
+-- Description : Parsec parser for the claims rule DSL
 --
--- This module provides a parser for the fraud detection domain-specific language (DSL).
--- Rules are parsed from text into an abstract syntax tree (AST) defined in "Claims.Syntax".
---
--- == Grammar Overview
---
--- The DSL follows this structure:
+-- Parses rule text into the AST in "Claims.Syntax". The grammar is described
+-- for rule authors in @docs/SYNTAX_GUIDE.md@; in short:
 --
 -- @
--- RULE \<name\> \<description\>
--- WHEN \<predicate\>
--- THEN \<action\>;
+-- RULE name [DESCRIPTION] "description"
+--   [LET var = path ...]
+--   WHEN predicate
+--   THEN action ;   (or END)
 -- @
 --
--- Where:
---
--- * @\<name\>@ is an identifier (alphanumeric, may start with digit for X12 loop IDs like @2300@)
--- * @\<description\>@ is a quoted string, optionally preceded by @DESCRIPTION@ keyword
--- * @\<predicate\>@ is a boolean expression (see below)
--- * @\<action\>@ is one of: @FLAG_FRAUD@, @RISK_SCORE@, @REQUIRE_REVIEW@, @REJECT@, @APPROVE@
--- * Rules can end with @;@ or @END@
---
--- == Predicate Syntax
---
--- Predicates support:
---
--- * __Comparisons__: @field = value@, @field != value@, @field > value@, @field < value@, @field >= value@, @field <= value@
--- * __Range__: @field BETWEEN value AND value@
--- * __Null checks__: @field IS NULL@, @field IS NOT NULL@
--- * __Text__: @field CONTAINS "text"@, @field MATCHES "regex"@ (POSIX extended)
--- * __Domain__: @claim.has_diagnosis "code"@, @claim.has_procedure "code"@
--- * __Boolean logic__: @AND@, @OR@, @NOT@, parentheses for grouping
--- * __Quantifiers__: @EXISTS path WHERE predicate@, @EXISTS var IN path WHERE predicate@
--- * __Counting__: @COUNT(path) > n@
---
--- == Field References
---
--- Fields can be referenced in three ways:
---
--- * Simple: @amount@ (direct field name)
--- * Segment-qualified: @CLM.amount@ (segment.field)
--- * Loop-qualified: @2300.CLM.amount@ (loop.segment.field)
---
--- == Example Rules
---
--- @
--- -- Flag high-value claims
--- RULE high_amount "Flag claims over $10,000"
--- WHEN CLM.amount > 10000
--- THEN FLAG_FRAUD "Unusually high claim amount";
---
--- -- Require review for specific providers
--- RULE provider_check "Review claims from flagged providers"
--- WHEN provider_npi = "1234567890" AND claim_status != "denied"
--- THEN REQUIRE_REVIEW "Provider under investigation";
---
--- -- Multiple actions
--- RULE complex_rule "Multiple fraud indicators"
--- WHEN amount > 5000 AND COUNT(2400.SV1) > 10
--- THEN [FLAG_FRAUD "Multiple indicators", RISK_SCORE 85];
--- @
---
--- == Usage
---
--- @
--- import Claims.Parser
--- import qualified Data.Text as T
---
--- main :: IO ()
--- main = do
---     let ruleText = T.pack "RULE test \"A test rule\" WHEN amount > 100 THEN FLAG_FRAUD \"High amount\";"
---     case parseRule ruleText of
---         Left err   -> putStrLn $ "Parse error: " ++ show err
---         Right rule -> print rule
--- @
+-- Precedence, loosest first: @OR@, @AND@, @NOT@, then atomic predicates.
 module Claims.Parser
-  ( -- * Parsing Functions
-    parseRule,
+  ( parseRule,
     parseRules,
-
-    -- * Error Type
     ParseError,
   )
 where
 
+import Prelude hiding (EQ, GT, LT)
 import Control.Applicative ((<|>))
-import Control.Monad (void)
+import Control.Monad (void, when)
+import Data.Functor (($>))
 import Data.List (nub)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Text.Parsec hiding ((<|>))
 import Text.Parsec.Text
 import Claims.SimpleEvaluator (compileRegex, helperArity)
-import Claims.Syntax (Action, Binding, FieldRef, Predicate, Rule, SegmentPath, Value)
+import Claims.Syntax (Action, Binding, CompOp (..), Path (..), Predicate, Rule, Value)
 import Claims.Syntax qualified as Syntax
 
--- ----------------------------------------------------------------------------
--- Exported Parsing Functions
--- ----------------------------------------------------------------------------
-
--- | Parse a single rule from text.
---
--- Returns 'Left' with a 'ParseError' if parsing fails, or 'Right' with
--- the parsed 'Rule' on success.
---
--- ==== Example
---
--- @
--- >>> parseRule "RULE test \"desc\" WHEN x > 1 THEN FLAG_FRAUD \"reason\";"
--- Right (Rule {ruleName = "test", ...})
--- @
 parseRule :: Text -> Either ParseError Rule
 parseRule = parse ruleParser "rule"
 
--- | Parse multiple rules from text.
---
--- Parses zero or more rules separated by whitespace. The input must be
--- completely consumed (no trailing content after the last rule).
---
--- ==== Example
---
--- @
--- >>> parseRules "RULE r1 \"d1\" WHEN TRUE THEN RISK_SCORE 50; RULE r2 \"d2\" WHEN FALSE THEN REJECT \"no\";"
--- Right [Rule {...}, Rule {...}]
--- @
+-- | Parse zero or more rules; the whole input must be consumed.
 parseRules :: Text -> Either ParseError [Rule]
 parseRules = parse rulesParser "rules"
 
 -- ----------------------------------------------------------------------------
--- Lexical Helpers
+-- Lexical helpers
 -- ----------------------------------------------------------------------------
 
--- | Skip whitespace characters including spaces, tabs, and newlines.
+-- | Skip spaces, tabs, newlines and @--@ line comments.
 whitespace :: Parser ()
 whitespace = skipMany (simpleSpace <|> lineComment)
   where
@@ -145,30 +55,25 @@ whitespace = skipMany (simpleSpace <|> lineComment)
     lineComment =
       void $ try (string "--" *> manyTill anyChar (void newline <|> eof))
 
--- | Match a keyword ensuring it's not part of a larger identifier.
---
--- Uses word boundary detection to prevent matching "ANDROID" when looking for "AND".
+-- | A keyword not followed by an identifier character, so @AND@ does not
+-- match the start of @ANDROID@.
 keyword :: String -> Parser ()
 keyword s = try $ string s *> notFollowedBy (alphaNum <|> char '_')
 
--- | Lexeme parser: parse something followed by whitespace.
 lexeme :: Parser a -> Parser a
 lexeme p = p <* whitespace
 
--- | Parse a keyword as a lexeme (keyword + whitespace).
 kw :: String -> Parser ()
 kw = lexeme . keyword
 
 -- ----------------------------------------------------------------------------
--- Rule Parsers
+-- Rules
 -- ----------------------------------------------------------------------------
 
--- | Maximum number of rules allowed in a single rule set. Prevents the
--- O(rules × claims) combinatorial explosion in handleBatchEvaluate.
+-- | Limits the work one request can cause: evaluation is rules × claims.
 maxRuleCount :: Int
 maxRuleCount = 200
 
--- | Parse zero or more rules, consuming all input.
 rulesParser :: Parser [Rule]
 rulesParser = do
   whitespace
@@ -178,14 +83,6 @@ rulesParser = do
     then fail $ "Rule set exceeds the maximum of " ++ show maxRuleCount ++ " rules"
     else pure rules
 
--- | Parse a single rule.
---
--- Grammar:
---
--- @
--- rule ::= RULE identifier description WHEN predicate THEN action terminator
--- terminator ::= ';' | END
--- @
 ruleParser :: Parser Rule
 ruleParser = do
   kw "RULE"
@@ -193,9 +90,8 @@ ruleParser = do
   desc <- lexeme descriptionPart
   bindings <- many (try (lexeme bindingParser))
   let bindingNames = map Syntax.bindingName bindings
-  if length bindingNames /= length (nub bindingNames)
-    then fail "Duplicate LET name in rule"
-    else pure ()
+  when (length bindingNames /= length (nub bindingNames)) $
+    fail "Duplicate LET name in rule"
   kw "WHEN"
   cond <- lexeme predicateParser
   kw "THEN"
@@ -203,76 +99,31 @@ ruleParser = do
   lexeme (char ';' $> () <|> keyword "END")
   pure $ Syntax.Rule (T.pack name) (T.pack desc) bindings cond act
 
--- | Parse a local LET binding used within a rule.
---
--- Example: @LET amount = 2300.CLM.claim_amount@
+-- | @LET name = path@. Unlike other identifiers, the name may not start
+-- with a digit.
 bindingParser :: Parser Binding
 bindingParser = do
   kw "LET"
-  name <- lexeme bindingIdentifier
+  name <- lexeme (notReserved =<< ((:) <$> (letter <|> char '_') <*> many (alphaNum <|> char '_')))
   _ <- lexeme (char '=')
-  ref <- lexeme fieldRef
-  pure $ Syntax.Binding (T.pack name) ref
+  Syntax.Binding (T.pack name) <$> lexeme fieldPath
 
--- | Parse an identifier for LET bindings.
---
--- LET variable names must start with a letter or underscore.
-bindingIdentifier :: Parser String
-bindingIdentifier = do
-  first <- letter <|> char '_'
-  rest <- many (alphaNum <|> char '_')
-  let ident = first : rest
-  if ident `elem` reservedKeywords
-    then fail $ "Identifier cannot be a keyword: " ++ ident
-    else pure ident
-  where
-    reservedKeywords =
-      [ "RULE",
-        "WHEN",
-        "THEN",
-        "TRUE",
-        "FALSE",
-        "AND",
-        "OR",
-        "NOT",
-        "WHERE",
-        "EXISTS",
-        "FORALL",
-        "COUNT",
-        "LET",
-        "IS",
-        "NULL",
-        "BETWEEN",
-        "IN"
-      ]
-
--- | Parse rule description: either a direct string literal or @DESCRIPTION "..."@.
 descriptionPart :: Parser String
 descriptionPart = try (kw "DESCRIPTION" *> stringLiteral) <|> stringLiteral
 
 -- ----------------------------------------------------------------------------
--- Predicate Parsers
+-- Predicates
 -- ----------------------------------------------------------------------------
--- Operator precedence (lowest to highest):
---   1. OR
---   2. AND
---   3. NOT
---   4. Atomic predicates (comparisons, quantifiers, etc.)
---
--- All predicate parsers thread an integer depth counter so that deeply-nested
--- parenthesised rules (e.g. hundreds of layers) are rejected with a clear
--- error rather than overflowing the Haskell runtime stack.
+-- Every level carries a nesting depth, so a rule with hundreds of nested
+-- parentheses is rejected with a clear error instead of overflowing the
+-- stack.
 
--- | Maximum allowed parenthesis nesting depth for predicate expressions.
 maxPredicateDepth :: Int
 maxPredicateDepth = 50
 
--- | Top-level predicate parser. Entry point for parsing boolean expressions.
 predicateParser :: Parser Predicate
 predicateParser = predAt 0
 
--- | Depth-aware predicate entry point. Fails immediately when depth exceeds
--- 'maxPredicateDepth' so a pathological rule cannot overflow the stack.
 predAt :: Int -> Parser Predicate
 predAt depth
   | depth > maxPredicateDepth =
@@ -291,11 +142,11 @@ notAt depth = (Syntax.Not <$> (kw "NOT" *> atomicAt depth)) <|> atomicAt depth
 atomicAt :: Int -> Parser Predicate
 atomicAt depth =
   choice
-    [ try (existsAt depth),
-      try (forAllAt depth),
+    [ try (quantifierAt "EXISTS" Syntax.Exists depth),
+      try (quantifierAt "FORALL" Syntax.ForAll depth),
       try countPred,
-      try hasDiagnosisPred,
-      try hasProcedurePred,
+      try (domainPred "has_diagnosis" Syntax.HasDiagnosis),
+      try (domainPred "has_procedure" Syntax.HasProcedure),
       try helperCallPred,
       try betweenPred,
       try textPred,
@@ -305,22 +156,13 @@ atomicAt depth =
       boolLiteral
     ]
 
--- | Parse helper function predicate calls.
---
--- Examples:
--- * @is_weekend(claim.service_date)@
--- * @is_high_amount(claim.amount, 50000)@
---
--- The name and argument count are checked against the evaluator's helper
--- table, so a typo fails here rather than producing a rule that never fires.
+-- | @name(arg, ...)@. The name and argument count are checked against the
+-- evaluator's helper table, so a typo fails here rather than producing a
+-- rule that never fires.
 helperCallPred :: Parser Predicate
 helperCallPred = do
   helperName <- identifier
-  args <-
-    between
-      (char '(' *> spaces)
-      (spaces *> char ')')
-      (sepBy helperArgParser (spaces *> char ',' *> spaces))
+  args <- listOf '(' ')' (try listValueParser <|> valueParser)
   case helperArity (T.pack helperName) of
     Nothing -> fail $ "Unknown helper function: " ++ helperName
     Just arity
@@ -330,132 +172,67 @@ helperCallPred = do
               ++ ", got " ++ show (length args)
       | otherwise -> pure $ Syntax.HelperCall (T.pack helperName) args
 
-helperArgParser :: Parser Value
-helperArgParser = try listValueParser <|> valueParser
-
+-- | @[1, "a", ...]@: numbers and strings only.
 listValueParser :: Parser Value
 listValueParser =
   Syntax.ListValue
-    <$> between
-      (char '[' *> spaces)
-      (spaces *> char ']')
-      (sepBy listScalarValue (spaces *> char ',' *> spaces))
+    <$> listOf '[' ']' (try (Syntax.NumberValue <$> numberLiteral) <|> (Syntax.StringValue . T.pack <$> stringLiteral))
 
-listScalarValue :: Parser Value
-listScalarValue =
-  try (Syntax.NumberValue <$> numberLiteral)
-    <|> (Syntax.StringValue . T.pack <$> stringLiteral)
+-- | Comma-separated items between two brackets.
+listOf :: Char -> Char -> Parser a -> Parser [a]
+listOf open close item =
+  between (char open *> spaces) (spaces *> char close) (sepBy item (spaces *> char ',' *> spaces))
 
--- | Parse parenthesized predicate for explicit grouping. Increments depth so
--- each nesting level is tracked toward 'maxPredicateDepth'.
---
--- @(pred1 OR pred2) AND pred3@ allows OR to bind tighter than AND.
 parenAt :: Int -> Parser Predicate
 parenAt depth = between (char '(' *> spaces) (spaces *> char ')') (predAt depth)
 
--- | Parse existential quantifier. The WHERE sub-predicate continues from the
--- current depth so nesting inside quantifiers is also bounded.
---
--- Supports two forms:
---
--- @EXISTS path WHERE predicate@            - implicit context shift (backward compatible)
--- @EXISTS varName IN path WHERE predicate@ - named variable binding
---
--- Example: @EXISTS 2400 WHERE SV1.amount > 1000@
--- Example: @EXISTS line IN service_lines WHERE line.charge > 5000@
-existsAt :: Int -> Parser Predicate
-existsAt depth = do
-  _ <- string "EXISTS" *> spaces
-  try (namedExists depth) <|> unnamedExists depth
+-- | @EXISTS path WHERE p@ or @EXISTS var IN path WHERE p@ (likewise FORALL).
+-- The body continues at the current depth, so nesting inside quantifiers is
+-- bounded too.
+quantifierAt :: String -> (Maybe Text -> Path -> Predicate -> Predicate) -> Int -> Parser Predicate
+quantifierAt word mk depth = do
+  _ <- string word *> spaces
+  try named <|> body Nothing
   where
-    namedExists d = do
+    named = do
       varName <- identifier <* spaces
       kw "IN"
-      path <- segmentPath <* spaces
+      body (Just (T.pack varName))
+    body var = do
+      path <- collectionPath <* spaces
       _ <- string "WHERE" *> spaces
-      Syntax.Exists (Just (T.pack varName)) path <$> predAt d
-    unnamedExists d = do
-      path <- segmentPath <* spaces
-      _ <- string "WHERE" *> spaces
-      Syntax.Exists Nothing path <$> predAt d
+      mk var path <$> predAt depth
 
--- | Parse universal quantifier. The WHERE sub-predicate continues from the
--- current depth so nesting inside quantifiers is also bounded.
---
--- Supports two forms:
---
--- @FORALL path WHERE predicate@            - implicit context shift (backward compatible)
--- @FORALL varName IN path WHERE predicate@ - named variable binding
---
--- Example: @FORALL 2400.SV1 WHERE amount < 5000@
--- Example: @FORALL line IN service_lines WHERE line.charge > 0@
-forAllAt :: Int -> Parser Predicate
-forAllAt depth = do
-  _ <- string "FORALL" *> spaces
-  try (namedForAll depth) <|> unnamedForAll depth
-  where
-    namedForAll d = do
-      varName <- identifier <* spaces
-      kw "IN"
-      path <- segmentPath <* spaces
-      _ <- string "WHERE" *> spaces
-      Syntax.ForAll (Just (T.pack varName)) path <$> predAt d
-    unnamedForAll d = do
-      path <- segmentPath <* spaces
-      _ <- string "WHERE" *> spaces
-      Syntax.ForAll Nothing path <$> predAt d
-
--- | Parse count predicate.
---
--- @COUNT(path) op n@ - compare the number of items at path against n.
---
--- Example: @COUNT(2400) > 10@ (more than 10 service lines)
 countPred :: Parser Predicate
 countPred =
   Syntax.Count
-    <$> (string "COUNT" *> spaces *> between (char '(') (char ')') (spaces *> segmentPath <* spaces))
+    <$> (string "COUNT" *> spaces *> between (char '(') (char ')') (spaces *> collectionPath <* spaces))
     <*> (spaces *> compOperator)
     <*> (spaces *> intLiteral)
 
--- | Parse @claim.has_diagnosis "code"@ predicate.
-hasDiagnosisPred :: Parser Predicate
-hasDiagnosisPred = do
-  _ <- try (string "claim" *> char '.' *> string "has_diagnosis")
+-- | @claim.has_diagnosis "code"@ and @claim.has_procedure "code"@.
+domainPred :: String -> (Value -> Predicate) -> Parser Predicate
+domainPred name mk = do
+  _ <- try (string "claim" *> char '.' *> string name)
   spaces
-  Syntax.HasDiagnosis <$> valueParser
+  mk <$> valueParser
 
--- | Parse @claim.has_procedure "code"@ predicate.
-hasProcedurePred :: Parser Predicate
-hasProcedurePred = do
-  _ <- try (string "claim" *> char '.' *> string "has_procedure")
-  spaces
-  Syntax.HasProcedure <$> valueParser
-
--- | Parse inclusive range predicate.
---
--- @field BETWEEN lo AND hi@ — equivalent to @field >= lo AND field <= hi@.
--- The inner @AND@ is consumed by this parser before the boolean @AND@ layer
--- sees it.
+-- | @field BETWEEN lo AND hi@. This parser consumes the inner @AND@ before
+-- the boolean @AND@ level sees it.
 betweenPred :: Parser Predicate
 betweenPred = do
-  field <- fieldRef
+  field <- fieldPath
   spaces
   kw "BETWEEN"
   lo <- lexeme valueParser
   kw "AND"
   Syntax.Between field lo <$> valueParser
 
--- | Parse a text predicate.
---
--- * @field CONTAINS "text"@ - substring test
--- * @field MATCHES "regex"@ - POSIX extended regex search; @^@ / @$@ anchor
---   to the whole field value
---
--- An invalid regex is a parse error, so a broken pattern is caught when the
--- rule is written rather than silently never matching.
+-- | @field CONTAINS "text"@ or @field MATCHES "regex"@. An invalid regex is
+-- a parse error, so a broken pattern is caught when the rule is written.
 textPred :: Parser Predicate
 textPred = do
-  field <- fieldRef
+  field <- fieldPath
   spaces
   containsTail field <|> matchesTail field
   where
@@ -469,128 +246,58 @@ textPred = do
         Just _ -> pure (Syntax.Matches field pattern)
         Nothing -> fail $ "Invalid regular expression in MATCHES: " ++ T.unpack pattern
 
--- | Parse comparison predicate.
---
--- @field op value@ where op is one of: @=@, @!=@, @>@, @<@, @>=@, @<=@
---
--- Example: @CLM.amount > 10000@
 comparisonPred :: Parser Predicate
 comparisonPred = do
-  field <- fieldRef
+  field <- fieldPath
   spaces
   op <- compOperator
   spaces
-  val <- valueParser
-  pure $ opToPredicate op field val
-  where
-    opToPredicate Syntax.EQ = Syntax.Equals
-    opToPredicate Syntax.NE = Syntax.NotEquals
-    opToPredicate Syntax.GT = Syntax.GreaterThan
-    opToPredicate Syntax.LT = Syntax.LessThan
-    opToPredicate Syntax.GTE = Syntax.GreaterThanOrEqual
-    opToPredicate Syntax.LTE = Syntax.LessThanOrEqual
+  Syntax.Compare op field <$> valueParser
 
--- | Parse null check predicate.
---
--- @field IS NULL@ or @field IS NOT NULL@
 nullCheckPred :: Parser Predicate
 nullCheckPred = do
-  field <- fieldRef <* spaces <* string "IS" <* spaces
+  field <- fieldPath <* spaces <* string "IS" <* spaces
   nullCheck <- (Syntax.IsNotNull <$ try (string "NOT NULL")) <|> (Syntax.IsNull <$ string "NULL")
   pure $ nullCheck field
 
--- | Parse boolean literals: @TRUE@ or @FALSE@.
 boolLiteral :: Parser Predicate
 boolLiteral = (Syntax.PTrue <$ keyword "TRUE") <|> (Syntax.PFalse <$ keyword "FALSE")
 
 -- ----------------------------------------------------------------------------
--- Path and Field Reference Parsers
+-- Paths, values, operators
 -- ----------------------------------------------------------------------------
 
--- | Parse a segment path for quantified predicates.
---
--- Paths identify a location in the X12 document hierarchy:
---
--- * @2300@ - just a loop ID
--- * @2300.CLM@ - loop with segment
--- * @2400.SV1.amount@ - loop, segment, and field
-segmentPath :: Parser SegmentPath
-segmentPath =
-  Syntax.SegmentPath
-    <$> (T.pack <$> identifier)
-    <*> option [] (char '.' *> (map T.pack <$> sepBy1 identifier (char '.')))
+-- | The collection in EXISTS, FORALL and COUNT: @2400@, @2400.SV1@, ...
+collectionPath :: Parser Path
+collectionPath =
+  (\first rest -> Path (map T.pack (first : rest)))
+    <$> identifier
+    <*> option [] (char '.' *> sepBy1 identifier (char '.'))
 
--- | Parse a field reference.
---
--- Field references identify a specific value in the document:
---
--- * __Simple__: @amount@ - direct field name lookup
--- * __Segment-qualified__: @CLM.amount@ - field within a segment
--- * __Loop-qualified__: @2300.CLM.amount@ - field within a segment within a loop
--- * __Deeper paths__: @claim.billing_provider.address.zip@ - stored as a
---   dotted 'Syntax.Field', which the evaluator splits into its parts
-fieldRef :: Parser FieldRef
-fieldRef = do
-  parts <- map T.pack <$> sepBy1 identifier (try (char '.' <* lookAhead (alphaNum <|> char '_')))
-  pure $ case parts of
-    [field] -> Syntax.Field field
-    [seg, field] -> Syntax.SegmentField seg field
-    [loop, seg, field] -> Syntax.LoopField loop seg field
-    _ -> Syntax.Field (T.intercalate "." parts)
+-- | A field: @amount@, @CLM.amount@, @claim.billing_provider.address.zip@.
+-- A dot must be followed by a name, so a trailing @.@ is left unconsumed.
+fieldPath :: Parser Path
+fieldPath = Path . map T.pack <$> sepBy1 identifier (try (char '.' <* lookAhead (alphaNum <|> char '_')))
 
--- ----------------------------------------------------------------------------
--- Value and Operator Parsers
--- ----------------------------------------------------------------------------
-
--- | Parse a literal value (number, string, or field reference).
---
--- * Numbers: @123@, @45.67@
--- * Strings: @"hello world"@
--- * Field refs: @2300.CLM.01@ (for field-to-field comparisons)
 valueParser :: Parser Value
 valueParser =
   try (Syntax.NumberValue <$> numberLiteral)
     <|> try listValueParser
-    <|> try (Syntax.FieldRefValue <$> fieldRef)
+    <|> try (Syntax.FieldValue <$> fieldPath)
     <|> (Syntax.StringValue . T.pack <$> stringLiteral)
 
--- | Parse a comparison operator.
---
--- Supported operators:
---
--- * @=@ (equals)
--- * @!=@ (not equals)
--- * @>@ (greater than)
--- * @<@ (less than)
--- * @>=@ (greater than or equal)
--- * @<=@ (less than or equal)
---
--- Note: Multi-character operators (@>=@, @<=@, @!=@) are tried first to avoid
--- partial matches.
-compOperator :: Parser Syntax.CompOp
+-- | Two-character operators are tried first.
+compOperator :: Parser CompOp
 compOperator =
   choice
-    [ Syntax.GTE <$ try (string ">="),
-      Syntax.LTE <$ try (string "<="),
-      Syntax.NE <$ try (string "!="),
-      Syntax.EQ <$ char '=',
-      Syntax.GT <$ char '>',
-      Syntax.LT <$ char '<'
+    [ GTE <$ try (string ">="),
+      LTE <$ try (string "<="),
+      NE <$ try (string "!="),
+      EQ <$ char '=',
+      GT <$ char '>',
+      LT <$ char '<'
     ]
 
--- ----------------------------------------------------------------------------
--- Action Parsers
--- ----------------------------------------------------------------------------
-
--- | Parse an action to execute when a rule matches.
---
--- Supports single actions or composite (multiple) actions:
---
--- * @FLAG_FRAUD "reason"@ - flag the claim as potentially fraudulent
--- * @RISK_SCORE 85@ - assign a risk score (0-100)
--- * @REQUIRE_REVIEW "note"@ - flag for manual review
--- * @REJECT "reason"@ - reject the claim
--- * @[action1, action2, ...]@ - execute multiple actions
 actionParser :: Parser Action
 actionParser = compositeAction <|> singleAction
   where
@@ -607,67 +314,37 @@ actionParser = compositeAction <|> singleAction
           Syntax.AssignRiskScore <$> (string "RISK_SCORE" *> spaces *> riskScoreLiteral)
         ]
 
-    -- Helper for actions that take a string argument
-    stringAction :: String -> (Text -> Action) -> Parser Action
     stringAction kwd constructor =
       constructor . T.pack <$> (string kwd *> spaces *> stringLiteral)
 
 -- ----------------------------------------------------------------------------
--- Lexical Elements
+-- Lexical elements
 -- ----------------------------------------------------------------------------
 
--- | Parse an identifier.
---
--- Identifiers can contain alphanumeric characters and underscores. Unlike many
--- languages, identifiers /may/ start with a digit to support X12 loop IDs
--- like @2300@ or @2400@.
---
--- Reserved keywords cannot be used as identifiers:
--- @RULE@, @WHEN@, @THEN@, @TRUE@, @FALSE@, @AND@, @OR@, @NOT@, @WHERE@,
--- @EXISTS@, @FORALL@, @COUNT@, @IS@, @NULL@
+-- | Letters, digits and underscores; may start with a digit, for X12 loop
+-- IDs such as @2300@. Reserved words are rejected.
 identifier :: Parser String
-identifier = do
-  ident <- (:) <$> (alphaNum <|> char '_') <*> many (alphaNum <|> char '_')
-  if ident `elem` reservedKeywords
-    then fail $ "Identifier cannot be a keyword: " ++ ident
-    else pure ident
-  where
-    reservedKeywords =
-      [ "RULE",
-        "WHEN",
-        "THEN",
-        "TRUE",
-        "FALSE",
-        "AND",
-        "OR",
-        "NOT",
-        "WHERE",
-        "EXISTS",
-        "FORALL",
-        "COUNT",
-        "LET",
-        "IS",
-        "NULL",
-        "BETWEEN",
-        "IN"
-      ]
+identifier = notReserved =<< ((:) <$> (alphaNum <|> char '_') <*> many (alphaNum <|> char '_'))
 
--- | Parse a double-quoted string literal.
---
--- Example: @"hello world"@ parses to @"hello world"@
---
--- Note: Does not currently support escape sequences.
+notReserved :: String -> Parser String
+notReserved ident
+  | ident `elem` reservedWords = fail $ "Identifier cannot be a keyword: " ++ ident
+  | otherwise = pure ident
+
+reservedWords :: [String]
+reservedWords =
+  [ "RULE", "WHEN", "THEN", "TRUE", "FALSE", "AND", "OR", "NOT", "WHERE",
+    "EXISTS", "FORALL", "COUNT", "LET", "IS", "NULL", "BETWEEN", "IN"
+  ]
+
+-- | A double-quoted string. There are no escape sequences.
 stringLiteral :: Parser String
 stringLiteral = between (char '"') (char '"') (many (noneOf "\""))
 
--- | Parse an integer literal.
---
--- Example: @123@ parses to @123@
 intLiteral :: Parser Int
 intLiteral = read <$> many1 digit
 
--- | Parse a RISK_SCORE integer bounded to [0, 100]. Rejects out-of-range
--- values with a clear message, preventing silent Int wraparound on overflow.
+-- | RISK_SCORE is 0 to 100; anything else is a parse error.
 riskScoreLiteral :: Parser Int
 riskScoreLiteral = do
   n <- intLiteral
@@ -675,28 +352,10 @@ riskScoreLiteral = do
     then fail $ "RISK_SCORE must be in range 0-100, got: " ++ show n
     else pure n
 
--- | Parse a floating-point number literal, including optional leading @-@.
---
--- Supports both integer and decimal formats:
---
--- * @123@ parses to @123.0@
--- * @45.67@ parses to @45.67@
--- * @-5@ parses to @-5.0@ (previously a silent parse failure)
--- * @-0.5@ parses to @-0.5@
+-- | @123@, @45.67@, @-5@, @-0.5@
 numberLiteral :: Parser Double
 numberLiteral = do
   sign <- option "" (string "-")
   intPart <- many1 digit
   fracPart <- optionMaybe (char '.' *> many1 digit)
   pure $ read $ sign ++ maybe intPart ((intPart ++ ".") ++) fracPart
-
--- ----------------------------------------------------------------------------
--- Utilities
--- ----------------------------------------------------------------------------
-
--- | Replace a parser's result with a constant value.
--- (Re-exported from Data.Functor in base >= 4.7, but defined here for compatibility)
-($>) :: (Functor f) => f a -> b -> f b
-($>) = flip (<$)
-
-infixl 4 $>

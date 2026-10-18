@@ -4,60 +4,20 @@
 
 -- |
 -- Module      : Claims.SimpleEvaluator
--- Description : Evaluate DSL predicates against generic JSON documents
--- Stability   : experimental
+-- Description : Evaluate rules against JSON claims
 --
--- This module evaluates fraud detection rules against generic JSON documents
--- (Aeson 'Aeson.Value'). This is the recommended evaluator for production use
--- with JSON claim data.
---
--- Unlike "Claims.Evaluator" which requires a fully parsed 'X12Document'
--- structure, this evaluator works with any JSON, making it suitable for:
---
--- * Flat JSON representations of claims
--- * JSON APIs
--- * Testing with simple JSON fixtures
---
--- == Field Lookup
---
--- Fields are looked up using dot notation paths:
---
--- * @"amount"@ - direct field lookup
--- * @"claim.amount"@ - nested field lookup
--- * @"items.0.price"@ - array index access
---
--- The evaluator automatically converts JSON values to text for comparison.
---
--- == Example Usage
---
--- @
--- import Data.Aeson (decode)
--- import Claims.SimpleEvaluator
--- import Claims.Parser (parseRule)
---
--- main :: IO ()
--- main = do
---   let Just claim = decode "{\"amount\": 15000, \"status\": \"pending\"}"
---       Right rule = parseRule "RULE test \"\" WHEN amount > 10000 THEN FLAG_FRAUD \"high\";"
---   print $ evaluateRuleSimple claim rule
--- @
+-- Fields are looked up by dotted path (@claim.amount@, @items.0.price@) and
+-- compared as text or numbers. Predicates use three-valued logic so that
+-- missing data never makes a rule match by itself (see 'Truth').
 module Claims.SimpleEvaluator
-  ( -- * Evaluation Functions
-    evaluateRuleSimple,
-
-    -- * Field Lookup (exported for testing)
-    lookupJsonField,
-
-    -- * Helper Functions
+  ( evaluateRuleSimple,
     helperArity,
-
-    -- * Regular Expressions
     compileRegex,
   )
 where
 
 import Control.Applicative ((<|>))
-import Control.Monad (foldM)
+import Control.Monad (foldM, (>=>))
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Key qualified as Key
 import Data.Aeson.KeyMap qualified as KM
@@ -71,8 +31,9 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Time (Day, DayOfWeek (Saturday, Sunday), dayOfWeek, defaultTimeLocale, parseTimeM, toGregorian)
 import Data.Vector qualified as V
+import Prelude hiding (EQ, GT, LT)
 import Claims.Syntax qualified as Syntax
-import Claims.Syntax (RuleResult (..))
+import Claims.Syntax (CompOp (..), Path (..), RuleResult (..))
 import Text.Regex.TDFA (CompOption (multiline), ExecOption, Regex, defaultCompOpt, defaultExecOpt, makeRegexOptsM, matchTest)
 import Text.Regex.TDFA.Text ()
 
@@ -156,24 +117,10 @@ evaluateWithEnv env = \case
   -- Boolean literals
   Syntax.PTrue -> Yes
   Syntax.PFalse -> No
-  -- Equality comparisons (numeric when the literal is a number)
-  Syntax.Equals fieldRef val@(Syntax.NumberValue _) ->
-    compareNumericField env fieldRef val (==)
-  Syntax.NotEquals fieldRef val@(Syntax.NumberValue _) ->
-    compareNumericField env fieldRef val (/=)
-  Syntax.Equals fieldRef val ->
-    compareField env fieldRef val (==)
-  Syntax.NotEquals fieldRef val ->
-    compareField env fieldRef val (/=)
-  -- Numeric comparisons
-  Syntax.GreaterThan fieldRef val ->
-    compareNumericField env fieldRef val (>)
-  Syntax.LessThan fieldRef val ->
-    compareNumericField env fieldRef val (<)
-  Syntax.GreaterThanOrEqual fieldRef val ->
-    compareNumericField env fieldRef val (>=)
-  Syntax.LessThanOrEqual fieldRef val ->
-    compareNumericField env fieldRef val (<=)
+  -- = and != compare text unless the literal is a number; the rest are numeric
+  Syntax.Compare op ref val
+    | op `elem` [EQ, NE], not (isNumber val) -> compareText env ref val (applyOp op)
+    | otherwise -> compareNumber env ref val (applyOp op)
   -- Inclusive range
   Syntax.Between fieldRef loVal hiVal ->
     evaluateBetween env fieldRef loVal hiVal
@@ -192,19 +139,11 @@ evaluateWithEnv env = \case
     evaluateWithEnv env p1 `tOr` evaluateWithEnv env p2
   Syntax.Not p ->
     tNot $ evaluateWithEnv env p
-  -- Quantifiers over arrays — unnamed: shift doc (backward compatible)
-  Syntax.Exists Nothing path innerPred ->
-    tAny [evaluateWithEnv (env { envDoc = item }) innerPred | item <- findArrayItems path (envDoc env)]
-  Syntax.ForAll Nothing path innerPred ->
-    tAll [evaluateWithEnv (env { envDoc = item }) innerPred | item <- findArrayItems path (envDoc env)]
-  -- Quantifiers over arrays — named: bind variable, doc stays unchanged
-  Syntax.Exists (Just varName) path innerPred ->
-    tAny [evaluateWithEnv (bindScope varName item env) innerPred | item <- findArrayItems path (envDoc env)]
-  Syntax.ForAll (Just varName) path innerPred ->
-    tAll [evaluateWithEnv (bindScope varName item env) innerPred | item <- findArrayItems path (envDoc env)]
+  Syntax.Exists var path p -> tAny (quantify var path p)
+  Syntax.ForAll var path p -> tAll (quantify var path p)
   -- COUNT is definite: a missing collection counts as zero
   Syntax.Count path op n ->
-    known $ compareInt (length $ findArrayItems path (envDoc env)) op n
+    known $ applyOp op (length $ findArrayItems path (envDoc env)) n
   Syntax.HelperCall helperName args ->
     fromMaybeBool $ evaluateHelperCall env helperName args
   -- String operations
@@ -216,11 +155,15 @@ evaluateWithEnv env = \case
         _ -> Nothing
   Syntax.Matches fieldRef pattern ->
     fromMaybeBool $ matchTest <$> compileRegex pattern <*> lookupFieldWithEnv env fieldRef
-
--- | Add a quantifier-bound variable to the environment.
-bindScope :: Text -> Aeson.Value -> EvalEnv -> EvalEnv
-bindScope varName item env =
-  env { envScopeVars = Map.insert varName item (envScopeVars env) }
+  where
+    isNumber (Syntax.NumberValue _) = True
+    isNumber _ = False
+    -- Evaluate the body once per item. Without a variable the item becomes
+    -- the document; with one, the item is bound to it and the document stays.
+    quantify var path p =
+      [ evaluateWithEnv (enter var item) p | item <- findArrayItems path (envDoc env) ]
+    enter Nothing item = env {envDoc = item}
+    enter (Just name) item = env {envScopeVars = Map.insert name item (envScopeVars env)}
 
 -- | Evaluate a complete rule against a JSON document.
 --
@@ -327,8 +270,7 @@ resolveArgText env arg =
   case arg of
     Syntax.StringValue t -> Just t
     Syntax.NumberValue d -> Just (doubleToText d)
-    Syntax.DateValue t -> Just t
-    Syntax.FieldRefValue fieldRef -> lookupFieldWithEnv env fieldRef
+    Syntax.FieldValue fieldRef -> lookupFieldWithEnv env fieldRef
     Syntax.ListValue _ -> Nothing
 
 resolveArgNumber :: EvalEnv -> Syntax.Value -> Maybe Double
@@ -336,8 +278,7 @@ resolveArgNumber env arg =
   case arg of
     Syntax.NumberValue d -> Just d
     Syntax.StringValue t -> textToDouble t
-    Syntax.DateValue _ -> Nothing
-    Syntax.FieldRefValue fieldRef -> lookupFieldWithEnv env fieldRef >>= textToDouble
+    Syntax.FieldValue fieldRef -> lookupFieldWithEnv env fieldRef >>= textToDouble
     Syntax.ListValue _ -> Nothing
 
 resolveArgTextList :: EvalEnv -> Syntax.Value -> Maybe [Text]
@@ -359,49 +300,38 @@ parseDate dateText =
 -- Field Comparison Helpers
 -- ----------------------------------------------------------------------------
 
--- | Compare a field's string value against an expected value or another field.
+-- | Compare a field's text with a string literal or another field.
 -- 'Unknown' if either side is missing.
-compareField ::
-  EvalEnv ->
-  Syntax.FieldRef ->
-  Syntax.Value ->
-  (Text -> Text -> Bool) ->
-  Truth
-compareField env fieldRef val cmp =
+compareText :: EvalEnv -> Path -> Syntax.Value -> (Text -> Text -> Bool) -> Truth
+compareText env fieldRef val cmp =
   fromMaybeBool $ do
     fieldVal <- lookupFieldWithEnv env fieldRef
     expectedVal <- case val of
       Syntax.StringValue t -> Just t
-      Syntax.FieldRefValue otherFieldRef -> lookupFieldWithEnv env otherFieldRef
+      Syntax.FieldValue otherRef -> lookupFieldWithEnv env otherRef
       _ -> Nothing
     pure (cmp fieldVal expectedVal)
 
--- | Compare a field's numeric value against an expected value or another field.
+-- | Compare a field's number with a number literal or another field.
 -- 'Unknown' if either side is missing or not a number.
-compareNumericField ::
-  EvalEnv ->
-  Syntax.FieldRef ->
-  Syntax.Value ->
-  (Double -> Double -> Bool) ->
-  Truth
-compareNumericField env fieldRef val cmp =
+compareNumber :: EvalEnv -> Path -> Syntax.Value -> (Double -> Double -> Bool) -> Truth
+compareNumber env fieldRef val cmp =
   fromMaybeBool $ do
     actualVal <- lookupFieldWithEnv env fieldRef >>= textToDouble
     expectedVal <- case val of
       Syntax.NumberValue n -> Just n
-      Syntax.FieldRefValue otherFieldRef -> lookupFieldWithEnv env otherFieldRef >>= textToDouble
+      Syntax.FieldValue otherRef -> lookupFieldWithEnv env otherRef >>= textToDouble
       _ -> Nothing
     pure (cmp actualVal expectedVal)
 
--- | Compare two integers using a comparison operator.
-compareInt :: Int -> Syntax.CompOp -> Int -> Bool
-compareInt actual op expected = case op of
-  Syntax.EQ -> actual == expected
-  Syntax.NE -> actual /= expected
-  Syntax.GT -> actual > expected
-  Syntax.LT -> actual < expected
-  Syntax.GTE -> actual >= expected
-  Syntax.LTE -> actual <= expected
+applyOp :: Ord a => CompOp -> a -> a -> Bool
+applyOp = \case
+  EQ -> (==)
+  NE -> (/=)
+  GT -> (>)
+  LT -> (<)
+  GTE -> (>=)
+  LTE -> (<=)
 
 -- | Parse a Text value as a Double.
 textToDouble :: Text -> Maybe Double
@@ -413,75 +343,24 @@ textToDouble t = case reads (T.unpack t) of
 -- JSON Field Lookup
 -- ----------------------------------------------------------------------------
 
--- | Look up a field in a JSON value using dot notation.
+-- | Look up a field. Resolution order:
 --
--- Supports multiple reference styles:
---
--- * @Field "amount"@ → looks up @"amount"@ directly
--- * @Field "claim.amount"@ → looks up @claim.amount@ (dot-separated path)
--- * @SegmentField "CLM" "amount"@ → looks up @CLM.amount@
--- * @LoopField "2300" "CLM" "01"@ → looks up @2300.CLM.01@
---
--- Array indices are supported: @"items.0.price"@ accesses the first item's price.
-lookupJsonField :: Syntax.FieldRef -> Aeson.Value -> Maybe Text
-lookupJsonField fieldRef doc = case fieldRef of
-  Syntax.Field name ->
-    lookupPath (T.splitOn "." name) doc
-  Syntax.SegmentField seg field ->
-    lookupPath [seg, field] doc
-  Syntax.LoopField loop seg field ->
-    lookupPath [loop, seg, field] doc
-  Syntax.ElementPosition _ _ _ ->
-    Nothing -- Not used for JSON
+-- 1. If the first part names a quantifier variable (@EXISTS x IN ...@),
+--    look up the rest inside that item.
+-- 2. If the path is a single name bound by @LET@, use the bound value.
+-- 3. Otherwise look the path up in the document.
+lookupFieldWithEnv :: EvalEnv -> Path -> Maybe Text
+lookupFieldWithEnv env (Path parts) = case parts of
+  (first : rest)
+    | Just scopeVal <- Map.lookup first (envScopeVars env) -> lookupPath rest scopeVal
+  [single]
+    | Just val <- Map.lookup single (envLetBindings env) -> Just val
+  _ -> lookupPath parts (envDoc env)
 
--- | Scope-aware field lookup.
---
--- Resolution order:
---
--- 1. If the first path component matches a quantifier-bound variable
---    (@EXISTS x IN …@), resolve the rest against that JSON value.
--- 2. If the name matches a LET binding, return its text value.
--- 3. Otherwise fall back to document lookup.
-lookupFieldWithEnv :: EvalEnv -> Syntax.FieldRef -> Maybe Text
-lookupFieldWithEnv env fieldRef =
-  case fieldRef of
-    Syntax.Field name ->
-      let parts = T.splitOn "." name
-       in case parts of
-            (first : rest)
-              | Just scopeVal <- Map.lookup first (envScopeVars env) ->
-                  lookupPath rest scopeVal
-            [single]
-              | Just val <- Map.lookup single (envLetBindings env) ->
-                  Just val
-            _ -> lookupJsonField fieldRef (envDoc env)
-    Syntax.SegmentField seg field
-      | Just scopeVal <- Map.lookup seg (envScopeVars env) ->
-          lookupPath [field] scopeVal
-      | otherwise ->
-          lookupJsonField fieldRef (envDoc env)
-    Syntax.LoopField loop seg field
-      | Just scopeVal <- Map.lookup loop (envScopeVars env) ->
-          lookupPath [seg, field] scopeVal
-      | otherwise ->
-          lookupJsonField fieldRef (envDoc env)
-    _ -> lookupJsonField fieldRef (envDoc env)
-
--- | Navigate a dot-separated path through JSON and extract a text value.
---
--- Handles both objects (by key) and arrays (by numeric index).
+-- | Follow a path through objects (by key) and arrays (by index) and render
+-- the value found as text.
 lookupPath :: [Text] -> Aeson.Value -> Maybe Text
-lookupPath [] val = valueToText val
-lookupPath (key : rest) val = case val of
-  Aeson.Object obj ->
-    KM.lookup (Key.fromText key) obj >>= lookupPath rest
-  Aeson.Array arr ->
-    case reads (T.unpack key) of
-      [(idx, "")]
-        | idx >= 0 && idx < V.length arr ->
-            lookupPath rest (arr V.! idx)
-      _ -> Nothing
-  _ -> Nothing
+lookupPath path = lookupPathRaw path >=> valueToText
 
 -- | Convert a JSON value to Text for comparison.
 --
@@ -523,19 +402,16 @@ doubleToText d
 -- Array Navigation for Quantifiers
 -- ----------------------------------------------------------------------------
 
--- | Find array items at a path for EXISTS/FORALL/COUNT predicates.
---
--- If the path points to an array, returns its elements.
--- If the path points to an object, returns it as a single-element list.
--- Otherwise returns an empty list.
-findArrayItems :: Syntax.SegmentPath -> Aeson.Value -> [Aeson.Value]
-findArrayItems (Syntax.SegmentPath pathStr pathParts) doc =
-  case lookupPathRaw (pathStr : pathParts) doc of
+-- | The items of the collection at a path: an array's elements, or a single
+-- object as a one-item list. Anything else, or nothing, gives no items.
+findArrayItems :: Path -> Aeson.Value -> [Aeson.Value]
+findArrayItems (Path parts) doc =
+  case lookupPathRaw parts doc of
     Just (Aeson.Array arr) -> V.toList arr
     Just obj@(Aeson.Object _) -> [obj] -- Single object as list of one
     _ -> []
 
--- | Navigate a path but return the raw JSON value (not converted to text).
+-- | Follow a path through objects (by key) and arrays (by index).
 lookupPathRaw :: [Text] -> Aeson.Value -> Maybe Aeson.Value
 lookupPathRaw [] val = Just val
 lookupPathRaw (key : rest) val = case val of
@@ -554,7 +430,7 @@ lookupPathRaw (key : rest) val = case val of
 -- ----------------------------------------------------------------------------
 
 -- | Evaluate @field BETWEEN lo AND hi@ (inclusive).
-evaluateBetween :: EvalEnv -> Syntax.FieldRef -> Syntax.Value -> Syntax.Value -> Truth
+evaluateBetween :: EvalEnv -> Path -> Syntax.Value -> Syntax.Value -> Truth
 evaluateBetween env fieldRef loVal hiVal =
   fromMaybeBool $ do
     actual <- lookupFieldWithEnv env fieldRef >>= textToDouble
@@ -588,7 +464,7 @@ evaluateHasProcedure env val =
       let doc = envDoc env
        in searchSources
             [ anyCodeInArray doc ["procedure_codes"] "code" searchCode,
-              anyFieldInArray doc ["service_lines"] "procedure_code" searchCode,
+              anyCodeInArray doc ["service_lines"] "procedure_code" searchCode,
               (== searchCode) <$> lookupPath ["procedure_code"] doc
             ]
     _ -> Unknown
@@ -611,11 +487,6 @@ anyCodeInArray doc rootPath fieldName target =
     Just (Aeson.Array arr)
       | not (V.null arr) -> Just (V.any (matchField fieldName target) arr)
     _ -> Nothing
-
--- | Check if any element in an array at @rootPath@ has a direct field matching
--- the target.  E.g. @service_lines[*].procedure_code == "99213"@.
-anyFieldInArray :: Aeson.Value -> [Text] -> Text -> Text -> Maybe Bool
-anyFieldInArray = anyCodeInArray  -- same implementation, different intent
 
 -- | Does a JSON object's named field equal the target text?
 matchField :: Text -> Text -> Aeson.Value -> Bool

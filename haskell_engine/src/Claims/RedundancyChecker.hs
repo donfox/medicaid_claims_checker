@@ -8,16 +8,16 @@
 --
 -- Compares a candidate rule against existing rules to detect:
 --
--- * __Level 1 — Exact Duplicate__: identical condition AND action
--- * __Level 2 — Subsumption__: condition implies + same action (truly redundant)
--- * __Level 3 — Shadowed__: condition implies + different action (conflict)
--- * __Level 4 — Condition Overlap__: same fields with overlapping ranges
+-- * __Exact duplicate__: same condition and action
+-- * __Subsumption__: one condition implies the other, same action (redundant)
+-- * __Shadowed__: one condition implies the other, different action (conflict)
+-- * __Condition overlap__: constraints on the same field whose ranges overlap
+--
+-- Every check is conservative: it reports only what it can prove.
 module Claims.RedundancyChecker
   ( RedundancyLevel (..),
     RedundancyMatch (..),
     checkRedundancy,
-    normalizePredicate,
-    predicateImplies,
   )
 where
 
@@ -26,6 +26,7 @@ import Data.List (sort)
 import Data.Text (Text)
 import qualified Data.Text as T
 import GHC.Generics (Generic)
+import Prelude hiding (EQ, GT, LT)
 import Claims.Syntax
 
 -- ----------------------------------------------------------------------------
@@ -52,65 +53,38 @@ data RedundancyMatch = RedundancyMatch
 
 instance ToJSON RedundancyMatch
 
--- ----------------------------------------------------------------------------
--- Public API
--- ----------------------------------------------------------------------------
-
--- | Check a candidate rule against a list of existing rules.
--- Returns all detected redundancies, at most one per existing rule
--- (the most specific level found).
+-- | Compare a candidate rule with each existing rule. Reports at most one
+-- match per existing rule: the most specific level found.
 checkRedundancy :: Rule -> [Rule] -> [RedundancyMatch]
 checkRedundancy candidate = concatMap (compareRules candidate)
 
--- ----------------------------------------------------------------------------
--- Per-pair comparison
--- ----------------------------------------------------------------------------
-
--- | Compare candidate against one existing rule.
--- Returns at most one match (the most specific level).
 compareRules :: Rule -> Rule -> [RedundancyMatch]
 compareRules candidate existing
-  | isExactDuplicate candidate existing =
-      [ RedundancyMatch
-          ExactDuplicate
-          (ruleName existing)
-          ( "Condition and action are identical to '"
-              <> ruleName existing
-              <> "'"
-          )
-      ]
-  | hasSubsumption candidate existing =
-      let sameAction = ruleAction candidate == ruleAction existing
-          level = if sameAction then Subsumption else Shadowed
-       in [ RedundancyMatch
-              level
-              (ruleName existing)
-              (subsumptionExplanation level candidate existing)
-          ]
+  | pc == pe && sameAction =
+      [match ExactDuplicate ("Condition and action are identical to " <> quote existing)]
+  | candidateNarrower || predicateImplies pe pc =
+      [match (if sameAction then Subsumption else Shadowed) subsumption]
   | hasConditionOverlap candidate existing =
-      [ RedundancyMatch
-          ConditionOverlap
-          (ruleName existing)
-          ( "Shares overlapping field constraints with '"
-              <> ruleName existing
-              <> "'"
-          )
-      ]
+      [match ConditionOverlap ("Shares overlapping field constraints with " <> quote existing)]
   | otherwise = []
+  where
+    pc = normalizePredicate (ruleCondition candidate)
+    pe = normalizePredicate (ruleCondition existing)
+    sameAction = ruleAction candidate == ruleAction existing
+    candidateNarrower = predicateImplies pc pe
+    match level = RedundancyMatch level (ruleName existing)
+    quote r = "'" <> ruleName r <> "'"
+    subsumption =
+      (if candidateNarrower
+         then quote candidate <> " is more specific than " <> quote existing
+                <> " — existing rule covers all cases this rule would match"
+         else quote existing <> " is more specific than " <> quote candidate
+                <> " — new rule would cover all cases " <> quote existing <> " matches")
+        <> (if sameAction then "" else " (different actions — possible conflict)")
 
 -- ----------------------------------------------------------------------------
--- Level 1: Exact Duplicate
+-- Condition overlap
 -- ----------------------------------------------------------------------------
-
--- | Two rules are exact duplicates when their normalized conditions
--- and actions are structurally equal (ignoring name and description).
-isExactDuplicate :: Rule -> Rule -> Bool
-isExactDuplicate a b =
-  normalizePredicate (ruleCondition a) == normalizePredicate (ruleCondition b)
-    && ruleAction a == ruleAction b
-
--- ----------------------------------------------------------------------------
--- Level 2: Condition Overlap
 -- ----------------------------------------------------------------------------
 
 -- | Two rules overlap if they share constraints on the same field
@@ -124,14 +98,11 @@ hasConditionOverlap a b =
 -- | A leaf constraint extracted from a predicate tree, tagged with the
 -- quantifier scope (if any) it was extracted under.
 data FieldConstraint = FieldConstraint
-  { fcScope :: Maybe SegmentPath,
-    fcField :: FieldRef,
-    fcOp :: ConstraintOp,
+  { fcScope :: Maybe Path,
+    fcField :: Path,
+    fcOp :: CompOp,
     fcValue :: Value
   }
-  deriving (Show, Eq)
-
-data ConstraintOp = CEq | CNe | CGt | CLt | CGte | CLte
   deriving (Show, Eq)
 
 -- | Walk the predicate tree and collect leaf field constraints.
@@ -143,13 +114,9 @@ extractConstraints = go Nothing
     go scope p = case p of
       PTrue           -> []
       PFalse          -> []
-      Equals f v      -> [FieldConstraint scope f CEq v]
-      NotEquals _ _   -> []
-      GreaterThan f v -> [FieldConstraint scope f CGt v]
-      LessThan f v    -> [FieldConstraint scope f CLt v]
-      GreaterThanOrEqual f v -> [FieldConstraint scope f CGte v]
-      LessThanOrEqual f v    -> [FieldConstraint scope f CLte v]
-      Between f v1 v2 -> [FieldConstraint scope f CGte v1, FieldConstraint scope f CLte v2]
+      Compare NE _ _  -> []
+      Compare op f v  -> [FieldConstraint scope f op v]
+      Between f v1 v2 -> [FieldConstraint scope f GTE v1, FieldConstraint scope f LTE v2]
       Contains _ _    -> []
       IsNull _        -> []
       IsNotNull _     -> []
@@ -173,14 +140,10 @@ constraintsOverlap a b
   | otherwise = valuesOverlap (fcOp a) (fcValue a) (fcOp b) (fcValue b)
 
 -- | Check if two (operator, value) pairs on the same field overlap.
-valuesOverlap :: ConstraintOp -> Value -> ConstraintOp -> Value -> Bool
--- String equality: overlap if same value
-valuesOverlap CEq (StringValue s1) CEq (StringValue s2) = s1 == s2
--- Numeric comparisons
+valuesOverlap :: CompOp -> Value -> CompOp -> Value -> Bool
 valuesOverlap op1 (NumberValue n1) op2 (NumberValue n2) =
   numericRangesOverlap op1 n1 op2 n2
--- Same equality on any value type
-valuesOverlap CEq v1 CEq v2 = v1 == v2
+valuesOverlap EQ v1 EQ v2 = v1 == v2
 -- Conservative: if we can't determine, don't flag overlap
 valuesOverlap _ _ _ _ = False
 
@@ -188,7 +151,7 @@ valuesOverlap _ _ _ _ = False
 -- We model each constraint as an interval whose ends may be open or closed
 -- and check if the intersection is non-empty. @> 5@ and @< 5@ do not overlap;
 -- @>= 5@ and @<= 5@ do.
-numericRangesOverlap :: ConstraintOp -> Double -> ConstraintOp -> Double -> Bool
+numericRangesOverlap :: CompOp -> Double -> CompOp -> Double -> Bool
 numericRangesOverlap op1 n1 op2 n2 =
   let (lo, loClosed) = tighter (>) (lowerBound op1 n1) (lowerBound op2 n2)
       (hi, hiClosed) = tighter (<) (upperBound op1 n1) (upperBound op2 n2)
@@ -202,53 +165,22 @@ numericRangesOverlap op1 n1 op2 n2 =
       | otherwise = (a, ca && cb)
 
 -- | The lower end of a constraint's interval and whether it is included.
-lowerBound :: ConstraintOp -> Double -> (Double, Bool)
-lowerBound CEq n = (n, True)
-lowerBound CGt n = (n, False)
-lowerBound CGte n = (n, True)
+lowerBound :: CompOp -> Double -> (Double, Bool)
+lowerBound EQ n = (n, True)
+lowerBound GT n = (n, False)
+lowerBound GTE n = (n, True)
 lowerBound _ _ = (-1 / 0, False)
 
 -- | The upper end of a constraint's interval and whether it is included.
-upperBound :: ConstraintOp -> Double -> (Double, Bool)
-upperBound CEq n = (n, True)
-upperBound CLt n = (n, False)
-upperBound CLte n = (n, True)
+upperBound :: CompOp -> Double -> (Double, Bool)
+upperBound EQ n = (n, True)
+upperBound LT n = (n, False)
+upperBound LTE n = (n, True)
 upperBound _ _ = (1 / 0, False)
 
 -- ----------------------------------------------------------------------------
--- Level 3: Subsumption
+-- Implication
 -- ----------------------------------------------------------------------------
-
--- | One rule subsumes the other if its condition implies the other's.
-hasSubsumption :: Rule -> Rule -> Bool
-hasSubsumption a b =
-  let pa = normalizePredicate (ruleCondition a)
-      pb = normalizePredicate (ruleCondition b)
-   in predicateImplies pa pb || predicateImplies pb pa
-
-subsumptionExplanation :: RedundancyLevel -> Rule -> Rule -> Text
-subsumptionExplanation level candidate existing =
-  let pc = normalizePredicate (ruleCondition candidate)
-      pe = normalizePredicate (ruleCondition existing)
-      suffix = case level of
-        Shadowed -> " (different actions — possible conflict)"
-        _        -> ""
-      direction
-        | predicateImplies pc pe =
-            "'"
-              <> ruleName candidate
-              <> "' is more specific than '"
-              <> ruleName existing
-              <> "' — existing rule covers all cases this rule would match"
-        | otherwise =
-            "'"
-              <> ruleName existing
-              <> "' is more specific than '"
-              <> ruleName candidate
-              <> "' — new rule would cover all cases '"
-              <> ruleName existing
-              <> "' matches"
-   in direction <> suffix
 
 -- | Conservative implication check.
 --
@@ -271,34 +203,18 @@ predicateImplies (And a b) q =
 -- Or: p implies (a OR b) if p implies either disjunct
 predicateImplies p (Or a b) =
   predicateImplies p a || predicateImplies p b
--- Numeric tightening: stricter bound implies looser bound
-predicateImplies (GreaterThan f1 (NumberValue n1)) (GreaterThan f2 (NumberValue n2)) =
-  f1 == f2 && n1 >= n2
-predicateImplies (GreaterThanOrEqual f1 (NumberValue n1)) (GreaterThan f2 (NumberValue n2)) =
-  f1 == f2 && n1 > n2
-predicateImplies (GreaterThan f1 (NumberValue n1)) (GreaterThanOrEqual f2 (NumberValue n2)) =
-  f1 == f2 && n1 >= n2
-predicateImplies (GreaterThanOrEqual f1 (NumberValue n1)) (GreaterThanOrEqual f2 (NumberValue n2)) =
-  f1 == f2 && n1 >= n2
-predicateImplies (LessThan f1 (NumberValue n1)) (LessThan f2 (NumberValue n2)) =
-  f1 == f2 && n1 <= n2
-predicateImplies (LessThanOrEqual f1 (NumberValue n1)) (LessThan f2 (NumberValue n2)) =
-  f1 == f2 && n1 < n2
-predicateImplies (LessThan f1 (NumberValue n1)) (LessThanOrEqual f2 (NumberValue n2)) =
-  f1 == f2 && n1 <= n2
-predicateImplies (LessThanOrEqual f1 (NumberValue n1)) (LessThanOrEqual f2 (NumberValue n2)) =
-  f1 == f2 && n1 <= n2
--- Equality implies range: = 60000 implies > 50000
-predicateImplies (Equals f1 (NumberValue n1)) (GreaterThan f2 (NumberValue n2)) =
-  f1 == f2 && n1 > n2
-predicateImplies (Equals f1 (NumberValue n1)) (GreaterThanOrEqual f2 (NumberValue n2)) =
-  f1 == f2 && n1 >= n2
-predicateImplies (Equals f1 (NumberValue n1)) (LessThan f2 (NumberValue n2)) =
-  f1 == f2 && n1 < n2
-predicateImplies (Equals f1 (NumberValue n1)) (LessThanOrEqual f2 (NumberValue n2)) =
-  f1 == f2 && n1 <= n2
--- String/value equality
-predicateImplies (Equals f1 v1) (Equals f2 v2) =
+-- Numbers on the same field: p implies q when p's range of values lies
+-- inside q's. So > 1000 implies > 500, and = 60000 implies >= 50000.
+predicateImplies (Compare op1 f1 (NumberValue n1)) (Compare op2 f2 (NumberValue n2))
+  | f1 == f2, op1 /= NE, op2 /= NE =
+      inside (>) (lowerBound op1 n1) (lowerBound op2 n2)
+        && inside (<) (upperBound op1 n1) (upperBound op2 n2)
+  where
+    -- One end of p's range is inside q's when it is strictly tighter, or the
+    -- same value and not included in p unless it is included in q.
+    inside tighter (a, aIncluded) (b, bIncluded) =
+      a `tighter` b || (a == b && (bIncluded || not aIncluded))
+predicateImplies (Compare EQ f1 v1) (Compare EQ f2 v2) =
   f1 == f2 && v1 == v2
 -- IsNull / IsNotNull
 predicateImplies (IsNull f1) (IsNull f2) = f1 == f2
@@ -337,7 +253,7 @@ normalizePredicate = go 0
       Not (Not inner) -> go depth inner
       Not inner -> Not (go depth inner)
       Between f v1 v2 ->
-        go depth (And (GreaterThanOrEqual f v1) (LessThanOrEqual f v2))
+        go depth (And (Compare GTE f v1) (Compare LTE f v2))
       Exists mv sp inner ->
         let (mv', inner') = alphaNormalize depth mv inner
          in Exists mv' sp (go (depth + 1) inner')
@@ -354,28 +270,16 @@ alphaNormalize depth (Just oldName) body =
   let canonical = "_v" <> T.pack (show depth)
    in (Just canonical, renameVar oldName canonical body)
 
--- | Substitute all occurrences of a bound variable name in a predicate.
--- Bound variables appear as the first component of 'SegmentField',
--- 'LoopField', or a dotted 'Field' (paths of four or more parts).
--- Stops at nested quantifiers that shadow the same variable name.
+-- | Rename a bound variable where it starts a field path (@var.field@).
+-- Stops at nested quantifiers that shadow the same name.
 renameVar :: Text -> Text -> Predicate -> Predicate
 renameVar old new = go
   where
-    renameField (SegmentField seg f) | seg == old = SegmentField new f
-    renameField (LoopField l s f)    | l == old   = LoopField new s f
-    renameField (Field path)
-      | (first : rest@(_ : _)) <- T.splitOn "." path,
-        first == old =
-          Field (T.intercalate "." (new : rest))
-    renameField other                              = other
+    renameField (Path (first : rest@(_ : _))) | first == old = Path (new : rest)
+    renameField other = other
 
     go pred' = case pred' of
-      Equals f v              -> Equals (renameField f) v
-      NotEquals f v           -> NotEquals (renameField f) v
-      GreaterThan f v         -> GreaterThan (renameField f) v
-      LessThan f v            -> LessThan (renameField f) v
-      GreaterThanOrEqual f v  -> GreaterThanOrEqual (renameField f) v
-      LessThanOrEqual f v     -> LessThanOrEqual (renameField f) v
+      Compare op f v          -> Compare op (renameField f) v
       Contains f v            -> Contains (renameField f) v
       Matches f t             -> Matches (renameField f) t
       IsNull f                -> IsNull (renameField f)

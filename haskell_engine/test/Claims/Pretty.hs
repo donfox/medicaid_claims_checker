@@ -13,15 +13,12 @@
 -- parseRule (prettyRule r) == Right r
 -- @
 --
--- for every rule @r@ the parser can produce. That makes it safe to use for
--- canonical formatting, for showing JSON-stored rules as DSL text, and for
--- generating rules programmatically.
+-- for every rule @r@ the parser can produce. The test suite uses it as the
+-- oracle for that property.
 --
--- A few AST values have no DSL syntax and so cannot round-trip: 'DateValue'
--- (rendered as a quoted string, which parses back as 'StringValue'),
--- 'ElementPosition', strings containing a double quote (the DSL has no
--- escapes), non-finite numbers, and nested 'CompositeAction's. The parser
--- never produces any of these.
+-- A few AST values have no DSL syntax and so cannot round-trip: strings
+-- containing a double quote (the DSL has no escapes), non-finite numbers,
+-- and nested 'CompositeAction's. The parser never produces any of these.
 --
 -- ==== Example
 --
@@ -32,10 +29,6 @@
 module Claims.Pretty
   ( prettyRules,
     prettyRule,
-    prettyPredicate,
-    prettyAction,
-    prettyFieldRef,
-    prettyValue,
   )
 where
 
@@ -60,7 +53,7 @@ prettyRule rule =
          ]
 
 prettyBinding :: Binding -> Text
-prettyBinding (Binding name ref) = "LET " <> name <> " = " <> prettyFieldRef ref
+prettyBinding (Binding name ref) = "LET " <> name <> " = " <> prettyPath ref
 
 -- | Render a predicate.
 --
@@ -70,21 +63,16 @@ prettyPredicate :: Predicate -> Text
 prettyPredicate = \case
   PTrue -> "TRUE"
   PFalse -> "FALSE"
-  Equals f v -> comparison f "=" v
-  NotEquals f v -> comparison f "!=" v
-  GreaterThan f v -> comparison f ">" v
-  LessThan f v -> comparison f "<" v
-  GreaterThanOrEqual f v -> comparison f ">=" v
-  LessThanOrEqual f v -> comparison f "<=" v
-  Contains f v -> prettyFieldRef f <> " CONTAINS " <> prettyValue v
-  Matches f pattern -> prettyFieldRef f <> " MATCHES " <> quoted pattern
-  IsNull f -> prettyFieldRef f <> " IS NULL"
-  IsNotNull f -> prettyFieldRef f <> " IS NOT NULL"
+  Compare op f v -> prettyPath f <> " " <> prettyCompOp op <> " " <> prettyValue v
+  Contains f v -> prettyPath f <> " CONTAINS " <> prettyValue v
+  Matches f pattern -> prettyPath f <> " MATCHES " <> quoted pattern
+  IsNull f -> prettyPath f <> " IS NULL"
+  IsNotNull f -> prettyPath f <> " IS NOT NULL"
   And p q -> parens p <> " AND " <> parens q
   Or p q -> parens p <> " OR " <> parens q
   Not p -> "NOT " <> parens p
   Between f lo hi ->
-    prettyFieldRef f <> " BETWEEN " <> prettyValue lo <> " AND " <> prettyValue hi
+    prettyPath f <> " BETWEEN " <> prettyValue lo <> " AND " <> prettyValue hi
   HasDiagnosis v -> "claim.has_diagnosis " <> prettyValue v
   HasProcedure v -> "claim.has_procedure " <> prettyValue v
   Exists var path p -> quantifier "EXISTS" var path p
@@ -94,7 +82,6 @@ prettyPredicate = \case
   HelperCall name args ->
     name <> "(" <> T.intercalate ", " (map prettyValue args) <> ")"
   where
-    comparison f op v = prettyFieldRef f <> " " <> op <> " " <> prettyValue v
     parens p = "(" <> prettyPredicate p <> ")"
     quantifier kwd var path p =
       kwd <> " " <> maybe "" (<> " IN ") var <> prettyPath path <> " WHERE " <> parens p
@@ -109,21 +96,13 @@ prettyAction = \case
   ApproveClaim reason -> "APPROVE " <> quoted reason
   CompositeAction acts -> "[" <> T.intercalate ", " (map prettyAction acts) <> "]"
 
-prettyFieldRef :: FieldRef -> Text
-prettyFieldRef = \case
-  Field f -> f
-  SegmentField seg f -> seg <> "." <> f
-  LoopField loop seg f -> loop <> "." <> seg <> "." <> f
-  ElementPosition s e c -> T.intercalate "-" (map (T.pack . show) [s, e, c])
-
 -- | Render a literal value.
 prettyValue :: Value -> Text
 prettyValue = \case
   StringValue t -> quoted t
   NumberValue n -> prettyNumber n
-  DateValue t -> quoted t
   ListValue vs -> "[" <> T.intercalate ", " (map prettyValue vs) <> "]"
-  FieldRefValue ref -> prettyFieldRef ref
+  FieldValue ref -> prettyPath ref
 
 -- | Plain decimal notation, never scientific (the parser does not read
 -- @1.0e-3@). Whole numbers drop the fractional part: @10000@, not @10000.0@.
@@ -134,8 +113,8 @@ prettyNumber n
   where
     whole = round n :: Integer
 
-prettyPath :: SegmentPath -> Text
-prettyPath (SegmentPath loop segs) = T.intercalate "." (loop : segs)
+prettyPath :: Path -> Text
+prettyPath (Path parts) = T.intercalate "." parts
 
 prettyCompOp :: CompOp -> Text
 prettyCompOp = \case

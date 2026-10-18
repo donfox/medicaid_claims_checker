@@ -1,61 +1,21 @@
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-{- |
-Module      : Claims.RuleEngine
-Description : High-level API for loading and evaluating fraud detection rules
-Stability   : experimental
-
-This module provides the main entry point for the fraud detection rule engine.
-It orchestrates rule loading, document evaluation, and result aggregation.
-
-== Typical Usage
-
-@
-import Claims.RuleEngine
-import Data.Aeson (decode)
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.Text as T
-
-main :: IO ()
-main = do
-    -- Load rules from a file
-    rulesText <- readFile "rules.dsl"
-    let Right engine = loadRules (T.pack rulesText)
-
-    -- Load and evaluate a claim
-    claimJson <- BL.readFile "claim.json"
-    let Just claim = decode claimJson
-        report = evaluateSimpleJson engine claim
-
-    -- Check results
-    print $ reportOverallRisk report
-    mapM_ print $ filter resultMatched $ reportResults report
-@
-
-== Risk Level Determination
-
-The engine assigns an overall risk level based on matched rules:
-
-* 'CriticalRisk' - Any 'FlagFraud' or 'RejectClaim' action
-* 'HighRisk' - Any 'RequireReview' action, or any risk score >= 70
-* 'LowRisk' - No significant risk indicators
-
-'MediumRisk' is kept for the wire format but is not currently produced.
-
-== Thread Safety
-
-The 'RuleEngine' is immutable once created and can be safely shared
-across threads for concurrent evaluation.
--}
+-- |
+-- Module      : Claims.RuleEngine
+-- Description : Evaluate a rule set against a claim and summarise the result
+--
+-- Overall risk, from the actions of matched rules:
+--
+-- * 'CriticalRisk': any 'FlagFraud' or 'RejectClaim'
+-- * 'HighRisk': any 'RequireReview', or a risk score >= 70
+-- * 'LowRisk': otherwise
+--
+-- Phoenix flags 'HighRisk' and 'CriticalRisk' claims for analyst review.
+-- 'MediumRisk' is kept for the wire format but is not produced.
 module Claims.RuleEngine
-  ( -- * Rule Engine
-    RuleEngine
-  , loadRules
-  , engineRules
-    -- * Evaluation
+  ( loadRules
   , evaluateSimpleJson
-    -- * Results
   , EvaluationReport (..)
   , RiskLevel (..)
   ) where
@@ -68,56 +28,16 @@ import Claims.Parser (parseRules)
 import Claims.SimpleEvaluator (evaluateRuleSimple)
 import Claims.Syntax (Action (..), Rule, RuleResult (..))
 
--- ----------------------------------------------------------------------------
--- Rule Engine
--- ----------------------------------------------------------------------------
-
--- | Container for loaded fraud detection rules.
---
--- Create with 'loadRules' (from DSL text).
--- Once created, the engine is immutable and thread-safe.
-data RuleEngine = RuleEngine
-  { engineRules :: [Rule]
-    -- ^ The loaded rules (in order they were defined)
-  } deriving (Show)
-
--- | Parse DSL text and create a rule engine.
---
--- Returns 'Left' with an error message if parsing fails,
--- or 'Right' with the loaded engine on success.
---
--- ==== Example
---
--- @
--- case loadRules rulesText of
---   Left err     -> putStrLn $ "Failed to load rules: " ++ err
---   Right engine -> print $ length (engineRules engine)
--- @
-loadRules :: Text -> Either String RuleEngine
+-- | Parse a rule set.
+loadRules :: Text -> Either String [Rule]
 loadRules rulesText = case parseRules rulesText of
   Left err    -> Left $ "Parse error: " ++ show err
-  Right rules -> Right $ RuleEngine rules
+  Right rules -> Right rules
 
--- ----------------------------------------------------------------------------
--- Evaluation
--- ----------------------------------------------------------------------------
-
--- | Evaluate a JSON document against all loaded rules.
---
--- Uses "Claims.SimpleEvaluator" which works with any JSON structure.
--- This is the recommended evaluation function for most use cases.
---
--- ==== Example
---
--- @
--- let claim = Aeson.object ["amount" .= (15000 :: Int), "provider" .= "NPI123"]
---     report = evaluateSimpleJson engine claim
--- when (reportOverallRisk report >= HighRisk) $
---   flagForReview claim
--- @
-evaluateSimpleJson :: RuleEngine -> Day -> Aeson.Value -> EvaluationReport
-evaluateSimpleJson engine today doc =
-  let results    = map (evaluateRuleSimple today doc) (engineRules engine)
+-- | Evaluate every rule against one claim.
+evaluateSimpleJson :: [Rule] -> Day -> Aeson.Value -> EvaluationReport
+evaluateSimpleJson rules today doc =
+  let results    = map (evaluateRuleSimple today doc) rules
       matched    = filter resultMatched results
       matchCount = length matched
       undecided  = length (filter resultUndecided results)
@@ -137,20 +57,14 @@ evaluateSimpleJson engine today doc =
 -- Evaluation Report
 -- ----------------------------------------------------------------------------
 
--- | Comprehensive report from evaluating all rules against a document.
 data EvaluationReport = EvaluationReport
-  { reportResults      :: [RuleResult]
-    -- ^ Individual result for each rule
-  , reportTotalRules   :: Int
-    -- ^ Total number of rules evaluated
-  , reportMatchedRules :: Int
-    -- ^ Number of rules that matched
+  { reportResults        :: [RuleResult]
+  , reportTotalRules     :: Int
+  , reportMatchedRules   :: Int
   , reportUndecidedRules :: Int
-    -- ^ Number of rules that could not be decided because of missing data
-  , reportOverallRisk  :: RiskLevel
-    -- ^ Aggregated risk assessment
-  , reportSummary      :: Text
-    -- ^ Human-readable summary
+    -- ^ Rules not checked because data they need is missing
+  , reportOverallRisk    :: RiskLevel
+  , reportSummary        :: Text
   } deriving (Show)
 
 -- | Overall risk level for a claim based on matched rules.
@@ -165,17 +79,9 @@ data RiskLevel
 -- Risk Calculation
 -- ----------------------------------------------------------------------------
 
--- | Determine overall risk level from rule evaluation results.
---
--- Logic, over the actions of matched rules (composite actions included):
---
--- 1. Any 'FlagFraud' or 'RejectClaim' → 'CriticalRisk'
--- 2. Any 'RequireReview', or any risk score >= 70 → 'HighRisk'
--- 3. Otherwise → 'LowRisk'
---
--- Phoenix counts HighRisk and CriticalRisk as flagged for analyst review,
--- so a rule that asks for review, or scores a claim as high risk, must
--- reach at least 'HighRisk' on its own. 'MediumRisk' is not produced.
+-- | Overall risk from the matched rules' actions, composites included (see
+-- the module header). A rule that asks for review, or scores a claim as
+-- high risk, must reach 'HighRisk' on its own so Phoenix flags the claim.
 determineRiskLevel :: [RuleResult] -> RiskLevel
 determineRiskLevel results
   | any isCritical actions   = CriticalRisk

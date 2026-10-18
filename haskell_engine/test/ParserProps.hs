@@ -120,8 +120,9 @@ pickFrom = elements
 genSafeDouble :: Gen Double
 genSafeDouble = (/ 100) . fromIntegral <$> choose (-999999 :: Int, 999999)
 
-genSegmentPath :: Gen SegmentPath
-genSegmentPath = SegmentPath <$> pickFrom safeLoops <*> (take 1 <$> sublistOf safeSegments)
+-- | A collection for EXISTS / FORALL / COUNT: a loop, optionally a segment.
+genCollectionPath :: Gen Path
+genCollectionPath = (\loop segs -> Path (loop : segs)) <$> pickFrom safeLoops <*> (take 1 <$> sublistOf safeSegments)
 
 -- | A literal: no field references, since list elements must be scalars.
 genScalar :: Gen Value
@@ -139,35 +140,29 @@ genScalar = oneof [StringValue <$> pickFrom safeStrings, NumberValue <$> genSafe
 -- rather than a large, hard-to-read counterexample.
 -- ============================================================
 
-instance Arbitrary FieldRef where
-  arbitrary = oneof
-    [ Field        <$> pickFrom safeFieldNames
-    , SegmentField <$> pickFrom safeSegments <*> pickFrom safeFieldNames
-    , LoopField    <$> pickFrom safeLoops    <*> pickFrom safeSegments <*> pickFrom safeFieldNames
-    , genDeepField
-    ]
-  shrink (SegmentField _ f)   = [Field f]
-  shrink (LoopField _ seg f)  = [SegmentField seg f, Field f]
-  shrink (Field path)
-    | [l, seg, f] <- lastThree (T.splitOn "." path) = [LoopField l seg f]
-    where
-      lastThree parts = if length parts > 3 then drop (length parts - 3) parts else []
-  shrink _                    = []
-
--- | A path of four or five parts, stored as a dotted 'Field'.
-genDeepField :: Gen FieldRef
-genDeepField = do
-  extra <- choose (1, 2 :: Int)
-  prefix <- vectorOf extra (pickFrom safeSegments)
-  loop <- pickFrom safeLoops
-  seg <- pickFrom safeSegments
-  field <- pickFrom safeFieldNames
-  pure $ Field (T.intercalate "." (loop : prefix ++ [seg, field]))
+-- | A field path of one to five parts: @amount@, @CLM.amount@,
+-- @2300.CLM.amount@, or deeper.
+instance Arbitrary Path where
+  arbitrary = do
+    field <- pickFrom safeFieldNames
+    oneof
+      [ pure (Path [field])
+      , (\seg -> Path [seg, field]) <$> pickFrom safeSegments
+      , (\loop seg -> Path [loop, seg, field]) <$> pickFrom safeLoops <*> pickFrom safeSegments
+      , do
+          extra <- choose (1, 2 :: Int)
+          prefix <- vectorOf extra (pickFrom safeSegments)
+          loop <- pickFrom safeLoops
+          seg <- pickFrom safeSegments
+          pure (Path (loop : prefix ++ [seg, field]))
+      ]
+  -- Shorter suffixes of the path.
+  shrink (Path parts) = [Path (drop k parts) | k <- [1 .. length parts - 1]]
 
 instance Arbitrary Value where
   arbitrary = frequency
     [ (4, genScalar)
-    , (1, FieldRefValue <$> arbitrary)
+    , (1, FieldValue <$> arbitrary)
     ]
   shrink (NumberValue n) = [NumberValue n' | n' <- shrink n, n' >= 0]
   shrink _               = []
@@ -197,8 +192,8 @@ genPredicate n = frequency
   , (2, And <$> genPredicate half <*> genPredicate half)
   , (2, Or  <$> genPredicate half <*> genPredicate half)
   , (1, Not <$> genPredicate (n - 1))
-  , (1, Exists <$> genVar <*> genSegmentPath <*> genPredicate half)
-  , (1, ForAll <$> genVar <*> genSegmentPath <*> genPredicate half)
+  , (1, Exists <$> genVar <*> genCollectionPath <*> genPredicate half)
+  , (1, ForAll <$> genVar <*> genCollectionPath <*> genPredicate half)
   ]
   where
     half = n `div` 2
@@ -209,12 +204,8 @@ genAtomic :: Gen Predicate
 genAtomic = oneof
   [ pure PTrue
   , pure PFalse
-  , Equals             <$> arbitrary <*> arbitrary
-  , NotEquals          <$> arbitrary <*> arbitrary
-  , GreaterThan        <$> arbitrary <*> (NumberValue <$> genSafeDouble)
-  , LessThan           <$> arbitrary <*> (NumberValue <$> genSafeDouble)
-  , GreaterThanOrEqual <$> arbitrary <*> (NumberValue <$> genSafeDouble)
-  , LessThanOrEqual    <$> arbitrary <*> (NumberValue <$> genSafeDouble)
+  , Compare <$> elements [EQ, NE] <*> arbitrary <*> arbitrary
+  , Compare <$> elements [GT, LT, GTE, LTE] <*> arbitrary <*> (NumberValue <$> genSafeDouble)
   , Between <$> arbitrary
             <*> (NumberValue <$> genSafeDouble)
             <*> (NumberValue <$> genSafeDouble)
@@ -224,7 +215,7 @@ genAtomic = oneof
   , Matches   <$> arbitrary <*> pickFrom safePatterns
   , HasDiagnosis <$> genScalar
   , HasProcedure <$> genScalar
-  , Count <$> genSegmentPath <*> elements [EQ, NE, GT, LT, GTE, LTE] <*> choose (0, 50)
+  , Count <$> genCollectionPath <*> elements [EQ, NE, GT, LT, GTE, LTE] <*> choose (0, 50)
   , genHelperCall
   ]
 

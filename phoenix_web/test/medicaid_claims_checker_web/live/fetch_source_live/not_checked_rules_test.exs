@@ -18,7 +18,12 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.NotCheckedRulesTest do
       "resultRuleName" => name,
       "resultMatched" => false,
       "resultAction" => nil,
-      "resultDetails" => if(undecided, do: "Rule did not match: missing or unusable data", else: "Rule did not match"),
+      "resultDetails" =>
+        if(undecided,
+          do:
+            "Rule did not match: missing or unusable data (service_lines[].date_of_service missing)",
+          else: "Rule did not match"
+        ),
       "resultUndecided" => undecided
     }
   end
@@ -69,7 +74,11 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.NotCheckedRulesTest do
   defp open_batch(conn, batch) do
     {:ok, view, _html} = live(conn, ~p"/")
     view |> element("button[aria-controls=batch-history-panel]") |> render_click()
-    view |> element(~s(button[phx-click="toggle_batch_detail"][phx-value-id="#{batch.id}"])) |> render_click()
+
+    view
+    |> element(~s(button[phx-click="toggle_batch_detail"][phx-value-id="#{batch.id}"]))
+    |> render_click()
+
     view
   end
 
@@ -82,6 +91,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.NotCheckedRulesTest do
     html = view |> element(~s(tr[phx-value-id="#{incomplete.id}"])) |> render_click()
     assert html =~ "Not checked — missing or unusable data"
     assert html =~ "FutureServiceDate"
+    assert html =~ "FutureServiceDate</span>: service_lines[].date_of_service missing"
     refute html =~ "claim is clean"
 
     view |> element(~s(tr[phx-value-id="#{incomplete.id}"])) |> render_click()
@@ -98,5 +108,28 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.NotCheckedRulesTest do
 
     assert html =~ "complete.json"
     refute html =~ "incomplete.json"
+  end
+
+  test "a report stored before the engine named fields still lists the rule", %{conn: conn} do
+    {batch, incomplete, _complete} = insert_batch_with_files()
+
+    old_result =
+      Map.put(
+        result("FutureServiceDate", true),
+        "resultDetails",
+        "Rule did not match: missing or unusable data"
+      )
+
+    incomplete
+    |> Ecto.Changeset.change(
+      evaluation_report: %{incomplete.evaluation_report | "results" => [old_result]}
+    )
+    |> Repo.update!()
+
+    view = open_batch(conn, batch)
+    html = view |> element(~s(tr[phx-value-id="#{incomplete.id}"])) |> render_click()
+
+    assert html =~ "FutureServiceDate"
+    refute html =~ "FutureServiceDate</span>:"
   end
 end

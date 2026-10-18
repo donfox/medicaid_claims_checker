@@ -1156,7 +1156,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
           matched_rules: report["matchedRules"] || 0,
           weighted_score: report["weightedScore"] || 0,
           matched_results: matched_results,
-          not_checked: not_checked_rule_names(report)
+          not_checked: not_checked_rules(report)
         }
       end)
 
@@ -1252,9 +1252,21 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
 
   # Rules the engine could not decide because data they need is missing or
   # unusable. Reports stored before the engine reported this have none.
-  defp not_checked_rule_names(report) do
+  # `missing` is what the engine named, e.g. "financial.claim_amount missing";
+  # nil for reports stored before the engine named fields.
+  defp not_checked_rules(report) do
     (report["results"] || [])
     |> Enum.filter(& &1["resultUndecided"])
-    |> Enum.map(& &1["resultRuleName"])
+    |> Enum.map(&%{rule: &1["resultRuleName"], missing: missing_fields(&1["resultDetails"])})
   end
+
+  # The engine writes "Rule did not match: missing or unusable data (<reasons>)".
+  defp missing_fields(details) when is_binary(details) do
+    case Regex.run(~r/missing or unusable data \((.+)\)\z/s, details) do
+      [_, reasons] -> reasons
+      _ -> nil
+    end
+  end
+
+  defp missing_fields(_), do: nil
 end

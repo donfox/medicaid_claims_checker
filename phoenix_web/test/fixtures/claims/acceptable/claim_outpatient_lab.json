@@ -19,8 +19,8 @@
         "patient_control_number": "PAT-20260223-104"
     },
     "provider": {
-        "name": "Midwest Diagnostics Laboratory",
-        "npi": "1555666777",
+        "name": "COASTAL PLAINS PATHOLOGY PA",
+        "npi": "1003308305",
         "tax_id": "77-8899001",
         "type": "Laboratory",
         "address": {
@@ -41,9 +41,9 @@
         "taxonomy": "207ZP0102X"
     },
     "billing_provider": {
-        "npi": "1555666777",
+        "npi": "1003308305",
         "taxonomy": "207ZP0102X",
-        "name": "Midwest Diagnostics Laboratory",
+        "name": "COASTAL PLAINS PATHOLOGY PA",
         "address": {
             "street": "300 Science Park",
             "city": "Columbus",

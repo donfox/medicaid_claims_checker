@@ -8,7 +8,8 @@
 #   RULE_ENGINE_SECRET=... mix run --no-start test/scripts/verify_x12_suite.exs
 #   mix run --no-start test/scripts/verify_x12_suite.exs --large test/fixtures/x12_suite/files/large/large_batch_15000.zip
 #
-# Needs Postgres (dev DB, seeded) and, except with --large, the engine at
+# Needs Postgres (dev DB with seeded rules and an imported NPPES registry)
+# and, except with --large, the engine at
 # RULE_ENGINE_URL (default http://localhost:8080).
 #
 # Result per case: PASS, FAIL, XFAIL (a known_issue case that still fails) or

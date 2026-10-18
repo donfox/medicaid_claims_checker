@@ -1,13 +1,17 @@
 # X12 837 test suite
 
 Raw X12 files for testing ingestion and evaluation end to end, with the
-expected result of each file in `manifest.json`. All data is synthetic.
-Provider NPIs are the mock NPPES providers seeded by `priv/repo/seeds.exs`,
-plus `1999999992`, which passes the Luhn check but is in no registry.
+expected result of each file in `manifest.json`. Patients and claims are
+synthetic. Provider NPIs are real, from the NPPES registry the app imports,
+so the NPPES cases (not found, deactivated, reactivated, service between
+deactivation and reactivation) run against real registry records. The
+deliberate exceptions are `1234567890` (fails the Luhn check),
+`1999999992` (passes Luhn but is unassigned) and the malformed NPIs in the
+format cases.
 
 | Folder | What it covers |
 |---|---|
-| `files/single/` | One claim per file. Each active rule triggered on its own, NPPES outcomes (not found, deactivated, reactivated), and the exact $5, $5,000 and $50,000 thresholds |
+| `files/single/` | One claim per file. Each active rule triggered on its own, NPPES outcomes (not found, deactivated, reactivated, service in the reactivation gap), and the exact $5, $5,000 and $50,000 thresholds |
 | `files/formats/` | 837I and 837D, a file with no newlines, CRLF line endings, alternate delimiters |
 | `files/multi/` | Several claims in one transaction set, several transaction sets, two claims under one subscriber |
 | `files/errors/` | Truncated file, wrong SE count, mismatched control numbers, non-X12 text, a file too short to parse, an envelope with no claims |
@@ -26,8 +30,9 @@ RULE_ENGINE_SECRET=... mix run --no-start test/scripts/verify_x12_suite.exs
 mix run --no-start test/scripts/verify_x12_suite.exs --large test/fixtures/x12_suite/files/large/large_batch_15000.zip
 ```
 
-The verifier needs the seeded dev database and, except with `--large`, the
-rule engine. It runs each file through the steps a manual upload uses, then
+The verifier needs the dev database (seeded rules plus an imported NPPES
+registry) and, except with `--large`, the rule engine. It runs each file
+through the steps a manual upload uses, then
 the NPPES check and the engine with the active rules from the database.
 
 Any file can also be uploaded on the Fetch Source page to check it by hand.

@@ -73,7 +73,7 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
       assert Enum.map(second["service_lines"], & &1["charge_amount"]) == ["2.00"]
 
       for claim <- [first, second] do
-        assert claim["billing_provider"]["npi"] == "1122334455"
+        assert claim["billing_provider"]["npi"] == "1003001538"
         assert claim["patient"]["date_of_birth"] == "19850315"
       end
     end
@@ -92,7 +92,7 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
       [head, tail] = String.split(content, "CLM*SAMESUB02", parts: 2)
 
       second_provider =
-        "HL*3**20*1~\nNM1*85*2*UNIVERSITY ORTHOPEDIC HOSPITAL*****XX*1654321987~\n" <>
+        "HL*3**20*1~\nNM1*85*2*THE ROSS ORTHOPAEDIC WELLNESS CENTER*****XX*1003005000~\n" <>
           "HL*4*3*22*0~\nSBR*P*18*******MC~\nNM1*IL*1*SECOND*PAT****MI*MCD000000999~\n"
 
       content = head <> second_provider <> "CLM*SAMESUB02" <> tail
@@ -106,8 +106,8 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
         end)
 
       assert npis == [
-               {"SAMESUB01", "1122334455", "TESTPATIENT"},
-               {"SAMESUB02", "1654321987", "SECOND"}
+               {"SAMESUB01", "1003001538", "TESTPATIENT"},
+               {"SAMESUB02", "1003005000", "SECOND"}
              ]
     end
   end

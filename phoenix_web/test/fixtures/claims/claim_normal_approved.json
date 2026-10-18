@@ -19,8 +19,8 @@
         "patient_control_number": "PAT-20260127-008"
     },
     "provider": {
-        "name": "Kansas City Medical Center",
-        "npi": "1234567901",
+        "name": "KEVIN LANE DO PA",
+        "npi": "1003001579",
         "tax_id": "12-3456796",
         "type": "Clinic",
         "address": {
@@ -41,9 +41,9 @@
         "taxonomy": "207Q00000X"
     },
     "billing_provider": {
-        "npi": "1234567901",
+        "npi": "1003001579",
         "taxonomy": "207Q00000X",
-        "name": "Kansas City Medical Center",
+        "name": "KEVIN LANE DO PA",
         "address": {
             "street": "6060 Main Street",
             "city": "Kansas City",

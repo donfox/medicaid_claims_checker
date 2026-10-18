@@ -19,8 +19,8 @@
         "patient_control_number": "PAT-20260219-101"
     },
     "provider": {
-        "name": "Riverside Family Practice",
-        "npi": "1234567890",
+        "name": "DENARDIN FAMILY PRACTICE PLLC",
+        "npi": "1003002577",
         "tax_id": "45-6789012",
         "type": "Clinic",
         "address": {
@@ -41,9 +41,9 @@
         "taxonomy": "207Q00000X"
     },
     "billing_provider": {
-        "npi": "1234567890",
+        "npi": "1003002577",
         "taxonomy": "207Q00000X",
-        "name": "Riverside Family Practice",
+        "name": "DENARDIN FAMILY PRACTICE PLLC",
         "address": {
             "street": "1200 Oak Avenue",
             "city": "Springfield",

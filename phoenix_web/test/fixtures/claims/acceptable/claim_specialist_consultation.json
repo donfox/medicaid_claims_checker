@@ -19,8 +19,8 @@
         "patient_control_number": "PAT-20260220-102"
     },
     "provider": {
-        "name": "Capitol Orthopedic Specialists",
-        "npi": "1987654321",
+        "name": "JARMAN ORTHOPEDICS, P.C.",
+        "npi": "1003003229",
         "tax_id": "55-9876543",
         "type": "Specialist Practice",
         "address": {
@@ -41,9 +41,9 @@
         "taxonomy": "207X00000X"
     },
     "billing_provider": {
-        "npi": "1987654321",
+        "npi": "1003003229",
         "taxonomy": "207X00000X",
-        "name": "Capitol Orthopedic Specialists",
+        "name": "JARMAN ORTHOPEDICS, P.C.",
         "address": {
             "street": "800 Medical Center Drive",
             "city": "Austin",

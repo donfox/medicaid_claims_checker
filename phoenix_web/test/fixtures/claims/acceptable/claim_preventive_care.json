@@ -19,8 +19,8 @@
         "patient_control_number": "PAT-20260221-103"
     },
     "provider": {
-        "name": "Northside Primary Care",
-        "npi": "1122334455",
+        "name": "MIDWEST INTERNAL MEDICINE ASSOCIATES LLC",
+        "npi": "1003001538",
         "tax_id": "33-4455667",
         "type": "Clinic",
         "address": {
@@ -41,9 +41,9 @@
         "taxonomy": "207R00000X"
     },
     "billing_provider": {
-        "npi": "1122334455",
+        "npi": "1003001538",
         "taxonomy": "207R00000X",
-        "name": "Northside Primary Care",
+        "name": "MIDWEST INTERNAL MEDICINE ASSOCIATES LLC",
         "address": {
             "street": "55 Wellness Way",
             "city": "Denver",

@@ -5,16 +5,20 @@
 #   elixir test/fixtures/x12_suite/generate.exs              # regular suite
 #   elixir test/fixtures/x12_suite/generate.exs --large 15000 # plus a large-batch zip
 #
-# All data is synthetic. Provider NPIs are the mock NPPES providers from
-# priv/repo/seeds.exs (plus 1999999992, which is Luhn-valid and in no registry).
+# Patients and claims are synthetic. Provider NPIs are real, from the NPPES
+# registry the app imports (checked against the NPI Registry 2026-10-17),
+# except the deliberate bad ones: 1234567890 (fails Luhn), 1999999992
+# (Luhn-valid but unassigned), and the malformed NPIs in the format cases.
+# Provider names in deactivated cases are made up: CMS publishes no name
+# for a deactivated NPI.
 # Check results with test/scripts/verify_x12_suite.exs.
 
 defmodule X12Suite.Builder do
   @moduledoc false
 
   @default_billing %{
-    name: "NORTHSIDE PRIMARY CARE",
-    npi: "1122334455",
+    name: "MIDWEST INTERNAL MEDICINE ASSOCIATES LLC",
+    npi: "1003001538",
     taxonomy: "207R00000X",
     tax_id: "361234567",
     street: "100 TEST AVE",
@@ -207,7 +211,7 @@ defmodule X12Suite.Cases do
   @moduledoc false
   import X12Suite.Builder
 
-  @valid_ortho [billing: [name: "UNIVERSITY ORTHOPEDIC HOSPITAL", npi: "1654321987", taxonomy: "207X00000X"]]
+  @valid_ortho [billing: [name: "THE ROSS ORTHOPAEDIC WELLNESS CENTER", npi: "1003005000", taxonomy: "207X00000X"]]
   @no_taxonomy [billing: [taxonomy: nil]]
 
   # Expected outcome of one claim. `matched` is the exact set of rules that
@@ -248,7 +252,7 @@ defmodule X12Suite.Cases do
       single("single/04_er_high_complexity.x12", "99285 over $10,000 → HighComplexityERVisit review",
         claim("ERVISIT01", pos: "23", lines: [{"99285", "12500.00", "20260820"}]),
         ok("ERVISIT01", ["HighComplexityERVisit", "UnauthorizedProcedure"], not_checked: ["NewProviderLargeSubmission"]),
-        billing: [name: "KANSAS CITY MEDICAL CENTER", npi: "1234567901", taxonomy: "207Q00000X"]),
+        billing: [name: "KEVIN LANE DO PA", npi: "1003001579", taxonomy: "207Q00000X"]),
       single("single/05_excessive_charges.x12", "Total over $750,000 → ExcessiveTotalCharges",
         claim("EXCESS01", lines: [{"27447", "800000.00", "20260810"}]),
         ok("EXCESS01", ["ExcessiveTotalCharges", "HighValueClaim", "UnauthorizedProcedure"],
@@ -280,22 +284,26 @@ defmodule X12Suite.Cases do
         claim("NPIFMT01"),
         ok("NPIFMT01", ["InvalidNPIFormat", "InvalidProviderNPI"], nppes: "not found in NPPES"),
         billing: [npi: "123456789"]),
-      single("single/15_npi_bad_checksum.x12", "Billing NPI fails Luhn (but is in mock NPPES) → InvalidProviderNPI",
-        claim("NPILUHN01"), ok("NPILUHN01", ["InvalidProviderNPI"]),
+      single("single/15_npi_bad_checksum.x12", "Billing NPI fails Luhn (so it cannot be in NPPES) → InvalidProviderNPI; NPPES rejects",
+        claim("NPILUHN01"), ok("NPILUHN01", ["InvalidProviderNPI"], nppes: "not found in NPPES"),
         billing: [name: "RIVERSIDE FAMILY PRACTICE", npi: "1234567890", taxonomy: "207Q00000X"]),
       single("single/16_npi_not_in_nppes.x12", "Luhn-valid NPI absent from NPPES → NPPES rejects; no engine rule",
         claim("NPIUNK01"), ok("NPIUNK01", [], nppes: "not found in NPPES"),
         billing: [name: "UNREGISTERED CLINIC", npi: "1999999992"]),
-      single("single/17_npi_deactivated.x12", "Provider deactivated 2023-06-15, service 2026 → NPPES rejects",
+      single("single/17_npi_deactivated.x12", "Real NPI deactivated 2024-12-12, service 2026 → NPPES rejects",
         claim("NPIDEAC01"), ok("NPIDEAC01", [], nppes: "was deactivated"),
-        billing: [name: "MARIA GARCIA MD", npi: "1111111112", taxonomy: "207Q00000X"]),
+        billing: [name: "MARIA GARCIA MD", npi: "1003002304", taxonomy: "207Q00000X"]),
       single("single/18_npi_deactivated_later.x12", "Same deactivated provider, service before deactivation → NPPES ok",
         claim("NPIDEAC02", lines: [{"99213", "150.00", "20230301"}]), ok("NPIDEAC02", []),
-        billing: [name: "MARIA GARCIA MD", npi: "1111111112", taxonomy: "207Q00000X"]),
+        billing: [name: "MARIA GARCIA MD", npi: "1003002304", taxonomy: "207Q00000X"]),
       single("single/19_npi_reactivated.x12",
-        "Provider deactivated then reactivated → NPPES ok (this mock NPI also fails Luhn)",
-        claim("NPIREAC01"), ok("NPIREAC01", ["InvalidProviderNPI"]),
-        billing: [name: "JAMES WILSON MD", npi: "2222222223", taxonomy: "207R00000X"]),
+        "Real NPI deactivated 2008-01-09, reactivated 2009-07-10; service 2026 → NPPES ok",
+        claim("NPIREAC01"), ok("NPIREAC01", []),
+        billing: [name: "ETHERIDGE CHIROPRACTIC CLINIC INC", npi: "1003003534", taxonomy: "111N00000X"]),
+      single("single/19b_npi_reactivated_gap.x12",
+        "Same NPI, service 2008-06-01 between deactivation and reactivation → NPPES rejects",
+        claim("NPIREAC02", lines: [{"99213", "150.00", "20080601"}]), ok("NPIREAC02", [], nppes: "was deactivated"),
+        billing: [name: "ETHERIDGE CHIROPRACTIC CLINIC INC", npi: "1003003534", taxonomy: "111N00000X"]),
       single("single/20_missing_taxonomy.x12", "No PRV*BI, $2,500 → MissingProviderTaxonomy",
         claim("NOTAX01", lines: [{"99215", "2500.00", "20260904"}]),
         ok("NOTAX01", ["MissingProviderTaxonomy"]), @no_taxonomy),
@@ -303,7 +311,7 @@ defmodule X12Suite.Cases do
         "No taxonomy, $8,000 → MissingProviderTaxonomy, UnauthorizedProcedure; TaxonomyMismatchNewProvider not checked (no tenure)",
         claim("NOTAX02", lines: [{"20610", "8000.00", "20260904"}]),
         ok("NOTAX02", ["MissingProviderTaxonomy", "UnauthorizedProcedure"], not_checked: ["TaxonomyMismatchNewProvider"]),
-        billing: [name: "NEW STARTUP CLINIC", npi: "1234567893", taxonomy: nil]),
+        billing: [name: "SHAZA AWAD DDS", npi: "1003625385", taxonomy: nil]),
       single("single/22_no_prior_auth.x12", "$7,500 with no prior authorization → UnauthorizedProcedure",
         claim("NOAUTH01", lines: [{"29881", "7500.00", "20260904"}]),
         ok("NOAUTH01", ["UnauthorizedProcedure"]), @valid_ortho),
@@ -319,7 +327,7 @@ defmodule X12Suite.Cases do
         billing: [npi: ""]),
       single("single/26_rendering_npi_deactivated.x12",
         "Valid billing NPI, deactivated rendering provider (NM1*82) → NPPES should reject",
-        claim("REND01", rendering: %{last: "GARCIA", first: "MARIA", npi: "1111111112", taxonomy: "207Q00000X"}),
+        claim("REND01", rendering: %{last: "GARCIA", first: "MARIA", npi: "1003002304", taxonomy: "207Q00000X"}),
         ok("REND01", [], nppes: "was deactivated")),
       single("single/27_many_rules.x12",
         "ER 99285, $15,000, no taxonomy, service in 2099 → five rules at once",
@@ -350,7 +358,7 @@ defmodule X12Suite.Cases do
     [
       single("formats/01_institutional_837i.x12", "837I institutional claim (SV2, CL1), clean",
         claim("INST01", pos: "13", lines: [{"99284", "900.00", "20260911"}]), ok("INST01", []),
-        kind: :i, billing: [name: "UNIVERSITY ORTHOPEDIC HOSPITAL", npi: "1654321987", taxonomy: "207X00000X"]),
+        kind: :i, billing: [name: "THE ROSS ORTHOPAEDIC WELLNESS CENTER", npi: "1003005000", taxonomy: "207X00000X"]),
       single("formats/02_dental_837d.x12", "837D dental claim (SV3, TOO), clean",
         claim("DENT01", lines: [{"D1110", "95.00", "20260912"}]), ok("DENT01", []), kind: :d),
       single("formats/03_single_line_no_newlines.x12", "Whole file on one line (no newlines), clean",
@@ -362,7 +370,7 @@ defmodule X12Suite.Cases do
         claim("ALTDELIM01", pos: "23", lines: [{"99285", "12000.00", "20260913"}]),
         ok("ALTDELIM01", ["HighComplexityERVisit", "UnauthorizedProcedure"], not_checked: ["NewProviderLargeSubmission"]),
         format: [element: "|", sub: ">"],
-        billing: [name: "KANSAS CITY MEDICAL CENTER", npi: "1234567901", taxonomy: "207Q00000X"])
+        billing: [name: "KEVIN LANE DO PA", npi: "1003001579", taxonomy: "207Q00000X"])
     ]
   end
 
@@ -475,8 +483,8 @@ defmodule X12Suite.Cases do
   def json_claim do
     %{
       "claim_id" => "ZIPJSON01",
-      "provider" => %{"npi" => "1122334455", "tenure_days" => 400},
-      "billing_provider" => %{"npi" => "1122334455", "taxonomy" => "207R00000X"},
+      "provider" => %{"npi" => "1003001538", "tenure_days" => 400},
+      "billing_provider" => %{"npi" => "1003001538", "taxonomy" => "207R00000X"},
       "patient" => %{"date_of_birth" => "19850315"},
       "financial" => %{"claim_amount" => 220.0},
       "claim_totals" => %{"total_charges" => 220.0},

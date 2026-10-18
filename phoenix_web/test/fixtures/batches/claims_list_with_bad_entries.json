@@ -20,8 +20,8 @@
       "patient_control_number": "PAT-20260219-101"
     },
     "provider": {
-      "name": "Riverside Family Practice",
-      "npi": "1234567890",
+      "name": "DENARDIN FAMILY PRACTICE PLLC",
+      "npi": "1003002577",
       "tax_id": "45-6789012",
       "type": "Clinic",
       "address": {
@@ -42,9 +42,9 @@
       "taxonomy": "207Q00000X"
     },
     "billing_provider": {
-      "npi": "1234567890",
+      "npi": "1003002577",
       "taxonomy": "207Q00000X",
-      "name": "Riverside Family Practice",
+      "name": "DENARDIN FAMILY PRACTICE PLLC",
       "address": {
         "street": "1200 Oak Avenue",
         "city": "Springfield",
@@ -193,8 +193,8 @@
       "patient_control_number": "PAT-20260218-207"
     },
     "provider": {
-      "name": "University Orthopedic Hospital",
-      "npi": "1654321987",
+      "name": "THE ROSS ORTHOPAEDIC WELLNESS CENTER",
+      "npi": "1003005000",
       "tax_id": "55-4433221",
       "type": "Hospital",
       "address": {
@@ -215,9 +215,9 @@
       "taxonomy": "207X00000X"
     },
     "billing_provider": {
-      "npi": "1654321987",
+      "npi": "1003005000",
       "taxonomy": "207X00000X",
-      "name": "University Orthopedic Hospital",
+      "name": "THE ROSS ORTHOPAEDIC WELLNESS CENTER",
       "address": {
         "street": "2000 University Drive",
         "city": "Pittsburgh",

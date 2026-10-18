@@ -19,8 +19,8 @@
         "patient_control_number": "PAT-20260225-209"
     },
     "provider": {
-        "name": "St. Catherine Emergency Center",
-        "npi": "1736251948",
+        "name": "EMERGENCY PHYSICIAN PARTNERS OF SOUTH CAROLINA PLLC",
+        "npi": "1003058876",
         "tax_id": "33-2211009",
         "type": "Hospital",
         "address": {
@@ -41,9 +41,9 @@
         "taxonomy": "207P00000X"
     },
     "billing_provider": {
-        "npi": "1736251948",
+        "npi": "1003058876",
         "taxonomy": "207P00000X",
-        "name": "St. Catherine Emergency Center",
+        "name": "EMERGENCY PHYSICIAN PARTNERS OF SOUTH CAROLINA PLLC",
         "address": {
             "street": "1 Emergency Drive",
             "city": "Houston",

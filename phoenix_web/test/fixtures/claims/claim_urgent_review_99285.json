@@ -8,8 +8,8 @@
         "frequency": "12"
     },
     "provider": {
-        "name": "Emergency Medical Center",
-        "npi": "1234567894",
+        "name": "MEDICAL CENTER EMERGENCY PHYSICIANS PA",
+        "npi": "1003096553",
         "tax_id": "12-3456793",
         "type": "Hospital",
         "state": "IL",

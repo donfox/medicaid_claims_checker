@@ -19,8 +19,8 @@
         "patient_control_number": "PAT-20260224-205"
     },
     "provider": {
-        "name": "Bayside Surgical Center",
-        "npi": "1473698520",
+        "name": "TLC ADULT DAY CARE CENTERS, INC.",
+        "npi": "1003037730",
         "tax_id": "66-7788990",
         "type": "Surgical Center",
         "address": {
@@ -41,9 +41,9 @@
         "taxonomy": "261QA0600X"
     },
     "billing_provider": {
-        "npi": "1473698520",
+        "npi": "1003037730",
         "taxonomy": "261QA0600X",
-        "name": "Bayside Surgical Center",
+        "name": "TLC ADULT DAY CARE CENTERS, INC.",
         "address": {
             "street": "500 Harbor View Drive",
             "city": "Seattle",

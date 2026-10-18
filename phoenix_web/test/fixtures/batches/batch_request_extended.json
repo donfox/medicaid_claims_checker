@@ -9,7 +9,7 @@
       "claim": { "dx_code": "Z76.89", "service_date": "2026-02-24", "state": "TX" },
       "2300": { "CLM": { "claim_amount": 3000, "facility_type": "Outpatient" } },
       "2400": { "SV1": { "place_of_service": "11" }, "DTP": { "service_day_of_week": "TUE" } },
-      "provider": { "npi": "1234567890" }
+      "provider": { "npi": "1003002577" }
     },
     {
       "_id": "CLM017",
@@ -19,7 +19,7 @@
       "claim": { "dx_code": "M54.5", "service_date": "2026-02-21", "state": "TX" },
       "2300": { "CLM": { "claim_amount": 2500, "facility_type": "Outpatient" } },
       "2400": { "SV1": { "place_of_service": "11" }, "DTP": { "service_day_of_week": "TUE" } },
-      "provider": { "npi": "1234567890" }
+      "provider": { "npi": "1003002577" }
     },
     {
       "_id": "CLM018",
@@ -39,7 +39,7 @@
       "claim": { "dx_code": "M54.5", "service_date": "2026-02-24", "state": "TX" },
       "2300": { "CLM": { "claim_amount": 750000, "facility_type": "Outpatient" } },
       "2400": { "SV1": { "place_of_service": "11" }, "DTP": { "service_day_of_week": "TUE" } },
-      "provider": { "npi": "1234567890" }
+      "provider": { "npi": "1003002577" }
     },
     {
       "_id": "CLM020",
@@ -49,7 +49,7 @@
       "claim": { "dx_code": "M54.5", "service_date": "2026-02-24", "state": "MT" },
       "2300": { "CLM": { "claim_amount": 4000, "facility_type": "Outpatient" } },
       "2400": { "SV1": { "place_of_service": "11" }, "DTP": { "service_day_of_week": "TUE" } },
-      "provider": { "npi": "1234567890" }
+      "provider": { "npi": "1003002577" }
     },
     {
       "_id": "CLM021",
@@ -59,7 +59,7 @@
       "claim": { "dx_code": "M54.5", "service_date": "2026-02-24", "state": "TX" },
       "2300": { "CLM": { "claim_amount": 35000, "facility_type": "Outpatient" } },
       "2400": { "SV1": { "place_of_service": "11" }, "DTP": { "service_day_of_week": "TUE" } },
-      "provider": { "npi": "1234567890" }
+      "provider": { "npi": "1003002577" }
     }
   ]
 }

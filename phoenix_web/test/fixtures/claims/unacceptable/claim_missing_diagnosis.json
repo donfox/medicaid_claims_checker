@@ -19,8 +19,8 @@
         "patient_control_number": "PAT-20260225-203"
     },
     "provider": {
-        "name": "Westfield Urgent Care",
-        "npi": "1357924680",
+        "name": "CITYDOC URGENT CARE CENTER 2, PLLC",
+        "npi": "1003044942",
         "tax_id": "44-5566778",
         "type": "Urgent Care",
         "address": {
@@ -41,9 +41,9 @@
         "taxonomy": "261QU0200X"
     },
     "billing_provider": {
-        "npi": "1357924680",
+        "npi": "1003044942",
         "taxonomy": "261QU0200X",
-        "name": "Westfield Urgent Care",
+        "name": "CITYDOC URGENT CARE CENTER 2, PLLC",
         "address": {
             "street": "22 Commerce Boulevard",
             "city": "Atlanta",

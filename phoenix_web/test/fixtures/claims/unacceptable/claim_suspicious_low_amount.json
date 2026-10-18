@@ -19,8 +19,8 @@
         "patient_control_number": "PAT-20260225-206"
     },
     "provider": {
-        "name": "Greenway Behavioral Health",
-        "npi": "1928374650",
+        "name": "HORIZON MENTAL HEALTH MANAGEMENT, INC.",
+        "npi": "1003008905",
         "tax_id": "88-9900112",
         "type": "Behavioral Health",
         "address": {
@@ -41,9 +41,9 @@
         "taxonomy": "2084P0800X"
     },
     "billing_provider": {
-        "npi": "1928374650",
+        "npi": "1003008905",
         "taxonomy": "2084P0800X",
-        "name": "Greenway Behavioral Health",
+        "name": "HORIZON MENTAL HEALTH MANAGEMENT, INC.",
         "address": {
             "street": "77 Tranquil Lane",
             "city": "Portland",

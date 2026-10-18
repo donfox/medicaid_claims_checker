@@ -21,8 +21,8 @@
         "patient_control_number": "PAT-20260223-104"
       },
       "provider": {
-        "name": "Midwest Diagnostics Laboratory",
-        "npi": "1555666777",
+        "name": "COASTAL PLAINS PATHOLOGY PA",
+        "npi": "1003308305",
         "tax_id": "77-8899001",
         "type": "Laboratory",
         "address": {
@@ -43,9 +43,9 @@
         "taxonomy": "207ZP0102X"
       },
       "billing_provider": {
-        "npi": "1555666777",
+        "npi": "1003308305",
         "taxonomy": "207ZP0102X",
-        "name": "Midwest Diagnostics Laboratory",
+        "name": "COASTAL PLAINS PATHOLOGY PA",
         "address": {
           "street": "300 Science Park",
           "city": "Columbus",
@@ -190,8 +190,8 @@
         "patient_control_number": "PAT-20260221-103"
       },
       "provider": {
-        "name": "Northside Primary Care",
-        "npi": "1122334455",
+        "name": "MIDWEST INTERNAL MEDICINE ASSOCIATES LLC",
+        "npi": "1003001538",
         "tax_id": "33-4455667",
         "type": "Clinic",
         "address": {
@@ -212,9 +212,9 @@
         "taxonomy": "207R00000X"
       },
       "billing_provider": {
-        "npi": "1122334455",
+        "npi": "1003001538",
         "taxonomy": "207R00000X",
-        "name": "Northside Primary Care",
+        "name": "MIDWEST INTERNAL MEDICINE ASSOCIATES LLC",
         "address": {
           "street": "55 Wellness Way",
           "city": "Denver",
@@ -359,8 +359,8 @@
         "patient_control_number": "PAT-20260219-101"
       },
       "provider": {
-        "name": "Riverside Family Practice",
-        "npi": "1234567890",
+        "name": "DENARDIN FAMILY PRACTICE PLLC",
+        "npi": "1003002577",
         "tax_id": "45-6789012",
         "type": "Clinic",
         "address": {
@@ -381,9 +381,9 @@
         "taxonomy": "207Q00000X"
       },
       "billing_provider": {
-        "npi": "1234567890",
+        "npi": "1003002577",
         "taxonomy": "207Q00000X",
-        "name": "Riverside Family Practice",
+        "name": "DENARDIN FAMILY PRACTICE PLLC",
         "address": {
           "street": "1200 Oak Avenue",
           "city": "Springfield",
@@ -528,8 +528,8 @@
         "patient_control_number": "PAT-20260220-102"
       },
       "provider": {
-        "name": "Capitol Orthopedic Specialists",
-        "npi": "1987654321",
+        "name": "JARMAN ORTHOPEDICS, P.C.",
+        "npi": "1003003229",
         "tax_id": "55-9876543",
         "type": "Specialist Practice",
         "address": {
@@ -550,9 +550,9 @@
         "taxonomy": "207X00000X"
       },
       "billing_provider": {
-        "npi": "1987654321",
+        "npi": "1003003229",
         "taxonomy": "207X00000X",
-        "name": "Capitol Orthopedic Specialists",
+        "name": "JARMAN ORTHOPEDICS, P.C.",
         "address": {
           "street": "800 Medical Center Drive",
           "city": "Austin",
@@ -704,8 +704,8 @@
         "patient_control_number": "PAT-20260210-202"
       },
       "provider": {
-        "name": "Metro Regional Hospital",
-        "npi": "1098765432",
+        "name": "SINGING RIVER HEALTH SYSTEM",
+        "npi": "1003005133",
         "tax_id": "22-3344556",
         "type": "Hospital",
         "address": {
@@ -726,9 +726,9 @@
         "taxonomy": "208G00000X"
       },
       "billing_provider": {
-        "npi": "1098765432",
+        "npi": "1003005133",
         "taxonomy": "208G00000X",
-        "name": "Metro Regional Hospital",
+        "name": "SINGING RIVER HEALTH SYSTEM",
         "address": {
           "street": "1 Hospital Drive",
           "city": "New York",
@@ -880,8 +880,8 @@
         "patient_control_number": "PAT-20260226-201"
       },
       "provider": {
-        "name": "Eastside Medical Group",
-        "npi": "1234509876",
+        "name": "DELRAY FAMILY PRACTICE INC",
+        "npi": "1003007014",
         "tax_id": "11-2233445",
         "type": "Clinic",
         "address": {
@@ -902,9 +902,9 @@
         "taxonomy": "208D00000X"
       },
       "billing_provider": {
-        "npi": "1234509876",
+        "npi": "1003007014",
         "taxonomy": "208D00000X",
-        "name": "Eastside Medical Group",
+        "name": "DELRAY FAMILY PRACTICE INC",
         "address": {
           "street": "400 Future Lane",
           "city": "Phoenix",
@@ -955,8 +955,8 @@
         }
       },
       "claim_details": {
-        "admission_date": "2026-08-15",
-        "discharge_date": "2026-08-15",
+        "admission_date": "2099-08-15",
+        "discharge_date": "2099-08-15",
         "admission_type": "Scheduled",
         "admission_source": "Referral",
         "discharge_status": "Discharged",
@@ -977,7 +977,7 @@
           "code": "99213",
           "description": "Office visit \u2014 established patient, low complexity",
           "units": 1,
-          "date_performed": "2026-08-15"
+          "date_performed": "2099-08-15"
         }
       ],
       "service_lines": [
@@ -988,7 +988,7 @@
           "units": 1,
           "unit_rate": 250.0,
           "line_amount": 250.0,
-          "date_of_service": "2026-08-15",
+          "date_of_service": "2099-08-15",
           "place_of_service": "11",
           "diagnosis_pointers": [
             "1"
@@ -1012,8 +1012,8 @@
       "authorization": {
         "authorization_number": "AUTH-201001",
         "authorization_date": "2026-02-26",
-        "authorization_period_start": "2026-08-15",
-        "authorization_period_end": "2026-08-15",
+        "authorization_period_start": "2099-08-15",
+        "authorization_period_end": "2099-08-15",
         "authorization_status": "Active",
         "authorized_amount": 300.0,
         "approved_units": 1
@@ -1025,7 +1025,7 @@
         "claim_processing_status": "Pending",
         "test_rule": "FutureServiceDate",
         "expected_result": "REJECT",
-        "notes": "Service date (2026-08-15) is 6 months in the future. Triggers FutureServiceDate default rule."
+        "notes": "Service date (2099-08-15) is far in the future, so it stays in the future. Triggers FutureServiceDate default rule."
       }
     },
     {
@@ -1218,8 +1218,8 @@
         "patient_control_number": "PAT-20260225-203"
       },
       "provider": {
-        "name": "Westfield Urgent Care",
-        "npi": "1357924680",
+        "name": "CITYDOC URGENT CARE CENTER 2, PLLC",
+        "npi": "1003044942",
         "tax_id": "44-5566778",
         "type": "Urgent Care",
         "address": {
@@ -1240,9 +1240,9 @@
         "taxonomy": "261QU0200X"
       },
       "billing_provider": {
-        "npi": "1357924680",
+        "npi": "1003044942",
         "taxonomy": "261QU0200X",
-        "name": "Westfield Urgent Care",
+        "name": "CITYDOC URGENT CARE CENTER 2, PLLC",
         "address": {
           "street": "22 Commerce Boulevard",
           "city": "Atlanta",

@@ -19,8 +19,8 @@
         "patient_control_number": "PAT-20260210-202"
     },
     "provider": {
-        "name": "Metro Regional Hospital",
-        "npi": "1098765432",
+        "name": "SINGING RIVER HEALTH SYSTEM",
+        "npi": "1003005133",
         "tax_id": "22-3344556",
         "type": "Hospital",
         "address": {
@@ -41,9 +41,9 @@
         "taxonomy": "208G00000X"
     },
     "billing_provider": {
-        "npi": "1098765432",
+        "npi": "1003005133",
         "taxonomy": "208G00000X",
-        "name": "Metro Regional Hospital",
+        "name": "SINGING RIVER HEALTH SYSTEM",
         "address": {
             "street": "1 Hospital Drive",
             "city": "New York",

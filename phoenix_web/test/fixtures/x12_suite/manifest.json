@@ -236,12 +236,12 @@
             "matched": [
               "InvalidProviderNPI"
             ],
-            "nppes": "ok"
+            "nppes": "not found in NPPES"
           }
         ]
       },
       "file": "single/15_npi_bad_checksum.x12",
-      "purpose": "Billing NPI fails Luhn (but is in mock NPPES) → InvalidProviderNPI"
+      "purpose": "Billing NPI fails Luhn (so it cannot be in NPPES) → InvalidProviderNPI; NPPES rejects"
     },
     {
       "expect": {
@@ -267,7 +267,7 @@
         ]
       },
       "file": "single/17_npi_deactivated.x12",
-      "purpose": "Provider deactivated 2023-06-15, service 2026 → NPPES rejects"
+      "purpose": "Real NPI deactivated 2024-12-12, service 2026 → NPPES rejects"
     },
     {
       "expect": {
@@ -287,15 +287,26 @@
         "claims": [
           {
             "claim_id": "NPIREAC01",
-            "matched": [
-              "InvalidProviderNPI"
-            ],
+            "matched": [],
             "nppes": "ok"
           }
         ]
       },
       "file": "single/19_npi_reactivated.x12",
-      "purpose": "Provider deactivated then reactivated → NPPES ok (this mock NPI also fails Luhn)"
+      "purpose": "Real NPI deactivated 2008-01-09, reactivated 2009-07-10; service 2026 → NPPES ok"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "NPIREAC02",
+            "matched": [],
+            "nppes": "was deactivated"
+          }
+        ]
+      },
+      "file": "single/19b_npi_reactivated_gap.x12",
+      "purpose": "Same NPI, service 2008-06-01 between deactivation and reactivation → NPPES rejects"
     },
     {
       "expect": {

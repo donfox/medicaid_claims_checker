@@ -4,7 +4,9 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.JsonUploadTest do
   import Phoenix.LiveViewTest
 
   alias MedicaidClaimsChecker.AccountsFixtures
-  alias MedicaidClaimsChecker.Claims.Batch
+  import Ecto.Query
+
+  alias MedicaidClaimsChecker.Claims.{Batch, EdiFile}
   alias MedicaidClaimsChecker.Repo
 
   @fixtures Path.expand("../../../fixtures", __DIR__)
@@ -47,5 +49,18 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.JsonUploadTest do
     assert html =~ "1 JSON claim(s) submitted for evaluation"
     assert html =~ "Not accepted: notes.json: no claim found"
     assert Repo.aggregate(Batch, :count) == 1
+  end
+
+  test "a file with several claims becomes one row per claim", %{conn: conn} do
+    content = ~s({"claims": [{"claim_id": "C1"}, {"name": "x"}, {}, {"claim_id": "C2"}]})
+
+    html = upload(conn, [{"batch.json", content}])
+
+    assert html =~ "2 JSON claim(s) submitted for evaluation"
+    assert html =~ "batch.json (entry 2): no claim found"
+    assert html =~ "batch.json (entry 3): no claim found"
+
+    filenames = Repo.all(from(f in EdiFile, select: f.filename, order_by: f.id))
+    assert filenames == ["batch_C1.json", "batch_C2.json"]
   end
 end

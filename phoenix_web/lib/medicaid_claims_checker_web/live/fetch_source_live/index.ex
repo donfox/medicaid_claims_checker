@@ -753,8 +753,13 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     {claims, refused} =
       Enum.reduce(json_files, {[], []}, fn {filename, content}, {claims_acc, refused_acc} ->
         case JsonClaim.parse(content) do
-          {:ok, claim} -> {[%{"filename" => filename, "claim" => claim} | claims_acc], refused_acc}
-          {:error, reason} -> {claims_acc, ["#{filename}: #{reason}" | refused_acc]}
+          {:ok, file_claims, file_refused} ->
+            entries = json_claim_entries(filename, file_claims)
+            refused = Enum.map(file_refused, fn {pos, reason} -> "#{filename} (entry #{pos}): #{reason}" end)
+            {Enum.reverse(entries) ++ claims_acc, Enum.reverse(refused) ++ refused_acc}
+
+          {:error, reason} ->
+            {claims_acc, ["#{filename}: #{reason}" | refused_acc]}
         end
       end)
 
@@ -800,6 +805,18 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
         )
       )
     end
+  end
+
+  # One claim keeps the file's name; claims from a multi-claim file are named
+  # like split X12 claims (<file>_<claim_id>.json), by position if no claim_id.
+  defp json_claim_entries(filename, [claim]), do: [%{"filename" => filename, "claim" => claim}]
+
+  defp json_claim_entries(filename, claims) do
+    claims
+    |> Enum.with_index(1)
+    |> Enum.map(fn {claim, pos} ->
+      %{"filename" => to_split_filename(filename, claim["claim_id"] || pos), "claim" => claim}
+    end)
   end
 
   defp format_refused_json([]), do: ""

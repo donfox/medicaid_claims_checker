@@ -44,7 +44,12 @@ defmodule MedicaidClaimsChecker.Nppes.RefreshWorker do
 
   @impl true
   def init(_) do
-    timer_ref = Process.send_after(self(), :tick, @initial_delay_ms)
+    # The test config turns off the timed check: it reads the database outside
+    # any test's sandbox and could start a full NPPES download.
+    timer_ref =
+      if Application.get_env(:medicaid_claims_checker, __MODULE__, []) |> Keyword.get(:scheduled, true),
+        do: Process.send_after(self(), :tick, @initial_delay_ms),
+        else: nil
     {:ok, %{timer_ref: timer_ref, refreshing: false, task_ref: nil, task_pid: nil, started_at: nil}}
   end
 

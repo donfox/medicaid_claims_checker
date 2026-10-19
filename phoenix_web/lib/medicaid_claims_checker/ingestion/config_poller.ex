@@ -27,16 +27,33 @@ defmodule MedicaidClaimsChecker.Ingestion.ConfigPoller do
   def handle_info(:poll, state) do
     schedule_next_poll()
 
-    sources = Ingestion.list_enabled_config()
-    comparable = config_fingerprint(sources)
+    case load_config() do
+      {:ok, sources} ->
+        comparable = config_fingerprint(sources)
 
-    if comparable != state.last_config do
-      Logger.info("Ingestion config changed - updating scheduler jobs")
-      update_schedules(sources)
-      {:noreply, %{state | last_config: comparable}}
-    else
-      {:noreply, state}
+        if comparable != state.last_config do
+          Logger.info("Ingestion config changed - updating scheduler jobs")
+          update_schedules(sources)
+          {:noreply, %{state | last_config: comparable}}
+        else
+          {:noreply, state}
+        end
+
+      :error ->
+        {:noreply, state}
     end
+  end
+
+  # A failed read (database down or restarting) keeps the current jobs and
+  # waits for the next poll. Crashing instead would restart the poller, which
+  # polls at once and crashes again; three crashes in five seconds make the
+  # application supervisor shut down everything, the Repo included.
+  defp load_config do
+    {:ok, Ingestion.list_enabled_config()}
+  rescue
+    e ->
+      Logger.warning("Ingestion config poll failed, keeping current jobs: #{Exception.message(e)}")
+      :error
   end
 
   defp schedule_next_poll do

@@ -41,6 +41,12 @@ config :medicaid_claims_checker, MedicaidClaimsChecker.Repo,
 # Skip async evaluation in tests — evaluation is tested directly via Evaluator
 config :medicaid_claims_checker, skip_async_evaluation: true
 
+# Scheduled work reads the database outside the test sandbox: a crash-looping
+# ConfigPoller could take down the application supervisor (and the Repo)
+# mid-suite, and the NPPES timer could start a real download.
+config :medicaid_claims_checker, :config_poller, enabled: false
+config :medicaid_claims_checker, MedicaidClaimsChecker.Nppes.RefreshWorker, scheduled: false
+
 config :medicaid_claims_checker, Oban, testing: :inline
 
 # Enable helpful, but potentially expensive runtime checks

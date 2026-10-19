@@ -18,8 +18,8 @@ defmodule MedicaidClaimsChecker.Application do
       MedicaidClaimsChecker.Repo,
       {Oban, Application.fetch_env!(:medicaid_claims_checker, Oban)},
       {Task.Supervisor, name: MedicaidClaimsChecker.TaskSupervisor},
-      MedicaidClaimsChecker.Scheduler,
-      MedicaidClaimsChecker.Ingestion.ConfigPoller,
+      MedicaidClaimsChecker.Scheduler
+    ] ++ config_poller() ++ [
       MedicaidClaimsChecker.Nppes.RefreshWorker,
       # Start to serve requests, typically the last entry
       MedicaidClaimsCheckerWeb.Endpoint
@@ -29,6 +29,15 @@ defmodule MedicaidClaimsChecker.Application do
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: MedicaidClaimsChecker.Supervisor]
     Supervisor.start_link(children, opts)
+  end
+
+  # The poller reads the database outside any test's sandbox, so the test
+  # config turns it off (config :medicaid_claims_checker, :config_poller).
+  defp config_poller do
+    if Application.get_env(:medicaid_claims_checker, :config_poller, [])
+       |> Keyword.get(:enabled, true),
+       do: [MedicaidClaimsChecker.Ingestion.ConfigPoller],
+       else: []
   end
 
   # Tell Phoenix to update the endpoint configuration

@@ -350,14 +350,14 @@ defmodule MedicaidClaimsChecker.Claims do
   def list_files_for_batch(batch_id) do
     EdiFile
     |> where([f], f.batch_id == ^batch_id)
-    |> order_by(asc: :inserted_at)
+    |> order_by(asc: :inserted_at, asc: :id)
     |> Repo.all()
   end
 
   def list_errors_for_batch(batch_id) do
     EdiFile
     |> where([f], f.batch_id == ^batch_id and f.status == "syntax_error")
-    |> order_by(asc: :inserted_at)
+    |> order_by(asc: :inserted_at, asc: :id)
     |> Repo.all()
   end
 

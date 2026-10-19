@@ -2,7 +2,15 @@
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE OverloadedStrings #-}
 
--- | Warp HTTP server exposing the Medicaid claims engine on port 8080.
+-- | Warp server exposing the Medicaid claims engine.
+--
+-- Listening (see 'listenConfig'):
+--
+-- * @ENGINE_HOST@ (default @127.0.0.1@) and @ENGINE_PORT@ (default @8080@).
+-- * Without @RULE_ENGINE_TLS_CERT@/@RULE_ENGINE_TLS_KEY@ the engine serves
+--   plain HTTP and only on a loopback address; asking for any other host
+--   without TLS stops the server at startup.
+-- * With both set it serves HTTPS on any host.
 --
 -- endpoints:
 --
@@ -17,6 +25,7 @@ import Control.Concurrent (getNumCapabilities)
 import Control.Concurrent.Async (mapConcurrently)
 import Control.Concurrent.QSem (QSem, newQSem, signalQSem, waitQSem)
 import Control.Exception (bracket_, evaluate)
+import Control.Monad (filterM, mfilter, unless)
 import Data.Aeson (FromJSON (..), ToJSON (..), Value (..), decode, encode, object, withObject, (.:), (.:?), (.=))
 import Data.Aeson.Types (parseMaybe)
 import Data.IORef (IORef, atomicModifyIORef', newIORef)
@@ -32,9 +41,13 @@ import Data.ByteString.Lazy qualified as BL
 import Network.HTTP.Types (Status, status200, status400, status401, status429)
 import Network.Socket (SockAddr)
 import Network.Wai
-import Network.Wai.Handler.Warp (run)
+import Network.Wai.Handler.Warp (defaultSettings, runSettings, setHost, setPort)
+import Network.Wai.Handler.WarpTLS (runTLS, tlsSettings)
+import Data.String (fromString)
+import System.Directory (doesFileExist)
+import System.Exit (exitFailure)
 import System.Environment (lookupEnv)
-import System.IO (hPutStrLn, stderr)
+import System.IO (BufferMode (..), hPutStrLn, hSetBuffering, stderr, stdout)
 import System.Timeout (timeout)
 import Text.Read (readMaybe)
 import Claims.EvaluationContract (EvaluationRequest (..))
@@ -56,7 +69,21 @@ import Claims.RuleEngine (EvaluationReport (..), evaluateSimpleJson, loadRules)
 
 main :: IO ()
 main = do
-  putStrLn "Starting JSON Claims Integrity DSL Server on port 8080..."
+  hSetBuffering stdout LineBuffering
+  listen <- listenConfig
+  config <- case listen of
+    Left err -> hPutStrLn stderr ("Engine not started: " ++ err) >> exitFailure
+    Right c -> pure c
+  let missing p = not <$> doesFileExist p
+  case lcTls config of
+    Just (cert, key) -> do
+      absent <- filterM missing [cert, key]
+      unless (null absent) $ do
+        hPutStrLn stderr ("Engine not started: TLS file not found: " ++ unwords absent)
+        exitFailure
+    Nothing -> pure ()
+  let scheme = maybe "http" (const "https") (lcTls config)
+  putStrLn $ "Starting JSON Claims Integrity DSL Server on " ++ scheme ++ "://" ++ lcHost config ++ ":" ++ show (lcPort config) ++ "..."
   numCaps <- getNumCapabilities
   let workerCount = max 1 numCaps
   sem <- newQSem workerCount
@@ -65,7 +92,48 @@ main = do
   putStrLn $ "Worker pool: " ++ show workerCount ++ " concurrent claim evaluations"
   putStrLn $ "Auth: " ++ if BS8.null secret then "WARNING — RULE_ENGINE_SECRET not set, all requests will be rejected" else "shared-secret enabled"
   putStrLn $ "Rate limit: " ++ show rateLimitMax ++ " requests per " ++ show rateLimitWindowSecs ++ " s per IP"
-  run 8080 (rateLimitMiddleware rateRef (authMiddleware secret (app sem)))
+  let settings = setHost (fromString (lcHost config)) (setPort (lcPort config) defaultSettings)
+      handler = rateLimitMiddleware rateRef (authMiddleware secret (app sem))
+  case lcTls config of
+    Just (cert, key) -> runTLS (tlsSettings cert key) settings handler
+    Nothing -> runSettings settings handler
+
+-- | Where and how the server listens.
+data ListenConfig = ListenConfig
+  { lcHost :: String,
+    lcPort :: Int,
+    -- | (certificate, key) paths; 'Nothing' means plain HTTP.
+    lcTls :: Maybe (FilePath, FilePath)
+  }
+
+listenConfig :: IO (Either String ListenConfig)
+listenConfig =
+  resolveListen
+    <$> lookupEnv "ENGINE_HOST"
+    <*> lookupEnv "ENGINE_PORT"
+    <*> lookupEnv "RULE_ENGINE_TLS_CERT"
+    <*> lookupEnv "RULE_ENGINE_TLS_KEY"
+
+-- | Plain HTTP is allowed only on loopback, so claim data and the shared
+-- secret never cross a network in cleartext. Empty variables count as unset.
+resolveListen :: Maybe String -> Maybe String -> Maybe String -> Maybe String -> Either String ListenConfig
+resolveListen mHost mPort mCert mKey = do
+  let set = mfilter (not . null)
+      host = fromMaybe "127.0.0.1" (set mHost)
+  port <- case set mPort of
+    Nothing -> Right 8080
+    Just p -> case readMaybe p of
+      Just n | n > 0 && n < 65536 -> Right n
+      _ -> Left ("ENGINE_PORT must be a port number, got " ++ show p)
+  tls <- case (set mCert, set mKey) of
+    (Just c, Just k) -> Right (Just (c, k))
+    (Nothing, Nothing) -> Right Nothing
+    _ -> Left "set both RULE_ENGINE_TLS_CERT and RULE_ENGINE_TLS_KEY, or neither"
+  case tls of
+    Nothing
+      | host `notElem` ["127.0.0.1", "localhost", "::1"] ->
+          Left ("ENGINE_HOST=" ++ host ++ " is not a loopback address; serving it needs RULE_ENGINE_TLS_CERT and RULE_ENGINE_TLS_KEY")
+    _ -> Right (ListenConfig host port tls)
 
 -- | Reject every request that lacks a matching Bearer token.
 -- The /api/health liveness probe is always allowed through unauthenticated

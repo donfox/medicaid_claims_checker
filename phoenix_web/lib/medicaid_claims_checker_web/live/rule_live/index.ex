@@ -1,6 +1,7 @@
 defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
   use MedicaidClaimsCheckerWeb, :live_view
   alias MedicaidClaimsChecker.Claims
+  alias MedicaidClaimsChecker.Claims.EngineClient
   alias MedicaidClaimsChecker.Claims.Evaluator
   alias MedicaidClaimsChecker.Claims.RuleSchemaValidator
 
@@ -541,12 +542,8 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
   defp parse_rule(text) do
     normalized_text = normalize_dsl_text(text)
 
-    case Req.post(
-           "#{rule_engine_url()}/api/parse-rule",
-           body: Jason.encode!(%{ruleText: normalized_text}),
-           headers: engine_headers(),
-           decode_body: false,
-           connect_options: [timeout: 8_000],
+    case EngineClient.post("/api/parse-rule", Jason.encode!(%{ruleText: normalized_text}),
+           connect_timeout: 8_000,
            receive_timeout: 5_000
          ) do
       {:ok, %{status: 200, body: body}} ->
@@ -579,12 +576,8 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
           existingRulesTexts: Enum.map(existing_rules, &normalize_dsl_text/1)
         })
 
-      case Req.post(
-             "#{rule_engine_url()}/api/check-redundancy",
-             body: body,
-             headers: engine_headers(),
-             decode_body: false,
-             connect_options: [timeout: 10_000],
+      case EngineClient.post("/api/check-redundancy", body,
+             connect_timeout: 10_000,
              receive_timeout: 10_000
            ) do
         {:ok, %{status: 200, body: resp_body}} ->
@@ -699,14 +692,5 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
       String.starts_with?(line, "--") -> line
       true -> "  " <> line
     end
-  end
-
-  defp rule_engine_url do
-    Application.get_env(:medicaid_claims_checker, :rule_engine_url, "http://localhost:8080")
-  end
-
-  defp engine_headers do
-    secret = Application.get_env(:medicaid_claims_checker, :rule_engine_secret, "")
-    [{"Content-Type", "application/json"}, {"Authorization", "Bearer #{secret}"}]
   end
 end

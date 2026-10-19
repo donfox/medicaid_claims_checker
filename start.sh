@@ -135,9 +135,9 @@ run_migrations() {
 start_backend() {
   cd "$ROOT_DIR/haskell_engine"
   : "${RULE_ENGINE_SECRET:=dev-secret-change-in-production}"
-  : "${RULE_ENGINE_TLS_CERT:=priv/tls/cert.pem}"
-  : "${RULE_ENGINE_TLS_KEY:=priv/tls/key.pem}"
-  export RULE_ENGINE_SECRET RULE_ENGINE_TLS_CERT RULE_ENGINE_TLS_KEY
+  export RULE_ENGINE_SECRET
+  # Without RULE_ENGINE_TLS_CERT/KEY the engine serves plain HTTP on
+  # 127.0.0.1 only. See haskell_engine/README.md for serving it to another host.
   echo "Building Haskell backend..."
   stack build 2>&1 | grep -E "^(Building|Linking|Error|Warning:|medicaid-claims)" || true
   if [[ $FOREGROUND -eq 1 ]]; then

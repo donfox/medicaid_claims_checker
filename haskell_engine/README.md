@@ -56,7 +56,37 @@ From repository root, equivalent:
 stack --stack-yaml haskell_engine/stack.yaml run
 ```
 
-The server starts on port 8080.
+The server starts on `http://127.0.0.1:8080`. Every request except
+`/api/health` needs `Authorization: Bearer $RULE_ENGINE_SECRET`.
+
+### Listening and TLS
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `ENGINE_HOST` | `127.0.0.1` | Address to listen on |
+| `ENGINE_PORT` | `8080` | Port to listen on |
+| `RULE_ENGINE_TLS_CERT`, `RULE_ENGINE_TLS_KEY` | unset | Certificate and key files; when both are set the engine serves HTTPS |
+
+Without a certificate the engine serves plain HTTP and only on a loopback
+address (`127.0.0.1`, `localhost`, `::1`). Setting `ENGINE_HOST` to anything
+else without the two TLS variables stops the server at startup, so the shared
+secret and claim data never cross a network in cleartext.
+
+When Phoenix and the engine run on the same machine, nothing needs setting.
+When they run on different machines:
+
+1. On the engine host, set `ENGINE_HOST=0.0.0.0` (or the interface address)
+   and the two TLS variables.
+2. On the Phoenix host, set `RULE_ENGINE_URL=https://<engine-host>:8080`.
+   If the certificate is self-signed or from an internal CA, also set
+   `RULE_ENGINE_CA_CERT` to the CA file; a certificate from a public CA needs
+   nothing more.
+
+`gen-dev-tls.sh [host ...]` writes a development CA (`priv/tls/ca.pem`, for
+`RULE_ENGINE_CA_CERT`) and an engine certificate signed by it (`cert.pem`,
+`key.pem`) covering `localhost`, `127.0.0.1` and any hosts given. Phoenix
+rejects a lone self-signed certificate even when told to trust it, so use a
+CA-signed one.
 
 ## API Endpoints
 

@@ -22,6 +22,9 @@ end
 
 config :medicaid_claims_checker,
   rule_engine_url: System.get_env("RULE_ENGINE_URL") || "http://localhost:8080",
+  # CA file for an engine served over HTTPS with a self-signed or internal
+  # certificate. Unset: HTTPS engines are verified against the system CAs.
+  rule_engine_ca_cert: System.get_env("RULE_ENGINE_CA_CERT"),
   rule_engine_secret:
     System.get_env("RULE_ENGINE_SECRET") ||
       if(config_env() == :dev, do: "dev-secret-change-in-production", else: "")

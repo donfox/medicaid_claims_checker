@@ -82,7 +82,7 @@ These are active design and implementation constraints, not future goals:
 - Claims inside a single Haskell request are evaluated sequentially.
 - Larger batches therefore become CPU-bound.
 - NPPES data is refreshed on an interval, so claims evaluated between refreshes use the most recently imported snapshot.
-- The current deployment model assumes a trusted internal network.
+- Without a TLS certificate the engine listens on loopback only; serving it to another host requires HTTPS (see `haskell_engine/README.md`, "Listening and TLS").
 
 ## Concurrency Model and Scaling
 

@@ -52,6 +52,8 @@ executable medicaid-claims-dsl-server
                     , text
                     , bytestring
                     , warp >= 3.3.0
+                    , warp-tls >= 3.3.0
+                    , directory >= 1.3
                     , wai >= 3.2.0
                     , http-types >= 0.12.3
                     , time >= 1.9

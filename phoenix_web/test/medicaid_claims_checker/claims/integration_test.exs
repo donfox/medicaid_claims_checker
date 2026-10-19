@@ -1,6 +1,7 @@
 defmodule MedicaidClaimsChecker.Claims.IntegrationTest do
   @moduledoc """
-  Live integration tests that call the real Haskell engine at http://localhost:8080.
+  Live integration tests that call the real Haskell engine at RULE_ENGINE_URL
+  (default http://localhost:8080).
 
   These tests are tagged :integration and are excluded from `mix test` by default.
   Run them explicitly with:
@@ -26,7 +27,11 @@ defmodule MedicaidClaimsChecker.Claims.IntegrationTest do
   @preventive Jason.decode!(File.read!("test/fixtures/x12/valid_837p_preventive.json"))
 
   setup do
-    Application.put_env(:medicaid_claims_checker, :rule_engine_url, "http://localhost:8080")
+    Application.put_env(
+      :medicaid_claims_checker,
+      :rule_engine_url,
+      System.get_env("RULE_ENGINE_URL") || "http://localhost:8080"
+    )
 
     Application.put_env(
       :medicaid_claims_checker,

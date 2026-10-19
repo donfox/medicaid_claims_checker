@@ -9,21 +9,10 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
   """
 
   alias MedicaidClaimsChecker.Claims
+  alias MedicaidClaimsChecker.Claims.EngineClient
   alias MedicaidClaimsCheckerWeb.RuleLive.PayloadBuilder
 
   require Logger
-
-  defp rule_engine_url do
-    Application.get_env(:medicaid_claims_checker, :rule_engine_url, "http://localhost:8080")
-  end
-
-  defp engine_secret do
-    Application.get_env(:medicaid_claims_checker, :rule_engine_secret, "")
-  end
-
-  defp engine_headers do
-    [{"Content-Type", "application/json"}, {"Authorization", "Bearer #{engine_secret()}"}]
-  end
 
   # Batches are sent to the engine in chunks of @batch_chunk_size (200), and
   # the engine accepts at most 100 requests a minute on one connection, so a
@@ -163,12 +152,8 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
     |> Enum.reduce_while({:ok, []}, fn chunk, {:ok, acc} ->
       body = Jason.encode!(PayloadBuilder.build_batch_evaluate_payload(rules_text, chunk))
 
-      case Req.post(
-             "#{rule_engine_url()}/api/batch-evaluate",
-             body: body,
-             headers: engine_headers(),
-             decode_body: false,
-             connect_options: [timeout: 120_000],
+      case EngineClient.post("/api/batch-evaluate", body,
+             connect_timeout: 120_000,
              receive_timeout: 120_000
            ) do
         {:ok, %{status: 200, body: resp_body}} ->

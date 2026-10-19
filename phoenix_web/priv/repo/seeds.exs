@@ -74,7 +74,7 @@ Repo.insert_all(
 default_catalogue_entries = [
   %{
     name: "ImpossibleDates",
-    description: "Rejects claims with service dates in the future or before 1900",
+    description: "Rejects claims where any service line is dated before 1900",
     entry_type: "Default Rule",
     status: "Active",
     editable: false,
@@ -210,7 +210,7 @@ Repo.insert_all(
 new_default_rules = [
   %{
     name: "FutureServiceDate",
-    description: "Rejects claims where the date of service has not yet occurred",
+    description: "Rejects claims where any service line's date of service has not yet occurred",
     entry_type: "Default Rule",
     status: "Active",
     editable: false,
@@ -287,9 +287,8 @@ default_business_rules = [
     rule_text:
       """
       RULE impossible_dates
-      "Rejects claims with service dates in the future or before 1900"
-      WHEN is_future_date(service_lines.0.date_of_service)
-        OR is_date_before(service_lines.0.date_of_service, "1900-01-01")
+      "Rejects claims where any service line is dated before 1900 (future dates are FutureServiceDate)"
+      WHEN EXISTS line IN service_lines WHERE is_date_before(line.date_of_service, "1900-01-01")
       THEN REJECT "Impossible service date detected";
       """
       |> String.trim(),
@@ -348,8 +347,8 @@ default_business_rules = [
     rule_text:
       """
       RULE future_service_date
-      "Rejects claims where the date of service has not yet occurred"
-      WHEN is_future_date(service_lines.0.date_of_service)
+      "Rejects claims where any service line's date of service has not yet occurred"
+      WHEN EXISTS line IN service_lines WHERE is_future_date(line.date_of_service)
       THEN REJECT "Service date is in the future";
       """
       |> String.trim(),
@@ -543,8 +542,8 @@ new_ba_rules = [
       """
       RULE high_complexity_er_visit
       DESCRIPTION "High-complexity ER visit (99285) with elevated charges requires clinical review"
-      WHEN service_lines.0.procedure_code = "99285"
-           AND financial.claim_amount > 10000
+      WHEN financial.claim_amount > 10000
+           AND EXISTS line IN service_lines WHERE line.procedure_code = "99285"
       THEN REQUIRE_REVIEW "High-complexity ER — clinical validation required"
       END
       """

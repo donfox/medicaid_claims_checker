@@ -42,15 +42,15 @@ ruleExtremeAmounts =
 
 ruleFutureServiceDate :: String
 ruleFutureServiceDate =
-  "RULE future_service_date \"Rejects claims where the date of service has not yet occurred\" \
-  \WHEN is_future_date(service_lines.0.date_of_service) \
+  "RULE future_service_date \"Rejects claims where any service line's date of service has not yet occurred\" \
+  \WHEN EXISTS line IN service_lines WHERE is_future_date(line.date_of_service) \
   \THEN REJECT \"Service date is in the future\";"
 
 ruleHighComplexityERVisit :: String
 ruleHighComplexityERVisit =
   "RULE high_complexity_er_visit \
   \DESCRIPTION \"High-complexity ER visit (99285) with elevated charges requires clinical review\" \
-  \WHEN service_lines.0.procedure_code = \"99285\" AND financial.claim_amount > 10000 \
+  \WHEN financial.claim_amount > 10000 AND EXISTS line IN service_lines WHERE line.procedure_code = \"99285\" \
   \THEN REQUIRE_REVIEW \"High-complexity ER — clinical validation required\" END"
 
 ruleHighValueClaim :: String
@@ -62,9 +62,8 @@ ruleHighValueClaim =
 
 ruleImpossibleDates :: String
 ruleImpossibleDates =
-  "RULE impossible_dates \"Rejects claims with service dates in the future or before 1900\" \
-  \WHEN is_future_date(service_lines.0.date_of_service) \
-  \OR is_date_before(service_lines.0.date_of_service, \"1900-01-01\") \
+  "RULE impossible_dates \"Rejects claims where any service line is dated before 1900 (future dates are FutureServiceDate)\" \
+  \WHEN EXISTS line IN service_lines WHERE is_date_before(line.date_of_service, \"1900-01-01\") \
   \THEN REJECT \"Impossible service date detected\";"
 
 ruleInvalidNPIFormat :: String
@@ -135,6 +134,16 @@ ruleUnauthorizedProcedure =
 -- ---------------------------------------------------------------------------
 -- Helper: parse and evaluate a single rule
 -- ---------------------------------------------------------------------------
+
+-- | A claim with two service lines on the given dates.
+twoLineDates :: String -> String -> Aeson.Value
+twoLineDates first second =
+  object
+    [ "service_lines" .=
+        [ object ["date_of_service" .= first, "procedure_code" .= ("99213" :: String)]
+        , object ["date_of_service" .= second, "procedure_code" .= ("80053" :: String)]
+        ]
+    ]
 
 evalRule :: String -> Aeson.Value -> IO RuleResult
 evalRule ruleText doc = case parseRule (T.pack ruleText) of
@@ -355,6 +364,24 @@ businessRulesSpec =
               ]
         result <- evalRule ruleFutureServiceDate doc
         resultMatched result `shouldBe` True
+
+      it "future date on line 2 only → FutureServiceDate fires" $ do
+        result <- evalRule ruleFutureServiceDate (twoLineDates "2026-02-10" "2099-01-01")
+        resultMatched result `shouldBe` True
+
+      it "pre-1900 date on line 2 only → ImpossibleDates fires" $ do
+        result <- evalRule ruleImpossibleDates (twoLineDates "2026-02-10" "1850-01-01")
+        resultMatched result `shouldBe` True
+
+      it "future date → ImpossibleDates does NOT fire (FutureServiceDate covers it)" $ do
+        result <- evalRule ruleImpossibleDates (twoLineDates "2026-02-10" "2099-01-01")
+        resultMatched result `shouldBe` False
+
+      it "no service lines → neither rule fires" $ do
+        let doc = object ["service_lines" .= ([] :: [Aeson.Value])]
+        future <- evalRule ruleFutureServiceDate doc
+        impossible <- evalRule ruleImpossibleDates doc
+        (resultMatched future, resultMatched impossible) `shouldBe` (False, False)
 
     -- -----------------------------------------------------------------------
     -- 8. PatientAgeOutOfRange
@@ -601,6 +628,17 @@ businessRulesSpec =
               ]
         result <- evalRule ruleHighComplexityERVisit doc
         resultMatched result `shouldBe` False
+
+      it "99285 on line 2 after a lab draw + $12500 → fires" $ do
+        let doc = object
+              [ "service_lines" .=
+                  [ object ["date_of_service" .= ("2020-01-15" :: String), "procedure_code" .= ("36415" :: String)]
+                  , object ["date_of_service" .= ("2020-01-15" :: String), "procedure_code" .= ("99285" :: String)]
+                  ]
+              , "financial"     .= object ["claim_amount" .= (12500 :: Double)]
+              ]
+        result <- evalRule ruleHighComplexityERVisit doc
+        resultMatched result `shouldBe` True
 
     -- -----------------------------------------------------------------------
     -- 17. Real fixture NPIs pass all NPI validation rules (regression)

@@ -88,7 +88,7 @@ defmodule MedicaidClaimsChecker.Claims.IntegrationTest do
       {"invalid_provider_npi",
        ~s|RULE invalid_provider_npi "Validates that the billing provider NPI passes Luhn-10 checksum" WHEN provider.npi IS NOT NULL AND NOT is_valid_npi(provider.npi) THEN REJECT "Provider NPI fails Luhn-10 validation";|},
       {"future_service_date",
-       ~s|RULE future_service_date "Rejects claims where the date of service has not yet occurred" WHEN is_future_date(service_lines.0.date_of_service) THEN REJECT "Service date is in the future";|},
+       ~s|RULE future_service_date "Rejects claims where any service line's date of service has not yet occurred" WHEN EXISTS line IN service_lines WHERE is_future_date(line.date_of_service) THEN REJECT "Service date is in the future";|},
       {"excessive_total_charges",
        ~s|RULE excessive_total_charges "Flags claims with total charges exceeding $750,000 as potential fraud" WHEN claim_totals.total_charges > 750000 THEN FLAG_FRAUD "Total charges exceed $750K threshold";|},
       {"high_value_claim",

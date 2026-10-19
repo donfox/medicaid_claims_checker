@@ -127,15 +127,14 @@
           {
             "claim_id": "FUTURE01",
             "matched": [
-              "FutureServiceDate",
-              "ImpossibleDates"
+              "FutureServiceDate"
             ],
             "nppes": "ok"
           }
         ]
       },
       "file": "single/08_future_service_date.x12",
-      "purpose": "Service date in 2099 → FutureServiceDate and ImpossibleDates"
+      "purpose": "Service date in 2099 → FutureServiceDate only (ImpossibleDates covers dates before 1900)"
     },
     {
       "expect": {
@@ -433,7 +432,6 @@
             "claim_id": "COMBO01",
             "matched": [
               "FutureServiceDate",
-              "ImpossibleDates",
               "HighComplexityERVisit",
               "MissingProviderTaxonomy",
               "UnauthorizedProcedure"
@@ -447,7 +445,7 @@
         ]
       },
       "file": "single/27_many_rules.x12",
-      "purpose": "ER 99285, $15,000, no taxonomy, service in 2099 → five rules at once"
+      "purpose": "ER 99285, $15,000, no taxonomy, service in 2099 → four rules at once"
     },
     {
       "expect": {
@@ -546,6 +544,55 @@
       },
       "file": "single/34_weekend_office_500.x12",
       "purpose": "Office visit on Saturday, exactly $500.00 → no match (> not >=)"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "FUTURE02",
+            "matched": [
+              "FutureServiceDate"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/35_future_date_line2.x12",
+      "purpose": "Line 1 dated 2026-09-01, line 2 dated 2099 → FutureServiceDate (the rule checks every line)"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "OLDDATE02",
+            "matched": [
+              "ImpossibleDates"
+            ],
+            "nppes": "was not issued until"
+          }
+        ]
+      },
+      "file": "single/36_pre1900_line2.x12",
+      "purpose": "Line 1 dated 2026-09-01, line 2 dated 1899 → ImpossibleDates; NPPES rejects line 2 (NPI not issued until 2007)"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "ERVISIT02",
+            "matched": [
+              "HighComplexityERVisit",
+              "UnauthorizedProcedure"
+            ],
+            "not_checked": [
+              "NewProviderLargeSubmission"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "single/37_er_99285_line2.x12",
+      "purpose": "Venipuncture on line 1, ER 99285 on line 2, $12,525 → HighComplexityERVisit (the rule checks every line)"
     },
     {
       "expect": {

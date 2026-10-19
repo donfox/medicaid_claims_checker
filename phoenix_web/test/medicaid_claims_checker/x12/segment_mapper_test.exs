@@ -198,10 +198,10 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapperTest do
       refute claim["financial"]["claim_amount"] > 50_000
     end
 
-    test "RULE HighComplexityERVisit — procedure is not 99285", %{claim: claim} do
-      # WHEN service_lines.0.procedure_code = "99285" AND financial.claim_amount > 10000
-      first_procedure = hd(claim["service_lines"])["procedure_code"]
-      refute first_procedure == "99285"
+    test "RULE HighComplexityERVisit — no line is 99285", %{claim: claim} do
+      # WHEN financial.claim_amount > 10000
+      #      AND EXISTS line IN service_lines WHERE line.procedure_code = "99285"
+      refute Enum.any?(claim["service_lines"], &(&1["procedure_code"] == "99285"))
     end
 
     test "RULE SuspiciouslyLowCharge — charge is not below $5", %{claim: claim} do
@@ -220,12 +220,14 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapperTest do
       refute is_nil(claim["billing_provider"]["taxonomy"])
     end
 
-    test "RULE FutureServiceDate — service date is not in the future", %{claim: claim} do
-      # WHEN is_future_date(service_lines.0.date_of_service)
-      # Date 20260307 (March 7, 2026) is in the past
-      date_str = hd(claim["service_lines"])["date_of_service"]
-      {:ok, date} = Date.from_iso8601("#{String.slice(date_str, 0, 4)}-#{String.slice(date_str, 4, 2)}-#{String.slice(date_str, 6, 2)}")
-      refute Date.after?(date, Date.utc_today())
+    test "RULE FutureServiceDate — no service date is in the future", %{claim: claim} do
+      # WHEN EXISTS line IN service_lines WHERE is_future_date(line.date_of_service)
+      # Every line is dated 20260307 (March 7, 2026), in the past
+      for line <- claim["service_lines"] do
+        date_str = line["date_of_service"]
+        {:ok, date} = Date.from_iso8601("#{String.slice(date_str, 0, 4)}-#{String.slice(date_str, 4, 2)}-#{String.slice(date_str, 6, 2)}")
+        refute Date.after?(date, Date.utc_today())
+      end
     end
 
     test "RULE PatientAgeOutOfRange — patient age is in valid range (0-130)", %{claim: claim} do

@@ -162,18 +162,17 @@ claim.has_procedure "code"
 These search standard claim arrays without requiring explicit `EXISTS` logic:
 
 - `diagnosis_codes[*].code`
-- `procedure_codes[*].code`
 - `service_lines[*].procedure_code`
 
 ### Quantifiers
 
 ```text
-EXISTS loop.segment WHERE predicate
-FORALL loop.segment WHERE predicate
-COUNT(loop.segment) > n
+EXISTS line IN service_lines WHERE predicate
+FORALL line IN service_lines WHERE predicate
+COUNT(service_lines) > n
 ```
 
-Use these forms when you need to inspect repeated structures such as service lines.
+Use these forms when you need to inspect repeated structures such as service lines. The name after `EXISTS`/`FORALL` (here `line`) stands for one item inside the `WHERE`: `line.procedure_code`, `line.charge_amount`. A path with an index, such as `service_lines.0.date_of_service`, reads only that one item, here the first service line.
 
 - `EXISTS` matches when at least one item definitely matches.
 - `FORALL` matches when every item definitely matches. An item that is missing the field makes `FORALL` unknown, not true.
@@ -239,38 +238,54 @@ Notes:
 
 ### Claim JSON structure
 
-Claims are represented as hierarchical JSON paths. Some older examples still use loop and segment labels as field-key conventions.
+Rules read the claim after it is converted from the X12 837 file, not the raw file. Each part of a path names the next level of the converted claim JSON.
 
-Common legacy loop labels:
+Main sections:
 
-- `2300` — Claim Information
-- `2400` — Service Line
-- `2010` — Provider or Patient Name
-- `2320` — Other Subscriber Information
+- `claim_id` — claim identifier
+- `financial.claim_amount`, `claim_totals.total_charges` — amounts
+- `claim_details` — `place_of_service`, `frequency_code` (1 original, 7 replacement, 8 void)
+- `provider`, `billing_provider` — `npi`, `name`, `taxonomy`, `tax_id`; `billing_provider.address` has `street`, `city`, `state`, `zip`
+- `rendering_provider` — `npi`, `taxonomy_code`, `last_name`, `first_name`
+- `patient` — `date_of_birth`, `gender`, `name.first`, `name.last`
+- `subscriber` — `member_id`, `date_of_birth`, `relationship_code`, `group_number`
+- `payer` — `name`, `payer_id`
+- `authorization.authorization_number`
+- `diagnosis_codes` — list; each has `code` and `qualifier`
+- `service_lines` — list; each has `procedure_code`, `charge_amount`, `units`, `date_of_service`, `place_of_service`, `line_number`, `diagnosis_pointer`, `revenue_code`
 
-Common legacy segment labels:
+The Rules page checks every field a rule uses against this structure. A rule naming a field that no converted claim has is saved as a draft and cannot be activated; the message suggests the field to use where there is one.
 
-- `CLM` — Claim segment
-- `SV1` — Professional Service
-- `DTP` — Date or Time Period
-- `HI` — Health Care Diagnosis Code
-- `NM1` — Name
+### X12 loop-style paths are not fields
+
+Older examples used X12 loop and segment labels, such as `2300.CLM.claim_amount` (loop 2300, segment CLM). Those name where a value sits in the raw file. Converted claims have no such keys, so these rules never fire. Use the converted field instead:
+
+| Loop-style path | Use |
+|---|---|
+| `2300.CLM.claim_amount` | `financial.claim_amount` |
+| `2300.HI.diagnosis_code` | `diagnosis_codes` (e.g. `COUNT(diagnosis_codes) = 0`) |
+| `2400.SV1.procedure_code` | `line.procedure_code` inside `EXISTS line IN service_lines` |
+| `2400.SV1.line_charge` | `line.charge_amount` |
+| `2400.SV1.place_of_service` | `line.place_of_service` |
+| `2400.DTP.service_date` | `line.date_of_service` |
 
 ### Reference formats
 
 ```text
-field_name
-CLM.claim_amount
-2300.CLM.claim_amount
-claim.billing_provider.address.zip
+claim_id
+financial.claim_amount
+billing_provider.address.zip
+EXISTS line IN service_lines WHERE line.charge_amount > 500
+service_lines.0.procedure_code
 ```
 
 These correspond to:
 
-- simple field reference
-- segment + field
-- loop + segment + field
-- any deeper path: each part names the next level of the claim JSON
+- top-level field
+- section + field
+- deeper path
+- any item of a list (`FORALL` for every item, `COUNT(...)` for how many)
+- one list item by position (first service line only)
 
 ### Reusable bindings with `LET`
 
@@ -279,8 +294,8 @@ Use `LET` lines between `DESCRIPTION` and `WHEN` when the same field reference w
 ```text
 RULE high_value_er
 DESCRIPTION "ER high-value claim"
-LET amount = 2300.CLM.claim_amount
-LET place = 2400.SV1.place_of_service
+LET amount = financial.claim_amount
+LET place = claim_details.place_of_service
 WHEN place = "23" AND amount > 5000
 THEN REQUIRE_REVIEW "ER high amount"
 END
@@ -314,8 +329,8 @@ END
 The right-hand side of a comparison can be another field reference instead of a literal.
 
 ```text
-2400.DTP.service_date > 2300.DTP.admission_date
-CLM.billed_amount > CLM.allowed_amount
+financial.claim_amount > claim_totals.total_charges
+EXISTS line IN service_lines WHERE line.charge_amount > financial.claim_amount
 ```
 
 ## Actions
@@ -374,7 +389,7 @@ You can combine actions with brackets and commas.
 
 ```text
 RULE high_claim_amount "Flag unusually high claim amounts"
-WHEN 2300.CLM.claim_amount > 50000.0
+WHEN financial.claim_amount > 50000.0
 THEN FLAG_FRAUD "Claim amount exceeds $50,000 threshold";
 ```
 
@@ -382,7 +397,7 @@ THEN FLAG_FRAUD "Claim amount exceeds $50,000 threshold";
 
 ```text
 RULE missing_diagnosis "Reject claims without diagnosis code"
-WHEN 2300.HI.diagnosis_code IS NULL
+WHEN COUNT(diagnosis_codes) = 0
 THEN REJECT "Diagnosis code is required for all claims";
 ```
 
@@ -390,8 +405,8 @@ THEN REJECT "Diagnosis code is required for all claims";
 
 ```text
 RULE excessive_daily_charges "Multiple high-value services same day"
-WHEN COUNT(2400) > 10 
-     AND FORALL 2400 WHERE 2400.SV1.line_charge > 500.0
+WHEN COUNT(service_lines) > 10
+     AND FORALL line IN service_lines WHERE line.charge_amount > 500.0
 THEN [FLAG_FRAUD "Excessive billing pattern", RISK_SCORE 80];
 ```
 
@@ -399,8 +414,8 @@ THEN [FLAG_FRAUD "Excessive billing pattern", RISK_SCORE 80];
 
 ```text
 RULE unbundling_check "Detect unbundled E&M codes"
-WHEN EXISTS 2400.SV1 WHERE 2400.SV1.procedure_code = "99213"
-     AND EXISTS 2400.SV1 WHERE 2400.SV1.procedure_code = "99214"
+WHEN EXISTS line IN service_lines WHERE line.procedure_code = "99213"
+     AND EXISTS line IN service_lines WHERE line.procedure_code = "99214"
 THEN FLAG_FRAUD "Possible unbundling of E&M services";
 ```
 
@@ -408,8 +423,8 @@ THEN FLAG_FRAUD "Possible unbundling of E&M services";
 
 ```text
 RULE age_check "Service not appropriate for patient age"
-WHEN 2010.NM1.patient_age < 18
-     AND 2400.SV1.procedure_code = "99385"
+WHEN NOT is_age_valid(patient.date_of_birth, 18, 130)
+     AND EXISTS line IN service_lines WHERE line.procedure_code = "99385"
 THEN REQUIRE_REVIEW "Adult preventive service for minor";
 ```
 
@@ -417,8 +432,8 @@ THEN REQUIRE_REVIEW "Adult preventive service for minor";
 
 ```text
 RULE suspicious_location "Service in unusual location"
-WHEN 2400.SV1.place_of_service = "99"
-     OR 2400.SV1.place_of_service IS NULL
+WHEN EXISTS line IN service_lines WHERE line.place_of_service = "99"
+     OR claim_details.place_of_service IS NULL
 THEN [REQUIRE_REVIEW "Verify service location", RISK_SCORE 50];
 ```
 
@@ -450,7 +465,7 @@ THEN [REQUIRE_REVIEW "Verify service location", RISK_SCORE 50];
 ```text
 ✓ GOOD:
 RULE comprehensive_check "Multiple red flags"
-WHEN amount > 50000.0 AND COUNT(2400) > 20
+WHEN financial.claim_amount > 50000.0 AND COUNT(service_lines) > 20
 THEN [FLAG_FRAUD "Multiple issues", RISK_SCORE 90];
 
 ✗ BAD: Creating 10 separate rules for related checks
@@ -469,8 +484,8 @@ To flag a claim for review regardless of score, add `REQUIRE_REVIEW`. `FLAG_FRAU
 
 ```text
 RULE amount_range "Amount outside normal range"
-WHEN 2300.CLM.claim_amount < 10.0
-     OR 2300.CLM.claim_amount > 100000.0
+WHEN financial.claim_amount < 10.0
+     OR financial.claim_amount > 100000.0
 THEN REQUIRE_REVIEW "Unusual claim amount";
 ```
 
@@ -506,29 +521,33 @@ THEN FLAG_FRAUD "Possible unbundling of E&M services"
 END
 ```
 
-### Pattern — Duplicate detection
+### Pattern — Duplicate submissions
+
+A rule sees one claim at a time, so it cannot detect duplicates. Ingestion refuses a file or claim that was already submitted and names the earlier batch in the upload message and Jobs History.
+
+### Pattern — Any service line in the future
 
 ```text
-RULE duplicate_claims "Multiple claims same day"
-WHEN COUNT(2300) > 3
-THEN FLAG_FRAUD "Possible duplicate submission";
+RULE future_line "Any service line dated in the future"
+WHEN EXISTS line IN service_lines WHERE is_future_date(line.date_of_service)
+THEN REJECT "Service date is in the future";
 ```
 
 ### Pattern — Cross-field validation
 
 ```text
-RULE date_consistency "Service date after submission"
-WHEN 2400.DTP.service_date > 2300.DTP.submission_date
-THEN REJECT "Service date cannot be after submission";
+RULE line_exceeds_claim "A service line charges more than the whole claim"
+WHEN EXISTS line IN service_lines WHERE line.charge_amount > financial.claim_amount
+THEN REQUIRE_REVIEW "Line charge exceeds claim amount";
 ```
 
 ### Pattern — Provider validation
 
 ```text
-RULE provider_status "Check provider eligibility"
-WHEN 2010.NM1.provider_status = "suspended"
-     OR 2010.NM1.provider_status = "terminated"
-THEN REJECT "Provider is not eligible to submit claims";
+RULE rendering_npi_check "Rendering provider NPI must pass its checksum"
+WHEN rendering_provider.npi IS NOT NULL
+     AND NOT is_valid_npi(rendering_provider.npi)
+THEN REJECT "Rendering provider NPI fails Luhn-10 validation";
 ```
 
 ## Testing Your Rules
@@ -555,9 +574,9 @@ Check for:
 
 Check for:
 
-- field names that do not match your claim JSON structure. A misspelled field is treated as missing data, so the rule does not match and is listed as not checked.
+- field names that do not match your claim JSON structure. A misspelled field is treated as missing data, so the rule does not match and is listed as not checked. The Rules page catches most of these when the rule is saved.
 - numeric comparisons written as strings
-- incorrect loop IDs such as `2300` or `2400`
+- X12 loop-style paths such as `2300.CLM.claim_amount` (see [X12 loop-style paths are not fields](#x12-loop-style-paths-are-not-fields))
 
 If a rule never fires, check that the claims actually contain every field the rule uses, and that numbers and dates are in a readable form. Missing or unreadable data makes a condition unknown, and an unknown condition never fires (see [Missing data](#missing-data)).
 

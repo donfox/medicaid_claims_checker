@@ -474,7 +474,7 @@ END</code></pre>
                 <p class="text-xs font-medium text-gray-800 mb-1">Example</p>
                 <pre class="text-xs bg-gray-50 p-3 rounded border border-gray-300 overflow-x-auto text-gray-900"><code>RULE high_claim_amount
 DESCRIPTION "Flag unusually high claims"
-WHEN 2300.CLM.claim_amount &gt; 50000.0
+WHEN financial.claim_amount &gt; 50000.0
 THEN FLAG_FRAUD "Exceeds $50,000 threshold"
 END</code></pre>
               </div>
@@ -587,29 +587,40 @@ COUNT(service_lines) = 0</code></pre>
           <div>
             <h3 class="font-semibold text-sm text-gray-900 mb-2">Field References</h3>
             <p class="text-xs text-gray-800 mb-2">
-              Claims follow: <span class="font-semibold">Interchange</span> &rarr; <span class="font-semibold">Functional Group</span> &rarr; <span class="font-semibold">Transaction</span> &rarr; <span class="font-semibold">Loops</span> &rarr; <span class="font-semibold">Segments</span> &rarr; <span class="font-semibold">Elements</span>
+              Rules read the claim after it is converted from the X12 837 file, not the raw file.
+              X12 loop-style paths such as <code class="bg-gray-100 px-1 rounded">2300.CLM.claim_amount</code>
+              are not claim fields: saving a rule that uses one keeps it as a draft and names the field to use.
             </p>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <p class="text-xs font-medium text-gray-800 mb-1">Common Loops (837P)</p>
+                <p class="text-xs font-medium text-gray-800 mb-1">Claim Sections</p>
                 <table class="text-xs w-full bg-white rounded border border-gray-300">
                   <tbody>
-                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono font-semibold text-gray-900">2300</td><td class="p-1.5 text-gray-800">Claim Info</td></tr>
-                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono font-semibold text-gray-900">2400</td><td class="p-1.5 text-gray-800">Service Line</td></tr>
-                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono font-semibold text-gray-900">2010</td><td class="p-1.5 text-gray-800">Provider/Patient</td></tr>
-                    <tr><td class="p-1.5 font-mono font-semibold text-gray-900">2320</td><td class="p-1.5 text-gray-800">Other Subscriber</td></tr>
+                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">claim_id</td><td class="p-1.5 text-gray-800">Claim identifier</td></tr>
+                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">financial / claim_totals</td><td class="p-1.5 text-gray-800">Claim amount, total charges</td></tr>
+                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">claim_details</td><td class="p-1.5 text-gray-800">Place of service, frequency code</td></tr>
+                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">provider / billing_provider</td><td class="p-1.5 text-gray-800">NPI, name, taxonomy, tax ID</td></tr>
+                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">rendering_provider</td><td class="p-1.5 text-gray-800">NPI, name, taxonomy_code</td></tr>
+                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">patient / subscriber</td><td class="p-1.5 text-gray-800">Name, date of birth, member ID</td></tr>
+                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">payer</td><td class="p-1.5 text-gray-800">name, payer_id</td></tr>
+                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">authorization</td><td class="p-1.5 text-gray-800">authorization_number</td></tr>
+                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">diagnosis_codes</td><td class="p-1.5 text-gray-800">List: code, qualifier</td></tr>
+                    <tr><td class="p-1.5 font-mono text-gray-900">service_lines</td><td class="p-1.5 text-gray-800">List of service lines</td></tr>
                   </tbody>
                 </table>
               </div>
               <div>
-                <p class="text-xs font-medium text-gray-800 mb-1">Common Segments</p>
+                <p class="text-xs font-medium text-gray-800 mb-1">Common Fields</p>
                 <table class="text-xs w-full bg-white rounded border border-gray-300">
                   <tbody>
-                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono font-semibold text-gray-900">CLM</td><td class="p-1.5 text-gray-800">Claim</td></tr>
-                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono font-semibold text-gray-900">SV1</td><td class="p-1.5 text-gray-800">Professional Service</td></tr>
-                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono font-semibold text-gray-900">DTP</td><td class="p-1.5 text-gray-800">Date/Time</td></tr>
-                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono font-semibold text-gray-900">HI</td><td class="p-1.5 text-gray-800">Diagnosis Code</td></tr>
-                    <tr><td class="p-1.5 font-mono font-semibold text-gray-900">NM1</td><td class="p-1.5 text-gray-800">Name</td></tr>
+                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">financial.claim_amount</td><td class="p-1.5 text-gray-800">Claim amount</td></tr>
+                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">claim_totals.total_charges</td><td class="p-1.5 text-gray-800">Total charges</td></tr>
+                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">billing_provider.taxonomy</td><td class="p-1.5 text-gray-800">Billing taxonomy</td></tr>
+                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">patient.date_of_birth</td><td class="p-1.5 text-gray-800">Patient date of birth</td></tr>
+                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">line.procedure_code</td><td class="p-1.5 text-gray-800">Service line procedure</td></tr>
+                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">line.charge_amount</td><td class="p-1.5 text-gray-800">Service line charge</td></tr>
+                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">line.date_of_service</td><td class="p-1.5 text-gray-800">Service line date</td></tr>
+                    <tr><td class="p-1.5 font-mono text-gray-900">line.place_of_service</td><td class="p-1.5 text-gray-800">Service line place of service</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -617,10 +628,13 @@ COUNT(service_lines) = 0</code></pre>
                 <p class="text-xs font-medium text-gray-800 mb-1">Reference Formats</p>
                 <table class="text-xs w-full bg-white rounded border border-gray-300">
                   <tbody>
-                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">field_name</td><td class="p-1.5 text-gray-800">Simple field</td></tr>
-                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">CLM.claim_amount</td><td class="p-1.5 text-gray-800">Segment.field</td></tr>
-                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">2300.CLM.claim_amount</td><td class="p-1.5 text-gray-800">Loop.segment.field</td></tr>
-                    <tr><td class="p-1.5 font-mono text-gray-900">claim.billing_provider.address.zip</td><td class="p-1.5 text-gray-800">Any deeper path</td></tr>
+                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">claim_id</td><td class="p-1.5 text-gray-800">Top-level field</td></tr>
+                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">financial.claim_amount</td><td class="p-1.5 text-gray-800">Section.field</td></tr>
+                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">billing_provider.address.zip</td><td class="p-1.5 text-gray-800">Deeper path</td></tr>
+                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">EXISTS line IN service_lines WHERE line.charge_amount &gt; 500</td><td class="p-1.5 text-gray-800">Any service line</td></tr>
+                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">FORALL line IN service_lines WHERE ...</td><td class="p-1.5 text-gray-800">Every service line</td></tr>
+                    <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">COUNT(diagnosis_codes) = 0</td><td class="p-1.5 text-gray-800">Number of list items</td></tr>
+                    <tr><td class="p-1.5 font-mono text-gray-900">service_lines.0.procedure_code</td><td class="p-1.5 text-gray-800">First service line only</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -634,29 +648,29 @@ COUNT(service_lines) = 0</code></pre>
               <div class="p-3 bg-gray-50 rounded border border-gray-200">
                 <p class="text-xs font-medium text-gray-800 mb-1">Missing Required Field</p>
                 <pre class="text-[11px] bg-white p-2 rounded border border-gray-300 overflow-x-auto text-gray-900"><code>RULE missing_diagnosis "Reject without diagnosis"
-WHEN 2300.HI.diagnosis_code IS NULL
+WHEN COUNT(diagnosis_codes) = 0
 THEN REJECT "Diagnosis code required";</code></pre>
               </div>
               <div class="p-3 bg-gray-50 rounded border border-gray-200">
                 <p class="text-xs font-medium text-gray-800 mb-1">Complex Pattern with AND</p>
                 <pre class="text-[11px] bg-white p-2 rounded border border-gray-300 overflow-x-auto text-gray-900"><code>RULE excessive_charges "High-value services"
-WHEN COUNT(2400) &gt; 10
-     AND FORALL 2400 WHERE 2400.SV1.line_charge &gt; 500.0
+WHEN COUNT(service_lines) &gt; 10
+     AND FORALL line IN service_lines WHERE line.charge_amount &gt; 500.0
 THEN [FLAG_FRAUD "Excessive billing", RISK_SCORE 80];</code></pre>
               </div>
               <div class="p-3 bg-gray-50 rounded border border-gray-200">
                 <p class="text-xs font-medium text-gray-800 mb-1">Unbundling Detection</p>
                 <pre class="text-[11px] bg-white p-2 rounded border border-gray-300 overflow-x-auto text-gray-900"><code>RULE unbundling_check "Detect unbundled E&amp;M codes"
-WHEN EXISTS 2400.SV1 WHERE procedure_code = "99213"
-     AND EXISTS 2400.SV1 WHERE procedure_code = "99214"
+WHEN EXISTS line IN service_lines WHERE line.procedure_code = "99213"
+     AND EXISTS line IN service_lines WHERE line.procedure_code = "99214"
 THEN FLAG_FRAUD "Possible unbundling";</code></pre>
               </div>
               <div class="p-3 bg-gray-50 rounded border border-gray-200">
                 <p class="text-xs font-medium text-gray-800 mb-1">Provider Validation</p>
-                <pre class="text-[11px] bg-white p-2 rounded border border-gray-300 overflow-x-auto text-gray-900"><code>RULE provider_status "Check provider eligibility"
-WHEN 2010.NM1.provider_status = "suspended"
-     OR 2010.NM1.provider_status = "terminated"
-THEN REJECT "Provider not eligible";</code></pre>
+                <pre class="text-[11px] bg-white p-2 rounded border border-gray-300 overflow-x-auto text-gray-900"><code>RULE provider_npi_check "Billing provider NPI must pass its checksum"
+WHEN provider.npi IS NOT NULL
+     AND NOT is_valid_npi(provider.npi)
+THEN REJECT "Provider NPI fails Luhn-10 validation";</code></pre>
               </div>
             </div>
           </div>

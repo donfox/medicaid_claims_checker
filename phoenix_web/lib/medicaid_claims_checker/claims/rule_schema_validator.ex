@@ -1,152 +1,123 @@
 defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidator do
   @moduledoc """
-  Validates DSL field references against the claim contract supported by the
-  current application.
+  Validates DSL field references against the claim contract: the claim JSON
+  that `X12.SegmentMapper` produces from an 837, which is what rules see.
 
-  This is a schema-drift guard after syntax parsing succeeds. It accepts the
-  field paths and loop/segment forms already used by the app's fixtures and X12
-  translator, and it flags references that do not map to any known contract
-  shape.
+  This is a schema-drift guard after syntax parsing succeeds. A rule naming a
+  field no converted claim has would never fire (or always be "not checked"),
+  so the Rules page saves it as a draft and won't activate it. X12 loop-style
+  paths such as `2300.CLM.claim_amount` name where a value sits in the raw
+  file, not in the converted claim, so they are flagged with the field to use
+  instead. `test/medicaid_claims_checker/claims/rule_schema_validator_test.exs`
+  checks this list against the converter's output for the whole X12 suite.
   """
 
+  # Every leaf path in a converted claim. `*` matches any list index.
   @valid_patterns [
     "claim_id",
-    "claim.claim_id",
-    "claim_header.claim_control_number",
-    "claim_header.claim_submission_reason",
-    "claim_header.claim_type",
-    "claim_header.patient_control_number",
-    "claim_details.admission_date",
-    "claim_details.discharge_date",
-    "claim_details.admission_type",
-    "claim_details.admission_source",
-    "claim_details.discharge_status",
-    "claim_details.patient_status",
-    "claim_details.service_type",
+    "transaction_type",
     "claim_details.place_of_service",
     "claim_details.frequency_code",
+    "financial.claim_amount",
+    "claim_totals.total_charges",
+    "authorization.authorization_number",
     "provider.name",
     "provider.npi",
     "provider.tax_id",
-    "provider.type",
-    "provider.address.street",
-    "provider.address.city",
-    "provider.address.state",
-    "provider.address.postal_code",
-    "provider.address.country",
-    "provider.contact.phone",
-    "provider.contact.fax",
-    "provider.tenure_days",
-    "provider.risk_score",
-    "provider.credentialing_date",
-    "provider.specialty",
     "provider.taxonomy",
-    "billing_provider.npi",
-    "billing_provider.taxonomy",
+    "provider.tenure_days",
     "billing_provider.name",
+    "billing_provider.npi",
+    "billing_provider.tax_id",
+    "billing_provider.taxonomy",
     "billing_provider.address.street",
     "billing_provider.address.city",
     "billing_provider.address.state",
-    "billing_provider.address.postal_code",
-    "patient.name.first",
-    "patient.name.middle",
-    "patient.name.last",
-    "patient.name.suffix",
-    "patient.date_of_birth",
-    "patient.gender",
-    "patient.patient_id",
-    "patient.ssn",
-    "patient.address.street",
-    "patient.address.city",
-    "patient.address.state",
-    "patient.address.postal_code",
-    "patient.address.country",
-    "patient.contact.phone",
-    "patient.contact.email",
-    "subscriber.subscriber_id",
-    "subscriber.relationship",
-    "subscriber.group_number",
-    "subscriber.date_of_birth",
-    "subscriber.plan_id",
-    "payer.payer_id",
-    "payer.payer_name",
-    "payer.address.street",
-    "payer.address.city",
-    "payer.address.state",
-    "payer.address.postal_code",
-    "payer.contact.phone",
-    "diagnosis_codes.*.code",
-    "diagnosis_codes.*.description",
-    "diagnosis_codes.*.qualifier",
-    "diagnosis_codes.*.present_on_admission",
-    "procedure_codes.*.code",
-    "procedure_codes.*.description",
-    "procedure_codes.*.units",
-    "procedure_codes.*.date_performed",
-    "service_lines.*.service_line_number",
-    "service_lines.*.procedure_code",
-    "service_lines.*.description",
-    "service_lines.*.units",
-    "service_lines.*.unit_rate",
-    "service_lines.*.line_amount",
-    "service_lines.*.date_of_service",
-    "service_lines.*.place_of_service",
-    "service_lines.*.diagnosis_pointers.*",
-    "claim_totals.total_submitted",
-    "claim_totals.total_charges",
-    "claim_totals.total_patient_responsibility",
-    "claim_totals.total_payer_liability",
-    "claim_totals.total_units",
-    "financial.claim_amount",
-    "financial.patient_deductible",
-    "financial.patient_coinsurance",
-    "financial.patient_copay",
-    "financial.coordination_of_benefits",
-    "authorization.authorization_number",
-    "authorization.authorization_date",
-    "authorization.authorization_period_start",
-    "authorization.authorization_period_end",
-    "authorization.authorization_status",
-    "authorization.authorized_amount",
-    "authorization.approved_units",
-    "claim_metadata.submission_date",
-    "claim_metadata.claim_frequency",
-    "claim_metadata.claim_received_date",
-    "claim_metadata.claim_processing_status",
-    "claim_metadata.test_rule",
-    "claim_metadata.expected_result",
+    "billing_provider.address.zip",
     "rendering_provider.npi",
-    "claim.rendering_provider.npi",
     "rendering_provider.taxonomy_code",
     "rendering_provider.last_name",
     "rendering_provider.first_name",
     "rendering_provider.middle_name",
-    "attending_provider.npi",
-    "attending_provider.taxonomy_code",
-    "attending_provider.last_name",
-    "attending_provider.first_name",
-    "attending_provider.middle_name",
-    "institutional_claim.admission_type",
-    "institutional_claim.admission_source",
-    "institutional_claim.patient_status",
-    "dates.onset_date",
-    "dates.admission_date",
-    "dates.discharge_date",
-    "dates.service_date",
-    "dates.accident_date",
-    "2300.CLM.claim_amount",
-    "2300.CLM.facility_type",
-    "2400.SV1.place_of_service",
-    "2400.SV1.line_charge",
-    "2400.SV1.procedure_code",
-    "2400.DTP.service_day_of_week",
-    "2400.DTP.service_date",
-    "2300.HI.diagnosis_code",
-    "2010.NM1.patient_age",
-    "CLM.claim_amount",
-    "claim.total_charge_amount",
-    "claim.subscriber.date_of_birth"
+    "patient.name.first",
+    "patient.name.middle",
+    "patient.name.last",
+    "patient.date_of_birth",
+    "patient.gender",
+    "subscriber.member_id",
+    "subscriber.last_name",
+    "subscriber.first_name",
+    "subscriber.middle_name",
+    "subscriber.date_of_birth",
+    "subscriber.gender",
+    "subscriber.relationship_code",
+    "subscriber.group_number",
+    "subscriber.payer_responsibility",
+    "subscriber.address.street",
+    "subscriber.address.city",
+    "subscriber.address.state",
+    "subscriber.address.zip",
+    "payer.name",
+    "payer.payer_id",
+    "diagnosis_codes.*.code",
+    "diagnosis_codes.*.qualifier",
+    "service_lines.*.line_number",
+    "service_lines.*.date_of_service",
+    "service_lines.*.place_of_service",
+    "service_lines.*.procedure_code",
+    "service_lines.*.procedure_qualifier",
+    "service_lines.*.charge_amount",
+    "service_lines.*.units",
+    "service_lines.*.unit_type",
+    "service_lines.*.diagnosis_pointer",
+    "service_lines.*.revenue_code",
+    "service_lines.*.tooth_info.tooth_code_qualifier",
+    "service_lines.*.tooth_info.tooth_number",
+    "service_lines.*.tooth_info.tooth_surface",
+    "submitter.name",
+    "submitter.id",
+    "submitter.contact_name",
+    "submitter.contact_phone",
+    "receiver.name",
+    "receiver.id",
+    "interchange.control_number",
+    "interchange.sender_id",
+    "interchange.receiver_id",
+    "interchange.date",
+    "interchange.time",
+    "interchange.version",
+    "interchange.usage_indicator",
+    "functional_group.functional_id_code",
+    "functional_group.sender_code",
+    "functional_group.receiver_code",
+    "functional_group.version"
   ]
+
+  # Loop-style paths and earlier field names, with the converted-claim field
+  # that holds the same value. A loop path with no equivalent (such as
+  # 2300.CLM.facility_type, which the converter does not keep) gets no hint.
+  @renamed %{
+    "2300.CLM.claim_amount" => "financial.claim_amount",
+    "CLM.claim_amount" => "financial.claim_amount",
+    "claim.total_charge_amount" => "claim_totals.total_charges",
+    "2300.HI.diagnosis_code" => "diagnosis_codes.*.code",
+    "2400.SV1.place_of_service" => "service_lines.*.place_of_service",
+    "2400.SV1.procedure_code" => "service_lines.*.procedure_code",
+    "2400.SV1.line_charge" => "service_lines.*.charge_amount",
+    "2400.DTP.service_date" => "service_lines.*.date_of_service",
+    "claim.subscriber.date_of_birth" => "subscriber.date_of_birth",
+    "claim.rendering_provider.npi" => "rendering_provider.npi",
+    "service_lines.*.line_amount" => "service_lines.*.charge_amount",
+    "service_lines.*.service_line_number" => "service_lines.*.line_number",
+    "claim_totals.total_submitted" => "claim_totals.total_charges",
+    "payer.payer_name" => "payer.name",
+    "subscriber.subscriber_id" => "subscriber.member_id",
+    "subscriber.relationship" => "subscriber.relationship_code",
+    "billing_provider.address.postal_code" => "billing_provider.address.zip"
+  }
+
+  @doc "The converted-claim field paths rules may reference (`*` matches any list index)."
+  def valid_patterns, do: @valid_patterns
 
   @helper_calls MapSet.new(["claim.has_diagnosis", "claim.has_procedure"])
 
@@ -218,7 +189,11 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidator do
   end
 
   defp suggest_path(reference) do
+    renamed = Enum.find_value(@renamed, fn {old, new} -> if path_matches?(reference, old), do: new end)
+
     cond do
+      renamed -> renamed
+
       String.starts_with?(reference, "claim.") ->
         stripped = String.replace_prefix(reference, "claim.", "")
 
@@ -267,8 +242,11 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidator do
   end
 
   defp extract_references(text, bindings) do
+    # Paths may start with digits so loop-style paths (2300.CLM...) are caught
+    # and flagged, but a decimal literal such as 50000.0 is not a path.
     Regex.scan(~r/\b(?:[A-Za-z_][A-Za-z0-9_]*|\d+)(?:\.[A-Za-z0-9_]+)+\b/u, text)
     |> List.flatten()
+    |> Enum.reject(&Regex.match?(~r/^\d+(\.\d+)*$/, &1))
     |> Enum.reject(&MapSet.member?(@helper_calls, &1))
     |> Enum.map(&expand_quantifier_reference(&1, bindings))
   end

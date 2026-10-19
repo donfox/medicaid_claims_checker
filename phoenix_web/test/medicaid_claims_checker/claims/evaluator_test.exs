@@ -120,7 +120,7 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
     test "evaluates claims via Haskell engine and stores results", %{bypass: bypass} do
       create_rule!(
         "high_value_review",
-        ~s|RULE high_value_review "Flag high-value claims" WHEN 2300.CLM.claim_amount > 50000 THEN REQUIRE_REVIEW "High value";|
+        ~s|RULE high_value_review "Flag high-value claims" WHEN financial.claim_amount > 50000 THEN REQUIRE_REVIEW "High value";|
       )
 
       Bypass.expect_once(bypass, "POST", "/api/batch-evaluate", fn conn ->
@@ -184,7 +184,7 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
     test "flags CriticalRisk claims for review without changing status", %{bypass: bypass} do
       create_rule!(
         "extreme_amount",
-        ~s|RULE extreme_amount "Extreme billing" WHEN 2300.CLM.claim_amount > 1000000 THEN FLAG_FRAUD "Extreme amount";|
+        ~s|RULE extreme_amount "Extreme billing" WHEN financial.claim_amount > 1000000 THEN FLAG_FRAUD "Extreme amount";|
       )
 
       Bypass.expect_once(bypass, "POST", "/api/batch-evaluate", fn conn ->
@@ -219,7 +219,7 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
     test "refuses a batch over the claim limit without calling the engine" do
       create_rule!(
         "some_rule",
-        ~s|RULE test "Test" WHEN 2300.CLM.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|
+        ~s|RULE test "Test" WHEN financial.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|
       )
 
       batch = ingest_batch!([make_claim("first.json", 100)])
@@ -251,7 +251,7 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
     test "marks batch failed when engine returns error", %{bypass: bypass} do
       create_rule!(
         "some_rule",
-        ~s|RULE test "Test" WHEN 2300.CLM.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|
+        ~s|RULE test "Test" WHEN financial.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|
       )
 
       Bypass.expect_once(bypass, "POST", "/api/batch-evaluate", fn conn ->
@@ -282,7 +282,7 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
 
       create_rule!(
         "test_rule",
-        ~s|RULE test "Test" WHEN 2300.CLM.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|
+        ~s|RULE test "Test" WHEN financial.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|
       )
 
       # Engine is still called; NPPES finding is merged onto the engine report.
@@ -338,7 +338,7 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
     test "rejects claims with unknown NPI", %{bypass: bypass} do
       create_rule!(
         "test_rule",
-        ~s|RULE test "Test" WHEN 2300.CLM.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|
+        ~s|RULE test "Test" WHEN financial.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|
       )
 
       Bypass.expect_once(bypass, "POST", "/api/batch-evaluate", fn conn ->
@@ -385,7 +385,7 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
       # Insert an unknown NPI scenario + a clean claim
       create_rule!(
         "value_rule",
-        ~s|RULE value "Value check" WHEN 2300.CLM.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|
+        ~s|RULE value "Value check" WHEN financial.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|
       )
 
       Bypass.expect_once(bypass, "POST", "/api/batch-evaluate", fn conn ->
@@ -643,7 +643,7 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
     test "broadcasts :batch_completed on success", %{bypass: bypass} do
       create_rule!(
         "pub_rule",
-        ~s|RULE pub "Pub" WHEN 2300.CLM.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|
+        ~s|RULE pub "Pub" WHEN financial.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|
       )
 
       Bypass.expect_once(bypass, "POST", "/api/batch-evaluate", fn conn ->
@@ -666,7 +666,7 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
     test "broadcasts :batch_failed on engine error", %{bypass: bypass} do
       create_rule!(
         "fail_rule",
-        ~s|RULE fail "Fail" WHEN 2300.CLM.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|
+        ~s|RULE fail "Fail" WHEN financial.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|
       )
 
       Bypass.expect_once(bypass, "POST", "/api/batch-evaluate", fn conn ->

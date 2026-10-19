@@ -17,6 +17,7 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidator do
     "claim_id",
     "transaction_type",
     "claim_details.place_of_service",
+    "claim_details.facility_type_code",
     "claim_details.frequency_code",
     "financial.claim_amount",
     "claim_totals.total_charges",
@@ -94,10 +95,10 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidator do
   ]
 
   # Loop-style paths and earlier field names, with the converted-claim field
-  # that holds the same value. A loop path with no equivalent (such as
-  # 2300.CLM.facility_type, which the converter does not keep) gets no hint.
+  # that holds the same value. A loop path with no equivalent gets no hint.
   @renamed %{
     "2300.CLM.claim_amount" => "financial.claim_amount",
+    "2300.CLM.facility_type" => "claim_details.facility_type_code",
     "CLM.claim_amount" => "financial.claim_amount",
     "claim.total_charge_amount" => "claim_totals.total_charges",
     "2300.HI.diagnosis_code" => "diagnosis_codes.*.code",

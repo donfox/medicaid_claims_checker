@@ -282,8 +282,7 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
     clm = find_seg(segments, "CLM")
 
     if clm do
-      # Parse CLM-05 composite: place_of_service:facility_type:frequency_code
-      clm05_parts = split_composite(get_el(clm, 5), sub)
+      clm05 = clm05_fields(split_composite(get_el(clm, 5), sub), transaction_type)
 
       # Claim-level segments (between CLM and first LX)
       claim_segs = claim_level_segments(segments)
@@ -292,9 +291,10 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
       %{
         claim_id: get_el(clm, 1),
         total_charge_amount: get_el(clm, 2),
-        place_of_service: Enum.at(clm05_parts, 0, ""),
-        facility_type: Enum.at(clm05_parts, 1, ""),
-        frequency_code: Enum.at(clm05_parts, 2, ""),
+        place_of_service: clm05.place_of_service,
+        facility_type_code: clm05.facility_type_code,
+        facility_code_qualifier: clm05.facility_code_qualifier,
+        frequency_code: clm05.frequency_code,
         prior_authorization: if(prior_auth, do: get_el(prior_auth, 2), else: nil),
         claim_filing_indicator: extract_claim_filing_indicator(segments),
         subscriber: extract_subscriber(segments),
@@ -430,6 +430,26 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
     else
       nil
     end
+  end
+
+  # CLM05 is a composite whose first part depends on the claim type. On 837P
+  # and 837D it is the place of service (qualifier "B"); on 837I it is the
+  # facility type code, the first two digits of the type of bill (qualifier
+  # "A"), and an institutional claim has no place of service. The two code
+  # sets overlap (facility type 11 is hospital inpatient, place of service 11
+  # is an office), so an 837I code must never reach place_of_service.
+  defp clm05_fields(parts, transaction_type) do
+    first = Enum.at(parts, 0, "")
+
+    {pos, facility_type} =
+      if transaction_type == "837I", do: {"", first}, else: {first, ""}
+
+    %{
+      place_of_service: pos,
+      facility_type_code: facility_type,
+      facility_code_qualifier: Enum.at(parts, 1, ""),
+      frequency_code: Enum.at(parts, 2, "")
+    }
   end
 
   defp extract_institutional_claim(claim_segs) do
@@ -636,6 +656,9 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
       },
       "claim_details" => %{
         "place_of_service" => place_of_service,
+        # 837I only: CLM05-1, the facility type code (11 hospital inpatient,
+        # 13 hospital outpatient, 21 skilled nursing, ...).
+        "facility_type_code" => blank_to_nil(nf(claim, "facility_type_code")),
         # CLM05-3: 1 original, 7 replacement, 8 void. Also keeps a void or
         # replacement from matching the original as a duplicate submission.
         "frequency_code" => blank_to_nil(nf(claim, "frequency_code"))

@@ -404,7 +404,12 @@ defmodule X12Suite.Cases do
         claim("ALTDELIM01", pos: "23", lines: [{"99285", "12000.00", "20260913"}]),
         ok("ALTDELIM01", ["HighComplexityERVisit", "UnauthorizedProcedure"], not_checked: ["NewProviderLargeSubmission"]),
         format: [element: "|", sub: ">"],
-        billing: [name: "KEVIN LANE DO PA", npi: "1003001579", taxonomy: "207Q00000X"])
+        billing: [name: "KEVIN LANE DO PA", npi: "1003001579", taxonomy: "207Q00000X"]),
+      single("formats/06_institutional_inpatient_weekend.x12",
+        "837I bill type 11 (hospital inpatient) on Saturday 2026-09-12, $900 → no WeekendOfficeVisit " <>
+          "(facility type 11 is not place of service 11, office)",
+        claim("INST02", pos: "11", lines: [{"99223", "900.00", "20260912"}]), ok("INST02", []),
+        kind: :i, billing: [name: "THE ROSS ORTHOPAEDIC WELLNESS CENTER", npi: "1003005000", taxonomy: "207X00000X"])
     ]
   end
 

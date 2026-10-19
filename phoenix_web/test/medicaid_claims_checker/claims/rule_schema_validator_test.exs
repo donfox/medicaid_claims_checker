@@ -79,8 +79,7 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidatorTest do
     by_ref = Map.new(issues, &{&1.reference, &1.suggested})
     assert by_ref["2300.CLM.claim_amount"] == "financial.claim_amount"
     assert by_ref["2400.SV1.place_of_service"] == "service_lines.*.place_of_service"
-    # The converter keeps no facility type, so there is nothing to suggest.
-    assert Map.fetch!(by_ref, "2300.CLM.facility_type") == nil
+    assert by_ref["2300.CLM.facility_type"] == "claim_details.facility_type_code"
   end
 
   test "accepts fields the converter produces that the old list refused" do

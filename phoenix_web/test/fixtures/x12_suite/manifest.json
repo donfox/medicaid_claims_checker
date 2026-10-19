@@ -669,6 +669,19 @@
       "expect": {
         "claims": [
           {
+            "claim_id": "INST02",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "formats/06_institutional_inpatient_weekend.x12",
+      "purpose": "837I bill type 11 (hospital inpatient) on Saturday 2026-09-12, $900 → no WeekendOfficeVisit (facility type 11 is not place of service 11, office)"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
             "claim_id": "MULTI01",
             "matched": [],
             "nppes": "ok"

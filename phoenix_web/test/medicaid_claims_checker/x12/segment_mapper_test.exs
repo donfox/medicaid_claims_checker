@@ -1,7 +1,7 @@
 defmodule MedicaidClaimsChecker.X12.SegmentMapperTest do
   use ExUnit.Case, async: true
 
-  alias MedicaidClaimsChecker.X12.SegmentMapper
+  alias MedicaidClaimsChecker.X12.{Converter, SegmentMapper}
 
   # Load X12Translator output fixtures at compile time.
   # These are the real files produced by X12Translator from 837P EDI input.
@@ -330,6 +330,42 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapperTest do
       date_str = hd(claim["service_lines"])["date_of_service"]
       {:ok, date} = Date.from_iso8601("#{String.slice(date_str, 0, 4)}-#{String.slice(date_str, 4, 2)}-#{String.slice(date_str, 6, 2)}")
       refute Date.after?(date, Date.utc_today())
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # CLM05: place of service (837P, 837D) vs facility type code (837I)
+  # ---------------------------------------------------------------------------
+
+  describe "CLM05 by claim type" do
+    defp convert(file) do
+      x12 = File.read!(Path.join("test/fixtures/x12_suite/files", file))
+      {:ok, flat} = Converter.convert_content(x12)
+      {:ok, claim} = SegmentMapper.map_from_json(flat)
+      claim |> Jason.encode!() |> Jason.decode!()
+    end
+
+    test "837I: CLM05-1 is the facility type code, and there is no place of service" do
+      claim = convert("formats/06_institutional_inpatient_weekend.x12")
+      assert claim["transaction_type"] == "837I"
+      assert claim["claim_details"]["facility_type_code"] == "11"
+      assert claim["claim_details"]["place_of_service"] == nil
+      assert Enum.map(claim["service_lines"], & &1["place_of_service"]) == [nil]
+    end
+
+    test "837P: CLM05-1 is the place of service, and there is no facility type code" do
+      claim = convert("single/24_weekend_office_visit.x12")
+      assert claim["transaction_type"] == "837P"
+      assert claim["claim_details"]["place_of_service"] == "11"
+      assert claim["claim_details"]["facility_type_code"] == nil
+      assert Enum.all?(claim["service_lines"], &(&1["place_of_service"] == "11"))
+    end
+
+    test "837D: CLM05-1 is the place of service" do
+      claim = convert("formats/02_dental_837d.x12")
+      assert claim["transaction_type"] == "837D"
+      assert claim["claim_details"]["place_of_service"] == "11"
+      assert claim["claim_details"]["facility_type_code"] == nil
     end
   end
 end

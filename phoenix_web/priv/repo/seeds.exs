@@ -33,6 +33,7 @@ rules = [
       RULE weekend_office_visit
       DESCRIPTION \"Office visit on weekend with elevated amount\"
       WHEN financial.claim_amount > 500
+           AND claim_details.facility_type_code IS NULL
            AND EXISTS line IN service_lines
                WHERE is_weekend(line.date_of_service) AND line.place_of_service = \"11\"
       THEN REQUIRE_REVIEW \"Weekend office visit requires verification\"

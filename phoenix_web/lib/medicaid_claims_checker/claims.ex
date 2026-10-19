@@ -455,6 +455,8 @@ defmodule MedicaidClaimsChecker.Claims do
     Repo.delete(entry)
   end
 
+  def toggle_catalogue_status(%RuleCatalogue{status: "Retired"}), do: {:error, :retired}
+
   def toggle_catalogue_status(%RuleCatalogue{} = entry) do
     new_status = if entry.status == "Active", do: "Inactive", else: "Active"
     update_catalogue_entry(entry, %{status: new_status})

@@ -19,9 +19,10 @@ defmodule MedicaidClaimsChecker.Claims.RuleCatalogue do
   use Ecto.Schema
   import Ecto.Changeset
 
-  # All permitted values for `entry_type` and `status`.
+  # All permitted values for `entry_type` and `status`. A "Retired" entry is
+  # kept for the record only: it can't be activated or edited.
   @valid_types ["Default Rule", "BA Rule", "ML Model"]
-  @valid_statuses ["Active", "Inactive"]
+  @valid_statuses ["Active", "Inactive", "Retired"]
 
   schema "rule_catalogue" do
     # Human-readable identifier; must be unique across all rule types.

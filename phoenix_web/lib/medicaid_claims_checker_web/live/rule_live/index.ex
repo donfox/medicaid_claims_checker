@@ -357,6 +357,9 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
     if selected_entry_id do
       # Editing an existing catalogue entry — only BA Rules have editable DSL text
       case Claims.get_catalogue_entry(selected_entry_id) do
+        %{status: "Retired"} ->
+          {:noreply, assign(socket, :catalog_error, "Retired rules can't be edited.")}
+
         %{entry_type: "BA Rule"} = catalogue_entry ->
           case Claims.get_business_rule_by_name(catalogue_entry.name) do
             %{} = rule ->

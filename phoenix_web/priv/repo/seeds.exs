@@ -182,11 +182,13 @@ ba_catalogue_entries = [
   },
   %{
     name: "InpatientMismatch",
-    description: "Outpatient place of service with inpatient billing code — currently inactive",
+    description:
+      "Retired 2026-10-19. Looked for inpatient billing with an outpatient place of service on one claim, " <>
+        "but no 837 carries both (837P has a place of service, 837I a bill type). Kept for the record.",
     entry_type: "BA Rule",
-    status: "Inactive",
-    editable: true,
-    removable: true,
+    status: "Retired",
+    editable: false,
+    removable: false,
     redundant: false,
     db_access: false,
     inserted_at: now,

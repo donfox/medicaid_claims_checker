@@ -257,10 +257,13 @@
                   <% end %>
                 </td>
                 <td class="px-4 py-3">
-                  <%= if entry.status == "Active" do %>
-                    <span class="px-2 py-0.5 text-xs bg-green-100 text-green-900 rounded font-medium">Active</span>
-                  <% else %>
-                    <span class="px-2 py-0.5 text-xs bg-gray-200 text-gray-700 rounded font-medium">Inactive</span>
+                  <%= case entry.status do %>
+                    <% "Active" -> %>
+                      <span class="px-2 py-0.5 text-xs bg-green-100 text-green-900 rounded font-medium">Active</span>
+                    <% "Retired" -> %>
+                      <span class="px-2 py-0.5 text-xs bg-gray-300 text-gray-900 rounded font-medium">Retired</span>
+                    <% _ -> %>
+                      <span class="px-2 py-0.5 text-xs bg-gray-200 text-gray-700 rounded font-medium">Inactive</span>
                   <% end %>
                 </td>
                 <td class="px-4 py-3">
@@ -291,7 +294,9 @@
                         <%= if entry.status == "Active", do: "Deactivate", else: "Activate" %>
                       </button>
                     <% else %>
-                      <span class="px-3 py-1 text-xs text-gray-400">Always On</span>
+                      <span class="px-3 py-1 text-xs text-gray-400">
+                        <%= if entry.status == "Retired", do: "Retired", else: "Always On" %>
+                      </span>
                     <% end %>
 
                     <%= if entry.removable do %>

@@ -25,7 +25,7 @@ import Control.Concurrent (getNumCapabilities)
 import Control.Concurrent.Async (mapConcurrently)
 import Control.Concurrent.QSem (QSem, newQSem, signalQSem, waitQSem)
 import Control.Exception (bracket_, evaluate)
-import Control.Monad (filterM, mfilter, unless)
+import Control.Monad (filterM, unless)
 import Data.Aeson (FromJSON (..), ToJSON (..), Value (..), decode, encode, object, withObject, (.:), (.:?), (.=))
 import Data.Aeson.Types (parseMaybe)
 import Data.IORef (IORef, atomicModifyIORef', newIORef)
@@ -52,6 +52,7 @@ import System.Timeout (timeout)
 import Text.Read (readMaybe)
 import Claims.EvaluationContract (EvaluationRequest (..))
 import Claims.MLClient (MLClientConfig (..), scoreClaimWithMl)
+import Claims.ListenConfig (ListenConfig (..), resolveListen)
 import Claims.Parser
 import Claims.PolicyCombiner
   ( CombinedEnvelope,
@@ -98,14 +99,6 @@ main = do
     Just (cert, key) -> runTLS (tlsSettings cert key) settings handler
     Nothing -> runSettings settings handler
 
--- | Where and how the server listens.
-data ListenConfig = ListenConfig
-  { lcHost :: String,
-    lcPort :: Int,
-    -- | (certificate, key) paths; 'Nothing' means plain HTTP.
-    lcTls :: Maybe (FilePath, FilePath)
-  }
-
 listenConfig :: IO (Either String ListenConfig)
 listenConfig =
   resolveListen
@@ -113,27 +106,6 @@ listenConfig =
     <*> lookupEnv "ENGINE_PORT"
     <*> lookupEnv "RULE_ENGINE_TLS_CERT"
     <*> lookupEnv "RULE_ENGINE_TLS_KEY"
-
--- | Plain HTTP is allowed only on loopback, so claim data and the shared
--- secret never cross a network in cleartext. Empty variables count as unset.
-resolveListen :: Maybe String -> Maybe String -> Maybe String -> Maybe String -> Either String ListenConfig
-resolveListen mHost mPort mCert mKey = do
-  let set = mfilter (not . null)
-      host = fromMaybe "127.0.0.1" (set mHost)
-  port <- case set mPort of
-    Nothing -> Right 8080
-    Just p -> case readMaybe p of
-      Just n | n > 0 && n < 65536 -> Right n
-      _ -> Left ("ENGINE_PORT must be a port number, got " ++ show p)
-  tls <- case (set mCert, set mKey) of
-    (Just c, Just k) -> Right (Just (c, k))
-    (Nothing, Nothing) -> Right Nothing
-    _ -> Left "set both RULE_ENGINE_TLS_CERT and RULE_ENGINE_TLS_KEY, or neither"
-  case tls of
-    Nothing
-      | host `notElem` ["127.0.0.1", "localhost", "::1"] ->
-          Left ("ENGINE_HOST=" ++ host ++ " is not a loopback address; serving it needs RULE_ENGINE_TLS_CERT and RULE_ENGINE_TLS_KEY")
-    _ -> Right (ListenConfig host port tls)
 
 -- | Reject every request that lacks a matching Bearer token.
 -- The /api/health liveness probe is always allowed through unauthenticated

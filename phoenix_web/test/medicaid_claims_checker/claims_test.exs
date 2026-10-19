@@ -99,6 +99,110 @@ defmodule MedicaidClaimsChecker.ClaimsTest do
     end
   end
 
+  describe "ingest_batch/1 duplicate submissions" do
+    defp claim_entry(filename, claim, source_file \\ nil) do
+      entry = %{"filename" => filename, "claim" => claim}
+      if source_file, do: Map.put(entry, "source_file", source_file), else: entry
+    end
+
+    defp x12_claim(claim_id, opts \\ []) do
+      %{
+        "claim_id" => claim_id,
+        "claim_details" => %{"place_of_service" => "11", "frequency_code" => Keyword.get(opts, :frequency, "1")},
+        "financial" => %{"claim_amount" => 150.0},
+        "interchange" => %{"control_number" => Keyword.get(opts, :control, "000000001"), "date" => "261017"}
+      }
+    end
+
+    defp ingest(batch_id, entries, name \\ nil) do
+      params = %{"batch_id" => batch_id, "source" => "manual_upload", "claims" => entries}
+      Claims.ingest_batch(if name, do: Map.put(params, "batch_name", name), else: params)
+    end
+
+    test "refuses a claim already in an earlier batch and names that batch" do
+      {:ok, _} = ingest("dup-1", [claim_entry("a.json", x12_claim("CLM-9"))], "First Upload")
+
+      assert {:ok, %{batch: batch, edi_files: [], duplicates: [dup]}} =
+               ingest("dup-2", [claim_entry("a_again.json", x12_claim("CLM-9"))])
+
+      assert batch.status == "failed"
+      assert batch.file_count == 0
+      assert batch.completed_at != nil
+      assert dup["kind"] == "claim"
+      assert dup["claim_id"] == "CLM-9"
+      assert dup["previous_batch_id"] == "dup-1"
+      assert dup["previous_filename"] == "a.json"
+      assert Claims.describe_duplicate(dup) =~ ~s(claim CLM-9 (a_again.json\) was already submitted in "First Upload" on )
+      assert [%{"previous_batch_name" => "First Upload"}] = Claims.get_batch_by_batch_id("dup-2").duplicates
+    end
+
+    test "refuses the same claim re-sent in a new X12 envelope" do
+      {:ok, _} = ingest("env-1", [claim_entry("a.json", x12_claim("CLM-9", control: "000000001"))])
+
+      assert {:ok, %{edi_files: [], duplicates: [%{"previous_batch_id" => "env-1"}]}} =
+               ingest("env-2", [claim_entry("a.json", x12_claim("CLM-9", control: "000000777"))])
+    end
+
+    test "accepts a void or replacement of an earlier claim" do
+      {:ok, _} = ingest("void-1", [claim_entry("a.json", x12_claim("CLM-9"))])
+
+      assert {:ok, %{edi_files: [_], duplicates: []}} =
+               ingest("void-2", [claim_entry("a_void.json", x12_claim("CLM-9", frequency: "8"))])
+
+      assert {:ok, %{edi_files: [_], duplicates: []}} =
+               ingest("void-3", [claim_entry("a_repl.json", x12_claim("CLM-9", frequency: "7"))])
+    end
+
+    test "refuses a re-submitted file once, however many claims it holds" do
+      source = %{"filename" => "daily.x12", "sha256" => String.duplicate("ab", 32)}
+
+      {:ok, _} =
+        ingest("file-1", [
+          claim_entry("daily_C1.json", x12_claim("C1"), source),
+          claim_entry("daily_C2.json", x12_claim("C2"), source)
+        ])
+
+      # Claims edited after the first submission still come from the same file bytes.
+      assert {:ok, %{edi_files: [], duplicates: [dup]}} =
+               ingest("file-2", [
+                 claim_entry("daily_C1.json", x12_claim("C1-x"), source),
+                 claim_entry("daily_C2.json", x12_claim("C2-x"), source)
+               ])
+
+      assert dup["kind"] == "file"
+      assert dup["filename"] == "daily.x12"
+      assert dup["previous_batch_id"] == "file-1"
+      assert Claims.describe_duplicate(dup) =~ "daily.x12 was already submitted in"
+    end
+
+    test "evaluates the new claims and refuses only the duplicates" do
+      {:ok, _} = ingest("part-1", [claim_entry("old.json", x12_claim("OLD"))])
+
+      assert {:ok, %{batch: batch, edi_files: [new_file], duplicates: [%{"claim_id" => "OLD"}]}} =
+               ingest("part-2", [
+                 claim_entry("old.json", x12_claim("OLD")),
+                 claim_entry("new.json", x12_claim("NEW"))
+               ])
+
+      assert new_file.json_output["claim_id"] == "NEW"
+      assert new_file.claim_fingerprint != nil
+      assert batch.file_count == 1
+      assert batch.status == "pending"
+    end
+
+    test "refuses a claim repeated within one submission" do
+      assert {:ok, %{edi_files: [first], duplicates: [dup]}} =
+               ingest("same-1", [
+                 claim_entry("a.json", x12_claim("CLM-9")),
+                 claim_entry("b.json", x12_claim("CLM-9"))
+               ])
+
+      assert first.filename == "a.json"
+      assert dup["previous_batch_id"] == nil
+      assert Claims.describe_duplicate(dup) == "claim CLM-9 (b.json) appears twice in this submission (first as a.json)"
+    end
+  end
+
   describe "batch_summary/1" do
     test "returns counts grouped by status" do
       {:ok, %{batch: batch}} = Claims.ingest_batch(@valid_batch_params)

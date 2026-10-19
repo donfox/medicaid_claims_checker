@@ -9,6 +9,8 @@ defmodule MedicaidClaimsChecker.Claims.EdiFile do
     field :json_output, :map
     # The rule engine's report for the most recent evaluation (advisory).
     field :evaluation_report, :map
+    # SHA-256 of the claim without its X12 envelope (Claims.Fingerprint).
+    field :claim_fingerprint, :string
     field :status, :string, default: "pending"
     field :error_message, :string
     field :error_details, :map
@@ -21,7 +23,7 @@ defmodule MedicaidClaimsChecker.Claims.EdiFile do
 
   def changeset(edi_file, attrs) do
     edi_file
-    |> cast(attrs, [:filename, :file_path, :json_output, :evaluation_report, :status, :error_message, :error_details, :processed_at, :batch_id])
+    |> cast(attrs, [:filename, :file_path, :json_output, :evaluation_report, :claim_fingerprint, :status, :error_message, :error_details, :processed_at, :batch_id])
     |> validate_required([:filename, :file_path, :status, :batch_id])
     # Processing state only. Whether a claim is fraudulent is an analyst's
     # decision, never a file status set by the engine.

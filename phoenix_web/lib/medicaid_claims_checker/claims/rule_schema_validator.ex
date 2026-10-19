@@ -24,6 +24,7 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidator do
     "claim_details.patient_status",
     "claim_details.service_type",
     "claim_details.place_of_service",
+    "claim_details.frequency_code",
     "provider.name",
     "provider.npi",
     "provider.tax_id",

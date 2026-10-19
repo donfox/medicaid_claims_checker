@@ -21,7 +21,9 @@ defmodule MedicaidClaimsChecker.Claims do
     EdiFile,
     BusinessRule,
     RuleCatalogue,
-    NppesProvider
+    NppesProvider,
+    SubmittedFile,
+    Fingerprint
   }
 
   require Logger
@@ -82,16 +84,29 @@ defmodule MedicaidClaimsChecker.Claims do
 
   # --- Batch ingest ---
 
+  # Ingests run one at a time under this Postgres advisory lock, so two
+  # submissions of the same file or claim can't both pass the duplicate check.
+  @ingest_lock_key 7_301_844_221
+
   @doc """
-  Ingests a translated batch.
+  Ingests a translated batch, refusing anything that was already submitted.
 
   Expects a map with:
     - "batch_id"  => unique string identifier
     - "source"    => origin description (e.g. "sftp://claims.example.com/daily")
-    - "claims"    => list of %{"filename" => string, "claim" => map}
+    - "claims"    => list of %{"filename" => string, "claim" => map}, each
+      optionally with "source_file" => %{"filename" => string, "sha256" => hex}
+      naming the submitted file it came from (see `Claims.Fingerprint.file/1`)
 
-  Creates a batch record and one edi_file per claim inside a transaction.
-  Returns {:ok, %{batch: batch, edi_files: [edi_file, ...]}} or {:error, reason}.
+  A claim is refused as a duplicate when its source file was submitted
+  before, when the same claim (ignoring the X12 envelope) is in an earlier
+  batch, or when it repeats an earlier claim in this submission. Each refusal
+  is stored in `batch.duplicates` and names the earlier submission; the other
+  claims are evaluated as usual. When every claim is a duplicate the batch is
+  recorded as "failed" with no claims, so the refusal still shows in history.
+
+  Returns {:ok, %{batch: batch, edi_files: [...], duplicates: [...]}} or
+  {:error, reason}.
   """
   def ingest_batch(%{"batch_id" => batch_id, "claims" => claims} = params)
       when is_list(claims) do
@@ -100,6 +115,8 @@ defmodule MedicaidClaimsChecker.Claims do
 
     result =
       Repo.transaction(fn ->
+        Repo.query!("SELECT pg_advisory_xact_lock($1)", [@ingest_lock_key])
+
         batch_attrs = %{
           batch_id: batch_id,
           batch_name: batch_name,
@@ -115,12 +132,15 @@ defmodule MedicaidClaimsChecker.Claims do
             {:error, changeset} -> Repo.rollback({:batch, changeset})
           end
 
+        {accepted, duplicates, known_files} = split_duplicates(claims)
+
         edi_files =
-          Enum.map(claims, fn %{"filename" => filename, "claim" => claim_json} ->
+          Enum.map(accepted, fn {%{"filename" => filename, "claim" => claim_json}, fingerprint} ->
             file_attrs = %{
               filename: filename,
               file_path: "ingest://#{batch_id}/#{filename}",
               json_output: claim_json,
+              claim_fingerprint: fingerprint,
               status: "translated",
               processed_at: DateTime.utc_now(),
               batch_id: batch.id
@@ -132,12 +152,42 @@ defmodule MedicaidClaimsChecker.Claims do
             end
           end)
 
-        %{batch: batch, edi_files: edi_files}
+        record_submitted_files(claims, known_files, batch)
+
+        batch =
+          if duplicates == [] do
+            batch
+          else
+            refused_attrs =
+              if edi_files == [],
+                do: %{status: "failed", completed_at: DateTime.utc_now()},
+                else: %{}
+
+            batch
+            |> Batch.changeset(Map.merge(refused_attrs, %{file_count: length(edi_files), duplicates: duplicates}))
+            |> Repo.update!()
+          end
+
+        %{batch: batch, edi_files: edi_files, duplicates: duplicates}
       end)
 
-    # After successful ingest, trigger auto-evaluation asynchronously
     case result do
-      {:ok, %{batch: batch}} ->
+      {:ok, %{batch: batch, edi_files: [], duplicates: duplicates}} ->
+        Logger.warning("Batch #{batch.batch_id} not evaluated — #{duplicates_notice(duplicates)}")
+
+        Phoenix.PubSub.broadcast(
+          MedicaidClaimsChecker.PubSub,
+          MedicaidClaimsChecker.Claims.Evaluator.topic(),
+          {:batch_failed, %{batch_id: batch.batch_id, reason: duplicates_notice(duplicates)}}
+        )
+
+        result
+
+      {:ok, %{batch: batch, duplicates: duplicates}} ->
+        if duplicates != [] do
+          Logger.warning("Batch #{batch.batch_id}: #{duplicates_notice(duplicates)}")
+        end
+
         Logger.info("Batch #{batch.batch_id} ingested — launching auto-evaluation")
 
         unless Application.get_env(:medicaid_claims_checker, :skip_async_evaluation, false) do
@@ -154,6 +204,140 @@ defmodule MedicaidClaimsChecker.Claims do
   end
 
   def ingest_batch(_), do: {:error, :invalid_payload}
+
+  # --- Duplicate submissions ---
+
+  # Splits ingest entries into {accepted, duplicates, known_files}: accepted
+  # is [{entry, claim_fingerprint}], duplicates are the refusal records stored
+  # on the batch, and known_files maps already-submitted file hashes to their
+  # earlier submission. A refused file is listed once, however many claims it
+  # holds.
+  defp split_duplicates(claims) do
+    entries = Enum.map(claims, &{&1, Fingerprint.claim(&1["claim"])})
+    known_files = previous_files(entries)
+    known_claims = previous_claims(entries)
+
+    {accepted, duplicates, _seen, _refused_files} =
+      Enum.reduce(entries, {[], [], %{}, MapSet.new()}, fn {entry, fingerprint}, {acc, dups, seen, refused_files} ->
+        file_sha = get_in(entry, ["source_file", "sha256"])
+
+        cond do
+          Map.has_key?(known_files, file_sha) ->
+            if MapSet.member?(refused_files, file_sha) do
+              {acc, dups, seen, refused_files}
+            else
+              dup = file_duplicate(entry["source_file"], known_files[file_sha])
+              {acc, [dup | dups], seen, MapSet.put(refused_files, file_sha)}
+            end
+
+          Map.has_key?(known_claims, fingerprint) ->
+            {acc, [claim_duplicate(entry, known_claims[fingerprint]) | dups], seen, refused_files}
+
+          Map.has_key?(seen, fingerprint) ->
+            {acc, [claim_duplicate(entry, %{filename: seen[fingerprint], batch: nil}) | dups], seen, refused_files}
+
+          true ->
+            {[{entry, fingerprint} | acc], dups, Map.put(seen, fingerprint, entry["filename"]), refused_files}
+        end
+      end)
+
+    {Enum.reverse(accepted), Enum.reverse(duplicates), known_files}
+  end
+
+  defp previous_files(entries) do
+    shas = entries |> Enum.map(fn {e, _} -> get_in(e, ["source_file", "sha256"]) end) |> Enum.reject(&is_nil/1)
+
+    SubmittedFile
+    |> join(:inner, [s], b in assoc(s, :batch))
+    |> where([s], s.sha256 in ^shas)
+    |> select([s, b], {s.sha256, %{filename: s.filename, batch: b}})
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  # The earliest stored copy of each claim fingerprint.
+  defp previous_claims(entries) do
+    fingerprints = Enum.map(entries, fn {_, fp} -> fp end)
+
+    EdiFile
+    |> join(:inner, [f], b in assoc(f, :batch))
+    |> where([f], f.claim_fingerprint in ^fingerprints)
+    |> order_by([f], desc: f.inserted_at, desc: f.id)
+    |> select([f, b], {f.claim_fingerprint, %{filename: f.filename, batch: b}})
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  defp record_submitted_files(claims, known_files, batch) do
+    claims
+    |> Enum.map(& &1["source_file"])
+    |> Enum.reject(&(is_nil(&1) or Map.has_key?(known_files, &1["sha256"])))
+    |> Enum.uniq_by(& &1["sha256"])
+    |> Enum.each(fn %{"filename" => filename, "sha256" => sha} ->
+      %SubmittedFile{}
+      |> SubmittedFile.changeset(%{sha256: sha, filename: filename, batch_id: batch.id})
+      |> Repo.insert!()
+    end)
+  end
+
+  defp file_duplicate(source_file, previous) do
+    Map.merge(%{"kind" => "file", "filename" => source_file["filename"]}, previous_fields(previous))
+  end
+
+  defp claim_duplicate(entry, previous) do
+    Map.merge(
+      %{"kind" => "claim", "filename" => entry["filename"], "claim_id" => entry["claim"]["claim_id"]},
+      previous_fields(previous)
+    )
+  end
+
+  # previous.batch is nil when the earlier copy is in the same submission.
+  defp previous_fields(%{filename: filename, batch: nil}),
+    do: %{"previous_filename" => filename, "previous_batch_id" => nil}
+
+  defp previous_fields(%{filename: filename, batch: batch}) do
+    %{
+      "previous_filename" => filename,
+      "previous_batch_id" => batch.batch_id,
+      "previous_batch_name" => batch.batch_name,
+      "previous_submitted_at" => DateTime.to_iso8601(batch.inserted_at)
+    }
+  end
+
+  @doc "One-line description of a refused duplicate, naming the earlier submission."
+  def describe_duplicate(%{"kind" => "file", "filename" => filename} = dup),
+    do: "#{filename} was already submitted #{earlier_submission(dup)}"
+
+  def describe_duplicate(%{"previous_batch_id" => nil} = dup),
+    do: "#{claim_label(dup)} appears twice in this submission (first as #{dup["previous_filename"]})"
+
+  def describe_duplicate(dup),
+    do: "#{claim_label(dup)} was already submitted #{earlier_submission(dup)} as #{dup["previous_filename"]}"
+
+  @doc "Summary of a batch's refused duplicates for upload messages and logs."
+  def duplicates_notice([]), do: ""
+
+  def duplicates_notice(duplicates) do
+    shown = duplicates |> Enum.take(3) |> Enum.map_join(" | ", &describe_duplicate/1)
+    more = length(duplicates) - 3
+    more_text = if more > 0, do: " (and #{more} more)", else: ""
+    "Refused as already submitted: #{shown}#{more_text}"
+  end
+
+  defp claim_label(%{"claim_id" => id, "filename" => filename}) when is_binary(id) and id != "",
+    do: "claim #{id} (#{filename})"
+
+  defp claim_label(%{"filename" => filename}), do: "claim in #{filename}"
+
+  defp earlier_submission(dup) do
+    when_text =
+      case DateTime.from_iso8601(dup["previous_submitted_at"] || "") do
+        {:ok, dt, _} -> " on " <> (dt |> DateTime.shift_zone!("America/New_York") |> Calendar.strftime("%b %d, %Y %I:%M %p %Z"))
+        _ -> ""
+      end
+
+    "in \"#{dup["previous_batch_name"] || dup["previous_batch_id"]}\"#{when_text}"
+  end
 
   # --- EDI File operations ---
 

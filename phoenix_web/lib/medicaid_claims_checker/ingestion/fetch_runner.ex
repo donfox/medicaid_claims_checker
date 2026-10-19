@@ -9,6 +9,7 @@ defmodule MedicaidClaimsChecker.Ingestion.FetchRunner do
   require Logger
 
   alias MedicaidClaimsChecker.Claims
+  alias MedicaidClaimsChecker.Claims.Fingerprint
   alias MedicaidClaimsChecker.Ingestion
   alias MedicaidClaimsChecker.Ingestion.RemoteFetcher
   alias MedicaidClaimsChecker.X12.{ClaimSplitter, Converter, SegmentMapper}
@@ -78,7 +79,11 @@ defmodule MedicaidClaimsChecker.Ingestion.FetchRunner do
     with {:ok, content} <- File.read(path),
          {:ok, tx_sets} <- ClaimSplitter.split_transaction_sets(content) do
       parts = if is_list(tx_sets), do: tx_sets, else: [content]
-      Enum.flat_map(parts, &claims_for_transaction_set(filename, &1))
+      source = %{"filename" => filename, "sha256" => Fingerprint.file(content)}
+
+      parts
+      |> Enum.flat_map(&claims_for_transaction_set(filename, &1))
+      |> Enum.map(&Map.put(&1, "source_file", source))
     else
       {:error, reason} ->
         Logger.warning("Failed to process #{filename}: #{inspect(reason)}")

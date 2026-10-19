@@ -10,6 +10,9 @@ defmodule MedicaidClaimsChecker.Claims.Batch do
     field :status, :string, default: "pending"
     field :started_at, :utc_datetime
     field :completed_at, :utc_datetime
+    # Files and claims refused because they were already submitted, each
+    # naming the earlier batch (see Claims.ingest_batch/1).
+    field :duplicates, {:array, :map}, default: []
 
     has_many :edi_files, MedicaidClaimsChecker.Claims.EdiFile, foreign_key: :batch_id
 
@@ -18,7 +21,7 @@ defmodule MedicaidClaimsChecker.Claims.Batch do
 
   def changeset(batch, attrs) do
     batch
-    |> cast(attrs, [:batch_id, :batch_name, :source, :file_count, :status, :started_at, :completed_at])
+    |> cast(attrs, [:batch_id, :batch_name, :source, :file_count, :status, :started_at, :completed_at, :duplicates])
     |> validate_required([:batch_id, :file_count, :status])
     |> validate_inclusion(:status, ["pending", "processing", "completed", "failed"])
     |> unique_constraint(:batch_id)

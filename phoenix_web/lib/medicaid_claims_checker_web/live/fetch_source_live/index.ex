@@ -3,7 +3,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
 
   alias MedicaidClaimsChecker.Accounts
   alias MedicaidClaimsChecker.Claims
-  alias MedicaidClaimsChecker.Claims.{Evaluator, JsonClaim}
+  alias MedicaidClaimsChecker.Claims.{Evaluator, Fingerprint, JsonClaim}
   alias MedicaidClaimsChecker.Ingestion
   alias MedicaidClaimsChecker.Nppes
   alias MedicaidClaimsChecker.X12.{ClaimSplitter, Converter, SegmentMapper}
@@ -754,7 +754,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
       Enum.reduce(json_files, {[], []}, fn {filename, content}, {claims_acc, refused_acc} ->
         case JsonClaim.parse(content) do
           {:ok, file_claims, file_refused} ->
-            entries = json_claim_entries(filename, file_claims)
+            entries = filename |> json_claim_entries(file_claims) |> with_source_file(filename, content)
             refused = Enum.map(file_refused, fn {pos, reason} -> "#{filename} (entry #{pos}): #{reason}" end)
             {Enum.reverse(entries) ++ claims_acc, Enum.reverse(refused) ++ refused_acc}
 
@@ -775,12 +775,15 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
       }
 
       case Claims.ingest_batch(params) do
-        {:ok, %{batch: batch}} ->
+        {:ok, %{edi_files: [], duplicates: duplicates}} ->
+          refused_duplicates(socket, "No JSON claims submitted.#{refused_suffix}", duplicates)
+
+        {:ok, %{batch: batch, edi_files: edi_files, duplicates: duplicates}} ->
           socket
           |> assign(:upload_status, :processing)
           |> assign(
             :upload_message,
-            "#{length(claims)} JSON claim(s) submitted for evaluation — evaluating...#{refused_suffix}"
+            "#{length(edi_files)} JSON claim(s) submitted for evaluation — evaluating...#{refused_suffix}#{duplicates_suffix(duplicates)}"
           )
           |> show_newest_history()
           |> assign(:pending_upload_batch_ids, MapSet.put(socket.assigns.pending_upload_batch_ids, batch.batch_id))
@@ -819,6 +822,25 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     end)
   end
 
+  # Every claim in the upload was already submitted: nothing is evaluated.
+  # The refused batch is still recorded and shows in history.
+  defp refused_duplicates(socket, message, duplicates) do
+    socket
+    |> assign(:upload_status, :error)
+    |> assign(:upload_message, "#{message}#{duplicates_suffix(duplicates)}")
+    |> show_newest_history()
+  end
+
+  defp duplicates_suffix([]), do: ""
+  defp duplicates_suffix(duplicates), do: " " <> Claims.duplicates_notice(duplicates)
+
+  # Tags each claim with the file it came from, so ingest can refuse a file
+  # that was already submitted.
+  defp with_source_file(entries, filename, content) do
+    source = %{"filename" => filename, "sha256" => Fingerprint.file(content)}
+    Enum.map(entries, &Map.put(&1, "source_file", source))
+  end
+
   defp format_refused_json([]), do: ""
 
   defp format_refused_json(refused) do
@@ -840,7 +862,9 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
 
     {claims, failures} =
       Enum.reduce(x12_files, {[], []}, fn file, {claims_acc, failures_acc} ->
+        {filename, content} = file
         {file_claims, file_failures} = translate_x12_file(file)
+        file_claims = with_source_file(file_claims, filename, content)
         {claims_acc ++ file_claims, failures_acc ++ file_failures}
       end)
 
@@ -868,9 +892,13 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
       }
 
       case Claims.ingest_batch(params) do
-        {:ok, %{batch: batch}} ->
-          base = "#{length(claims)} X12/EDI claim(s) translated — evaluating..."
-          message = "#{base}#{failure_suffix}"
+        {:ok, %{edi_files: [], duplicates: duplicates}} ->
+          base = "No X12/EDI claims submitted.#{failure_suffix}"
+          refused_duplicates(socket, if(prior, do: "#{prior} #{base}", else: base), duplicates)
+
+        {:ok, %{batch: batch, edi_files: edi_files, duplicates: duplicates}} ->
+          base = "#{length(edi_files)} X12/EDI claim(s) translated — evaluating..."
+          message = "#{base}#{failure_suffix}#{duplicates_suffix(duplicates)}"
 
           socket
           |> assign(:upload_status, :processing)
@@ -1201,6 +1229,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
       source: batch.source,
       status: batch.status,
       file_count: batch.file_count,
+      duplicates: batch.duplicates || [],
       inserted_at: batch.inserted_at,
       completed_at: batch.completed_at,
       files: files_with_details

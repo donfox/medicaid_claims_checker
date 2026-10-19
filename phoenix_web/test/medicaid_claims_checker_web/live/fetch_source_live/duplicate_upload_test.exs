@@ -1,0 +1,93 @@
+defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.DuplicateUploadTest do
+  @moduledoc "Re-submitting real X12 files through the upload form."
+  use MedicaidClaimsCheckerWeb.ConnCase, async: true
+
+  import Ecto.Query
+  import Phoenix.LiveViewTest
+
+  alias MedicaidClaimsChecker.AccountsFixtures
+  alias MedicaidClaimsChecker.Claims
+  alias MedicaidClaimsChecker.Claims.{Batch, EdiFile}
+  alias MedicaidClaimsChecker.Repo
+
+  @three_claims Path.expand("../../../fixtures/x12_suite/files/multi/01_three_claims.x12", __DIR__)
+
+  setup %{conn: conn} do
+    user = AccountsFixtures.unconfirmed_user_fixture()
+    %{conn: log_in_user(conn, user)}
+  end
+
+  defp upload(conn, name, content) do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> file_input("#manual-upload-form", :manual_files, [%{name: name, content: content, type: "text/plain"}])
+    |> render_upload(name)
+
+    view |> form("#manual-upload-form") |> render_submit()
+
+    # A fully refused upload broadcasts :batch_failed back to this view;
+    # render again so it is handled before the test (and its DB owner) exits.
+    render(view)
+  end
+
+  defp batches, do: Repo.all(from(b in Batch, order_by: b.id))
+
+  test "the same file uploaded again is refused and names the first upload", %{conn: conn} do
+    content = File.read!(@three_claims)
+
+    assert upload(conn, "01_three_claims.x12", content) =~ "3 X12/EDI claim(s) translated"
+    html = upload(conn, "daily_copy.x12", content)
+
+    assert html =~ "No X12/EDI claims submitted."
+    assert html =~ "daily_copy.x12 was already submitted in &quot;Manual Upload - "
+
+    [first, second] = batches()
+    assert second.status == "failed"
+    assert second.file_count == 0
+    assert [%{"kind" => "file", "previous_batch_id" => id}] = second.duplicates
+    assert id == first.batch_id
+    assert Repo.aggregate(EdiFile, :count) == 3
+  end
+
+  test "the same claims in a new interchange envelope are refused claim by claim", %{conn: conn} do
+    content = File.read!(@three_claims)
+    upload(conn, "01_three_claims.x12", content)
+
+    resent =
+      content
+      |> String.replace("*000000101*0*T*", "*000000909*0*T*")
+      |> String.replace("IEA*1*000000101", "IEA*1*000000909")
+      |> String.replace("*261016*1200*^", "*261018*0900*^")
+
+    html = upload(conn, "01_three_claims_resent.x12", resent)
+
+    assert html =~ "No X12/EDI claims submitted."
+    assert html =~ "was already submitted in"
+
+    [_first, second] = batches()
+    assert length(second.duplicates) == 3
+    assert Enum.all?(second.duplicates, &(&1["kind"] == "claim"))
+    assert Enum.all?(second.duplicates, &(Claims.describe_duplicate(&1) =~ "01_three_claims_"))
+  end
+
+  test "a void of an uploaded claim is accepted", %{conn: conn} do
+    content = File.read!(@three_claims)
+    upload(conn, "01_three_claims.x12", content)
+
+    # CLM05-3 frequency code 1 (original) -> 8 (void), in a new envelope.
+    voided =
+      content
+      |> String.replace(~r/(CLM\*[^*~]*\*[^*~]*\*\*\*\d+:B:)1/, "\\g{1}8")
+      |> String.replace("*000000101*0*T*", "*000000910*0*T*")
+      |> String.replace("IEA*1*000000101", "IEA*1*000000910")
+
+    assert voided != content
+    assert upload(conn, "01_three_claims_void.x12", voided) =~ "3 X12/EDI claim(s) translated"
+
+    frequency_codes =
+      Repo.all(from(f in EdiFile, order_by: f.id, select: f.json_output["claim_details"]["frequency_code"]))
+
+    assert frequency_codes == ["1", "1", "1", "8", "8", "8"]
+  end
+end

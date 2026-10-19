@@ -635,7 +635,10 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
         "tenure_days" => nil
       },
       "claim_details" => %{
-        "place_of_service" => place_of_service
+        "place_of_service" => place_of_service,
+        # CLM05-3: 1 original, 7 replacement, 8 void. Also keeps a void or
+        # replacement from matching the original as a duplicate submission.
+        "frequency_code" => blank_to_nil(nf(claim, "frequency_code"))
       },
       "patient" => %{
         "date_of_birth" => nf(subscriber, "date_of_birth"),

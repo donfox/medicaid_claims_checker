@@ -24,10 +24,10 @@
         "tax_id": "66-7788990",
         "type": "Surgical Center",
         "address": {
-            "street": "500 Harbor View Drive",
-            "city": "Seattle",
-            "state": "WA",
-            "postal_code": "98101",
+            "street": "822 S MAIN ST",
+            "city": "DEL RIO",
+            "state": "TX",
+            "postal_code": "78840",
             "country": "USA"
         },
         "contact": {
@@ -45,10 +45,10 @@
         "taxonomy": "261QA0600X",
         "name": "TLC ADULT DAY CARE CENTERS, INC.",
         "address": {
-            "street": "500 Harbor View Drive",
-            "city": "Seattle",
-            "state": "WA",
-            "postal_code": "98101"
+            "street": "822 S MAIN ST",
+            "city": "DEL RIO",
+            "state": "TX",
+            "postal_code": "78840"
         }
     },
     "patient": {

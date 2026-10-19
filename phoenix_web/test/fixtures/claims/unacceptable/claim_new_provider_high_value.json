@@ -24,10 +24,10 @@
         "tax_id": "11-9988776",
         "type": "Specialty Clinic",
         "address": {
-            "street": "150 Innovation Parkway",
-            "city": "Nashville",
-            "state": "TN",
-            "postal_code": "37201",
+            "street": "1883 HICKS RD STE A",
+            "city": "ROLLING MEADOWS",
+            "state": "IL",
+            "postal_code": "60008",
             "country": "USA"
         },
         "contact": {
@@ -45,10 +45,10 @@
         "taxonomy": "208VP0014X",
         "name": "TLC PAIN MANAGEMENT & SLEEP RESTORATION SC",
         "address": {
-            "street": "150 Innovation Parkway",
-            "city": "Nashville",
-            "state": "TN",
-            "postal_code": "37201"
+            "street": "1883 HICKS RD STE A",
+            "city": "ROLLING MEADOWS",
+            "state": "IL",
+            "postal_code": "60008"
         }
     },
     "patient": {

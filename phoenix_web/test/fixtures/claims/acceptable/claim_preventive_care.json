@@ -24,10 +24,10 @@
         "tax_id": "33-4455667",
         "type": "Clinic",
         "address": {
-            "street": "55 Wellness Way",
-            "city": "Denver",
-            "state": "CO",
-            "postal_code": "80202",
+            "street": "1728 MARION WALDO RD",
+            "city": "MARION",
+            "state": "OH",
+            "postal_code": "43302",
             "country": "USA"
         },
         "contact": {
@@ -45,10 +45,10 @@
         "taxonomy": "207R00000X",
         "name": "MIDWEST INTERNAL MEDICINE ASSOCIATES LLC",
         "address": {
-            "street": "55 Wellness Way",
-            "city": "Denver",
-            "state": "CO",
-            "postal_code": "80202"
+            "street": "1728 MARION WALDO RD",
+            "city": "MARION",
+            "state": "OH",
+            "postal_code": "43302"
         }
     },
     "patient": {

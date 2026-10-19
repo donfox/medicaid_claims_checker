@@ -9,12 +9,12 @@
         "drg_code": "640"
     },
     "provider": {
-        "name": "Premium Medical Center",
+        "name": "WINDHAM COMMUNITY MEMORIAL HOSPITAL",
         "npi": "1003023482",
         "tax_id": "12-3456789",
         "type": "Hospital",
-        "state": "CA",
-        "postal_code": "90001",
+        "state": "CT",
+        "postal_code": "06226",
         "tenure_days": 500,
         "risk_score": 25,
         "credentialing_date": "2020-06-15",

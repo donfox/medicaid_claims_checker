@@ -24,10 +24,10 @@
         "tax_id": "33-2211009",
         "type": "Hospital",
         "address": {
-            "street": "1 Emergency Drive",
-            "city": "Houston",
-            "state": "TX",
-            "postal_code": "77002",
+            "street": "1700 SKYLYN DR",
+            "city": "SPARTANBURG",
+            "state": "SC",
+            "postal_code": "29307",
             "country": "USA"
         },
         "contact": {
@@ -45,10 +45,10 @@
         "taxonomy": "207P00000X",
         "name": "EMERGENCY PHYSICIAN PARTNERS OF SOUTH CAROLINA PLLC",
         "address": {
-            "street": "1 Emergency Drive",
-            "city": "Houston",
-            "state": "TX",
-            "postal_code": "77002"
+            "street": "1700 SKYLYN DR",
+            "city": "SPARTANBURG",
+            "state": "SC",
+            "postal_code": "29307"
         }
     },
     "patient": {

@@ -25,10 +25,10 @@
       "tax_id": "45-6789012",
       "type": "Clinic",
       "address": {
-        "street": "1200 Oak Avenue",
-        "city": "Springfield",
-        "state": "IL",
-        "postal_code": "62701",
+        "street": "4949 HARLEM RD",
+        "city": "AMHERST",
+        "state": "NY",
+        "postal_code": "14226",
         "country": "USA"
       },
       "contact": {
@@ -46,10 +46,10 @@
       "taxonomy": "207Q00000X",
       "name": "DENARDIN FAMILY PRACTICE PLLC",
       "address": {
-        "street": "1200 Oak Avenue",
-        "city": "Springfield",
-        "state": "IL",
-        "postal_code": "62701"
+        "street": "4949 HARLEM RD",
+        "city": "AMHERST",
+        "state": "NY",
+        "postal_code": "14226"
       }
     },
     "patient": {
@@ -198,10 +198,10 @@
       "tax_id": "55-4433221",
       "type": "Hospital",
       "address": {
-        "street": "2000 University Drive",
-        "city": "Pittsburgh",
-        "state": "PA",
-        "postal_code": "15213",
+        "street": "5900 HILLANDALE DR SUITE 215",
+        "city": "LITHONIA",
+        "state": "GA",
+        "postal_code": "30058",
         "country": "USA"
       },
       "contact": {
@@ -219,10 +219,10 @@
       "taxonomy": "207X00000X",
       "name": "THE ROSS ORTHOPAEDIC WELLNESS CENTER",
       "address": {
-        "street": "2000 University Drive",
-        "city": "Pittsburgh",
-        "state": "PA",
-        "postal_code": "15213"
+        "street": "5900 HILLANDALE DR SUITE 215",
+        "city": "LITHONIA",
+        "state": "GA",
+        "postal_code": "30058"
       }
     },
     "patient": {

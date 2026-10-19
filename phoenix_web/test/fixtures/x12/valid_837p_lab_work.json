@@ -6,13 +6,13 @@
   "billing_provider": {
     "name": "MAIN MEDICAL-MYSTIC LLC",
     "address": {
-      "state": "IL",
-      "zip": "62704",
-      "city": "SPRINGFIELD",
-      "street": "500 SOUTH STATE STREET"
+      "state": "CT",
+      "zip": "063551959",
+      "city": "MYSTIC",
+      "street": "23 CLARA DR SUITE 201"
     },
     "npi": "1003001850",
-    "taxonomy_code": "291U00000X",
+    "taxonomy_code": "207R00000X",
     "tax_id": "271839456"
   },
   "claim": {
@@ -96,7 +96,7 @@
       "last_name": "VELOTTA",
       "middle_name": "",
       "npi": "1003000423",
-      "taxonomy_code": "291U00000X"
+      "taxonomy_code": "207V00000X"
     },
     "subscriber": {
       "address": {

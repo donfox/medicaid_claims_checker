@@ -503,7 +503,7 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
         assert hd(claim["service_lines"])["date_of_service"] == "20260307",
                "service_line.date_of_service must be mapped from service_date"
 
-        assert get_in(claim, ["billing_provider", "taxonomy"]) == "291U00000X",
+        assert get_in(claim, ["billing_provider", "taxonomy"]) == "207R00000X",
                "billing_provider.taxonomy must be mapped from taxonomy_code key"
 
         resp = engine_response([{"LowRisk", 0, []}])

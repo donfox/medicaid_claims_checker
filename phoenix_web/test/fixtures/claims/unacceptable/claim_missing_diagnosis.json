@@ -24,10 +24,10 @@
         "tax_id": "44-5566778",
         "type": "Urgent Care",
         "address": {
-            "street": "22 Commerce Boulevard",
-            "city": "Atlanta",
-            "state": "GA",
-            "postal_code": "30301",
+            "street": "5301 LOVERS LANE",
+            "city": "DALLAS",
+            "state": "TX",
+            "postal_code": "75209",
             "country": "USA"
         },
         "contact": {
@@ -45,10 +45,10 @@
         "taxonomy": "261QU0200X",
         "name": "CITYDOC URGENT CARE CENTER 2, PLLC",
         "address": {
-            "street": "22 Commerce Boulevard",
-            "city": "Atlanta",
-            "state": "GA",
-            "postal_code": "30301"
+            "street": "5301 LOVERS LANE",
+            "city": "DALLAS",
+            "state": "TX",
+            "postal_code": "75209"
         }
     },
     "patient": {

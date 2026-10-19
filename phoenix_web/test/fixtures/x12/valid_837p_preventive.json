@@ -6,13 +6,13 @@
   "billing_provider": {
     "name": "STEVEN ENGEL PEDIATRICS",
     "address": {
-      "state": "IL",
-      "zip": "60625",
-      "city": "CHICAGO",
-      "street": "4700 NORTH LINCOLN AVE"
+      "state": "NC",
+      "zip": "285602304",
+      "city": "NEW BERN",
+      "street": "1700 NEUSE BLVD"
     },
     "npi": "1003000118",
-    "taxonomy_code": "208D00000X",
+    "taxonomy_code": "208000000X",
     "tax_id": "453217890"
   },
   "claim": {
@@ -80,7 +80,7 @@
       "last_name": "KHALIL",
       "middle_name": "",
       "npi": "1003000142",
-      "taxonomy_code": "208D00000X"
+      "taxonomy_code": "207L00000X"
     },
     "subscriber": {
       "address": {

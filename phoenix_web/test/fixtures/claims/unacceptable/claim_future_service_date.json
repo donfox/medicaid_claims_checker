@@ -24,10 +24,10 @@
         "tax_id": "11-2233445",
         "type": "Clinic",
         "address": {
-            "street": "400 Future Lane",
-            "city": "Phoenix",
-            "state": "AZ",
-            "postal_code": "85001",
+            "street": "3816 HOLLYWOOD BLVD SUITE 102",
+            "city": "HOLLYWOOD",
+            "state": "FL",
+            "postal_code": "33021",
             "country": "USA"
         },
         "contact": {
@@ -45,10 +45,10 @@
         "taxonomy": "208D00000X",
         "name": "DELRAY FAMILY PRACTICE INC",
         "address": {
-            "street": "400 Future Lane",
-            "city": "Phoenix",
-            "state": "AZ",
-            "postal_code": "85001"
+            "street": "3816 HOLLYWOOD BLVD SUITE 102",
+            "city": "HOLLYWOOD",
+            "state": "FL",
+            "postal_code": "33021"
         }
     },
     "patient": {

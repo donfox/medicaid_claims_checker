@@ -67,7 +67,7 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapperTest do
     end
 
     test "maps provider.taxonomy from billing_provider.taxonomy_code", %{claim: claim} do
-      assert claim["provider"]["taxonomy"] == "291U00000X"
+      assert claim["provider"]["taxonomy"] == "207R00000X"
     end
 
     test "maps provider.tax_id from billing_provider.tax_id", %{claim: claim} do
@@ -146,7 +146,7 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapperTest do
     # --- Billing provider (top-level, for taxonomy rule) ---
 
     test "maps billing_provider.taxonomy from taxonomy_code key", %{claim: claim} do
-      assert claim["billing_provider"]["taxonomy"] == "291U00000X"
+      assert claim["billing_provider"]["taxonomy"] == "207R00000X"
       refute Map.has_key?(claim["billing_provider"], "taxonomy_code")
     end
 
@@ -256,7 +256,7 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapperTest do
     end
 
     test "maps provider.taxonomy", %{claim: claim} do
-      assert claim["provider"]["taxonomy"] == "208D00000X"
+      assert claim["provider"]["taxonomy"] == "208000000X"
     end
 
     test "maps patient.date_of_birth (pediatric patient)", %{claim: claim} do

@@ -24,10 +24,10 @@
         "tax_id": "88-9900112",
         "type": "Behavioral Health",
         "address": {
-            "street": "77 Tranquil Lane",
-            "city": "Portland",
-            "state": "OR",
-            "postal_code": "97201",
+            "street": "18 UPPER MAIN ST",
+            "city": "SHARON",
+            "state": "CT",
+            "postal_code": "06069",
             "country": "USA"
         },
         "contact": {
@@ -45,10 +45,10 @@
         "taxonomy": "2084P0800X",
         "name": "HORIZON MENTAL HEALTH MANAGEMENT, INC.",
         "address": {
-            "street": "77 Tranquil Lane",
-            "city": "Portland",
-            "state": "OR",
-            "postal_code": "97201"
+            "street": "18 UPPER MAIN ST",
+            "city": "SHARON",
+            "state": "CT",
+            "postal_code": "06069"
         }
     },
     "patient": {

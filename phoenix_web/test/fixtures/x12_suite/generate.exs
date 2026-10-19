@@ -20,12 +20,21 @@ defmodule X12Suite.Builder do
     name: "MIDWEST INTERNAL MEDICINE ASSOCIATES LLC",
     npi: "1003001538",
     taxonomy: "207R00000X",
-    tax_id: "361234567",
-    street: "100 TEST AVE",
-    city: "CHICAGO",
-    state: "IL",
-    zip: "60601"
+    tax_id: "361234567"
   }
+
+  # Practice location (NM1*85 N3/N4) of each real billing NPI, from the NPI
+  # Registry. The registry has no address for deactivated NPIs, so those and
+  # the deliberately fake NPIs get the synthetic address.
+  @practice_addresses %{
+    "1003001538" => %{street: "1728 MARION WALDO RD", city: "MARION", state: "OH", zip: "433027457"},
+    "1003001579" => %{street: "4103 WILBARGER ST", city: "VERNON", state: "TX", zip: "763843137"},
+    "1003003534" => %{street: "631 S 25TH STREET", city: "TERRE HAUTE", state: "IN", zip: "47803"},
+    "1003005000" => %{street: "5900 HILLANDALE DR SUITE 215", city: "LITHONIA", state: "GA", zip: "300583802"},
+    "1003625385" => %{street: "2184 N BEECH DALY RD STE 4", city: "DEARBORN HEIGHTS", state: "MI", zip: "481273492"}
+  }
+
+  @synthetic_address %{street: "100 TEST AVE", city: "CHICAGO", state: "IL", zip: "60601"}
 
   @default_member %{
     last: "TESTPATIENT",
@@ -37,7 +46,12 @@ defmodule X12Suite.Builder do
 
   @versions %{p: "005010X222A1", i: "005010X223A2", d: "005010X224A2"}
 
-  def default_billing, do: @default_billing
+  def default_billing, do: billing_provider([])
+
+  defp billing_provider(overrides) do
+    b = Map.merge(@default_billing, Map.new(overrides))
+    Map.merge(Map.get(@practice_addresses, b.npi, @synthetic_address), b)
+  end
 
   # A claim spec. `lines` is a list of {procedure, charge, date}; the claim
   # total is their sum unless `amount` overrides it.
@@ -69,7 +83,7 @@ defmodule X12Suite.Builder do
     %{
       claims: claims,
       kind: Keyword.get(opts, :kind, :p),
-      billing: Map.merge(@default_billing, Map.new(Keyword.get(opts, :billing, []))),
+      billing: billing_provider(Keyword.get(opts, :billing, [])),
       same_subscriber: Keyword.get(opts, :same_subscriber, false)
     }
   end

@@ -7,7 +7,10 @@ so the NPPES cases (not found, deactivated, reactivated, service between
 deactivation and reactivation) run against real registry records. The
 deliberate exceptions are `1234567890` (fails the Luhn check),
 `1999999992` (passes Luhn but is unassigned) and the malformed NPIs in the
-format cases.
+format cases. Each real billing provider carries its practice address from
+the NPI Registry (`@practice_addresses` in `generate.exs`); the registry has
+no address for the deactivated NPI, so it and the fake NPIs use a synthetic
+one.
 
 | Folder | What it covers |
 |---|---|

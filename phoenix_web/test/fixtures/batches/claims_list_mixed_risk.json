@@ -26,19 +26,19 @@
         "tax_id": "77-8899001",
         "type": "Laboratory",
         "address": {
-          "street": "300 Science Park",
-          "city": "Columbus",
-          "state": "OH",
-          "postal_code": "43215",
+          "street": "1705 TARBORO ST SW",
+          "city": "WILSON",
+          "state": "NC",
+          "postal_code": "27893",
           "country": "USA"
         },
         "contact": {
           "phone": "614-555-0401",
           "fax": "614-555-0402"
         },
-        "tenure_days": 4380,
+        "tenure_days": 2763,
         "risk_score": 4,
-        "credentialing_date": "2014-02-24",
+        "credentialing_date": "2018-08-01",
         "specialty": "Clinical Pathology",
         "taxonomy": "207ZP0102X"
       },
@@ -47,10 +47,10 @@
         "taxonomy": "207ZP0102X",
         "name": "COASTAL PLAINS PATHOLOGY PA",
         "address": {
-          "street": "300 Science Park",
-          "city": "Columbus",
-          "state": "OH",
-          "postal_code": "43215"
+          "street": "1705 TARBORO ST SW",
+          "city": "WILSON",
+          "state": "NC",
+          "postal_code": "27893"
         }
       },
       "patient": {
@@ -195,10 +195,10 @@
         "tax_id": "33-4455667",
         "type": "Clinic",
         "address": {
-          "street": "55 Wellness Way",
-          "city": "Denver",
-          "state": "CO",
-          "postal_code": "80202",
+          "street": "1728 MARION WALDO RD",
+          "city": "MARION",
+          "state": "OH",
+          "postal_code": "43302",
           "country": "USA"
         },
         "contact": {
@@ -216,10 +216,10 @@
         "taxonomy": "207R00000X",
         "name": "MIDWEST INTERNAL MEDICINE ASSOCIATES LLC",
         "address": {
-          "street": "55 Wellness Way",
-          "city": "Denver",
-          "state": "CO",
-          "postal_code": "80202"
+          "street": "1728 MARION WALDO RD",
+          "city": "MARION",
+          "state": "OH",
+          "postal_code": "43302"
         }
       },
       "patient": {
@@ -364,10 +364,10 @@
         "tax_id": "45-6789012",
         "type": "Clinic",
         "address": {
-          "street": "1200 Oak Avenue",
-          "city": "Springfield",
-          "state": "IL",
-          "postal_code": "62701",
+          "street": "4949 HARLEM RD",
+          "city": "AMHERST",
+          "state": "NY",
+          "postal_code": "14226",
           "country": "USA"
         },
         "contact": {
@@ -385,10 +385,10 @@
         "taxonomy": "207Q00000X",
         "name": "DENARDIN FAMILY PRACTICE PLLC",
         "address": {
-          "street": "1200 Oak Avenue",
-          "city": "Springfield",
-          "state": "IL",
-          "postal_code": "62701"
+          "street": "4949 HARLEM RD",
+          "city": "AMHERST",
+          "state": "NY",
+          "postal_code": "14226"
         }
       },
       "patient": {
@@ -533,10 +533,10 @@
         "tax_id": "55-9876543",
         "type": "Specialist Practice",
         "address": {
-          "street": "800 Medical Center Drive",
-          "city": "Austin",
-          "state": "TX",
-          "postal_code": "78701",
+          "street": "501 4TH ST",
+          "city": "AURORA",
+          "state": "IN",
+          "postal_code": "47001",
           "country": "USA"
         },
         "contact": {
@@ -554,10 +554,10 @@
         "taxonomy": "207X00000X",
         "name": "JARMAN ORTHOPEDICS, P.C.",
         "address": {
-          "street": "800 Medical Center Drive",
-          "city": "Austin",
-          "state": "TX",
-          "postal_code": "78701"
+          "street": "501 4TH ST",
+          "city": "AURORA",
+          "state": "IN",
+          "postal_code": "47001"
         }
       },
       "patient": {
@@ -709,10 +709,10 @@
         "tax_id": "22-3344556",
         "type": "Hospital",
         "address": {
-          "street": "1 Hospital Drive",
-          "city": "New York",
-          "state": "NY",
-          "postal_code": "10001",
+          "street": "2101 HIGHWAY 90",
+          "city": "GAUTIER",
+          "state": "MS",
+          "postal_code": "39553",
           "country": "USA"
         },
         "contact": {
@@ -730,10 +730,10 @@
         "taxonomy": "208G00000X",
         "name": "SINGING RIVER HEALTH SYSTEM",
         "address": {
-          "street": "1 Hospital Drive",
-          "city": "New York",
-          "state": "NY",
-          "postal_code": "10001"
+          "street": "2101 HIGHWAY 90",
+          "city": "GAUTIER",
+          "state": "MS",
+          "postal_code": "39553"
         }
       },
       "patient": {
@@ -885,10 +885,10 @@
         "tax_id": "11-2233445",
         "type": "Clinic",
         "address": {
-          "street": "400 Future Lane",
-          "city": "Phoenix",
-          "state": "AZ",
-          "postal_code": "85001",
+          "street": "3816 HOLLYWOOD BLVD SUITE 102",
+          "city": "HOLLYWOOD",
+          "state": "FL",
+          "postal_code": "33021",
           "country": "USA"
         },
         "contact": {
@@ -906,10 +906,10 @@
         "taxonomy": "208D00000X",
         "name": "DELRAY FAMILY PRACTICE INC",
         "address": {
-          "street": "400 Future Lane",
-          "city": "Phoenix",
-          "state": "AZ",
-          "postal_code": "85001"
+          "street": "3816 HOLLYWOOD BLVD SUITE 102",
+          "city": "HOLLYWOOD",
+          "state": "FL",
+          "postal_code": "33021"
         }
       },
       "patient": {
@@ -1223,10 +1223,10 @@
         "tax_id": "44-5566778",
         "type": "Urgent Care",
         "address": {
-          "street": "22 Commerce Boulevard",
-          "city": "Atlanta",
-          "state": "GA",
-          "postal_code": "30301",
+          "street": "5301 LOVERS LANE",
+          "city": "DALLAS",
+          "state": "TX",
+          "postal_code": "75209",
           "country": "USA"
         },
         "contact": {
@@ -1244,10 +1244,10 @@
         "taxonomy": "261QU0200X",
         "name": "CITYDOC URGENT CARE CENTER 2, PLLC",
         "address": {
-          "street": "22 Commerce Boulevard",
-          "city": "Atlanta",
-          "state": "GA",
-          "postal_code": "30301"
+          "street": "5301 LOVERS LANE",
+          "city": "DALLAS",
+          "state": "TX",
+          "postal_code": "75209"
         }
       },
       "patient": {

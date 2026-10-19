@@ -31,4 +31,22 @@ defmodule MedicaidClaimsChecker.Claims.NppesProviderTest do
       refute NppesProvider.active_on_date?(p, ~D[2026-01-15])
     end
   end
+
+  describe "issued_by?/2" do
+    test "a service before the NPI was issued fails; on or after passes" do
+      p = %NppesProvider{npi: "1234567893", enumeration_date: ~D[2018-04-02]}
+      refute NppesProvider.issued_by?(p, ~D[2018-04-01])
+      assert NppesProvider.issued_by?(p, ~D[2018-04-02])
+      assert NppesProvider.issued_by?(%NppesProvider{npi: "1234567893"}, ~D[2001-01-01])
+    end
+  end
+
+  describe "listed_on?/2" do
+    test "services before the NPI was dropped from NPPES pass; on or after fail" do
+      p = %NppesProvider{npi: "1234567893", dropped_on: ~D[2026-10-17]}
+      assert NppesProvider.listed_on?(p, ~D[2026-03-10])
+      refute NppesProvider.listed_on?(p, ~D[2026-10-17])
+      assert NppesProvider.listed_on?(%NppesProvider{npi: "1234567893"}, ~D[2026-10-17])
+    end
+  end
 end

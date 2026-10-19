@@ -334,6 +334,51 @@ defmodule MedicaidClaimsChecker.ClaimsTest do
       assert :ok = Claims.validate_claim_providers(Map.delete(claim, "rendering_provider"))
     end
 
+    test "checks every service line's date, not only the earliest" do
+      Repo.insert!(%NppesProvider{
+        npi: "1111111112",
+        entity_type: 1,
+        provider_name: "Deactivated Doctor",
+        deactivation_date: ~D[2026-03-15]
+      })
+
+      claim = %{
+        "billing_provider" => %{"npi" => "1111111112"},
+        "service_lines" => [%{"date_of_service" => "2026-03-10"}, %{"date_of_service" => "2026-03-20"}]
+      }
+
+      assert {:reject, "Provider NPI 1111111112 was deactivated on 2026-03-15, service rendered on 2026-03-20"} =
+               Claims.validate_claim_providers(claim)
+
+      assert :ok = Claims.validate_claim_providers(%{claim | "service_lines" => [%{"date_of_service" => "2026-03-10"}]})
+    end
+
+    test "rejects a service dated before the NPI was issued" do
+      Repo.insert!(%NppesProvider{npi: "1122334455", entity_type: 2, provider_name: "New Lab", enumeration_date: ~D[2018-04-02]})
+
+      claim = %{
+        "billing_provider" => %{"npi" => "1122334455"},
+        "service_lines" => [%{"date_of_service" => "20180315"}]
+      }
+
+      assert {:reject, "Provider NPI 1122334455 was not issued until 2018-04-02, service rendered on 2018-03-15"} =
+               Claims.validate_claim_providers(claim)
+    end
+
+    test "a late claim for an NPI later dropped from NPPES is checked on its last record" do
+      Repo.insert!(%NppesProvider{npi: "1093462368", entity_type: 1, provider_name: "Dropped, Dr", dropped_on: ~D[2026-10-17]})
+
+      before_drop = %{
+        "billing_provider" => %{"npi" => "1093462368"},
+        "service_lines" => [%{"date_of_service" => "2026-03-10"}]
+      }
+
+      assert :ok = Claims.validate_claim_providers(before_drop)
+
+      assert {:reject, "Provider NPI 1093462368 has not been in the NPPES file since 2026-10-17, service rendered on 2026-10-18"} =
+               Claims.validate_claim_providers(%{before_drop | "service_lines" => [%{"date_of_service" => "2026-10-18"}]})
+    end
+
     test "ignores blank NPIs" do
       claim = %{
         "provider" => %{"npi" => ""},

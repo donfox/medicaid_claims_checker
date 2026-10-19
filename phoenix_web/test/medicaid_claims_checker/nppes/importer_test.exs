@@ -173,4 +173,48 @@ defmodule MedicaidClaimsChecker.Nppes.ImporterTest do
 
     assert Repo.aggregate(NppesProvider, :count) == 0
   end
+
+  describe "NPIs missing from a full file" do
+    test "are kept and marked dropped; a re-listed NPI is cleared" do
+      first = write_csv([@nppes_header, row(@active_org), row(@deactivated), row(@reactivated)])
+      assert {:ok, 3} = Importer.import_from_file(first, full_file: true)
+      assert provider("1184887309").dropped_on == nil
+
+      # Next month's full file no longer lists the deactivated NPI.
+      backdate_updated_at()
+      second = write_csv([@nppes_header, row(@active_org), row(@reactivated)])
+      assert {:ok, 2} = Importer.import_from_file(second, full_file: true)
+
+      assert provider("1184887309").dropped_on == Date.utc_today()
+      assert provider("1871971291").dropped_on == nil
+      assert Repo.aggregate(NppesProvider, :count) == 3
+
+      # A later file that lists it again clears the mark.
+      backdate_updated_at()
+      assert {:ok, 3} = Importer.import_from_file(first, full_file: true)
+      assert provider("1184887309").dropped_on == nil
+    end
+
+    test "are not marked after a weekly update file, which lists only changes" do
+      assert {:ok, 3} =
+               Importer.import_from_file(write_csv([@nppes_header, row(@active_org), row(@deactivated), row(@reactivated)]))
+
+      backdate_updated_at()
+      assert {:ok, 1} = Importer.import_from_file(write_csv([@nppes_header, row(@active_org)]))
+
+      assert Repo.all(from(p in NppesProvider, where: not is_nil(p.dropped_on))) == []
+    end
+
+    test "only CMS's full replacement file name counts as a full file" do
+      assert Importer.full_file_name?("/tmp/npidata_pfile_20050523-20261012.csv")
+      refute Importer.full_file_name?("/tmp/npidata_pfile_20261006-20261012.csv")
+      refute Importer.full_file_name?("/tmp/nppes_test_1.csv")
+    end
+  end
+
+  # Imports in one test run within the same second; push earlier rows back
+  # so the next import can tell which NPIs it did not touch.
+  defp backdate_updated_at do
+    Repo.update_all(NppesProvider, set: [updated_at: ~U[2026-01-01 00:00:00Z]])
+  end
 end

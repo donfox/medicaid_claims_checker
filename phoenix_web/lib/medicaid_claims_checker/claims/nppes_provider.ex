@@ -23,6 +23,9 @@ defmodule MedicaidClaimsChecker.Claims.NppesProvider do
     field(:deactivation_date, :date)
     field(:reactivation_date, :date)
     field(:last_update_date, :date)
+    # Date of the first full NPPES import this NPI was missing from; nil
+    # while CMS still lists it. Dropped NPIs are kept for late claims.
+    field(:dropped_on, :date)
 
     timestamps(type: :utc_datetime)
   end
@@ -39,7 +42,8 @@ defmodule MedicaidClaimsChecker.Claims.NppesProvider do
       :enumeration_date,
       :deactivation_date,
       :reactivation_date,
-      :last_update_date
+      :last_update_date,
+      :dropped_on
     ])
     |> validate_required([:npi, :entity_type, :provider_name])
     |> validate_length(:npi, is: 10)
@@ -75,4 +79,19 @@ defmodule MedicaidClaimsChecker.Claims.NppesProvider do
         false
     end
   end
+
+  @doc "True unless the service date is before the NPI was issued (enumerated)."
+  def issued_by?(%__MODULE__{enumeration_date: nil}, _service_date), do: true
+
+  def issued_by?(%__MODULE__{enumeration_date: enumerated}, service_date),
+    do: Date.compare(service_date, enumerated) != :lt
+
+  @doc """
+  True unless the service date is on or after the NPI was dropped from the
+  NPPES file. Services before the drop are judged on the last known record.
+  """
+  def listed_on?(%__MODULE__{dropped_on: nil}, _service_date), do: true
+
+  def listed_on?(%__MODULE__{dropped_on: dropped}, service_date),
+    do: Date.compare(service_date, dropped) == :lt
 end

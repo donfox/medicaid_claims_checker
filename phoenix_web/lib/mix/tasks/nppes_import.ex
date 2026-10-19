@@ -10,6 +10,10 @@ defmodule Mix.Tasks.Nppes.Import do
   ~4 GB file into memory. Uses upsert (`on_conflict: :replace_all`) so
   running the task again with a newer monthly file is safe and idempotent.
 
+  A full replacement file (`npidata_pfile_20050523-*.csv`) also marks NPIs
+  it no longer lists with `dropped_on`; they are kept so late claims for
+  earlier services can still be checked. Weekly update files never do.
+
   ## NPPES download
 
   Download the monthly "Full Replacement" file from:

@@ -145,12 +145,12 @@
             "matched": [
               "ImpossibleDates"
             ],
-            "nppes": "ok"
+            "nppes": "was not issued until"
           }
         ]
       },
       "file": "single/09_service_before_1900.x12",
-      "purpose": "Service date before 1900 → ImpossibleDates"
+      "purpose": "Service date before 1900 → ImpossibleDates; NPPES rejects (NPI not issued until 2007)"
     },
     {
       "expect": {
@@ -281,6 +281,19 @@
       },
       "file": "single/18_npi_deactivated_later.x12",
       "purpose": "Same deactivated provider, service before deactivation → NPPES ok"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "NPIDEAC03",
+            "matched": [],
+            "nppes": "service rendered on 2024-12-20"
+          }
+        ]
+      },
+      "file": "single/18b_npi_deactivated_mid_claim.x12",
+      "purpose": "Same provider, one line before and one after the 2024-12-12 deactivation → NPPES rejects the later line"
     },
     {
       "expect": {

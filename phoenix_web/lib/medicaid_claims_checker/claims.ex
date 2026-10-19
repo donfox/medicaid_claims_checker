@@ -469,19 +469,39 @@ defmodule MedicaidClaimsChecker.Claims do
     end
   end
 
-  def validate_provider_npi(npi_string, service_date) do
+  @doc """
+  Checks one NPI against the NPPES registry on each service date (a `Date`
+  or a list of them). On every date the NPI must already have been issued,
+  be active (not deactivated, or reactivated), and still be listed by CMS.
+  Returns `:ok` or `{:reject, reason}` for the earliest failing date.
+  """
+  def validate_provider_npi(npi_string, service_dates) do
     case lookup_npi(npi_string) do
       {:error, :not_found} ->
         {:reject, "NPI #{npi_string} not found in NPPES registry"}
 
       {:ok, provider} ->
-        if NppesProvider.active_on_date?(provider, service_date) do
-          :ok
-        else
-          {:reject,
-           "Provider NPI #{npi_string} was deactivated on #{provider.deactivation_date}, " <>
-             "service rendered on #{service_date}"}
-        end
+        service_dates
+        |> List.wrap()
+        |> Enum.sort(Date)
+        |> Enum.find_value(:ok, &provider_problem(provider, npi_string, &1))
+    end
+  end
+
+  defp provider_problem(provider, npi, date) do
+    cond do
+      not NppesProvider.issued_by?(provider, date) ->
+        {:reject, "Provider NPI #{npi} was not issued until #{provider.enumeration_date}, service rendered on #{date}"}
+
+      not NppesProvider.active_on_date?(provider, date) ->
+        {:reject, "Provider NPI #{npi} was deactivated on #{provider.deactivation_date}, service rendered on #{date}"}
+
+      not NppesProvider.listed_on?(provider, date) ->
+        {:reject,
+         "Provider NPI #{npi} has not been in the NPPES file since #{provider.dropped_on}, service rendered on #{date}"}
+
+      true ->
+        nil
     end
   end
 
@@ -490,9 +510,11 @@ defmodule MedicaidClaimsChecker.Claims do
 
   Checks the provider (`provider.npi`), the rendering provider
   (`rendering_provider.npi`, or `claim.rendering_provider.npi` in the X12
-  schema) and the billing provider (`billing_provider.npi`), using the
-  earliest service date on the claim. Returns `:ok` if all NPIs are valid and active on that
-  date, `{:reject, reason}` on the first failure.
+  schema) and the billing provider (`billing_provider.npi`) on every service
+  date on the claim, so a line rendered after a deactivation is caught even
+  when earlier lines are fine. Dates are judged as of the service, not today:
+  claims often arrive months later. Returns `:ok` if every NPI passes on
+  every date, `{:reject, reason}` on the first failure.
 
   Returns `:ok` when no NPIs are present (NPI presence is enforced elsewhere).
   """
@@ -508,29 +530,21 @@ defmodule MedicaidClaimsChecker.Claims do
       |> Enum.filter(&(is_binary(&1) and String.trim(&1) != ""))
       |> Enum.uniq()
 
-    service_date = extract_earliest_service_date(claim_json)
-
-    case service_date do
-      nil ->
+    case extract_service_dates(claim_json) do
+      [] ->
         {:reject, "No service date found on claim — cannot validate provider NPI"}
 
-      date ->
-        case npis do
-          [] ->
-            :ok
-
-          npis ->
-            Enum.reduce_while(npis, :ok, fn npi, :ok ->
-              case validate_provider_npi(npi, date) do
-                :ok -> {:cont, :ok}
-                {:reject, reason} -> {:halt, {:reject, reason}}
-              end
-            end)
-        end
+      dates ->
+        Enum.reduce_while(npis, :ok, fn npi, :ok ->
+          case validate_provider_npi(npi, dates) do
+            :ok -> {:cont, :ok}
+            {:reject, reason} -> {:halt, {:reject, reason}}
+          end
+        end)
     end
   end
 
-  defp extract_earliest_service_date(claim_json) do
+  defp extract_service_dates(claim_json) do
     # service_lines may be at top level or nested under "claim"
     service_lines =
       claim_json["service_lines"] ||
@@ -550,10 +564,7 @@ defmodule MedicaidClaimsChecker.Claims do
         end
       end)
 
-    case dates do
-      [] -> nil
-      dates -> Enum.min(dates, Date)
-    end
+    Enum.uniq(dates)
   end
 
   # Parses ISO 8601 (2026-03-10) or compact (20260310) date strings

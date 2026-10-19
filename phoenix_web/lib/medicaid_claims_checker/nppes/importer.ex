@@ -7,6 +7,8 @@ defmodule MedicaidClaimsChecker.Nppes.Importer do
   - `download_and_import/1` — downloads ZIP from CMS, extracts CSV, imports it
   """
 
+  import Ecto.Query
+
   alias MedicaidClaimsChecker.Repo
   alias MedicaidClaimsChecker.Claims.NppesProvider
 
@@ -39,6 +41,12 @@ defmodule MedicaidClaimsChecker.Nppes.Importer do
 
   Options:
   - `:on_progress` — `fn rows_imported -> ... end` called every #{@progress_interval} rows
+  - `:full_file` — whether the file lists every NPI (CMS's monthly full
+    replacement file). Defaults to true for files named like CMS's full file
+    (`npidata_pfile_20050523-*.csv`). After a full import, NPIs missing from
+    the file get `dropped_on` set to today; they are kept, never deleted,
+    because late claims for services before the drop must still be checked.
+    A weekly update file lists only changes, so it never marks NPIs dropped.
 
   Returns `{:ok, row_count}` or `{:error, reason}`.
   """
@@ -123,13 +131,16 @@ defmodule MedicaidClaimsChecker.Nppes.Importer do
 
   defp do_import(path, opts) do
     on_progress = Keyword.get(opts, :on_progress, fn _count -> :ok end)
+    full_file? = Keyword.get_lazy(opts, :full_file, fn -> full_file_name?(path) end)
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
     Logger.info("NPPES: Starting import from #{path}")
 
     try do
-      with {:ok, cols} <- read_columns(path) do
-        import_rows(path, cols, now, on_progress)
+      with {:ok, cols} <- read_columns(path),
+           {:ok, count} <- import_rows(path, cols, now, on_progress) do
+        if full_file?, do: mark_dropped(now)
+        {:ok, count}
       end
     rescue
       e ->
@@ -147,6 +158,23 @@ defmodule MedicaidClaimsChecker.Nppes.Importer do
       [header] -> column_indices(header)
       [] -> {:error, "NPPES file is empty"}
     end
+  end
+
+  @doc false
+  # CMS names the monthly full replacement file npidata_pfile_20050523-<end>.csv
+  # (its data starts with NPPES itself); weekly update files start later.
+  def full_file_name?(path),
+    do: path |> Path.basename() |> String.starts_with?("npidata_pfile_20050523-")
+
+  # Every NPI in the file was just upserted with updated_at = now, so older
+  # rows are NPIs CMS no longer lists. Only the first missing import sets the
+  # date; an NPI that reappears is cleared by its upsert (dropped_on: nil).
+  defp mark_dropped(now) do
+    {dropped, _} =
+      from(p in NppesProvider, where: p.updated_at < ^now and is_nil(p.dropped_on))
+      |> Repo.update_all([set: [dropped_on: DateTime.to_date(now)]], timeout: :infinity)
+
+    Logger.info("NPPES: #{dropped} NPI(s) no longer in the file marked dropped (kept for late claims)")
   end
 
   @doc false
@@ -238,6 +266,7 @@ defmodule MedicaidClaimsChecker.Nppes.Importer do
         deactivation_date: parse_date(col.(:deactivation_date)),
         reactivation_date: parse_date(col.(:reactivation_date)),
         last_update_date: parse_date(col.(:last_update_date)),
+        dropped_on: nil,
         inserted_at: now,
         updated_at: now
       }

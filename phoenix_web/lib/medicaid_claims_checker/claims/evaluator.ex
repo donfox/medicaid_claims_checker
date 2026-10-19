@@ -284,5 +284,14 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
     |> Map.put("matchedRules", matched_rules)
     |> Map.put("totalRules", total_rules)
     |> Map.put("overallRisk", "CriticalRisk")
+    |> Map.put("summary", report_summary(total_rules, matched_rules, report["undecidedRules"] || 0, "CriticalRisk"))
+  end
+
+  # The engine writes the summary before the NPPES finding is added, so it is
+  # rewritten from the merged counts, in the engine's wording
+  # (generateSummary in haskell_engine/src/Claims/RuleEngine.hs).
+  defp report_summary(total, matched, undecided, risk) do
+    not_checked = if undecided > 0, do: ", #{undecided} not checked (missing data). ", else: ". "
+    "Evaluated #{total} rules, #{matched} matched#{not_checked}Overall risk: #{risk}"
   end
 end

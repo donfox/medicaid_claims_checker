@@ -328,6 +328,11 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
 
       assert nppes_result
       assert nppes_result["resultDetails"] =~ "deactivated"
+
+      # The summary counts the NPPES finding, like totalRules and matchedRules.
+      assert file.evaluation_report["totalRules"] == 1
+      assert file.evaluation_report["matchedRules"] == 1
+      assert file.evaluation_report["summary"] == "Evaluated 1 rules, 1 matched. Overall risk: CriticalRisk"
     end
 
     test "rejects claims with unknown NPI", %{bypass: bypass} do

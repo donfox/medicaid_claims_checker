@@ -76,6 +76,11 @@ defmodule MedicaidClaimsChecker.Accounts do
     Repo.all(from u in User, order_by: [asc: u.inserted_at])
   end
 
+  @doc "Email addresses of active admin users, who receive operational alerts."
+  def list_admin_emails do
+    Repo.all(from u in User, where: u.is_admin and u.active, order_by: [asc: u.inserted_at], select: u.email)
+  end
+
   def set_user_active(user, active) when is_boolean(active) do
     user
     |> Ecto.Changeset.change(active: active)

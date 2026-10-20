@@ -4,6 +4,11 @@ defmodule MedicaidClaimsChecker.Ingestion.FetchRunner do
 
   Fetches remote files from the configured source, translates X12 claims
   to semantic JSON in-process, and ingests the resulting batch locally.
+
+  A file the source has fetched before (same name, same bytes) is skipped,
+  so files left in place aren't refused as duplicates on every run. A file
+  is recorded as fetched once its batch is ingested, or when it holds no
+  claims; if ingestion fails it is tried again on the next run.
   """
 
   require Logger
@@ -37,7 +42,7 @@ defmodule MedicaidClaimsChecker.Ingestion.FetchRunner do
       {:ok, %{files: files, temp_dir: temp_dir}} ->
         Logger.info("Fetched #{length(files)} file(s) from '#{name}'")
 
-        ingest_result = process_files(name, files)
+        ingest_result = process_files(source_id, name, files)
 
         if temp_dir, do: RemoteFetcher.cleanup_temp_files(temp_dir)
 
@@ -51,10 +56,43 @@ defmodule MedicaidClaimsChecker.Ingestion.FetchRunner do
 
   def run(_), do: {:error, :invalid_source_config}
 
-  defp process_files(source_name, files) do
-    claims =
-      files
-      |> Enum.flat_map(&claims_for_file/1)
+  defp process_files(source_id, source_name, files) do
+    read = Enum.flat_map(files, &read_file/1)
+    keys = Enum.map(read, fn {name, _content, sha} -> {name, sha} end)
+    seen = if source_id, do: Ingestion.already_fetched(source_id, keys), else: MapSet.new()
+    new = Enum.reject(read, fn {name, _content, sha} -> MapSet.member?(seen, {name, sha}) end)
+
+    if MapSet.size(seen) > 0 do
+      Logger.info("Skipped #{MapSet.size(seen)} file(s) already fetched from '#{source_name}'")
+    end
+
+    if new == [] do
+      {:ok, :nothing_new}
+    else
+      result = ingest_files(source_name, new)
+      handled? = match?({:ok, _}, result) or result == {:error, :no_claims_produced}
+
+      if source_id && handled? do
+        Ingestion.record_fetched(source_id, Enum.map(new, fn {name, _content, sha} -> {name, sha} end))
+      end
+
+      result
+    end
+  end
+
+  defp read_file(path) do
+    case File.read(path) do
+      {:ok, content} ->
+        [{Path.basename(path), content, Fingerprint.file(content)}]
+
+      {:error, reason} ->
+        Logger.warning("Failed to read #{Path.basename(path)}: #{inspect(reason)}")
+        []
+    end
+  end
+
+  defp ingest_files(source_name, files) do
+    claims = Enum.flat_map(files, &claims_for_file/1)
 
     if claims == [] do
       Logger.error("No claims produced from fetched files")
@@ -73,13 +111,10 @@ defmodule MedicaidClaimsChecker.Ingestion.FetchRunner do
     end
   end
 
-  defp claims_for_file(path) do
-    filename = Path.basename(path)
-
-    with {:ok, content} <- File.read(path),
-         {:ok, tx_sets} <- ClaimSplitter.split_transaction_sets(content) do
+  defp claims_for_file({filename, content, sha}) do
+    with {:ok, tx_sets} <- ClaimSplitter.split_transaction_sets(content) do
       parts = if is_list(tx_sets), do: tx_sets, else: [content]
-      source = %{"filename" => filename, "sha256" => Fingerprint.file(content)}
+      source = %{"filename" => filename, "sha256" => sha}
 
       parts
       |> Enum.flat_map(&claims_for_transaction_set(filename, &1))

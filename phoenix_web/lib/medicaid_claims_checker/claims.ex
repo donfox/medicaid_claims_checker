@@ -101,7 +101,8 @@ defmodule MedicaidClaimsChecker.Claims do
   A claim is refused as a duplicate when its source file was submitted
   before, when the same claim (ignoring the X12 envelope) is in an earlier
   batch, or when it repeats an earlier claim in this submission. Each refusal
-  is stored in `batch.duplicates` and names the earlier submission; the other
+  is stored in `batch.duplicates` and names the earlier submission, and the
+  admin users are emailed about it (`Claims.DuplicateAlert`); the other
   claims are evaluated as usual. When every claim is a duplicate the batch is
   recorded as "failed" with no claims, so the refusal still shows in history.
 
@@ -174,6 +175,7 @@ defmodule MedicaidClaimsChecker.Claims do
     case result do
       {:ok, %{batch: batch, edi_files: [], duplicates: duplicates}} ->
         Logger.warning("Batch #{batch.batch_id} not evaluated — #{duplicates_notice(duplicates)}")
+        alert_duplicates(batch)
 
         Phoenix.PubSub.broadcast(
           MedicaidClaimsChecker.PubSub,
@@ -186,6 +188,7 @@ defmodule MedicaidClaimsChecker.Claims do
       {:ok, %{batch: batch, duplicates: duplicates}} ->
         if duplicates != [] do
           Logger.warning("Batch #{batch.batch_id}: #{duplicates_notice(duplicates)}")
+          alert_duplicates(batch)
         end
 
         Logger.info("Batch #{batch.batch_id} ingested — launching auto-evaluation")
@@ -204,6 +207,12 @@ defmodule MedicaidClaimsChecker.Claims do
   end
 
   def ingest_batch(_), do: {:error, :invalid_payload}
+
+  defp alert_duplicates(batch) do
+    %{"batch_id" => batch.id}
+    |> MedicaidClaimsChecker.Workers.DuplicateAlertWorker.new()
+    |> Oban.insert!()
+  end
 
   # --- Duplicate submissions ---
 

@@ -5,7 +5,7 @@ defmodule MedicaidClaimsChecker.Ingestion do
   """
   import Ecto.Query
   alias MedicaidClaimsChecker.Repo
-  alias MedicaidClaimsChecker.Ingestion.{FetchSource, FetchSchedule}
+  alias MedicaidClaimsChecker.Ingestion.{FetchedFile, FetchSource, FetchSchedule}
 
   # --- FetchSource operations ---
 
@@ -78,5 +78,34 @@ defmodule MedicaidClaimsChecker.Ingestion do
     |> where([s], s.enabled == true)
     |> preload(fetch_schedules: ^enabled_schedules_query)
     |> Repo.all()
+  end
+
+  # --- Files a source has already fetched ---
+
+  @doc "The `{filename, sha256}` pairs among `files` that `source_id` has fetched before."
+  def already_fetched(source_id, files) do
+    shas = files |> Enum.map(&elem(&1, 1)) |> Enum.uniq()
+
+    FetchedFile
+    |> where([f], f.fetch_source_id == ^source_id and f.sha256 in ^shas)
+    |> select([f], {f.filename, f.sha256})
+    |> Repo.all()
+    |> MapSet.new()
+    |> MapSet.intersection(MapSet.new(files))
+  end
+
+  @doc "Records `{filename, sha256}` pairs as fetched by `source_id`."
+  def record_fetched(source_id, files) do
+    now = DateTime.utc_now(:second)
+
+    rows =
+      files
+      |> Enum.uniq()
+      |> Enum.map(fn {name, sha} ->
+        %{fetch_source_id: source_id, filename: name, sha256: sha, inserted_at: now}
+      end)
+
+    Repo.insert_all(FetchedFile, rows, on_conflict: :nothing)
+    :ok
   end
 end

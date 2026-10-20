@@ -33,6 +33,46 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.DuplicateUploadTest do
 
   defp batches, do: Repo.all(from(b in Batch, order_by: b.id))
 
+  # Uploads the same file twice and returns the view showing the refusal.
+  defp refused_view(conn) do
+    content = File.read!(@three_claims)
+    upload(conn, "01_three_claims.x12", content)
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> file_input("#manual-upload-form", :manual_files, [%{name: "again.x12", content: content, type: "text/plain"}])
+    |> render_upload("again.x12")
+
+    view |> form("#manual-upload-form") |> render_submit()
+    assert render(view) =~ "No X12/EDI claims submitted."
+    assert has_element?(view, "#dismiss-upload-message")
+    view
+  end
+
+  describe "the refusal message can be cleared" do
+    test "by its dismiss button", %{conn: conn} do
+      view = refused_view(conn)
+      view |> element("#dismiss-upload-message") |> render_click()
+      refute has_element?(view, "#dismiss-upload-message")
+    end
+
+    test "by Clear display", %{conn: conn} do
+      view = refused_view(conn)
+      unless has_element?(view, "#clear-history-display") do
+        view |> element("button[aria-controls=batch-history-panel]") |> render_click()
+      end
+
+      view |> element("#clear-history-display") |> render_click()
+      refute has_element?(view, "#dismiss-upload-message")
+    end
+
+    test "by choosing new files", %{conn: conn} do
+      view = refused_view(conn)
+      view |> form("#manual-upload-form") |> render_change()
+      refute has_element?(view, "#dismiss-upload-message")
+    end
+  end
+
   test "the same file uploaded again is refused and names the first upload", %{conn: conn} do
     content = File.read!(@three_claims)
 

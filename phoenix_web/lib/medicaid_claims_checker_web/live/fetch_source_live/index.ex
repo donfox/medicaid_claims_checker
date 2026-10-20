@@ -511,8 +511,13 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
 
   # --- Manual Upload event handlers ---
 
+  # Choosing new files replaces the previous upload's result.
   def handle_event("validate_manual_uploads", _params, socket) do
-    {:noreply, socket}
+    {:noreply, dismiss_upload_result(socket)}
+  end
+
+  def handle_event("dismiss_upload_message", _params, socket) do
+    {:noreply, dismiss_upload_result(socket)}
   end
 
   def handle_event("clear_manual_uploads", _params, socket) do
@@ -642,6 +647,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
          |> assign(:history_page, 1)
          |> assign(:expanded_batch_ids, MapSet.new())
          |> load_batch_history()
+         |> dismiss_upload_result()
          |> put_flash(:info, "Display cleared. All records are kept — use \"Show all\" to see them.")}
     end
   end
@@ -829,6 +835,15 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     |> assign(:upload_status, :error)
     |> assign(:upload_message, "#{message}#{duplicates_suffix(duplicates)}")
     |> show_newest_history()
+  end
+
+  # Clears a finished upload's message; an upload still in progress keeps its own.
+  defp dismiss_upload_result(socket) do
+    if socket.assigns.upload_status in [:done, :error] do
+      socket |> assign(:upload_status, :idle) |> assign(:upload_message, nil)
+    else
+      socket
+    end
   end
 
   defp duplicates_suffix([]), do: ""

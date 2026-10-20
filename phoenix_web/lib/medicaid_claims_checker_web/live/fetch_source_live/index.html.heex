@@ -263,6 +263,23 @@
             <p class="text-sm text-red-600 mt-2"><%= upload_error_to_string(err) %></p>
           <% end %>
 
+          <%= if @resubmission_available do %>
+            <!-- Development only: lets the same test files be evaluated again -->
+            <label class="flex items-center gap-2 mb-3 text-sm text-gray-900 cursor-pointer">
+              <input
+                type="checkbox"
+                id="allow-resubmission"
+                phx-click="toggle_allow_resubmission"
+                checked={@allow_resubmission}
+                class="h-4 w-4 rounded border-gray-400 cursor-pointer"
+              />
+              <span>
+                <span class="font-medium">Test upload: allow re-submission</span>
+                <span class="text-gray-700">— files already submitted are evaluated again (development only). Untick to test the duplicate check.</span>
+              </span>
+            </label>
+          <% end %>
+
           <!-- Process action bar -->
           <div class="flex items-center justify-between border-t border-gray-200 pt-4">
             <p class="text-sm text-gray-800">

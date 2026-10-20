@@ -106,13 +106,19 @@ defmodule MedicaidClaimsChecker.Claims do
   claims are evaluated as usual. When every claim is a duplicate the batch is
   recorded as "failed" with no claims, so the refusal still shows in history.
 
+  With "allow_resubmission" => true, and only where the
+  `:allow_test_resubmission` setting is on (development), nothing is
+  refused: test files can be evaluated again. The batch name says so.
+
   Returns {:ok, %{batch: batch, edi_files: [...], duplicates: [...]}} or
   {:error, reason}.
   """
   def ingest_batch(%{"batch_id" => batch_id, "claims" => claims} = params)
       when is_list(claims) do
     source = Map.get(params, "source", "manual_upload")
+    resubmit? = params["allow_resubmission"] == true and test_resubmission_allowed?()
     batch_name = Map.get(params, "batch_name") || default_batch_name(source)
+    batch_name = if resubmit?, do: batch_name <> " (test re-submission)", else: batch_name
 
     result =
       Repo.transaction(fn ->
@@ -133,7 +139,8 @@ defmodule MedicaidClaimsChecker.Claims do
             {:error, changeset} -> Repo.rollback({:batch, changeset})
           end
 
-        {accepted, duplicates, known_files} = split_duplicates(claims)
+        {accepted, duplicates, known_files} =
+          if resubmit?, do: accept_all(claims), else: split_duplicates(claims)
 
         edi_files =
           Enum.map(accepted, fn {%{"filename" => filename, "claim" => claim_json}, fingerprint} ->
@@ -215,6 +222,17 @@ defmodule MedicaidClaimsChecker.Claims do
   end
 
   # --- Duplicate submissions ---
+
+  @doc "Whether this deployment lets test uploads skip the duplicate check (development only)."
+  def test_resubmission_allowed?,
+    do: Application.get_env(:medicaid_claims_checker, :allow_test_resubmission, false) == true
+
+  # A test re-submission: every claim is accepted. known_files still lists
+  # earlier copies of the files so they aren't recorded twice.
+  defp accept_all(claims) do
+    entries = Enum.map(claims, &{&1, Fingerprint.claim(&1["claim"])})
+    {entries, [], previous_files(entries)}
+  end
 
   # Splits ingest entries into {accepted, duplicates, known_files}: accepted
   # is [{entry, claim_fingerprint}], duplicates are the refusal records stored

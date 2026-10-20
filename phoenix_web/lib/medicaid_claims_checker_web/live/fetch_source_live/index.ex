@@ -71,6 +71,8 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
      |> assign(:upload_status, :idle)
      |> assign(:upload_message, nil)
      |> assign(:pending_upload_batch_ids, MapSet.new())
+     |> assign(:resubmission_available, Claims.test_resubmission_allowed?())
+     |> assign(:allow_resubmission, Claims.test_resubmission_allowed?())
      |> allow_upload(:manual_files,
        accept: ~w(.json .x12 .edi .zip),
        max_entries: 100,
@@ -516,6 +518,10 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     {:noreply, dismiss_upload_result(socket)}
   end
 
+  def handle_event("toggle_allow_resubmission", _params, socket) do
+    {:noreply, assign(socket, :allow_resubmission, socket.assigns.resubmission_available and !socket.assigns.allow_resubmission)}
+  end
+
   def handle_event("dismiss_upload_message", _params, socket) do
     {:noreply, dismiss_upload_result(socket)}
   end
@@ -777,7 +783,8 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
         "batch_id" => batch_id,
         "batch_name" => "Manual Upload - #{timestamp}",
         "source" => "manual_upload",
-        "claims" => claims
+        "claims" => claims,
+        "allow_resubmission" => socket.assigns.allow_resubmission
       }
 
       case Claims.ingest_batch(params) do
@@ -903,7 +910,8 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
         "batch_id" => batch_id,
         "batch_name" => "Manual Upload - #{timestamp}",
         "source" => "manual_upload",
-        "claims" => claims
+        "claims" => claims,
+        "allow_resubmission" => socket.assigns.allow_resubmission
       }
 
       case Claims.ingest_batch(params) do

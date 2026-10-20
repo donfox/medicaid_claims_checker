@@ -97,5 +97,9 @@ config :medicaid_claims_checker, MedicaidClaimsChecker.Vault,
               key: Base.decode64!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")}
   ]
 
+# Shows the "Test upload: allow re-submission" checkbox on Manual Upload, so
+# the same test files can be evaluated again. Never set in production.
+config :medicaid_claims_checker, allow_test_resubmission: true
+
 # Load local dev secrets (Brevo credentials etc.) if present — never commit this file.
 if File.exists?("config/dev.secret.exs"), do: import_config("dev.secret.exs")

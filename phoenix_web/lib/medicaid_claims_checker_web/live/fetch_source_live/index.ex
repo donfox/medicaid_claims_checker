@@ -782,7 +782,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
 
       case Claims.ingest_batch(params) do
         {:ok, %{edi_files: [], duplicates: duplicates}} ->
-          refused_duplicates(socket, "No JSON claims submitted.#{refused_suffix}", duplicates)
+          refused_duplicates(socket, "Nothing was evaluated: every claim was already submitted.#{refused_suffix}", duplicates)
 
         {:ok, %{batch: batch, edi_files: edi_files, duplicates: duplicates}} ->
           socket
@@ -908,7 +908,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
 
       case Claims.ingest_batch(params) do
         {:ok, %{edi_files: [], duplicates: duplicates}} ->
-          base = "No X12/EDI claims submitted.#{failure_suffix}"
+          base = "Nothing was evaluated: every claim was already submitted.#{failure_suffix}"
           refused_duplicates(socket, if(prior, do: "#{prior} #{base}", else: base), duplicates)
 
         {:ok, %{batch: batch, edi_files: edi_files, duplicates: duplicates}} ->

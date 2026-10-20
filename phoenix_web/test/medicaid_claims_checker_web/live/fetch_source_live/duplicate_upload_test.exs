@@ -44,7 +44,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.DuplicateUploadTest do
     |> render_upload("again.x12")
 
     view |> form("#manual-upload-form") |> render_submit()
-    assert render(view) =~ "No X12/EDI claims submitted."
+    assert render(view) =~ "Nothing was evaluated: every claim was already submitted."
     assert has_element?(view, "#dismiss-upload-message")
     view
   end
@@ -79,7 +79,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.DuplicateUploadTest do
     assert upload(conn, "01_three_claims.x12", content) =~ "3 X12/EDI claim(s) translated"
     html = upload(conn, "daily_copy.x12", content)
 
-    assert html =~ "No X12/EDI claims submitted."
+    assert html =~ "Nothing was evaluated: every claim was already submitted."
     assert html =~ "daily_copy.x12 was already submitted in &quot;Manual Upload - "
 
     [first, second] = batches()
@@ -102,7 +102,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.DuplicateUploadTest do
 
     html = upload(conn, "01_three_claims_resent.x12", resent)
 
-    assert html =~ "No X12/EDI claims submitted."
+    assert html =~ "Nothing was evaluated: every claim was already submitted."
     assert html =~ "was already submitted in"
 
     [_first, second] = batches()

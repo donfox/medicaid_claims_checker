@@ -1,0 +1,85 @@
+{
+  "authorization": { "authorization_number": null },
+  "billing_provider": {
+    "address": {
+      "city": "MARION",
+      "state": "OH",
+      "street": "1728 MARION WALDO RD",
+      "zip": "433027457"
+    },
+    "name": "MIDWEST INTERNAL MEDICINE ASSOCIATES LLC",
+    "npi": "1003001538",
+    "tax_id": "920643817",
+    "taxonomy": "207R00000X"
+  },
+  "claim_details": {
+    "facility_type_code": null,
+    "frequency_code": "1",
+    "place_of_service": "11"
+  },
+  "claim_id": "SMP-RULE-AGE",
+  "claim_totals": { "total_charges": 180.0 },
+  "diagnosis_codes": [
+    {
+      "code": "I10",
+      "qualifier": "ABK"
+    }
+  ],
+  "financial": { "claim_amount": 180.0 },
+  "patient": {
+    "date_of_birth": "1890-03-02",
+    "gender": "M",
+    "name": {
+      "first": "WALTER",
+      "last": "KESSLER",
+      "middle": "H"
+    }
+  },
+  "payer": {
+    "name": "STATE MEDICAID PROGRAM",
+    "payer_id": "STMED01"
+  },
+  "provider": {
+    "name": "MIDWEST INTERNAL MEDICINE ASSOCIATES LLC",
+    "npi": "1003001538",
+    "tax_id": "920643817",
+    "taxonomy": "207R00000X",
+    "tenure_days": 2400
+  },
+  "rendering_provider": null,
+  "sample_notes": "Date of birth 1890-03-02 makes the patient over 130: PatientAgeOutOfRange.",
+  "service_lines": [
+    {
+      "charge_amount": 180.0,
+      "date_of_service": "2026-09-18",
+      "diagnosis_pointer": "1",
+      "line_number": 1,
+      "place_of_service": "11",
+      "procedure_code": "99214",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    }
+  ],
+  "subscriber": {
+    "address": {
+      "city": "MARION",
+      "state": "OH",
+      "street": "100 MAIN ST",
+      "zip": "43302"
+    },
+    "date_of_birth": "1890-03-02",
+    "first_name": "WALTER",
+    "gender": "M",
+    "group_number": null,
+    "last_name": "KESSLER",
+    "member_id": "MCD196515831",
+    "middle_name": "H",
+    "payer_responsibility": "P",
+    "relationship_code": "18"
+  },
+  "transaction_type": "837P"
+}
+

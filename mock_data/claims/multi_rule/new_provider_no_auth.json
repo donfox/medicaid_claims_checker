@@ -1,0 +1,170 @@
+{
+  "authorization": { "authorization_number": null },
+  "billing_provider": {
+    "address": {
+      "city": "DEARBORN HEIGHTS",
+      "state": "MI",
+      "street": "2184 N BEECH DALY RD STE 4",
+      "zip": "481273492"
+    },
+    "name": "SHAZA AWAD DDS",
+    "npi": "1003625385",
+    "tax_id": "982509283",
+    "taxonomy": null
+  },
+  "claim_details": {
+    "facility_type_code": null,
+    "frequency_code": "1",
+    "place_of_service": "11"
+  },
+  "claim_id": "SMP-MULTI-NEWPROV",
+  "claim_totals": { "total_charges": 3.5e4 },
+  "diagnosis_codes": [
+    {
+      "code": "K0889",
+      "qualifier": "ABK"
+    }
+  ],
+  "financial": { "claim_amount": 3.5e4 },
+  "patient": {
+    "date_of_birth": "1958-04-11",
+    "gender": "F",
+    "name": {
+      "first": "MARGARET",
+      "last": "HOLLOWAY",
+      "middle": "A"
+    }
+  },
+  "payer": {
+    "name": "STATE MEDICAID PROGRAM",
+    "payer_id": "STMED01"
+  },
+  "provider": {
+    "name": "SHAZA AWAD DDS",
+    "npi": "1003625385",
+    "tax_id": "982509283",
+    "taxonomy": null,
+    "tenure_days": 20
+  },
+  "rendering_provider": null,
+  "sample_notes": "Four rules at once: TaxonomyMismatchNewProvider, MissingProviderTaxonomy, NewProviderLargeSubmission and UnauthorizedProcedure.",
+  "service_lines": [
+    {
+      "charge_amount": 4.9e3,
+      "date_of_service": "2026-09-14",
+      "diagnosis_pointer": "1",
+      "line_number": 1,
+      "place_of_service": "11",
+      "procedure_code": "D6010",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": {
+        "tooth_code_qualifier": "JP",
+        "tooth_number": "3",
+        "tooth_surface": null
+      },
+      "unit_type": "UN",
+      "units": 1
+    },
+    {
+      "charge_amount": 4.9e3,
+      "date_of_service": "2026-09-14",
+      "diagnosis_pointer": "1",
+      "line_number": 2,
+      "place_of_service": "11",
+      "procedure_code": "D6010",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": {
+        "tooth_code_qualifier": "JP",
+        "tooth_number": "14",
+        "tooth_surface": null
+      },
+      "unit_type": "UN",
+      "units": 1
+    },
+    {
+      "charge_amount": 4.9e3,
+      "date_of_service": "2026-09-14",
+      "diagnosis_pointer": "1",
+      "line_number": 3,
+      "place_of_service": "11",
+      "procedure_code": "D6010",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": {
+        "tooth_code_qualifier": "JP",
+        "tooth_number": "19",
+        "tooth_surface": null
+      },
+      "unit_type": "UN",
+      "units": 1
+    },
+    {
+      "charge_amount": 4.9e3,
+      "date_of_service": "2026-09-14",
+      "diagnosis_pointer": "1",
+      "line_number": 4,
+      "place_of_service": "11",
+      "procedure_code": "D6010",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": {
+        "tooth_code_qualifier": "JP",
+        "tooth_number": "30",
+        "tooth_surface": null
+      },
+      "unit_type": "UN",
+      "units": 1
+    },
+    {
+      "charge_amount": 3.4e3,
+      "date_of_service": "2026-09-17",
+      "diagnosis_pointer": "1",
+      "line_number": 5,
+      "place_of_service": "11",
+      "procedure_code": "D7210",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": {
+        "tooth_code_qualifier": "JP",
+        "tooth_number": "1",
+        "tooth_surface": null
+      },
+      "unit_type": "UN",
+      "units": 1
+    },
+    {
+      "charge_amount": 1.2e4,
+      "date_of_service": "2026-09-17",
+      "diagnosis_pointer": "1",
+      "line_number": 6,
+      "place_of_service": "11",
+      "procedure_code": "D6114",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    }
+  ],
+  "subscriber": {
+    "address": {
+      "city": "DEARBORN HEIGHTS",
+      "state": "MI",
+      "street": "100 MAIN ST",
+      "zip": "48127"
+    },
+    "date_of_birth": "1958-04-11",
+    "first_name": "MARGARET",
+    "gender": "F",
+    "group_number": null,
+    "last_name": "HOLLOWAY",
+    "member_id": "MCD191561863",
+    "middle_name": "A",
+    "payer_responsibility": "P",
+    "relationship_code": "18"
+  },
+  "transaction_type": "837P"
+}
+

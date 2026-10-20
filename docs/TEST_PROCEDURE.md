@@ -72,7 +72,7 @@ curl -s http://localhost:4000/api/health
 
 ## 4. Run Integration Scripts
 
-From `phoenix_web`:
+These call the engine's HTTP API directly. From `haskell_engine`:
 
 ```bash
 bash test/scripts/run_tests.sh
@@ -80,13 +80,30 @@ bash test/scripts/run_faulty_tests.sh
 bash test/scripts/test_integration.sh
 ```
 
+They use the engine at `HASKELL_ENGINE_URL` (default `http://localhost:8080`) and send
+`RULE_ENGINE_SECRET` as the bearer token.
+
 ### What these scripts validate
 
 - DSL parse success for valid rules
 - DSL parse failure for intentionally broken rules
-- End-to-end compile and batch-evaluate behavior
+- End-to-end batch-evaluate behavior
 
 **Pass criterion:** each script exits with status `0`.
+
+### X12 suite and sample claims
+
+From `phoenix_web`, with the engine running and the dev database seeded:
+
+```bash
+mix run --no-start test/scripts/verify_x12_suite.exs                        # X12 837 suite
+mix run --no-start test/scripts/verify_x12_suite.exs --suite ../mock_data # mock claims
+```
+
+Each file goes through the same steps as an upload, then the NPPES check and the active
+rules, and the outcome is compared with the suite's `manifest.json`.
+
+**Pass criterion:** no `FAIL` lines.
 
 ## 5. Run API Smoke Checks
 
@@ -97,7 +114,7 @@ Validate these core endpoints:
 - `POST /api/batch-evaluate` — multi-claim batch behavior
 - `POST /api/check-redundancy` — duplicate, subsumption, and overlap detection
 
-Use payload fixtures from `phoenix_web/test/fixtures/` whenever possible.
+Use the claims and rule files in `mock_data/` (see `mock_data/README.md`) whenever possible.
 
 ## 6. Run UI Functional Smoke Checks
 

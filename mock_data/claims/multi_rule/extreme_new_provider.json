@@ -1,0 +1,102 @@
+{
+  "authorization": { "authorization_number": null },
+  "billing_provider": {
+    "address": {
+      "city": "WILLIMANTIC",
+      "state": "CT",
+      "street": "123 QUARRY ST",
+      "zip": "062261247"
+    },
+    "name": "WINDHAM COMMUNITY MEMORIAL HOSPITAL",
+    "npi": "1003023482",
+    "tax_id": "902028240",
+    "taxonomy": "282N00000X"
+  },
+  "claim_details": {
+    "facility_type_code": "11",
+    "frequency_code": "1",
+    "place_of_service": null
+  },
+  "claim_id": "SMP-MULTI-EXTREME",
+  "claim_totals": { "total_charges": 1.1e6 },
+  "diagnosis_codes": [
+    {
+      "code": "A419",
+      "qualifier": "ABK"
+    },
+    {
+      "code": "J9601",
+      "qualifier": "ABF"
+    }
+  ],
+  "financial": { "claim_amount": 1.1e6 },
+  "patient": {
+    "date_of_birth": "1939-01-27",
+    "gender": "M",
+    "name": {
+      "first": "WALTER",
+      "last": "KESSLER",
+      "middle": "H"
+    }
+  },
+  "payer": {
+    "name": "STATE MEDICAID PROGRAM",
+    "payer_id": "STMED01"
+  },
+  "provider": {
+    "name": "WINDHAM COMMUNITY MEMORIAL HOSPITAL",
+    "npi": "1003023482",
+    "tax_id": "902028240",
+    "taxonomy": "282N00000X",
+    "tenure_days": 60
+  },
+  "rendering_provider": null,
+  "sample_notes": "$1,100,000 inpatient claim, provider credentialed 60 days ago, no authorization: ExtremeAmounts, ExcessiveTotalCharges, HighValueClaim, UnauthorizedProcedure and NewProviderLargeSubmission.",
+  "service_lines": [
+    {
+      "charge_amount": 6.4e5,
+      "date_of_service": "2026-09-14",
+      "diagnosis_pointer": "1",
+      "line_number": 1,
+      "place_of_service": null,
+      "procedure_code": null,
+      "procedure_qualifier": null,
+      "revenue_code": "0200",
+      "tooth_info": null,
+      "unit_type": "DA",
+      "units": 32
+    },
+    {
+      "charge_amount": 4.6e5,
+      "date_of_service": "2026-09-14",
+      "diagnosis_pointer": "1",
+      "line_number": 2,
+      "place_of_service": null,
+      "procedure_code": null,
+      "procedure_qualifier": null,
+      "revenue_code": "0250",
+      "tooth_info": null,
+      "unit_type": "DA",
+      "units": 1
+    }
+  ],
+  "subscriber": {
+    "address": {
+      "city": "WILLIMANTIC",
+      "state": "CT",
+      "street": "100 MAIN ST",
+      "zip": "06226"
+    },
+    "date_of_birth": "1939-01-27",
+    "first_name": "WALTER",
+    "gender": "M",
+    "group_number": null,
+    "last_name": "KESSLER",
+    "member_id": "MCD939805752",
+    "middle_name": "H",
+    "payer_responsibility": "P",
+    "relationship_code": "18"
+  },
+  "transaction_type": "837I"
+}
+

@@ -1,0 +1,85 @@
+{
+  "authorization": { "authorization_number": null },
+  "billing_provider": {
+    "address": {
+      "city": "TERRE HAUTE",
+      "state": "IN",
+      "street": "631 S 25TH STREET",
+      "zip": "47803"
+    },
+    "name": "ETHERIDGE CHIROPRACTIC CLINIC INC",
+    "npi": "1003003534",
+    "tax_id": "956341010",
+    "taxonomy": "111N00000X"
+  },
+  "claim_details": {
+    "facility_type_code": null,
+    "frequency_code": "1",
+    "place_of_service": "11"
+  },
+  "claim_id": "SMP-NPPES-REACT",
+  "claim_totals": { "total_charges": 65.0 },
+  "diagnosis_codes": [
+    {
+      "code": "M5450",
+      "qualifier": "ABK"
+    }
+  ],
+  "financial": { "claim_amount": 65.0 },
+  "patient": {
+    "date_of_birth": "1946-12-22",
+    "gender": "F",
+    "name": {
+      "first": "RUTH",
+      "last": "OKAFOR",
+      "middle": "E"
+    }
+  },
+  "payer": {
+    "name": "STATE MEDICAID PROGRAM",
+    "payer_id": "STMED01"
+  },
+  "provider": {
+    "name": "ETHERIDGE CHIROPRACTIC CLINIC INC",
+    "npi": "1003003534",
+    "tax_id": "956341010",
+    "taxonomy": "111N00000X",
+    "tenure_days": 2400
+  },
+  "rendering_provider": null,
+  "sample_notes": "NPI 1003003534 was reactivated 2009-07-10, so a 2026 service is accepted.",
+  "service_lines": [
+    {
+      "charge_amount": 65.0,
+      "date_of_service": "2026-09-15",
+      "diagnosis_pointer": "1",
+      "line_number": 1,
+      "place_of_service": "11",
+      "procedure_code": "98941",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    }
+  ],
+  "subscriber": {
+    "address": {
+      "city": "TERRE HAUTE",
+      "state": "IN",
+      "street": "100 MAIN ST",
+      "zip": "47803"
+    },
+    "date_of_birth": "1946-12-22",
+    "first_name": "RUTH",
+    "gender": "F",
+    "group_number": null,
+    "last_name": "OKAFOR",
+    "member_id": "MCD205886415",
+    "middle_name": "E",
+    "payer_responsibility": "P",
+    "relationship_code": "18"
+  },
+  "transaction_type": "837P"
+}
+

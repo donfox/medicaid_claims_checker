@@ -1,0 +1,85 @@
+{
+  "authorization": { "authorization_number": "PA2026090901" },
+  "billing_provider": {
+    "address": {
+      "city": "LITHONIA",
+      "state": "GA",
+      "street": "5900 HILLANDALE DR SUITE 215",
+      "zip": "300583802"
+    },
+    "name": "THE ROSS ORTHOPAEDIC WELLNESS CENTER",
+    "npi": "1003005000",
+    "tax_id": "911201930",
+    "taxonomy": "207X00000X"
+  },
+  "claim_details": {
+    "facility_type_code": null,
+    "frequency_code": "1",
+    "place_of_service": "22"
+  },
+  "claim_id": "REDUN-EXACT-DUP-001",
+  "claim_totals": { "total_charges": 6.5e4 },
+  "diagnosis_codes": [
+    {
+      "code": "M1711",
+      "qualifier": "ABK"
+    }
+  ],
+  "financial": { "claim_amount": 6.5e4 },
+  "patient": {
+    "date_of_birth": "1958-04-11",
+    "gender": "F",
+    "name": {
+      "first": "MARGARET",
+      "last": "HOLLOWAY",
+      "middle": "A"
+    }
+  },
+  "payer": {
+    "name": "STATE MEDICAID PROGRAM",
+    "payer_id": "STMED01"
+  },
+  "provider": {
+    "name": "THE ROSS ORTHOPAEDIC WELLNESS CENTER",
+    "npi": "1003005000",
+    "tax_id": "911201930",
+    "taxonomy": "207X00000X",
+    "tenure_days": 400
+  },
+  "rendering_provider": null,
+  "sample_notes": "$65,000: high_amount_50k and its exact duplicate, plus the group G amount rules.",
+  "service_lines": [
+    {
+      "charge_amount": 6.5e4,
+      "date_of_service": "2026-09-15",
+      "diagnosis_pointer": "1",
+      "line_number": 1,
+      "place_of_service": "22",
+      "procedure_code": "27447",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    }
+  ],
+  "subscriber": {
+    "address": {
+      "city": "LITHONIA",
+      "state": "GA",
+      "street": "100 MAIN ST",
+      "zip": "30058"
+    },
+    "date_of_birth": "1958-04-11",
+    "first_name": "MARGARET",
+    "gender": "F",
+    "group_number": null,
+    "last_name": "HOLLOWAY",
+    "member_id": "MCD017416809",
+    "middle_name": "A",
+    "payer_responsibility": "P",
+    "relationship_code": "18"
+  },
+  "transaction_type": "837P"
+}
+

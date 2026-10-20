@@ -1,0 +1,115 @@
+{
+  "authorization": { "authorization_number": null },
+  "billing_provider": {
+    "address": {
+      "city": "THE WOODLANDS",
+      "state": "TX",
+      "street": "17200 ST LUKES WAY",
+      "zip": "773848007"
+    },
+    "name": "MEDICAL CENTER EMERGENCY PHYSICIANS PA",
+    "npi": "1003096553",
+    "tax_id": "943856289",
+    "taxonomy": "207P00000X"
+  },
+  "claim_details": {
+    "facility_type_code": null,
+    "frequency_code": "1",
+    "place_of_service": "23"
+  },
+  "claim_id": "SMP-MULTI-ERNOAUTH",
+  "claim_totals": { "total_charges": 1.45e4 },
+  "diagnosis_codes": [
+    {
+      "code": "S060X0A",
+      "qualifier": "ABK"
+    },
+    {
+      "code": "S0990XA",
+      "qualifier": "ABF"
+    }
+  ],
+  "financial": { "claim_amount": 1.45e4 },
+  "patient": {
+    "date_of_birth": "2004-06-05",
+    "gender": "M",
+    "name": {
+      "first": "JAMAL",
+      "last": "WHITAKER",
+      "middle": "T"
+    }
+  },
+  "payer": {
+    "name": "STATE MEDICAID PROGRAM",
+    "payer_id": "STMED01"
+  },
+  "provider": {
+    "name": "MEDICAL CENTER EMERGENCY PHYSICIANS PA",
+    "npi": "1003096553",
+    "tax_id": "943856289",
+    "taxonomy": "207P00000X",
+    "tenure_days": 2400
+  },
+  "rendering_provider": null,
+  "sample_notes": "Emergency department claim, $14,500, no authorization: HighComplexityERVisit and UnauthorizedProcedure.",
+  "service_lines": [
+    {
+      "charge_amount": 2.9e3,
+      "date_of_service": "2026-09-18",
+      "diagnosis_pointer": "1",
+      "line_number": 1,
+      "place_of_service": "23",
+      "procedure_code": "99285",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    },
+    {
+      "charge_amount": 8.1e3,
+      "date_of_service": "2026-09-18",
+      "diagnosis_pointer": "1",
+      "line_number": 2,
+      "place_of_service": "23",
+      "procedure_code": "99291",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    },
+    {
+      "charge_amount": 3.5e3,
+      "date_of_service": "2026-09-18",
+      "diagnosis_pointer": "1",
+      "line_number": 3,
+      "place_of_service": "23",
+      "procedure_code": "70450",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    }
+  ],
+  "subscriber": {
+    "address": {
+      "city": "THE WOODLANDS",
+      "state": "TX",
+      "street": "100 MAIN ST",
+      "zip": "77384"
+    },
+    "date_of_birth": "2004-06-05",
+    "first_name": "JAMAL",
+    "gender": "M",
+    "group_number": null,
+    "last_name": "WHITAKER",
+    "member_id": "MCD094272624",
+    "middle_name": "T",
+    "payer_responsibility": "P",
+    "relationship_code": "18"
+  },
+  "transaction_type": "837P"
+}
+

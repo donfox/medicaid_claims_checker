@@ -1,0 +1,85 @@
+{
+  "authorization": { "authorization_number": "PA2026091601" },
+  "billing_provider": {
+    "address": {
+      "city": "AURORA",
+      "state": "IN",
+      "street": "501 4TH ST",
+      "zip": "47001"
+    },
+    "name": "JARMAN ORTHOPEDICS, P.C.",
+    "npi": "1003003229",
+    "tax_id": "907968742",
+    "taxonomy": "207X00000X"
+  },
+  "claim_details": {
+    "facility_type_code": null,
+    "frequency_code": "1",
+    "place_of_service": "22"
+  },
+  "claim_id": "REDUN-OVERLAP-001",
+  "claim_totals": { "total_charges": 5.5e4 },
+  "diagnosis_codes": [
+    {
+      "code": "M1711",
+      "qualifier": "ABK"
+    }
+  ],
+  "financial": { "claim_amount": 5.5e4 },
+  "patient": {
+    "date_of_birth": "1958-04-11",
+    "gender": "F",
+    "name": {
+      "first": "MARGARET",
+      "last": "HOLLOWAY",
+      "middle": "A"
+    }
+  },
+  "payer": {
+    "name": "STATE MEDICAID PROGRAM",
+    "payer_id": "STMED01"
+  },
+  "provider": {
+    "name": "JARMAN ORTHOPEDICS, P.C.",
+    "npi": "1003003229",
+    "tax_id": "907968742",
+    "taxonomy": "207X00000X",
+    "tenure_days": 300
+  },
+  "rendering_provider": null,
+  "sample_notes": "$55,000 sits where the > $50,000 rules and the $40,000-$60,000 range overlap.",
+  "service_lines": [
+    {
+      "charge_amount": 5.5e4,
+      "date_of_service": "2026-09-16",
+      "diagnosis_pointer": "1",
+      "line_number": 1,
+      "place_of_service": "22",
+      "procedure_code": "27447",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    }
+  ],
+  "subscriber": {
+    "address": {
+      "city": "AURORA",
+      "state": "IN",
+      "street": "100 MAIN ST",
+      "zip": "47001"
+    },
+    "date_of_birth": "1958-04-11",
+    "first_name": "MARGARET",
+    "gender": "F",
+    "group_number": null,
+    "last_name": "HOLLOWAY",
+    "member_id": "MCD254990220",
+    "middle_name": "A",
+    "payer_responsibility": "P",
+    "relationship_code": "18"
+  },
+  "transaction_type": "837P"
+}
+

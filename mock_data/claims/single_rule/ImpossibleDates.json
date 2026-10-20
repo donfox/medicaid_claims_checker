@@ -1,0 +1,98 @@
+{
+  "authorization": { "authorization_number": null },
+  "billing_provider": {
+    "address": {
+      "city": "FLINT",
+      "state": "MI",
+      "street": "701 W 8TH AVE",
+      "zip": "485031261"
+    },
+    "name": "HURLEY PHO OF MID - MICHIGAN",
+    "npi": "1003002429",
+    "tax_id": "946146541",
+    "taxonomy": "208D00000X"
+  },
+  "claim_details": {
+    "facility_type_code": null,
+    "frequency_code": "1",
+    "place_of_service": "11"
+  },
+  "claim_id": "SMP-RULE-PRE1900",
+  "claim_totals": { "total_charges": 180.0 },
+  "diagnosis_codes": [
+    {
+      "code": "J029",
+      "qualifier": "ABK"
+    }
+  ],
+  "financial": { "claim_amount": 180.0 },
+  "patient": {
+    "date_of_birth": "2004-06-05",
+    "gender": "M",
+    "name": {
+      "first": "JAMAL",
+      "last": "WHITAKER",
+      "middle": "T"
+    }
+  },
+  "payer": {
+    "name": "STATE MEDICAID PROGRAM",
+    "payer_id": "STMED01"
+  },
+  "provider": {
+    "name": "HURLEY PHO OF MID - MICHIGAN",
+    "npi": "1003002429",
+    "tax_id": "946146541",
+    "taxonomy": "208D00000X",
+    "tenure_days": 2400
+  },
+  "rendering_provider": null,
+  "sample_notes": "Line 2 is dated 1899-12-29: ImpossibleDates. The NPPES check also rejects it, since the NPI was not issued until 2007.",
+  "service_lines": [
+    {
+      "charge_amount": 150.0,
+      "date_of_service": "2026-09-16",
+      "diagnosis_pointer": "1",
+      "line_number": 1,
+      "place_of_service": "11",
+      "procedure_code": "99213",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    },
+    {
+      "charge_amount": 30.0,
+      "date_of_service": "1899-12-29",
+      "diagnosis_pointer": "1",
+      "line_number": 2,
+      "place_of_service": "11",
+      "procedure_code": "87880",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    }
+  ],
+  "subscriber": {
+    "address": {
+      "city": "FLINT",
+      "state": "MI",
+      "street": "100 MAIN ST",
+      "zip": "48503"
+    },
+    "date_of_birth": "2004-06-05",
+    "first_name": "JAMAL",
+    "gender": "M",
+    "group_number": null,
+    "last_name": "WHITAKER",
+    "member_id": "MCD800993656",
+    "middle_name": "T",
+    "payer_responsibility": "P",
+    "relationship_code": "18"
+  },
+  "transaction_type": "837P"
+}
+

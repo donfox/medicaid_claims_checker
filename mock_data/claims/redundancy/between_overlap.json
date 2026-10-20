@@ -1,0 +1,98 @@
+{
+  "authorization": { "authorization_number": "PA2026090102" },
+  "billing_provider": {
+    "address": {
+      "city": "WILLIMANTIC",
+      "state": "CT",
+      "street": "123 QUARRY ST",
+      "zip": "062261247"
+    },
+    "name": "WINDHAM COMMUNITY MEMORIAL HOSPITAL",
+    "npi": "1003023482",
+    "tax_id": "902028240",
+    "taxonomy": "282N00000X"
+  },
+  "claim_details": {
+    "facility_type_code": "11",
+    "frequency_code": "1",
+    "place_of_service": null
+  },
+  "claim_id": "REDUN-BETWEEN-001",
+  "claim_totals": { "total_charges": 1.86e4 },
+  "diagnosis_codes": [
+    {
+      "code": "J189",
+      "qualifier": "ABK"
+    }
+  ],
+  "financial": { "claim_amount": 1.86e4 },
+  "patient": {
+    "date_of_birth": "1958-04-11",
+    "gender": "F",
+    "name": {
+      "first": "MARGARET",
+      "last": "HOLLOWAY",
+      "middle": "A"
+    }
+  },
+  "payer": {
+    "name": "STATE MEDICAID PROGRAM",
+    "payer_id": "STMED01"
+  },
+  "provider": {
+    "name": "WINDHAM COMMUNITY MEMORIAL HOSPITAL",
+    "npi": "1003023482",
+    "tax_id": "902028240",
+    "taxonomy": "282N00000X",
+    "tenure_days": 700
+  },
+  "rendering_provider": null,
+  "sample_notes": "12 days (revenue code 0120 units) falls in 7-14 and 10-21, not 1-5.",
+  "service_lines": [
+    {
+      "charge_amount": 1.68e4,
+      "date_of_service": "2026-09-14",
+      "diagnosis_pointer": "1",
+      "line_number": 1,
+      "place_of_service": null,
+      "procedure_code": null,
+      "procedure_qualifier": null,
+      "revenue_code": "0120",
+      "tooth_info": null,
+      "unit_type": "DA",
+      "units": 12
+    },
+    {
+      "charge_amount": 1.8e3,
+      "date_of_service": "2026-09-14",
+      "diagnosis_pointer": "1",
+      "line_number": 2,
+      "place_of_service": null,
+      "procedure_code": null,
+      "procedure_qualifier": null,
+      "revenue_code": "0250",
+      "tooth_info": null,
+      "unit_type": "DA",
+      "units": 1
+    }
+  ],
+  "subscriber": {
+    "address": {
+      "city": "WILLIMANTIC",
+      "state": "CT",
+      "street": "100 MAIN ST",
+      "zip": "06226"
+    },
+    "date_of_birth": "1958-04-11",
+    "first_name": "MARGARET",
+    "gender": "F",
+    "group_number": null,
+    "last_name": "HOLLOWAY",
+    "member_id": "MCD964356311",
+    "middle_name": "A",
+    "payer_responsibility": "P",
+    "relationship_code": "18"
+  },
+  "transaction_type": "837I"
+}
+

@@ -1,0 +1,85 @@
+{
+  "authorization": { "authorization_number": null },
+  "billing_provider": {
+    "address": {
+      "city": "VERNON",
+      "state": "TX",
+      "street": "4103 WILBARGER ST",
+      "zip": "763843137"
+    },
+    "name": "KEVIN LANE DO PA",
+    "npi": "1003001578",
+    "tax_id": "932617794",
+    "taxonomy": "207Q00000X"
+  },
+  "claim_details": {
+    "facility_type_code": null,
+    "frequency_code": "1",
+    "place_of_service": "11"
+  },
+  "claim_id": "SMP-RULE-NPILUHN",
+  "claim_totals": { "total_charges": 150.0 },
+  "diagnosis_codes": [
+    {
+      "code": "J069",
+      "qualifier": "ABK"
+    }
+  ],
+  "financial": { "claim_amount": 150.0 },
+  "patient": {
+    "date_of_birth": "2004-06-05",
+    "gender": "M",
+    "name": {
+      "first": "JAMAL",
+      "last": "WHITAKER",
+      "middle": "T"
+    }
+  },
+  "payer": {
+    "name": "STATE MEDICAID PROGRAM",
+    "payer_id": "STMED01"
+  },
+  "provider": {
+    "name": "KEVIN LANE DO PA",
+    "npi": "1003001578",
+    "tax_id": "932617794",
+    "taxonomy": "207Q00000X",
+    "tenure_days": 2400
+  },
+  "rendering_provider": null,
+  "sample_notes": "Kevin Lane DO PA's NPI 1003001579 keyed as 1003001578, which fails the Luhn check digit: InvalidProviderNPI. NPPES rejects it.",
+  "service_lines": [
+    {
+      "charge_amount": 150.0,
+      "date_of_service": "2026-09-17",
+      "diagnosis_pointer": "1",
+      "line_number": 1,
+      "place_of_service": "11",
+      "procedure_code": "99213",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    }
+  ],
+  "subscriber": {
+    "address": {
+      "city": "VERNON",
+      "state": "TX",
+      "street": "100 MAIN ST",
+      "zip": "76384"
+    },
+    "date_of_birth": "2004-06-05",
+    "first_name": "JAMAL",
+    "gender": "M",
+    "group_number": null,
+    "last_name": "WHITAKER",
+    "member_id": "MCD855791834",
+    "middle_name": "T",
+    "payer_responsibility": "P",
+    "relationship_code": "18"
+  },
+  "transaction_type": "837P"
+}
+

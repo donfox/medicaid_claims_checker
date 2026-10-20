@@ -1,0 +1,89 @@
+{
+  "authorization": { "authorization_number": null },
+  "billing_provider": {
+    "address": {
+      "city": "MARION",
+      "state": "OH",
+      "street": "1728 MARION WALDO RD",
+      "zip": "433027457"
+    },
+    "name": "MIDWEST INTERNAL MEDICINE ASSOCIATES LLC",
+    "npi": "1003001538",
+    "tax_id": "920643817",
+    "taxonomy": "207R00000X"
+  },
+  "claim_details": {
+    "facility_type_code": null,
+    "frequency_code": "1",
+    "place_of_service": "11"
+  },
+  "claim_id": "SMP-CLEAN-002",
+  "claim_totals": { "total_charges": 220.0 },
+  "diagnosis_codes": [
+    {
+      "code": "Z0000",
+      "qualifier": "ABK"
+    },
+    {
+      "code": "E785",
+      "qualifier": "ABF"
+    }
+  ],
+  "financial": { "claim_amount": 220.0 },
+  "patient": {
+    "date_of_birth": "1971-09-30",
+    "gender": "M",
+    "name": {
+      "first": "DONALD",
+      "last": "PRUITT",
+      "middle": "R"
+    }
+  },
+  "payer": {
+    "name": "STATE MEDICAID PROGRAM",
+    "payer_id": "STMED01"
+  },
+  "provider": {
+    "name": "MIDWEST INTERNAL MEDICINE ASSOCIATES LLC",
+    "npi": "1003001538",
+    "tax_id": "920643817",
+    "taxonomy": "207R00000X",
+    "tenure_days": 2400
+  },
+  "rendering_provider": null,
+  "sample_notes": "Clean claim: adult preventive visit, $220. No rule should match.",
+  "service_lines": [
+    {
+      "charge_amount": 220.0,
+      "date_of_service": "2026-09-16",
+      "diagnosis_pointer": "1",
+      "line_number": 1,
+      "place_of_service": "11",
+      "procedure_code": "99396",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    }
+  ],
+  "subscriber": {
+    "address": {
+      "city": "MARION",
+      "state": "OH",
+      "street": "100 MAIN ST",
+      "zip": "43302"
+    },
+    "date_of_birth": "1971-09-30",
+    "first_name": "DONALD",
+    "gender": "M",
+    "group_number": null,
+    "last_name": "PRUITT",
+    "member_id": "MCD332662138",
+    "middle_name": "R",
+    "payer_responsibility": "P",
+    "relationship_code": "18"
+  },
+  "transaction_type": "837P"
+}
+

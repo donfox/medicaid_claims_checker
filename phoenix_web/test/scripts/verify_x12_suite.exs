@@ -7,6 +7,11 @@
 #   cd phoenix_web
 #   RULE_ENGINE_SECRET=... mix run --no-start test/scripts/verify_x12_suite.exs
 #   mix run --no-start test/scripts/verify_x12_suite.exs --large test/fixtures/x12_suite/files/large/large_batch_15000.zip
+#   mix run --no-start test/scripts/verify_x12_suite.exs --suite ../mock_data
+#
+# --suite checks another directory with a manifest.json in the same format
+# (the hand-made sample claims). A case with "rules" is evaluated against
+# that rules file instead of the database rules.
 #
 # Needs Postgres (dev DB with seeded rules and an imported NPPES registry)
 # and, except with --large, the engine at
@@ -17,7 +22,7 @@
 # on any FAIL or XPASS.
 
 alias MedicaidClaimsChecker.{Claims, Repo}
-alias MedicaidClaimsChecker.Claims.Evaluator
+alias MedicaidClaimsChecker.Claims.{Evaluator, JsonClaim}
 alias MedicaidClaimsChecker.X12.{ClaimSplitter, Converter, SegmentMapper}
 alias MedicaidClaimsCheckerWeb.RuleLive.PayloadBuilder
 
@@ -64,10 +69,15 @@ defmodule X12SuiteVerify do
     end
   end
 
+  # Same parsing as a JSON upload: one claim, a list, or {"claims": [...]}.
   defp json_file(fname, data) do
-    case JSON.decode(data) do
-      {:ok, claim} -> {[%{"filename" => fname, "claim" => SegmentMapper.normalize(claim)}], []}
-      {:error, _} -> {[], ["#{fname}: invalid JSON"]}
+    case JsonClaim.parse(data) do
+      {:ok, claims, refused} ->
+        {Enum.map(claims, &%{"filename" => fname, "claim" => &1}),
+         Enum.map(refused, &"#{fname}: #{inspect(&1)}")}
+
+      {:error, reason} ->
+        {[], ["#{fname}: #{reason}"]}
     end
   end
 
@@ -118,6 +128,15 @@ defmodule X12SuiteVerify do
 
   # --- Engine ---
 
+  # {name, dsl name, text} for each rule in a rules file; names are DSL names.
+  def file_rules(path) do
+    text = File.read!(path)
+    names = Regex.scan(~r/^RULE\s+(\w+)/m, text, capture: :all_but_first) |> List.flatten()
+    [{names, nil, text}]
+  end
+
+  def rule_names(rules), do: Enum.flat_map(rules, fn {name, _, _} -> List.wrap(name) end)
+
   def active_rules do
     Claims.list_active_business_rules()
     |> Enum.map(fn r ->
@@ -153,13 +172,13 @@ defmodule X12SuiteVerify do
   end
 end
 
-{opts, _} = OptionParser.parse!(System.argv(), strict: [large: :string])
+{opts, _} = OptionParser.parse!(System.argv(), strict: [large: :string, suite: :string])
 
 Application.put_env(:medicaid_claims_checker, Repo, Keyword.put(Application.get_env(:medicaid_claims_checker, Repo), :pool_size, 2))
 {:ok, _} = Application.ensure_all_started([:postgrex, :ecto_sql, :req])
 {:ok, _} = Repo.start_link()
 
-suite_dir = "test/fixtures/x12_suite"
+suite_dir = opts[:suite] || "test/fixtures/x12_suite"
 
 if path = opts[:large] do
   meta = path |> String.replace_suffix(".zip", ".json") |> File.read!() |> JSON.decode!()
@@ -176,21 +195,29 @@ end
 
 manifest = Path.join(suite_dir, "manifest.json") |> File.read!() |> JSON.decode!()
 cases = manifest["cases"]
+files_dir = Path.join(suite_dir, manifest["files_dir"] || "files")
 
 ingested =
-  Map.new(cases, fn c -> {c["file"], X12SuiteVerify.ingest(Path.join([suite_dir, "files", c["file"]]))} end)
+  Map.new(cases, fn c -> {c["file"], X12SuiteVerify.ingest(Path.join(files_dir, c["file"]))} end)
 
-rules = X12SuiteVerify.active_rules()
-active = MapSet.new(rules, &elem(&1, 0))
-db_name = Map.new(rules, fn {name, dsl, _} -> {dsl, name} end)
-
-all_claims = cases |> Enum.flat_map(fn c -> elem(ingested[c["file"]], 0) end)
-results = X12SuiteVerify.evaluate(rules, Enum.map(all_claims, & &1["claim"]))
-
+# Cases naming a rules file are evaluated against it; the rest against the
+# active database rules.
 outcome_by_claim =
-  all_claims
-  |> Enum.zip(results)
-  |> Map.new(fn {%{"claim" => claim}, result} ->
+  cases
+  |> Enum.group_by(& &1["rules"])
+  |> Enum.flat_map(fn {rules_file, group} ->
+    rules =
+      if rules_file,
+        do: X12SuiteVerify.file_rules(Path.join(suite_dir, rules_file)),
+        else: X12SuiteVerify.active_rules()
+
+    active = MapSet.new(X12SuiteVerify.rule_names(rules))
+    db_name = Map.new(rules, fn {name, dsl, _} -> {dsl, name} end) |> Map.delete(nil)
+    claims = Enum.flat_map(group, fn c -> elem(ingested[c["file"]], 0) end)
+    results = X12SuiteVerify.evaluate(rules, Enum.map(claims, & &1["claim"]))
+    claims |> Enum.zip(results) |> Enum.map(fn {c, result} -> {c, result, active, db_name} end)
+  end)
+  |> Map.new(fn {%{"claim" => claim}, result, active, db_name} ->
     rs = get_in(result, ["report", "results"]) || []
     names = fn pred -> rs |> Enum.filter(pred) |> Enum.map(&Map.get(db_name, &1["resultRuleName"], &1["resultRuleName"])) |> MapSet.new() end
 
@@ -201,7 +228,12 @@ outcome_by_claim =
       end
 
     {claim["claim_id"],
-     %{matched: names.(& &1["resultMatched"]), not_checked: names.(& &1["resultUndecided"]), nppes: nppes}}
+     %{
+       matched: names.(& &1["resultMatched"]),
+       not_checked: names.(& &1["resultUndecided"]),
+       nppes: nppes,
+       active: active
+     }}
   end)
 
 check_claim = fn exp ->
@@ -212,8 +244,8 @@ check_claim = fn exp ->
       ["#{id}: no claim produced"]
 
     got ->
-      want = exp["matched"] |> Enum.filter(&MapSet.member?(active, &1)) |> MapSet.new()
-      want_nc = (exp["not_checked"] || []) |> Enum.filter(&MapSet.member?(active, &1)) |> MapSet.new()
+      want = exp["matched"] |> Enum.filter(&MapSet.member?(got.active, &1)) |> MapSet.new()
+      want_nc = (exp["not_checked"] || []) |> Enum.filter(&MapSet.member?(got.active, &1)) |> MapSet.new()
       fmt = fn set -> set |> Enum.sort() |> Enum.join(", ") end
 
       problems =
@@ -277,7 +309,8 @@ always_nc =
   outcome_by_claim |> Map.values() |> Enum.map(& &1.not_checked) |> Enum.reduce(&MapSet.intersection/2)
 
 counts = report |> Enum.frequencies_by(&elem(&1, 1))
-IO.puts("\n#{length(cases)} cases, #{map_size(outcome_by_claim)} claims, #{MapSet.size(active)} active rules")
+active_count = X12SuiteVerify.active_rules() |> length()
+IO.puts("\n#{length(cases)} cases, #{map_size(outcome_by_claim)} claims, #{active_count} active rules")
 IO.puts(~w(PASS FAIL XFAIL XPASS) |> Enum.map(&"#{&1} #{Map.get(counts, &1, 0)}") |> Enum.join("  "))
 if MapSet.size(always_nc) > 0, do: IO.puts("Not checked on every claim: #{always_nc |> Enum.sort() |> Enum.join(", ")}")
 

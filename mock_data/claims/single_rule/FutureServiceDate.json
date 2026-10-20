@@ -1,0 +1,98 @@
+{
+  "authorization": { "authorization_number": null },
+  "billing_provider": {
+    "address": {
+      "city": "HOLLYWOOD",
+      "state": "FL",
+      "street": "3816 HOLLYWOOD BLVD SUITE 102",
+      "zip": "33021"
+    },
+    "name": "DELRAY FAMILY PRACTICE INC",
+    "npi": "1003007014",
+    "tax_id": "972508368",
+    "taxonomy": "208D00000X"
+  },
+  "claim_details": {
+    "facility_type_code": null,
+    "frequency_code": "1",
+    "place_of_service": "11"
+  },
+  "claim_id": "SMP-RULE-FUTURE",
+  "claim_totals": { "total_charges": 195.0 },
+  "diagnosis_codes": [
+    {
+      "code": "J069",
+      "qualifier": "ABK"
+    }
+  ],
+  "financial": { "claim_amount": 195.0 },
+  "patient": {
+    "date_of_birth": "1989-02-17",
+    "gender": "F",
+    "name": {
+      "first": "ELENA",
+      "last": "VASQUEZ",
+      "middle": "M"
+    }
+  },
+  "payer": {
+    "name": "STATE MEDICAID PROGRAM",
+    "payer_id": "STMED01"
+  },
+  "provider": {
+    "name": "DELRAY FAMILY PRACTICE INC",
+    "npi": "1003007014",
+    "tax_id": "972508368",
+    "taxonomy": "208D00000X",
+    "tenure_days": 2400
+  },
+  "rendering_provider": null,
+  "sample_notes": "Line 1 is dated 2026-09-15, line 2 is dated 2099-01-14: FutureServiceDate checks every line.",
+  "service_lines": [
+    {
+      "charge_amount": 150.0,
+      "date_of_service": "2026-09-15",
+      "diagnosis_pointer": "1",
+      "line_number": 1,
+      "place_of_service": "11",
+      "procedure_code": "99213",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    },
+    {
+      "charge_amount": 45.0,
+      "date_of_service": "2099-01-14",
+      "diagnosis_pointer": "1",
+      "line_number": 2,
+      "place_of_service": "11",
+      "procedure_code": "87880",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    }
+  ],
+  "subscriber": {
+    "address": {
+      "city": "HOLLYWOOD",
+      "state": "FL",
+      "street": "100 MAIN ST",
+      "zip": "33021"
+    },
+    "date_of_birth": "1989-02-17",
+    "first_name": "ELENA",
+    "gender": "F",
+    "group_number": null,
+    "last_name": "VASQUEZ",
+    "member_id": "MCD806018248",
+    "middle_name": "M",
+    "payer_responsibility": "P",
+    "relationship_code": "18"
+  },
+  "transaction_type": "837P"
+}
+

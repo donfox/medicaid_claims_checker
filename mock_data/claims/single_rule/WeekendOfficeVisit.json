@@ -1,0 +1,115 @@
+{
+  "authorization": { "authorization_number": null },
+  "billing_provider": {
+    "address": {
+      "city": "MIAMI",
+      "state": "FL",
+      "street": "15806 SW 98TH ST",
+      "zip": "33196"
+    },
+    "name": "MIAMI FAMILY CARE INC",
+    "npi": "1003005067",
+    "tax_id": "937424512",
+    "taxonomy": "208D00000X"
+  },
+  "claim_details": {
+    "facility_type_code": null,
+    "frequency_code": "1",
+    "place_of_service": "11"
+  },
+  "claim_id": "SMP-RULE-WEEKEND",
+  "claim_totals": { "total_charges": 650.0 },
+  "diagnosis_codes": [
+    {
+      "code": "J449",
+      "qualifier": "ABK"
+    },
+    {
+      "code": "I10",
+      "qualifier": "ABF"
+    }
+  ],
+  "financial": { "claim_amount": 650.0 },
+  "patient": {
+    "date_of_birth": "2004-06-05",
+    "gender": "M",
+    "name": {
+      "first": "JAMAL",
+      "last": "WHITAKER",
+      "middle": "T"
+    }
+  },
+  "payer": {
+    "name": "STATE MEDICAID PROGRAM",
+    "payer_id": "STMED01"
+  },
+  "provider": {
+    "name": "MIAMI FAMILY CARE INC",
+    "npi": "1003005067",
+    "tax_id": "937424512",
+    "taxonomy": "208D00000X",
+    "tenure_days": 2400
+  },
+  "rendering_provider": null,
+  "sample_notes": "Office visit (POS 11) on Saturday 2026-09-12, $650: WeekendOfficeVisit.",
+  "service_lines": [
+    {
+      "charge_amount": 340.0,
+      "date_of_service": "2026-09-12",
+      "diagnosis_pointer": "1",
+      "line_number": 1,
+      "place_of_service": "11",
+      "procedure_code": "99215",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    },
+    {
+      "charge_amount": 180.0,
+      "date_of_service": "2026-09-12",
+      "diagnosis_pointer": "1",
+      "line_number": 2,
+      "place_of_service": "11",
+      "procedure_code": "94010",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    },
+    {
+      "charge_amount": 130.0,
+      "date_of_service": "2026-09-12",
+      "diagnosis_pointer": "1",
+      "line_number": 3,
+      "place_of_service": "11",
+      "procedure_code": "71046",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    }
+  ],
+  "subscriber": {
+    "address": {
+      "city": "MIAMI",
+      "state": "FL",
+      "street": "100 MAIN ST",
+      "zip": "33196"
+    },
+    "date_of_birth": "2004-06-05",
+    "first_name": "JAMAL",
+    "gender": "M",
+    "group_number": null,
+    "last_name": "WHITAKER",
+    "member_id": "MCD151650150",
+    "middle_name": "T",
+    "payer_responsibility": "P",
+    "relationship_code": "18"
+  },
+  "transaction_type": "837P"
+}
+

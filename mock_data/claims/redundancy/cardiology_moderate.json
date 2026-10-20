@@ -1,0 +1,85 @@
+{
+  "authorization": { "authorization_number": "PA2026091102" },
+  "billing_provider": {
+    "address": {
+      "city": "IRVINE",
+      "state": "KY",
+      "street": "60 MERCY COURT",
+      "zip": "40336"
+    },
+    "name": "BLUEGRASS CARDIOLOGY PSC",
+    "npi": "1003037375",
+    "tax_id": "998962511",
+    "taxonomy": "207RC0000X"
+  },
+  "claim_details": {
+    "facility_type_code": null,
+    "frequency_code": "1",
+    "place_of_service": "22"
+  },
+  "claim_id": "REDUN-PARTIAL-003",
+  "claim_totals": { "total_charges": 3.0e4 },
+  "diagnosis_codes": [
+    {
+      "code": "I2510",
+      "qualifier": "ABK"
+    }
+  ],
+  "financial": { "claim_amount": 3.0e4 },
+  "patient": {
+    "date_of_birth": "1958-04-11",
+    "gender": "F",
+    "name": {
+      "first": "MARGARET",
+      "last": "HOLLOWAY",
+      "middle": "A"
+    }
+  },
+  "payer": {
+    "name": "STATE MEDICAID PROGRAM",
+    "payer_id": "STMED01"
+  },
+  "provider": {
+    "name": "BLUEGRASS CARDIOLOGY PSC",
+    "npi": "1003037375",
+    "tax_id": "998962511",
+    "taxonomy": "207RC0000X",
+    "tenure_days": 900
+  },
+  "rendering_provider": null,
+  "sample_notes": "$30,000 cardiology: cardio_moderate (> $20,000) only; not over $30,000, so no group G rule.",
+  "service_lines": [
+    {
+      "charge_amount": 3.0e4,
+      "date_of_service": "2026-09-18",
+      "diagnosis_pointer": "1",
+      "line_number": 1,
+      "place_of_service": "22",
+      "procedure_code": "93458",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    }
+  ],
+  "subscriber": {
+    "address": {
+      "city": "IRVINE",
+      "state": "KY",
+      "street": "100 MAIN ST",
+      "zip": "40336"
+    },
+    "date_of_birth": "1958-04-11",
+    "first_name": "MARGARET",
+    "gender": "F",
+    "group_number": null,
+    "last_name": "HOLLOWAY",
+    "member_id": "MCD727550554",
+    "middle_name": "A",
+    "payer_responsibility": "P",
+    "relationship_code": "18"
+  },
+  "transaction_type": "837P"
+}
+

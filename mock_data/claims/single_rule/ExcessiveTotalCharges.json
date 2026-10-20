@@ -1,0 +1,115 @@
+{
+  "authorization": { "authorization_number": "PA2026090301" },
+  "billing_provider": {
+    "address": {
+      "city": "GAUTIER",
+      "state": "MS",
+      "street": "2101 HIGHWAY 90",
+      "zip": "39553"
+    },
+    "name": "SINGING RIVER HEALTH SYSTEM",
+    "npi": "1003005133",
+    "tax_id": "918559671",
+    "taxonomy": "208G00000X"
+  },
+  "claim_details": {
+    "facility_type_code": "11",
+    "frequency_code": "1",
+    "place_of_service": null
+  },
+  "claim_id": "SMP-RULE-EXCESSIVE",
+  "claim_totals": { "total_charges": 8.0e5 },
+  "diagnosis_codes": [
+    {
+      "code": "I214",
+      "qualifier": "ABK"
+    },
+    {
+      "code": "I509",
+      "qualifier": "ABF"
+    }
+  ],
+  "financial": { "claim_amount": 8.0e5 },
+  "patient": {
+    "date_of_birth": "1939-01-27",
+    "gender": "M",
+    "name": {
+      "first": "WALTER",
+      "last": "KESSLER",
+      "middle": "H"
+    }
+  },
+  "payer": {
+    "name": "STATE MEDICAID PROGRAM",
+    "payer_id": "STMED01"
+  },
+  "provider": {
+    "name": "SINGING RIVER HEALTH SYSTEM",
+    "npi": "1003005133",
+    "tax_id": "918559671",
+    "taxonomy": "208G00000X",
+    "tenure_days": 2400
+  },
+  "rendering_provider": null,
+  "sample_notes": "Inpatient cardiac stay totalling $800,000: ExcessiveTotalCharges, and HighValueClaim (over $50,000).",
+  "service_lines": [
+    {
+      "charge_amount": 1.68e5,
+      "date_of_service": "2026-09-14",
+      "diagnosis_pointer": "1",
+      "line_number": 1,
+      "place_of_service": null,
+      "procedure_code": null,
+      "procedure_qualifier": null,
+      "revenue_code": "0200",
+      "tooth_info": null,
+      "unit_type": "DA",
+      "units": 14
+    },
+    {
+      "charge_amount": 4.12e5,
+      "date_of_service": "2026-09-14",
+      "diagnosis_pointer": "1",
+      "line_number": 2,
+      "place_of_service": null,
+      "procedure_code": null,
+      "procedure_qualifier": null,
+      "revenue_code": "0360",
+      "tooth_info": null,
+      "unit_type": "DA",
+      "units": 1
+    },
+    {
+      "charge_amount": 2.2e5,
+      "date_of_service": "2026-09-14",
+      "diagnosis_pointer": "1",
+      "line_number": 3,
+      "place_of_service": null,
+      "procedure_code": null,
+      "procedure_qualifier": null,
+      "revenue_code": "0278",
+      "tooth_info": null,
+      "unit_type": "DA",
+      "units": 1
+    }
+  ],
+  "subscriber": {
+    "address": {
+      "city": "GAUTIER",
+      "state": "MS",
+      "street": "100 MAIN ST",
+      "zip": "39553"
+    },
+    "date_of_birth": "1939-01-27",
+    "first_name": "WALTER",
+    "gender": "M",
+    "group_number": null,
+    "last_name": "KESSLER",
+    "member_id": "MCD627115749",
+    "middle_name": "H",
+    "payer_responsibility": "P",
+    "relationship_code": "18"
+  },
+  "transaction_type": "837I"
+}
+

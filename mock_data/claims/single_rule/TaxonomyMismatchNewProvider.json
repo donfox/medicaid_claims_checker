@@ -1,0 +1,111 @@
+{
+  "authorization": { "authorization_number": "PA2026091001" },
+  "billing_provider": {
+    "address": {
+      "city": "ROLLING MEADOWS",
+      "state": "IL",
+      "street": "1883 HICKS RD STE A",
+      "zip": "60008"
+    },
+    "name": "TLC PAIN MANAGEMENT & SLEEP RESTORATION SC",
+    "npi": "1003019779",
+    "tax_id": "977551721",
+    "taxonomy": null
+  },
+  "claim_details": {
+    "facility_type_code": null,
+    "frequency_code": "1",
+    "place_of_service": "11"
+  },
+  "claim_id": "SMP-RULE-NEWNOTAX",
+  "claim_totals": { "total_charges": 7.5e3 },
+  "diagnosis_codes": [
+    {
+      "code": "M5416",
+      "qualifier": "ABK"
+    }
+  ],
+  "financial": { "claim_amount": 7.5e3 },
+  "patient": {
+    "date_of_birth": "1971-09-30",
+    "gender": "M",
+    "name": {
+      "first": "DONALD",
+      "last": "PRUITT",
+      "middle": "R"
+    }
+  },
+  "payer": {
+    "name": "STATE MEDICAID PROGRAM",
+    "payer_id": "STMED01"
+  },
+  "provider": {
+    "name": "TLC PAIN MANAGEMENT & SLEEP RESTORATION SC",
+    "npi": "1003019779",
+    "tax_id": "977551721",
+    "taxonomy": null,
+    "tenure_days": 30
+  },
+  "rendering_provider": null,
+  "sample_notes": "Provider credentialed 30 days ago, no taxonomy, $7,500 of injections: TaxonomyMismatchNewProvider, and MissingProviderTaxonomy (no taxonomy, over $1,000).",
+  "service_lines": [
+    {
+      "charge_amount": 3.0e3,
+      "date_of_service": "2026-09-15",
+      "diagnosis_pointer": "1",
+      "line_number": 1,
+      "place_of_service": "11",
+      "procedure_code": "64483",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    },
+    {
+      "charge_amount": 1.5e3,
+      "date_of_service": "2026-09-15",
+      "diagnosis_pointer": "1",
+      "line_number": 2,
+      "place_of_service": "11",
+      "procedure_code": "64484",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    },
+    {
+      "charge_amount": 3.0e3,
+      "date_of_service": "2026-09-17",
+      "diagnosis_pointer": "1",
+      "line_number": 3,
+      "place_of_service": "11",
+      "procedure_code": "62323",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    }
+  ],
+  "subscriber": {
+    "address": {
+      "city": "ROLLING MEADOWS",
+      "state": "IL",
+      "street": "100 MAIN ST",
+      "zip": "60008"
+    },
+    "date_of_birth": "1971-09-30",
+    "first_name": "DONALD",
+    "gender": "M",
+    "group_number": null,
+    "last_name": "PRUITT",
+    "member_id": "MCD512171046",
+    "middle_name": "R",
+    "payer_responsibility": "P",
+    "relationship_code": "18"
+  },
+  "transaction_type": "837P"
+}
+

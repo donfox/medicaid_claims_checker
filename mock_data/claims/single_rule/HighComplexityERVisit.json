@@ -1,0 +1,102 @@
+{
+  "authorization": { "authorization_number": "PA2026091502" },
+  "billing_provider": {
+    "address": {
+      "city": "SPARTANBURG",
+      "state": "SC",
+      "street": "1700 SKYLYN DR",
+      "zip": "29307"
+    },
+    "name": "EMERGENCY PHYSICIAN PARTNERS OF SOUTH CAROLINA PLLC",
+    "npi": "1003058876",
+    "tax_id": "916609336",
+    "taxonomy": "207P00000X"
+  },
+  "claim_details": {
+    "facility_type_code": null,
+    "frequency_code": "1",
+    "place_of_service": "23"
+  },
+  "claim_id": "SMP-RULE-ER99285",
+  "claim_totals": { "total_charges": 1.25e4 },
+  "diagnosis_codes": [
+    {
+      "code": "R079",
+      "qualifier": "ABK"
+    },
+    {
+      "code": "I209",
+      "qualifier": "ABF"
+    }
+  ],
+  "financial": { "claim_amount": 1.25e4 },
+  "patient": {
+    "date_of_birth": "1995-03-08",
+    "gender": "M",
+    "name": {
+      "first": "TYLER",
+      "last": "BRANNIGAN",
+      "middle": "J"
+    }
+  },
+  "payer": {
+    "name": "STATE MEDICAID PROGRAM",
+    "payer_id": "STMED01"
+  },
+  "provider": {
+    "name": "EMERGENCY PHYSICIAN PARTNERS OF SOUTH CAROLINA PLLC",
+    "npi": "1003058876",
+    "tax_id": "916609336",
+    "taxonomy": "207P00000X",
+    "tenure_days": 2400
+  },
+  "rendering_provider": null,
+  "sample_notes": "Emergency department claim, $12,500, with 99285 on line 2 (HighComplexityERVisit checks every line). Authorization present, so UnauthorizedProcedure does not match.",
+  "service_lines": [
+    {
+      "charge_amount": 9.8e3,
+      "date_of_service": "2026-09-15",
+      "diagnosis_pointer": "1",
+      "line_number": 1,
+      "place_of_service": "23",
+      "procedure_code": "99291",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    },
+    {
+      "charge_amount": 2.7e3,
+      "date_of_service": "2026-09-15",
+      "diagnosis_pointer": "1",
+      "line_number": 2,
+      "place_of_service": "23",
+      "procedure_code": "99285",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    }
+  ],
+  "subscriber": {
+    "address": {
+      "city": "SPARTANBURG",
+      "state": "SC",
+      "street": "100 MAIN ST",
+      "zip": "29307"
+    },
+    "date_of_birth": "1995-03-08",
+    "first_name": "TYLER",
+    "gender": "M",
+    "group_number": null,
+    "last_name": "BRANNIGAN",
+    "member_id": "MCD881327634",
+    "middle_name": "J",
+    "payer_responsibility": "P",
+    "relationship_code": "18"
+  },
+  "transaction_type": "837P"
+}
+

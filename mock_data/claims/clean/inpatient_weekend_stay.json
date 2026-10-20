@@ -1,0 +1,115 @@
+{
+  "authorization": { "authorization_number": "PA2026091101" },
+  "billing_provider": {
+    "address": {
+      "city": "WILLIMANTIC",
+      "state": "CT",
+      "street": "123 QUARRY ST",
+      "zip": "062261247"
+    },
+    "name": "WINDHAM COMMUNITY MEMORIAL HOSPITAL",
+    "npi": "1003023482",
+    "tax_id": "902028240",
+    "taxonomy": "282N00000X"
+  },
+  "claim_details": {
+    "facility_type_code": "11",
+    "frequency_code": "1",
+    "place_of_service": null
+  },
+  "claim_id": "SMP-CLEAN-005",
+  "claim_totals": { "total_charges": 4.8e3 },
+  "diagnosis_codes": [
+    {
+      "code": "J189",
+      "qualifier": "ABK"
+    },
+    {
+      "code": "I10",
+      "qualifier": "ABF"
+    }
+  ],
+  "financial": { "claim_amount": 4.8e3 },
+  "patient": {
+    "date_of_birth": "1946-12-22",
+    "gender": "F",
+    "name": {
+      "first": "RUTH",
+      "last": "OKAFOR",
+      "middle": "E"
+    }
+  },
+  "payer": {
+    "name": "STATE MEDICAID PROGRAM",
+    "payer_id": "STMED01"
+  },
+  "provider": {
+    "name": "WINDHAM COMMUNITY MEMORIAL HOSPITAL",
+    "npi": "1003023482",
+    "tax_id": "902028240",
+    "taxonomy": "282N00000X",
+    "tenure_days": 2400
+  },
+  "rendering_provider": null,
+  "sample_notes": "Institutional (837I) claim, facility type 11 (hospital inpatient), dated on a Saturday, $4,800. WeekendOfficeVisit is limited to claims with no facility type, so nothing should match.",
+  "service_lines": [
+    {
+      "charge_amount": 3.6e3,
+      "date_of_service": "2026-09-12",
+      "diagnosis_pointer": "1",
+      "line_number": 1,
+      "place_of_service": null,
+      "procedure_code": null,
+      "procedure_qualifier": null,
+      "revenue_code": "0120",
+      "tooth_info": null,
+      "unit_type": "DA",
+      "units": 3
+    },
+    {
+      "charge_amount": 640.0,
+      "date_of_service": "2026-09-12",
+      "diagnosis_pointer": "1",
+      "line_number": 2,
+      "place_of_service": null,
+      "procedure_code": null,
+      "procedure_qualifier": null,
+      "revenue_code": "0250",
+      "tooth_info": null,
+      "unit_type": "DA",
+      "units": 1
+    },
+    {
+      "charge_amount": 560.0,
+      "date_of_service": "2026-09-12",
+      "diagnosis_pointer": "1",
+      "line_number": 3,
+      "place_of_service": null,
+      "procedure_code": null,
+      "procedure_qualifier": null,
+      "revenue_code": "0300",
+      "tooth_info": null,
+      "unit_type": "DA",
+      "units": 1
+    }
+  ],
+  "subscriber": {
+    "address": {
+      "city": "WILLIMANTIC",
+      "state": "CT",
+      "street": "100 MAIN ST",
+      "zip": "06226"
+    },
+    "date_of_birth": "1946-12-22",
+    "first_name": "RUTH",
+    "gender": "F",
+    "group_number": null,
+    "last_name": "OKAFOR",
+    "member_id": "MCD311158951",
+    "middle_name": "E",
+    "payer_responsibility": "P",
+    "relationship_code": "18"
+  },
+  "transaction_type": "837I"
+}
+

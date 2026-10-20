@@ -1,0 +1,85 @@
+{
+  "authorization": { "authorization_number": null },
+  "billing_provider": {
+    "address": {
+      "city": "SEVERNA PARK",
+      "state": "MD",
+      "street": "285 BERRYWOOD DR",
+      "zip": "211462034"
+    },
+    "name": "BAYER-GARNER, ILENE",
+    "npi": "1003895764",
+    "tax_id": "917298596",
+    "taxonomy": "207ND0900X"
+  },
+  "claim_details": {
+    "facility_type_code": null,
+    "frequency_code": "1",
+    "place_of_service": "11"
+  },
+  "claim_id": "SMP-RULE-NODOB",
+  "claim_totals": { "total_charges": 240.0 },
+  "diagnosis_codes": [
+    {
+      "code": "L578",
+      "qualifier": "ABK"
+    }
+  ],
+  "financial": { "claim_amount": 240.0 },
+  "patient": {
+    "date_of_birth": null,
+    "gender": "F",
+    "name": {
+      "first": "RUTH",
+      "last": "OKAFOR",
+      "middle": "E"
+    }
+  },
+  "payer": {
+    "name": "STATE MEDICAID PROGRAM",
+    "payer_id": "STMED01"
+  },
+  "provider": {
+    "name": "BAYER-GARNER, ILENE",
+    "npi": "1003895764",
+    "tax_id": "917298596",
+    "taxonomy": "207ND0900X",
+    "tenure_days": 2400
+  },
+  "rendering_provider": null,
+  "sample_notes": "patient.date_of_birth is missing: MissingRequiredFields. PatientAgeOutOfRange checks only a date of birth that is present, so it does not match.",
+  "service_lines": [
+    {
+      "charge_amount": 240.0,
+      "date_of_service": "2026-09-16",
+      "diagnosis_pointer": "1",
+      "line_number": 1,
+      "place_of_service": "11",
+      "procedure_code": "88305",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    }
+  ],
+  "subscriber": {
+    "address": {
+      "city": "SEVERNA PARK",
+      "state": "MD",
+      "street": "100 MAIN ST",
+      "zip": "21146"
+    },
+    "date_of_birth": null,
+    "first_name": "RUTH",
+    "gender": "F",
+    "group_number": null,
+    "last_name": "OKAFOR",
+    "member_id": "MCD243898674",
+    "middle_name": "E",
+    "payer_responsibility": "P",
+    "relationship_code": "18"
+  },
+  "transaction_type": "837P"
+}
+

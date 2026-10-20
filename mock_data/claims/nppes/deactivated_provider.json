@@ -1,0 +1,85 @@
+{
+  "authorization": { "authorization_number": null },
+  "billing_provider": {
+    "address": {
+      "city": "CHICAGO",
+      "state": "IL",
+      "street": "100 TEST AVE",
+      "zip": "60601"
+    },
+    "name": "DEACTIVATED NPI - NAME NOT PUBLISHED",
+    "npi": "1003002304",
+    "tax_id": "914430886",
+    "taxonomy": "207Q00000X"
+  },
+  "claim_details": {
+    "facility_type_code": null,
+    "frequency_code": "1",
+    "place_of_service": "11"
+  },
+  "claim_id": "SMP-NPPES-DEACT",
+  "claim_totals": { "total_charges": 150.0 },
+  "diagnosis_codes": [
+    {
+      "code": "J069",
+      "qualifier": "ABK"
+    }
+  ],
+  "financial": { "claim_amount": 150.0 },
+  "patient": {
+    "date_of_birth": "1971-09-30",
+    "gender": "M",
+    "name": {
+      "first": "DONALD",
+      "last": "PRUITT",
+      "middle": "R"
+    }
+  },
+  "payer": {
+    "name": "STATE MEDICAID PROGRAM",
+    "payer_id": "STMED01"
+  },
+  "provider": {
+    "name": "DEACTIVATED NPI - NAME NOT PUBLISHED",
+    "npi": "1003002304",
+    "tax_id": "914430886",
+    "taxonomy": "207Q00000X",
+    "tenure_days": 2400
+  },
+  "rendering_provider": null,
+  "sample_notes": "NPI 1003002304 was deactivated on 2024-12-12, so NPPES rejects a 2026 service. CMS publishes no name or address for a deactivated NPI; both are placeholders. No business rule matches.",
+  "service_lines": [
+    {
+      "charge_amount": 150.0,
+      "date_of_service": "2026-09-15",
+      "diagnosis_pointer": "1",
+      "line_number": 1,
+      "place_of_service": "11",
+      "procedure_code": "99213",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    }
+  ],
+  "subscriber": {
+    "address": {
+      "city": "CHICAGO",
+      "state": "IL",
+      "street": "100 MAIN ST",
+      "zip": "60601"
+    },
+    "date_of_birth": "1971-09-30",
+    "first_name": "DONALD",
+    "gender": "M",
+    "group_number": null,
+    "last_name": "PRUITT",
+    "member_id": "MCD496737798",
+    "middle_name": "R",
+    "payer_responsibility": "P",
+    "relationship_code": "18"
+  },
+  "transaction_type": "837P"
+}
+

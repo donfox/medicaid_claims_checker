@@ -1,0 +1,85 @@
+{
+  "authorization": { "authorization_number": null },
+  "billing_provider": {
+    "address": {
+      "city": "THE WOODLANDS",
+      "state": "TX",
+      "street": "17200 ST LUKES WAY",
+      "zip": "773848007"
+    },
+    "name": "MEDICAL CENTER EMERGENCY PHYSICIANS PA",
+    "npi": "1003096553",
+    "tax_id": "943856289",
+    "taxonomy": "207P00000X"
+  },
+  "claim_details": {
+    "facility_type_code": null,
+    "frequency_code": "1",
+    "place_of_service": "23"
+  },
+  "claim_id": "REDUN-OR-002",
+  "claim_totals": { "total_charges": 500.0 },
+  "diagnosis_codes": [
+    {
+      "code": "S060X0A",
+      "qualifier": "ABK"
+    }
+  ],
+  "financial": { "claim_amount": 500.0 },
+  "patient": {
+    "date_of_birth": "1958-04-11",
+    "gender": "F",
+    "name": {
+      "first": "MARGARET",
+      "last": "HOLLOWAY",
+      "middle": "A"
+    }
+  },
+  "payer": {
+    "name": "STATE MEDICAID PROGRAM",
+    "payer_id": "STMED01"
+  },
+  "provider": {
+    "name": "MEDICAL CENTER EMERGENCY PHYSICIANS PA",
+    "npi": "1003096553",
+    "tax_id": "943856289",
+    "taxonomy": "207P00000X",
+    "tenure_days": 600
+  },
+  "rendering_provider": null,
+  "sample_notes": "$500 at POS 23: the OR rules via the ER arm, and the group C ER rules.",
+  "service_lines": [
+    {
+      "charge_amount": 500.0,
+      "date_of_service": "2026-09-12",
+      "diagnosis_pointer": "1",
+      "line_number": 1,
+      "place_of_service": "23",
+      "procedure_code": "99285",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    }
+  ],
+  "subscriber": {
+    "address": {
+      "city": "THE WOODLANDS",
+      "state": "TX",
+      "street": "100 MAIN ST",
+      "zip": "77384"
+    },
+    "date_of_birth": "1958-04-11",
+    "first_name": "MARGARET",
+    "gender": "F",
+    "group_number": null,
+    "last_name": "HOLLOWAY",
+    "member_id": "MCD427524540",
+    "middle_name": "A",
+    "payer_responsibility": "P",
+    "relationship_code": "18"
+  },
+  "transaction_type": "837P"
+}
+

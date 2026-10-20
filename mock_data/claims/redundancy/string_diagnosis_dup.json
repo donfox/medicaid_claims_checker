@@ -1,0 +1,89 @@
+{
+  "authorization": { "authorization_number": null },
+  "billing_provider": {
+    "address": {
+      "city": "MARION",
+      "state": "OH",
+      "street": "1728 MARION WALDO RD",
+      "zip": "433027457"
+    },
+    "name": "MIDWEST INTERNAL MEDICINE ASSOCIATES LLC",
+    "npi": "1003001538",
+    "tax_id": "920643817",
+    "taxonomy": "207R00000X"
+  },
+  "claim_details": {
+    "facility_type_code": null,
+    "frequency_code": "1",
+    "place_of_service": "11"
+  },
+  "claim_id": "REDUN-STRING-001",
+  "claim_totals": { "total_charges": 1.2e3 },
+  "diagnosis_codes": [
+    {
+      "code": "E119",
+      "qualifier": "ABK"
+    },
+    {
+      "code": "E785",
+      "qualifier": "ABF"
+    }
+  ],
+  "financial": { "claim_amount": 1.2e3 },
+  "patient": {
+    "date_of_birth": "1958-04-11",
+    "gender": "F",
+    "name": {
+      "first": "MARGARET",
+      "last": "HOLLOWAY",
+      "middle": "A"
+    }
+  },
+  "payer": {
+    "name": "STATE MEDICAID PROGRAM",
+    "payer_id": "STMED01"
+  },
+  "provider": {
+    "name": "MIDWEST INTERNAL MEDICINE ASSOCIATES LLC",
+    "npi": "1003001538",
+    "tax_id": "920643817",
+    "taxonomy": "207R00000X",
+    "tenure_days": 500
+  },
+  "rendering_provider": null,
+  "sample_notes": "Principal diagnosis E11.9: the three diabetes rules; hypertension_review does not match.",
+  "service_lines": [
+    {
+      "charge_amount": 1.2e3,
+      "date_of_service": "2026-09-16",
+      "diagnosis_pointer": "1",
+      "line_number": 1,
+      "place_of_service": "11",
+      "procedure_code": "99214",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    }
+  ],
+  "subscriber": {
+    "address": {
+      "city": "MARION",
+      "state": "OH",
+      "street": "100 MAIN ST",
+      "zip": "43302"
+    },
+    "date_of_birth": "1958-04-11",
+    "first_name": "MARGARET",
+    "gender": "F",
+    "group_number": null,
+    "last_name": "HOLLOWAY",
+    "member_id": "MCD778335762",
+    "middle_name": "A",
+    "payer_responsibility": "P",
+    "relationship_code": "18"
+  },
+  "transaction_type": "837P"
+}
+

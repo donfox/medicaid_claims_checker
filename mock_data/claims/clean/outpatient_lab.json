@@ -1,0 +1,115 @@
+{
+  "authorization": { "authorization_number": null },
+  "billing_provider": {
+    "address": {
+      "city": "WILSON",
+      "state": "NC",
+      "street": "1705 TARBORO ST SW",
+      "zip": "27893"
+    },
+    "name": "COASTAL PLAINS PATHOLOGY PA",
+    "npi": "1003308305",
+    "tax_id": "948937820",
+    "taxonomy": "207ZP0102X"
+  },
+  "claim_details": {
+    "facility_type_code": null,
+    "frequency_code": "1",
+    "place_of_service": "81"
+  },
+  "claim_id": "SMP-CLEAN-003",
+  "claim_totals": { "total_charges": 325.0 },
+  "diagnosis_codes": [
+    {
+      "code": "Z13220",
+      "qualifier": "ABK"
+    },
+    {
+      "code": "E119",
+      "qualifier": "ABF"
+    }
+  ],
+  "financial": { "claim_amount": 325.0 },
+  "patient": {
+    "date_of_birth": "1989-02-17",
+    "gender": "F",
+    "name": {
+      "first": "ELENA",
+      "last": "VASQUEZ",
+      "middle": "M"
+    }
+  },
+  "payer": {
+    "name": "STATE MEDICAID PROGRAM",
+    "payer_id": "STMED01"
+  },
+  "provider": {
+    "name": "COASTAL PLAINS PATHOLOGY PA",
+    "npi": "1003308305",
+    "tax_id": "948937820",
+    "taxonomy": "207ZP0102X",
+    "tenure_days": 2400
+  },
+  "rendering_provider": null,
+  "sample_notes": "Clean claim: independent lab (POS 81), three tests totalling $325. No rule should match.",
+  "service_lines": [
+    {
+      "charge_amount": 125.0,
+      "date_of_service": "2026-09-17",
+      "diagnosis_pointer": "1",
+      "line_number": 1,
+      "place_of_service": "81",
+      "procedure_code": "80053",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    },
+    {
+      "charge_amount": 110.0,
+      "date_of_service": "2026-09-17",
+      "diagnosis_pointer": "1",
+      "line_number": 2,
+      "place_of_service": "81",
+      "procedure_code": "80061",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    },
+    {
+      "charge_amount": 90.0,
+      "date_of_service": "2026-09-17",
+      "diagnosis_pointer": "1",
+      "line_number": 3,
+      "place_of_service": "81",
+      "procedure_code": "83036",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    }
+  ],
+  "subscriber": {
+    "address": {
+      "city": "WILSON",
+      "state": "NC",
+      "street": "100 MAIN ST",
+      "zip": "27893"
+    },
+    "date_of_birth": "1989-02-17",
+    "first_name": "ELENA",
+    "gender": "F",
+    "group_number": null,
+    "last_name": "VASQUEZ",
+    "member_id": "MCD595087378",
+    "middle_name": "M",
+    "payer_responsibility": "P",
+    "relationship_code": "18"
+  },
+  "transaction_type": "837P"
+}
+

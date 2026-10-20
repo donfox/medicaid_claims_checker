@@ -1,0 +1,354 @@
+{
+  "claims": [
+    {
+      "authorization": { "authorization_number": null },
+      "billing_provider": {
+        "address": {
+          "city": "MARION",
+          "state": "OH",
+          "street": "1728 MARION WALDO RD",
+          "zip": "433027457"
+        },
+        "name": "MIDWEST INTERNAL MEDICINE ASSOCIATES LLC",
+        "npi": "1003001538",
+        "tax_id": "920643817",
+        "taxonomy": "207R00000X"
+      },
+      "claim_details": {
+        "facility_type_code": null,
+        "frequency_code": "1",
+        "place_of_service": "11"
+      },
+      "claim_id": "SMP-CLEANBATCH-001",
+      "claim_totals": { "total_charges": 220.0 },
+      "diagnosis_codes": [
+        {
+          "code": "Z0000",
+          "qualifier": "ABK"
+        }
+      ],
+      "financial": { "claim_amount": 220.0 },
+      "patient": {
+        "date_of_birth": "1971-09-30",
+        "gender": "M",
+        "name": {
+          "first": "DONALD",
+          "last": "PRUITT",
+          "middle": "R"
+        }
+      },
+      "payer": {
+        "name": "STATE MEDICAID PROGRAM",
+        "payer_id": "STMED01"
+      },
+      "provider": {
+        "name": "MIDWEST INTERNAL MEDICINE ASSOCIATES LLC",
+        "npi": "1003001538",
+        "tax_id": "920643817",
+        "taxonomy": "207R00000X",
+        "tenure_days": 2400
+      },
+      "rendering_provider": null,
+      "sample_notes": "Clean.",
+      "service_lines": [
+        {
+          "charge_amount": 220.0,
+          "date_of_service": "2026-09-14",
+          "diagnosis_pointer": "1",
+          "line_number": 1,
+          "place_of_service": "11",
+          "procedure_code": "99396",
+          "procedure_qualifier": "HC",
+          "revenue_code": null,
+          "tooth_info": null,
+          "unit_type": "UN",
+          "units": 1
+        }
+      ],
+      "subscriber": {
+        "address": {
+          "city": "MARION",
+          "state": "OH",
+          "street": "100 MAIN ST",
+          "zip": "43302"
+        },
+        "date_of_birth": "1971-09-30",
+        "first_name": "DONALD",
+        "gender": "M",
+        "group_number": null,
+        "last_name": "PRUITT",
+        "member_id": "MCD182073611",
+        "middle_name": "R",
+        "payer_responsibility": "P",
+        "relationship_code": "18"
+      },
+      "transaction_type": "837P"
+    },
+    {
+      "authorization": { "authorization_number": null },
+      "billing_provider": {
+        "address": {
+          "city": "AURORA",
+          "state": "IN",
+          "street": "501 4TH ST",
+          "zip": "47001"
+        },
+        "name": "JARMAN ORTHOPEDICS, P.C.",
+        "npi": "1003003229",
+        "tax_id": "907968742",
+        "taxonomy": "207X00000X"
+      },
+      "claim_details": {
+        "facility_type_code": null,
+        "frequency_code": "1",
+        "place_of_service": "11"
+      },
+      "claim_id": "SMP-CLEANBATCH-002",
+      "claim_totals": { "total_charges": 245.0 },
+      "diagnosis_codes": [
+        {
+          "code": "M2551",
+          "qualifier": "ABK"
+        }
+      ],
+      "financial": { "claim_amount": 245.0 },
+      "patient": {
+        "date_of_birth": "1995-03-08",
+        "gender": "M",
+        "name": {
+          "first": "TYLER",
+          "last": "BRANNIGAN",
+          "middle": "J"
+        }
+      },
+      "payer": {
+        "name": "STATE MEDICAID PROGRAM",
+        "payer_id": "STMED01"
+      },
+      "provider": {
+        "name": "JARMAN ORTHOPEDICS, P.C.",
+        "npi": "1003003229",
+        "tax_id": "907968742",
+        "taxonomy": "207X00000X",
+        "tenure_days": 2400
+      },
+      "rendering_provider": null,
+      "sample_notes": "Clean.",
+      "service_lines": [
+        {
+          "charge_amount": 160.0,
+          "date_of_service": "2026-09-15",
+          "diagnosis_pointer": "1",
+          "line_number": 1,
+          "place_of_service": "11",
+          "procedure_code": "99213",
+          "procedure_qualifier": "HC",
+          "revenue_code": null,
+          "tooth_info": null,
+          "unit_type": "UN",
+          "units": 1
+        },
+        {
+          "charge_amount": 85.0,
+          "date_of_service": "2026-09-15",
+          "diagnosis_pointer": "1",
+          "line_number": 2,
+          "place_of_service": "11",
+          "procedure_code": "73030",
+          "procedure_qualifier": "HC",
+          "revenue_code": null,
+          "tooth_info": null,
+          "unit_type": "UN",
+          "units": 1
+        }
+      ],
+      "subscriber": {
+        "address": {
+          "city": "AURORA",
+          "state": "IN",
+          "street": "100 MAIN ST",
+          "zip": "47001"
+        },
+        "date_of_birth": "1995-03-08",
+        "first_name": "TYLER",
+        "gender": "M",
+        "group_number": null,
+        "last_name": "BRANNIGAN",
+        "member_id": "MCD740207275",
+        "middle_name": "J",
+        "payer_responsibility": "P",
+        "relationship_code": "18"
+      },
+      "transaction_type": "837P"
+    },
+    {
+      "authorization": { "authorization_number": null },
+      "billing_provider": {
+        "address": {
+          "city": "SHARON",
+          "state": "CT",
+          "street": "18 UPPER MAIN ST",
+          "zip": "06069"
+        },
+        "name": "HORIZON MENTAL HEALTH MANAGEMENT, INC.",
+        "npi": "1003008905",
+        "tax_id": "945251151",
+        "taxonomy": "2084P0800X"
+      },
+      "claim_details": {
+        "facility_type_code": null,
+        "frequency_code": "1",
+        "place_of_service": "11"
+      },
+      "claim_id": "SMP-CLEANBATCH-003",
+      "claim_totals": { "total_charges": 160.0 },
+      "diagnosis_codes": [
+        {
+          "code": "F411",
+          "qualifier": "ABK"
+        }
+      ],
+      "financial": { "claim_amount": 160.0 },
+      "patient": {
+        "date_of_birth": "1989-02-17",
+        "gender": "F",
+        "name": {
+          "first": "ELENA",
+          "last": "VASQUEZ",
+          "middle": "M"
+        }
+      },
+      "payer": {
+        "name": "STATE MEDICAID PROGRAM",
+        "payer_id": "STMED01"
+      },
+      "provider": {
+        "name": "HORIZON MENTAL HEALTH MANAGEMENT, INC.",
+        "npi": "1003008905",
+        "tax_id": "945251151",
+        "taxonomy": "2084P0800X",
+        "tenure_days": 2400
+      },
+      "rendering_provider": null,
+      "sample_notes": "Clean.",
+      "service_lines": [
+        {
+          "charge_amount": 160.0,
+          "date_of_service": "2026-09-16",
+          "diagnosis_pointer": "1",
+          "line_number": 1,
+          "place_of_service": "11",
+          "procedure_code": "90834",
+          "procedure_qualifier": "HC",
+          "revenue_code": null,
+          "tooth_info": null,
+          "unit_type": "UN",
+          "units": 1
+        }
+      ],
+      "subscriber": {
+        "address": {
+          "city": "SHARON",
+          "state": "CT",
+          "street": "100 MAIN ST",
+          "zip": "06069"
+        },
+        "date_of_birth": "1989-02-17",
+        "first_name": "ELENA",
+        "gender": "F",
+        "group_number": null,
+        "last_name": "VASQUEZ",
+        "member_id": "MCD382417689",
+        "middle_name": "M",
+        "payer_responsibility": "P",
+        "relationship_code": "18"
+      },
+      "transaction_type": "837P"
+    },
+    {
+      "authorization": { "authorization_number": null },
+      "billing_provider": {
+        "address": {
+          "city": "TERRE HAUTE",
+          "state": "IN",
+          "street": "631 S 25TH STREET",
+          "zip": "47803"
+        },
+        "name": "ETHERIDGE CHIROPRACTIC CLINIC INC",
+        "npi": "1003003534",
+        "tax_id": "956341010",
+        "taxonomy": "111N00000X"
+      },
+      "claim_details": {
+        "facility_type_code": null,
+        "frequency_code": "1",
+        "place_of_service": "11"
+      },
+      "claim_id": "SMP-CLEANBATCH-004",
+      "claim_totals": { "total_charges": 65.0 },
+      "diagnosis_codes": [
+        {
+          "code": "M5450",
+          "qualifier": "ABK"
+        }
+      ],
+      "financial": { "claim_amount": 65.0 },
+      "patient": {
+        "date_of_birth": "1946-12-22",
+        "gender": "F",
+        "name": {
+          "first": "RUTH",
+          "last": "OKAFOR",
+          "middle": "E"
+        }
+      },
+      "payer": {
+        "name": "STATE MEDICAID PROGRAM",
+        "payer_id": "STMED01"
+      },
+      "provider": {
+        "name": "ETHERIDGE CHIROPRACTIC CLINIC INC",
+        "npi": "1003003534",
+        "tax_id": "956341010",
+        "taxonomy": "111N00000X",
+        "tenure_days": 2400
+      },
+      "rendering_provider": null,
+      "sample_notes": "Clean.",
+      "service_lines": [
+        {
+          "charge_amount": 65.0,
+          "date_of_service": "2026-09-17",
+          "diagnosis_pointer": "1",
+          "line_number": 1,
+          "place_of_service": "11",
+          "procedure_code": "98941",
+          "procedure_qualifier": "HC",
+          "revenue_code": null,
+          "tooth_info": null,
+          "unit_type": "UN",
+          "units": 1
+        }
+      ],
+      "subscriber": {
+        "address": {
+          "city": "TERRE HAUTE",
+          "state": "IN",
+          "street": "100 MAIN ST",
+          "zip": "47803"
+        },
+        "date_of_birth": "1946-12-22",
+        "first_name": "RUTH",
+        "gender": "F",
+        "group_number": null,
+        "last_name": "OKAFOR",
+        "member_id": "MCD054526016",
+        "middle_name": "E",
+        "payer_responsibility": "P",
+        "relationship_code": "18"
+      },
+      "transaction_type": "837P"
+    }
+  ]
+}
+

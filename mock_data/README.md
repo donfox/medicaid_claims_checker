@@ -161,8 +161,9 @@ service, which institutional claims don't have.
 
 - **`rules/redundancy_levels.dsl`** is 32 rules that overlap on purpose.
   Added to the Rules page one at a time in file order, the redundancy check
-  reports exact duplicates, shadowed rules and condition overlaps. The
-  comments mark which level each rule was written to show.
+  reports all four levels: exact duplicates, subsumed rules, shadowed rules
+  and condition overlaps. Actions are compared by type, not message text.
+  The comments mark which level each rule was written to show.
 - **`rules/examples.dsl`** is 10 rules showing DSL features the business
   rules don't use: nested `EXISTS`, `NOT EXISTS`, `NOT FORALL`, `COUNT`,
   `in_list`, `starts_with`, `MATCHES`, `has_procedure`, `is_age_valid`,

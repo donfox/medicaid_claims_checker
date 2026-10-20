@@ -715,12 +715,38 @@ main = hspec $ do
           matches = checkRedundancy ruleA [ruleB]
       length matches `shouldBe` 0
 
-    it "detects shadowed with numeric tightening (> 60000 implies > 50000, different text)" $ do
+    it "detects subsumption with numeric tightening (> 60000 implies > 50000, different message)" $ do
       let ruleA = mkRule "stricter" (Compare GT (Path ["amount"]) (NumberValue 60000)) (RequireReview "60k")
           ruleB = mkRule "looser" (Compare GT (Path ["amount"]) (NumberValue 50000)) (RequireReview "50k")
           matches = checkRedundancy ruleA [ruleB]
       length matches `shouldBe` 1
-      matchLevel (head matches) `shouldBe` Shadowed
+      matchLevel (head matches) `shouldBe` Subsumption
+      matchExplanation (head matches)
+        `shouldBe` "'stricter' is more specific than 'looser' — existing rule covers all cases this rule would match"
+
+    it "same condition and action with a different message is a duplicate, not a conflict" $ do
+      let cond = Compare GT (Path ["amount"]) (NumberValue 50000)
+          ruleA = mkRule "rule_a" cond (FlagFraud "over 50k")
+          ruleB = mkRule "rule_b" cond (FlagFraud "claim exceeds $50,000")
+          matches = checkRedundancy ruleA [ruleB]
+      map matchLevel matches `shouldBe` [ExactDuplicate]
+      matchExplanation (head matches)
+        `shouldBe` "Same condition and action as 'rule_b'; only the message differs"
+
+    it "different risk scores are different actions" $ do
+      let ruleA = mkRule "stricter" (Compare GT (Path ["amount"]) (NumberValue 60000)) (AssignRiskScore 90)
+          ruleB = mkRule "looser" (Compare GT (Path ["amount"]) (NumberValue 50000)) (AssignRiskScore 50)
+      map matchLevel (checkRedundancy ruleA [ruleB]) `shouldBe` [Shadowed]
+
+    it "composite actions compare as sets of outcomes" $ do
+      let ruleA = mkRule "stricter" (Compare GT (Path ["amount"]) (NumberValue 60000))
+                    (CompositeAction [FlagFraud "a", RequireReview "b"])
+          ruleB = mkRule "looser" (Compare GT (Path ["amount"]) (NumberValue 50000))
+                    (CompositeAction [RequireReview "c", FlagFraud "d"])
+          ruleC = mkRule "other" (Compare GT (Path ["amount"]) (NumberValue 50000))
+                    (CompositeAction [RequireReview "c", RejectClaim "d"])
+      map matchLevel (checkRedundancy ruleA [ruleB]) `shouldBe` [Subsumption]
+      map matchLevel (checkRedundancy ruleA [ruleC]) `shouldBe` [Shadowed]
 
     it "detects shadowed between two AND rules (stricter amount, same state)" $ do
       let stateNY = Compare EQ (Path ["state"]) (StringValue "NY")

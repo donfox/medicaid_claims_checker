@@ -11,6 +11,9 @@
 -- * __Exact duplicate__: same condition and action
 -- * __Subsumption__: one condition implies the other, same action (redundant)
 -- * __Shadowed__: one condition implies the other, different action (conflict)
+--
+-- Actions are compared by outcome: two @FLAG_FRAUD@ actions are the same
+-- action whatever their messages say, while risk scores must be equal.
 -- * __Condition overlap__: constraints on a shared field that can all hold at once
 --
 -- Every check is conservative: it reports only what it can prove.
@@ -60,8 +63,10 @@ checkRedundancy candidate = concatMap (compareRules candidate)
 
 compareRules :: Rule -> Rule -> [RedundancyMatch]
 compareRules candidate existing
-  | pc == pe && sameAction =
+  | pc == pe && ruleAction candidate == ruleAction existing =
       [match ExactDuplicate ("Condition and action are identical to " <> quote existing)]
+  | pc == pe && sameAction =
+      [match ExactDuplicate ("Same condition and action as " <> quote existing <> "; only the message differs")]
   | pc == pe =
       [match Shadowed ("Same condition as " <> quote existing <> " but a different action — conflict")]
   | candidateNarrower || predicateImplies pe pc =
@@ -72,7 +77,7 @@ compareRules candidate existing
   where
     pc = normalizePredicate (ruleCondition candidate)
     pe = normalizePredicate (ruleCondition existing)
-    sameAction = ruleAction candidate == ruleAction existing
+    sameAction = outcome (ruleAction candidate) == outcome (ruleAction existing)
     candidateNarrower = predicateImplies pc pe
     match level = RedundancyMatch level (ruleName existing)
     quote r = "'" <> ruleName r <> "'"
@@ -83,6 +88,16 @@ compareRules candidate existing
          else quote existing <> " is more specific than " <> quote candidate
                 <> " — new rule would cover all cases " <> quote existing <> " matches")
         <> (if sameAction then "" else " (different actions — possible conflict)")
+
+-- | An action with its message text blanked, so actions compare by what
+-- they do to the claim.
+outcome :: Action -> Action
+outcome (FlagFraud _) = FlagFraud ""
+outcome (RequireReview _) = RequireReview ""
+outcome (RejectClaim _) = RejectClaim ""
+outcome (ApproveClaim _) = ApproveClaim ""
+outcome (AssignRiskScore n) = AssignRiskScore n
+outcome (CompositeAction as) = CompositeAction (nub (sort (map outcome as)))
 
 -- ----------------------------------------------------------------------------
 -- Condition overlap

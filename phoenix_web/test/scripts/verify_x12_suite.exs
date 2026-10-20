@@ -201,7 +201,8 @@ ingested =
   Map.new(cases, fn c -> {c["file"], X12SuiteVerify.ingest(Path.join(files_dir, c["file"]))} end)
 
 # Cases naming a rules file are evaluated against it; the rest against the
-# active database rules.
+# active database rules. Only database-rule cases must list every rule that
+# comes back "not checked": a rules file may test fields a claim lacks.
 outcome_by_claim =
   cases
   |> Enum.group_by(& &1["rules"])
@@ -215,9 +216,9 @@ outcome_by_claim =
     db_name = Map.new(rules, fn {name, dsl, _} -> {dsl, name} end) |> Map.delete(nil)
     claims = Enum.flat_map(group, fn c -> elem(ingested[c["file"]], 0) end)
     results = X12SuiteVerify.evaluate(rules, Enum.map(claims, & &1["claim"]))
-    claims |> Enum.zip(results) |> Enum.map(fn {c, result} -> {c, result, active, db_name} end)
+    claims |> Enum.zip(results) |> Enum.map(fn {c, result} -> {c, result, active, db_name, is_nil(rules_file)} end)
   end)
-  |> Map.new(fn {%{"claim" => claim}, result, active, db_name} ->
+  |> Map.new(fn {%{"claim" => claim}, result, active, db_name, strict} ->
     rs = get_in(result, ["report", "results"]) || []
     names = fn pred -> rs |> Enum.filter(pred) |> Enum.map(&Map.get(db_name, &1["resultRuleName"], &1["resultRuleName"])) |> MapSet.new() end
 
@@ -232,7 +233,8 @@ outcome_by_claim =
        matched: names.(& &1["resultMatched"]),
        not_checked: names.(& &1["resultUndecided"]),
        nppes: nppes,
-       active: active
+       active: active,
+       strict: strict
      }}
   end)
 
@@ -257,6 +259,10 @@ check_claim = fn exp ->
         |> then(fn p ->
           missing = MapSet.difference(want_nc, got.not_checked)
           if MapSet.size(missing) == 0, do: p, else: p ++ ["#{id}: expected not checked: #{fmt.(missing)}"]
+        end)
+        |> then(fn p ->
+          extra = MapSet.difference(got.not_checked, want_nc)
+          if not got.strict or MapSet.size(extra) == 0, do: p, else: p ++ ["#{id}: unexpectedly not checked: #{fmt.(extra)}"]
         end)
 
       nppes_ok =

@@ -200,7 +200,8 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapperTest do
 
     test "RULE HighComplexityERVisit — no line is 99285", %{claim: claim} do
       # WHEN financial.claim_amount > 10000
-      #      AND EXISTS line IN service_lines WHERE line.procedure_code = "99285"
+      #      AND EXISTS line IN service_lines
+      #          WHERE line.procedure_code IS NOT NULL AND line.procedure_code = "99285"
       refute Enum.any?(claim["service_lines"], &(&1["procedure_code"] == "99285"))
     end
 

@@ -229,8 +229,8 @@ defmodule X12Suite.Cases do
   @no_taxonomy [billing: [taxonomy: nil]]
 
   # Expected outcome of one claim. `matched` is the exact set of rules that
-  # should match; `not_checked` lists rules that must come back "not checked"
-  # (others may too); `nppes` is :ok or a substring of the rejection reason.
+  # should match; `not_checked` is the exact set of active rules that must come
+  # back "not checked"; `nppes` is :ok or a substring of the rejection reason.
   defp ok(id, matched, extra \\ []),
     do: Map.merge(%{claim_id: id, matched: matched, nppes: "ok"}, Map.new(extra))
 
@@ -622,7 +622,7 @@ case opts[:large] do
     manifest = %{
       about:
         "Expected results for each file in files/. `matched` is the exact set of rules " <>
-          "that should match; `not_checked` must be among the rules reported as not checked; " <>
+          "that should match; `not_checked` is the exact set of rules reported as not checked; " <>
           "`known_issue` marks cases the current code gets wrong. Expectations assume the " <>
           "business rules seeded by priv/repo/seeds.exs as of 2026-10-16.",
       cases:

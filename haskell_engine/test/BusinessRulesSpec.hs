@@ -50,7 +50,7 @@ ruleHighComplexityERVisit :: String
 ruleHighComplexityERVisit =
   "RULE high_complexity_er_visit \
   \DESCRIPTION \"High-complexity ER visit (99285) with elevated charges requires clinical review\" \
-  \WHEN financial.claim_amount > 10000 AND EXISTS line IN service_lines WHERE line.procedure_code = \"99285\" \
+  \WHEN financial.claim_amount > 10000 AND EXISTS line IN service_lines WHERE line.procedure_code IS NOT NULL AND line.procedure_code = \"99285\" \
   \THEN REQUIRE_REVIEW \"High-complexity ER — clinical validation required\" END"
 
 ruleHighValueClaim :: String
@@ -636,6 +636,29 @@ businessRulesSpec =
                   , object ["date_of_service" .= ("2020-01-15" :: String), "procedure_code" .= ("99285" :: String)]
                   ]
               , "financial"     .= object ["claim_amount" .= (12500 :: Double)]
+              ]
+        result <- evalRule ruleHighComplexityERVisit doc
+        resultMatched result `shouldBe` True
+
+      it "revenue-code-only lines (no procedure_code) + $25000 → decided, does NOT fire" $ do
+        let doc = object
+              [ "service_lines" .=
+                  [ object ["date_of_service" .= ("2020-01-15" :: String), "revenue_code" .= ("0450" :: String)]
+                  , object ["date_of_service" .= ("2020-01-15" :: String), "revenue_code" .= ("0300" :: String)]
+                  ]
+              , "financial"     .= object ["claim_amount" .= (25000 :: Double)]
+              ]
+        result <- evalRule ruleHighComplexityERVisit doc
+        resultMatched result `shouldBe` False
+        resultUndecided result `shouldBe` False
+
+      it "99285 on line 2 after a revenue-code-only line + $25000 → fires" $ do
+        let doc = object
+              [ "service_lines" .=
+                  [ object ["date_of_service" .= ("2020-01-15" :: String), "revenue_code" .= ("0450" :: String)]
+                  , object ["date_of_service" .= ("2020-01-15" :: String), "procedure_code" .= ("99285" :: String)]
+                  ]
+              , "financial"     .= object ["claim_amount" .= (25000 :: Double)]
               ]
         result <- evalRule ruleHighComplexityERVisit doc
         resultMatched result `shouldBe` True

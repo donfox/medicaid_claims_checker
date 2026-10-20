@@ -546,7 +546,8 @@ new_ba_rules = [
       RULE high_complexity_er_visit
       DESCRIPTION "High-complexity ER visit (99285) with elevated charges requires clinical review"
       WHEN financial.claim_amount > 10000
-           AND EXISTS line IN service_lines WHERE line.procedure_code = "99285"
+           AND EXISTS line IN service_lines
+             WHERE line.procedure_code IS NOT NULL AND line.procedure_code = "99285"
       THEN REQUIRE_REVIEW "High-complexity ER — clinical validation required"
       END
       """

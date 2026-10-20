@@ -43,7 +43,8 @@ Any file can also be uploaded on the Fetch Source page to check it by hand.
 ## Reading results
 
 - `matched` lists exactly the rules that should match.
-- `not_checked` lists rules that must come back "not checked". Others may too.
+- `not_checked` is the exact set of rules that must come back "not checked";
+  any other rule left not checked fails the case.
 - Rules that aren't active in the database are left out of the comparison.
   Deactivating a rule doesn't break the suite, but a new or changed rule
   can change the expected results.

@@ -1,5 +1,5 @@
 {
-  "about": "Expected results for each file in files/. `matched` is the exact set of rules that should match; `not_checked` must be among the rules reported as not checked; `known_issue` marks cases the current code gets wrong. Expectations assume the business rules seeded by priv/repo/seeds.exs as of 2026-10-16.",
+  "about": "Expected results for each file in files/. `matched` is the exact set of rules that should match; `not_checked` is the exact set of rules reported as not checked; `known_issue` marks cases the current code gets wrong. Expectations assume the business rules seeded by priv/repo/seeds.exs as of 2026-10-16.",
   "cases": [
     {
       "expect": {

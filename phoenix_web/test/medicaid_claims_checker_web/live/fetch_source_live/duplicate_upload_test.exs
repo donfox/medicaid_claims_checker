@@ -130,4 +130,30 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.DuplicateUploadTest do
 
     assert frequency_codes == ["1", "1", "1", "8", "8", "8"]
   end
+
+  describe "retag_test_data.exs copies" do
+    @retag Path.expand("../../../scripts/retag_test_data.exs", __DIR__)
+    @office_visit Path.expand("../../../../../mock_data/claims/clean/office_visit.json", __DIR__)
+
+    @tag :tmp_dir
+    test "are accepted after the originals, X12 and JSON alike", %{conn: conn, tmp_dir: tmp_dir} do
+      {_, 0} = System.cmd("elixir", [@retag, "--tag", "2", "--out", tmp_dir, @three_claims, @office_visit])
+      x12 = File.read!(@three_claims)
+      json = File.read!(@office_visit)
+
+      assert upload(conn, "01_three_claims.x12", x12) =~ "3 X12/EDI claim(s) translated"
+      assert upload(conn, "office_visit.json", json) =~ "1 JSON claim(s) submitted"
+      assert upload(conn, "01_three_claims.x12", x12) =~ "Nothing was evaluated"
+      assert upload(conn, "office_visit.json", json) =~ "Nothing was evaluated"
+
+      assert upload(conn, "01_three_claims.x12", File.read!(Path.join(tmp_dir, "01_three_claims.x12"))) =~
+               "3 X12/EDI claim(s) translated"
+
+      assert upload(conn, "office_visit.json", File.read!(Path.join(tmp_dir, "office_visit.json"))) =~
+               "1 JSON claim(s) submitted"
+
+      ids = Repo.all(from(f in EdiFile, order_by: f.id, select: f.json_output["claim_id"]))
+      assert ids == ~w(MULTI01 MULTI02 MULTI03 SMP-CLEAN-001 MULTI01-2 MULTI02-2 MULTI03-2 SMP-CLEAN-001-2)
+    end
+  end
 end

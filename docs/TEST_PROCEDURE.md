@@ -105,6 +105,22 @@ rules, and the outcome is compared with the suite's `manifest.json`.
 
 **Pass criterion:** no `FAIL` lines.
 
+### Uploading test data more than once
+
+Phoenix refuses a file or a claim it has already received, so each test file can be
+uploaded on the Fetch Source page once per database ("Clear display" doesn't reset
+this). The scripts above don't upload, so they can run any number of times. For a
+new round of manual uploads, write copies whose claim IDs end in `-N`, with a new N
+each round:
+
+```bash
+elixir phoenix_web/test/scripts/retag_test_data.exs --tag 3 --out ~/upload_round3 \
+  mock_data phoenix_web/test/fixtures/x12_suite phoenix_web/test/fixtures/x12 phoenix_web/test/fixtures/json_upload
+```
+
+Files without claims (the X12 error cases) are never recorded, so they can be uploaded
+again as they are.
+
 ## 5. Run API Smoke Checks
 
 Validate these core endpoints:

@@ -39,6 +39,14 @@ through the steps a manual upload uses, then
 the NPPES check and the engine with the active rules from the database.
 
 Any file can also be uploaded on the Fetch Source page to check it by hand.
+Each file can be uploaded once per database: Phoenix refuses a file or claim
+it has already received. For copies with new claim IDs (CLM01 ends in `-N`),
+which can be uploaded again and still pass this verifier, run from the repo
+root:
+
+```bash
+elixir phoenix_web/test/scripts/retag_test_data.exs --tag 3 --out ~/upload_round3 phoenix_web/test/fixtures/x12_suite
+```
 
 ## Reading results
 

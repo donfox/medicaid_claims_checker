@@ -47,11 +47,16 @@ mock_data/
 
 Phoenix refuses a file it has already received and a claim it has already
 evaluated, naming the earlier submission. So each sample can be uploaded
-once per database. To upload them again, write copies with new claim IDs:
+once per database. To upload them again, write copies whose claim IDs end
+in `-N`, using a new N each round. The same tool covers all the test data:
 
 ```bash
-elixir mock_data/generate.exs --tag 2 --out /tmp/samples2   # claim IDs end in -2
+elixir phoenix_web/test/scripts/retag_test_data.exs --tag 3 --out ~/upload_round3 \
+  mock_data phoenix_web/test/fixtures/x12_suite phoenix_web/test/fixtures/x12 phoenix_web/test/fixtures/json_upload
 ```
+
+The copy keeps the expected results (`manifest.json` is retagged too), so
+`verify_x12_suite.exs --suite ~/upload_round3/mock_data` checks it.
 
 ## Expected results
 

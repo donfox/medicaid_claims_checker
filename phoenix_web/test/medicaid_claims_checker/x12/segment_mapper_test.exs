@@ -5,8 +5,8 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapperTest do
 
   # Load X12Translator output fixtures at compile time.
   # These are the real files produced by X12Translator from 837P EDI input.
-  @lab_work Jason.decode!(File.read!("test/fixtures/x12/valid_837p_lab_work.json"))
-  @preventive Jason.decode!(File.read!("test/fixtures/x12/valid_837p_preventive.json"))
+  @lab_work Jason.decode!(File.read!("test/fixtures/converter_output/valid_837p_lab_work.json"))
+  @preventive Jason.decode!(File.read!("test/fixtures/converter_output/valid_837p_preventive.json"))
 
   # ---------------------------------------------------------------------------
   # Idempotency and edge cases

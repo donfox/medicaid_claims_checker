@@ -6,8 +6,8 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
   alias MedicaidClaimsChecker.X12.SegmentMapper
 
   # Real X12Translator output fixtures — the claims that were previously mis-evaluated
-  @lab_work Jason.decode!(File.read!("test/fixtures/x12/valid_837p_lab_work.json"))
-  @preventive Jason.decode!(File.read!("test/fixtures/x12/valid_837p_preventive.json"))
+  @lab_work Jason.decode!(File.read!("test/fixtures/converter_output/valid_837p_lab_work.json"))
+  @preventive Jason.decode!(File.read!("test/fixtures/converter_output/valid_837p_preventive.json"))
 
   setup do
     bypass = Bypass.open()

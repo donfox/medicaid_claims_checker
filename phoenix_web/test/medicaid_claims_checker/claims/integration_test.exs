@@ -23,8 +23,8 @@ defmodule MedicaidClaimsChecker.Claims.IntegrationTest do
   alias MedicaidClaimsChecker.Claims.{Evaluator, NppesProvider}
   alias MedicaidClaimsChecker.X12.SegmentMapper
 
-  @lab_work Jason.decode!(File.read!("test/fixtures/x12/valid_837p_lab_work.json"))
-  @preventive Jason.decode!(File.read!("test/fixtures/x12/valid_837p_preventive.json"))
+  @lab_work Jason.decode!(File.read!("test/fixtures/converter_output/valid_837p_lab_work.json"))
+  @preventive Jason.decode!(File.read!("test/fixtures/converter_output/valid_837p_preventive.json"))
 
   setup do
     Application.put_env(

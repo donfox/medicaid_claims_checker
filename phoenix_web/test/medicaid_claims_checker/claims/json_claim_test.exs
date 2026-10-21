@@ -18,7 +18,7 @@ defmodule MedicaidClaimsChecker.Claims.JsonClaimTest do
     test "the X12 converter's output, normalized" do
       assert {:ok, [claim], []} =
                JsonClaim.parse(
-                 File.read!(Path.expand("../../fixtures/x12/valid_837p_lab_work.json", __DIR__))
+                 File.read!(Path.expand("../../fixtures/converter_output/valid_837p_lab_work.json", __DIR__))
                )
 
       assert Map.has_key?(claim, "claim_id")

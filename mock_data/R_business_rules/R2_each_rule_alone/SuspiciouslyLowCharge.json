@@ -17,7 +17,7 @@
     "frequency_code": "1",
     "place_of_service": "11"
   },
-  "claim_id": "SMP-RULE-LOWCHARGE",
+  "claim_id": "MOCK-RULE-LOWCHARGE",
   "claim_totals": { "total_charges": 2.0 },
   "diagnosis_codes": [
     {
@@ -75,7 +75,7 @@
     "gender": "M",
     "group_number": null,
     "last_name": "PRUITT",
-    "member_id": "MCD487026708",
+    "member_id": "MCD225542253",
     "middle_name": "R",
     "payer_responsibility": "P",
     "relationship_code": "18"

@@ -17,7 +17,7 @@
     "frequency_code": "1",
     "place_of_service": "11"
   },
-  "claim_id": "SMP-RULE-NPIFORMAT",
+  "claim_id": "MOCK-RULE-NPIFORMAT",
   "claim_totals": { "total_charges": 200.0 },
   "diagnosis_codes": [
     {
@@ -75,7 +75,7 @@
     "gender": "F",
     "group_number": null,
     "last_name": "VASQUEZ",
-    "member_id": "MCD134573143",
+    "member_id": "MCD088830878",
     "middle_name": "M",
     "payer_responsibility": "P",
     "relationship_code": "18"

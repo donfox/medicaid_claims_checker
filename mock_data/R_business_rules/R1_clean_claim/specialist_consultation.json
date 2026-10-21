@@ -17,7 +17,7 @@
     "frequency_code": "1",
     "place_of_service": "11"
   },
-  "claim_id": "SMP-CLEAN-004",
+  "claim_id": "MOCK-CLEAN-004",
   "claim_totals": { "total_charges": 445.0 },
   "diagnosis_codes": [
     {
@@ -92,7 +92,7 @@
     "gender": "M",
     "group_number": null,
     "last_name": "PRUITT",
-    "member_id": "MCD847112289",
+    "member_id": "MCD197894686",
     "middle_name": "R",
     "payer_responsibility": "P",
     "relationship_code": "18"

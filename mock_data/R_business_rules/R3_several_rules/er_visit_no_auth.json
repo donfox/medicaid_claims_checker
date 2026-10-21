@@ -17,7 +17,7 @@
     "frequency_code": "1",
     "place_of_service": "23"
   },
-  "claim_id": "SMP-MULTI-ERNOAUTH",
+  "claim_id": "MOCK-MULTI-ERNOAUTH",
   "claim_totals": { "total_charges": 1.45e4 },
   "diagnosis_codes": [
     {
@@ -105,7 +105,7 @@
     "gender": "M",
     "group_number": null,
     "last_name": "WHITAKER",
-    "member_id": "MCD094272624",
+    "member_id": "MCD367622196",
     "middle_name": "T",
     "payer_responsibility": "P",
     "relationship_code": "18"

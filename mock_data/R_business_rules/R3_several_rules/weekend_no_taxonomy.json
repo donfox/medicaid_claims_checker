@@ -17,7 +17,7 @@
     "frequency_code": "1",
     "place_of_service": "11"
   },
-  "claim_id": "SMP-MULTI-WEEKENDTAX",
+  "claim_id": "MOCK-MULTI-WEEKENDTAX",
   "claim_totals": { "total_charges": 1.2e3 },
   "diagnosis_codes": [
     {
@@ -88,7 +88,7 @@
     "gender": "M",
     "group_number": null,
     "last_name": "BRANNIGAN",
-    "member_id": "MCD857914228",
+    "member_id": "MCD797893797",
     "middle_name": "J",
     "payer_responsibility": "P",
     "relationship_code": "18"

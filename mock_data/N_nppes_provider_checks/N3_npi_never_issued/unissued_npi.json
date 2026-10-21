@@ -17,7 +17,7 @@
     "frequency_code": "1",
     "place_of_service": "11"
   },
-  "claim_id": "SMP-NPPES-UNISSUED",
+  "claim_id": "MOCK-NPPES-UNISSUED",
   "claim_totals": { "total_charges": 150.0 },
   "diagnosis_codes": [
     {
@@ -75,7 +75,7 @@
     "gender": "M",
     "group_number": null,
     "last_name": "WHITAKER",
-    "member_id": "MCD856152396",
+    "member_id": "MCD938952960",
     "middle_name": "T",
     "payer_responsibility": "P",
     "relationship_code": "18"

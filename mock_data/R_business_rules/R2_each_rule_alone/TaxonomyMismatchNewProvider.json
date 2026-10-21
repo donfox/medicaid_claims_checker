@@ -17,7 +17,7 @@
     "frequency_code": "1",
     "place_of_service": "11"
   },
-  "claim_id": "SMP-RULE-NEWNOTAX",
+  "claim_id": "MOCK-RULE-NEWNOTAX",
   "claim_totals": { "total_charges": 7.5e3 },
   "diagnosis_codes": [
     {
@@ -101,7 +101,7 @@
     "gender": "M",
     "group_number": null,
     "last_name": "PRUITT",
-    "member_id": "MCD512171046",
+    "member_id": "MCD957897175",
     "middle_name": "R",
     "payer_responsibility": "P",
     "relationship_code": "18"

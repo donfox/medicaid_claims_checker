@@ -19,7 +19,7 @@
         "frequency_code": "1",
         "place_of_service": "11"
       },
-      "claim_id": "SMP-CLEANBATCH-001",
+      "claim_id": "MOCK-CLEANBATCH-001",
       "claim_totals": { "total_charges": 220.0 },
       "diagnosis_codes": [
         {
@@ -77,7 +77,7 @@
         "gender": "M",
         "group_number": null,
         "last_name": "PRUITT",
-        "member_id": "MCD182073611",
+        "member_id": "MCD327263644",
         "middle_name": "R",
         "payer_responsibility": "P",
         "relationship_code": "18"
@@ -103,7 +103,7 @@
         "frequency_code": "1",
         "place_of_service": "11"
       },
-      "claim_id": "SMP-CLEANBATCH-002",
+      "claim_id": "MOCK-CLEANBATCH-002",
       "claim_totals": { "total_charges": 245.0 },
       "diagnosis_codes": [
         {
@@ -174,7 +174,7 @@
         "gender": "M",
         "group_number": null,
         "last_name": "BRANNIGAN",
-        "member_id": "MCD740207275",
+        "member_id": "MCD350006547",
         "middle_name": "J",
         "payer_responsibility": "P",
         "relationship_code": "18"
@@ -200,7 +200,7 @@
         "frequency_code": "1",
         "place_of_service": "11"
       },
-      "claim_id": "SMP-CLEANBATCH-003",
+      "claim_id": "MOCK-CLEANBATCH-003",
       "claim_totals": { "total_charges": 160.0 },
       "diagnosis_codes": [
         {
@@ -258,7 +258,7 @@
         "gender": "F",
         "group_number": null,
         "last_name": "VASQUEZ",
-        "member_id": "MCD382417689",
+        "member_id": "MCD557229831",
         "middle_name": "M",
         "payer_responsibility": "P",
         "relationship_code": "18"
@@ -284,7 +284,7 @@
         "frequency_code": "1",
         "place_of_service": "11"
       },
-      "claim_id": "SMP-CLEANBATCH-004",
+      "claim_id": "MOCK-CLEANBATCH-004",
       "claim_totals": { "total_charges": 65.0 },
       "diagnosis_codes": [
         {
@@ -342,7 +342,7 @@
         "gender": "F",
         "group_number": null,
         "last_name": "OKAFOR",
-        "member_id": "MCD054526016",
+        "member_id": "MCD962989880",
         "middle_name": "E",
         "payer_responsibility": "P",
         "relationship_code": "18"

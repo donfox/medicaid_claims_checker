@@ -17,7 +17,7 @@
     "frequency_code": "1",
     "place_of_service": "11"
   },
-  "claim_id": "SMP-RULE-NODX",
+  "claim_id": "MOCK-RULE-NODX",
   "claim_totals": { "total_charges": 300.0 },
   "diagnosis_codes": [],
   "financial": { "claim_amount": 300.0 },
@@ -83,7 +83,7 @@
     "gender": "M",
     "group_number": null,
     "last_name": "BRANNIGAN",
-    "member_id": "MCD165223683",
+    "member_id": "MCD990049957",
     "middle_name": "J",
     "payer_responsibility": "P",
     "relationship_code": "18"

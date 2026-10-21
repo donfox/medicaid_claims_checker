@@ -17,7 +17,7 @@
     "frequency_code": "1",
     "place_of_service": null
   },
-  "claim_id": "SMP-CLEAN-005",
+  "claim_id": "MOCK-CLEAN-005",
   "claim_totals": { "total_charges": 4.8e3 },
   "diagnosis_codes": [
     {
@@ -105,7 +105,7 @@
     "gender": "F",
     "group_number": null,
     "last_name": "OKAFOR",
-    "member_id": "MCD311158951",
+    "member_id": "MCD778272633",
     "middle_name": "E",
     "payer_responsibility": "P",
     "relationship_code": "18"

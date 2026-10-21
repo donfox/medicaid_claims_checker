@@ -19,7 +19,7 @@
         "frequency_code": "1",
         "place_of_service": "11"
       },
-      "claim_id": "SMP-BATCH-001",
+      "claim_id": "MOCK-BATCH-001",
       "claim_totals": { "total_charges": 150.0 },
       "diagnosis_codes": [
         {
@@ -77,7 +77,7 @@
         "gender": "F",
         "group_number": null,
         "last_name": "HOLLOWAY",
-        "member_id": "MCD717811138",
+        "member_id": "MCD970635883",
         "middle_name": "A",
         "payer_responsibility": "P",
         "relationship_code": "18"
@@ -103,7 +103,7 @@
         "frequency_code": "1",
         "place_of_service": "81"
       },
-      "claim_id": "SMP-BATCH-002",
+      "claim_id": "MOCK-BATCH-002",
       "claim_totals": { "total_charges": 90.0 },
       "diagnosis_codes": [
         {
@@ -161,7 +161,7 @@
         "gender": "F",
         "group_number": null,
         "last_name": "VASQUEZ",
-        "member_id": "MCD126630720",
+        "member_id": "MCD587956221",
         "middle_name": "M",
         "payer_responsibility": "P",
         "relationship_code": "18"
@@ -187,7 +187,7 @@
         "frequency_code": "1",
         "place_of_service": "11"
       },
-      "claim_id": "SMP-BATCH-003",
+      "claim_id": "MOCK-BATCH-003",
       "claim_totals": { "total_charges": 520.0 },
       "diagnosis_codes": [
         {
@@ -258,7 +258,7 @@
         "gender": "M",
         "group_number": null,
         "last_name": "WHITAKER",
-        "member_id": "MCD111970642",
+        "member_id": "MCD755612109",
         "middle_name": "T",
         "payer_responsibility": "P",
         "relationship_code": "18"
@@ -284,7 +284,7 @@
         "frequency_code": "1",
         "place_of_service": "24"
       },
-      "claim_id": "SMP-BATCH-004",
+      "claim_id": "MOCK-BATCH-004",
       "claim_totals": { "total_charges": 6.2e3 },
       "diagnosis_codes": [
         {
@@ -342,7 +342,7 @@
         "gender": "M",
         "group_number": null,
         "last_name": "BRANNIGAN",
-        "member_id": "MCD126984367",
+        "member_id": "MCD656696154",
         "middle_name": "J",
         "payer_responsibility": "P",
         "relationship_code": "18"
@@ -368,7 +368,7 @@
         "frequency_code": "1",
         "place_of_service": "23"
       },
-      "claim_id": "SMP-BATCH-005",
+      "claim_id": "MOCK-BATCH-005",
       "claim_totals": { "total_charges": 1.25e4 },
       "diagnosis_codes": [
         {
@@ -439,7 +439,7 @@
         "gender": "M",
         "group_number": null,
         "last_name": "KESSLER",
-        "member_id": "MCD107028001",
+        "member_id": "MCD870292416",
         "middle_name": "H",
         "payer_responsibility": "P",
         "relationship_code": "18"
@@ -465,7 +465,7 @@
         "frequency_code": "1",
         "place_of_service": "11"
       },
-      "claim_id": "SMP-BATCH-006",
+      "claim_id": "MOCK-BATCH-006",
       "claim_totals": { "total_charges": 140.0 },
       "diagnosis_codes": [],
       "financial": { "claim_amount": 140.0 },
@@ -518,7 +518,7 @@
         "gender": "F",
         "group_number": null,
         "last_name": "NGUYEN",
-        "member_id": "MCD176471724",
+        "member_id": "MCD241232366",
         "middle_name": "L",
         "payer_responsibility": "P",
         "relationship_code": "18"

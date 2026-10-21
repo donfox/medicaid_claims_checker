@@ -29,22 +29,22 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-CLEANBATCH-001",
+            "claim_id": "MOCK-CLEANBATCH-001",
             "matched": [],
             "nppes": "ok"
           },
           {
-            "claim_id": "SMP-CLEANBATCH-002",
+            "claim_id": "MOCK-CLEANBATCH-002",
             "matched": [],
             "nppes": "ok"
           },
           {
-            "claim_id": "SMP-CLEANBATCH-003",
+            "claim_id": "MOCK-CLEANBATCH-003",
             "matched": [],
             "nppes": "ok"
           },
           {
-            "claim_id": "SMP-CLEANBATCH-004",
+            "claim_id": "MOCK-CLEANBATCH-004",
             "matched": [],
             "nppes": "ok"
           }
@@ -57,38 +57,38 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-BATCH-001",
+            "claim_id": "MOCK-BATCH-001",
             "matched": [],
             "nppes": "ok"
           },
           {
-            "claim_id": "SMP-BATCH-002",
+            "claim_id": "MOCK-BATCH-002",
             "matched": [],
             "nppes": "ok"
           },
           {
-            "claim_id": "SMP-BATCH-003",
+            "claim_id": "MOCK-BATCH-003",
             "matched": [
               "WeekendOfficeVisit"
             ],
             "nppes": "ok"
           },
           {
-            "claim_id": "SMP-BATCH-004",
+            "claim_id": "MOCK-BATCH-004",
             "matched": [
               "UnauthorizedProcedure"
             ],
             "nppes": "ok"
           },
           {
-            "claim_id": "SMP-BATCH-005",
+            "claim_id": "MOCK-BATCH-005",
             "matched": [
               "HighComplexityERVisit"
             ],
             "nppes": "ok"
           },
           {
-            "claim_id": "SMP-BATCH-006",
+            "claim_id": "MOCK-BATCH-006",
             "matched": [
               "MissingDiagnosisCodes"
             ],
@@ -162,7 +162,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-NPPES-UNISSUED",
+            "claim_id": "MOCK-NPPES-UNISSUED",
             "matched": [],
             "nppes": "not found in NPPES"
           }
@@ -188,7 +188,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-NPPES-DEACT",
+            "claim_id": "MOCK-NPPES-DEACT",
             "matched": [],
             "nppes": "was deactivated"
           }
@@ -240,7 +240,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-NPPES-REACT",
+            "claim_id": "MOCK-NPPES-REACT",
             "matched": [],
             "nppes": "ok"
           }
@@ -266,7 +266,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-NPPES-GAP",
+            "claim_id": "MOCK-NPPES-GAP",
             "matched": [],
             "nppes": "was deactivated"
           }
@@ -292,7 +292,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-NPPES-PREENUM",
+            "claim_id": "MOCK-NPPES-PREENUM",
             "matched": [],
             "nppes": "was not issued until"
           }
@@ -305,7 +305,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-NPPES-DROPPED",
+            "claim_id": "MOCK-NPPES-DROPPED",
             "matched": [],
             "nppes": "has not been in the NPPES file since"
           }
@@ -700,7 +700,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-CLEAN-001",
+            "claim_id": "MOCK-CLEAN-001",
             "matched": [],
             "nppes": "ok"
           }
@@ -713,7 +713,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-CLEAN-003",
+            "claim_id": "MOCK-CLEAN-003",
             "matched": [],
             "nppes": "ok"
           }
@@ -726,7 +726,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-CLEAN-002",
+            "claim_id": "MOCK-CLEAN-002",
             "matched": [],
             "nppes": "ok"
           }
@@ -739,7 +739,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-CLEAN-004",
+            "claim_id": "MOCK-CLEAN-004",
             "matched": [],
             "nppes": "ok"
           }
@@ -752,7 +752,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-RULE-EXCESSIVE",
+            "claim_id": "MOCK-RULE-EXCESSIVE",
             "matched": [
               "ExcessiveTotalCharges",
               "HighValueClaim"
@@ -788,7 +788,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-RULE-EXTREME",
+            "claim_id": "MOCK-RULE-EXTREME",
             "matched": [
               "ExcessiveTotalCharges",
               "ExtremeAmounts",
@@ -826,7 +826,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-RULE-FUTURE",
+            "claim_id": "MOCK-RULE-FUTURE",
             "matched": [
               "FutureServiceDate"
             ],
@@ -856,7 +856,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-RULE-ER99285",
+            "claim_id": "MOCK-RULE-ER99285",
             "matched": [
               "HighComplexityERVisit"
             ],
@@ -890,7 +890,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-RULE-HIGHVALUE",
+            "claim_id": "MOCK-RULE-HIGHVALUE",
             "matched": [
               "HighValueClaim"
             ],
@@ -924,7 +924,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-RULE-PRE1900",
+            "claim_id": "MOCK-RULE-PRE1900",
             "matched": [
               "ImpossibleDates"
             ],
@@ -954,7 +954,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-RULE-NPIFORMAT",
+            "claim_id": "MOCK-RULE-NPIFORMAT",
             "matched": [
               "InvalidNPIFormat",
               "InvalidProviderNPI"
@@ -970,7 +970,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-RULE-NPILUHN",
+            "claim_id": "MOCK-RULE-NPILUHN",
             "matched": [
               "InvalidProviderNPI"
             ],
@@ -985,7 +985,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-RULE-NODX",
+            "claim_id": "MOCK-RULE-NODX",
             "matched": [
               "MissingDiagnosisCodes"
             ],
@@ -1015,7 +1015,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-RULE-NOTAXONOMY",
+            "claim_id": "MOCK-RULE-NOTAXONOMY",
             "matched": [
               "MissingProviderTaxonomy"
             ],
@@ -1045,7 +1045,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-RULE-NODOB",
+            "claim_id": "MOCK-RULE-NODOB",
             "matched": [
               "MissingRequiredFields"
             ],
@@ -1060,7 +1060,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-RULE-NEWPROV",
+            "claim_id": "MOCK-RULE-NEWPROV",
             "matched": [
               "NewProviderLargeSubmission"
             ],
@@ -1075,7 +1075,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-RULE-AGE",
+            "claim_id": "MOCK-RULE-AGE",
             "matched": [
               "PatientAgeOutOfRange"
             ],
@@ -1090,7 +1090,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-RULE-LOWCHARGE",
+            "claim_id": "MOCK-RULE-LOWCHARGE",
             "matched": [
               "SuspiciouslyLowCharge"
             ],
@@ -1120,7 +1120,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-RULE-NEWNOTAX",
+            "claim_id": "MOCK-RULE-NEWNOTAX",
             "matched": [
               "MissingProviderTaxonomy",
               "TaxonomyMismatchNewProvider"
@@ -1136,7 +1136,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-RULE-NOAUTH",
+            "claim_id": "MOCK-RULE-NOAUTH",
             "matched": [
               "UnauthorizedProcedure"
             ],
@@ -1179,7 +1179,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-RULE-WEEKEND",
+            "claim_id": "MOCK-RULE-WEEKEND",
             "matched": [
               "WeekendOfficeVisit"
             ],
@@ -1194,7 +1194,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-MULTI-ERNOAUTH",
+            "claim_id": "MOCK-MULTI-ERNOAUTH",
             "matched": [
               "HighComplexityERVisit",
               "UnauthorizedProcedure"
@@ -1210,7 +1210,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-MULTI-EXTREME",
+            "claim_id": "MOCK-MULTI-EXTREME",
             "matched": [
               "ExcessiveTotalCharges",
               "ExtremeAmounts",
@@ -1251,7 +1251,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-MULTI-NEWPROV",
+            "claim_id": "MOCK-MULTI-NEWPROV",
             "matched": [
               "MissingProviderTaxonomy",
               "NewProviderLargeSubmission",
@@ -1269,7 +1269,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-MULTI-WEEKENDTAX",
+            "claim_id": "MOCK-MULTI-WEEKENDTAX",
             "matched": [
               "MissingProviderTaxonomy",
               "WeekendOfficeVisit"
@@ -1460,7 +1460,7 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "SMP-CLEAN-005",
+            "claim_id": "MOCK-CLEAN-005",
             "matched": [],
             "nppes": "ok"
           }

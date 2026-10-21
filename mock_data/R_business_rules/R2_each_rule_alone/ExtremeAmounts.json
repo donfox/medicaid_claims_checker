@@ -17,7 +17,7 @@
     "frequency_code": "1",
     "place_of_service": null
   },
-  "claim_id": "SMP-RULE-EXTREME",
+  "claim_id": "MOCK-RULE-EXTREME",
   "claim_totals": { "total_charges": 1.25e6 },
   "diagnosis_codes": [
     {
@@ -92,7 +92,7 @@
     "gender": "M",
     "group_number": null,
     "last_name": "PRUITT",
-    "member_id": "MCD917046912",
+    "member_id": "MCD938285530",
     "middle_name": "R",
     "payer_responsibility": "P",
     "relationship_code": "18"

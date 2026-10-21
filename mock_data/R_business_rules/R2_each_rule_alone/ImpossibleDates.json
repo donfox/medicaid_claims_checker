@@ -17,7 +17,7 @@
     "frequency_code": "1",
     "place_of_service": "11"
   },
-  "claim_id": "SMP-RULE-PRE1900",
+  "claim_id": "MOCK-RULE-PRE1900",
   "claim_totals": { "total_charges": 180.0 },
   "diagnosis_codes": [
     {
@@ -88,7 +88,7 @@
     "gender": "M",
     "group_number": null,
     "last_name": "WHITAKER",
-    "member_id": "MCD800993656",
+    "member_id": "MCD724557934",
     "middle_name": "T",
     "payer_responsibility": "P",
     "relationship_code": "18"

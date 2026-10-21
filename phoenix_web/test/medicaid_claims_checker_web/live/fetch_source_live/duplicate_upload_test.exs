@@ -183,7 +183,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.DuplicateUploadTest do
       ids = Repo.all(from(f in EdiFile, order_by: f.id, select: f.json_output["claim_id"]))
 
       assert ids ==
-               ~w(MULTI01 MULTI02 MULTI03 SMP-CLEAN-001 MULTI01-2 MULTI02-2 MULTI03-2 SMP-CLEAN-001-2)
+               ~w(MULTI01 MULTI02 MULTI03 MOCK-CLEAN-001 MULTI01-2 MULTI02-2 MULTI03-2 MOCK-CLEAN-001-2)
     end
   end
 end

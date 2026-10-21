@@ -14,7 +14,7 @@ defmodule MedicaidClaimsChecker.DuplicateAlertTest do
 
   defp admin(attrs \\ %{}) do
     {:ok, user} =
-      attrs |> AccountsFixtures.unconfirmed_user_fixture() |> Accounts.set_user_admin(true)
+      attrs |> AccountsFixtures.user_fixture() |> Accounts.set_user_admin(true)
 
     user
   end
@@ -36,7 +36,7 @@ defmodule MedicaidClaimsChecker.DuplicateAlertTest do
       first = admin()
       second = admin()
       {:ok, inactive} = admin() |> Accounts.set_user_active(false)
-      plain = AccountsFixtures.unconfirmed_user_fixture()
+      plain = AccountsFixtures.user_fixture()
 
       {:ok, _} = ingest("first", [claim("CLM-1"), claim("CLM-2")])
       refute_email_sent()

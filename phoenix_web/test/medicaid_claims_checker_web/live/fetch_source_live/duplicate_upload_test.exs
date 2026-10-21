@@ -15,7 +15,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.DuplicateUploadTest do
                 )
 
   setup %{conn: conn} do
-    user = AccountsFixtures.unconfirmed_user_fixture()
+    user = AccountsFixtures.user_fixture()
     %{conn: log_in_user(conn, user)}
   end
 

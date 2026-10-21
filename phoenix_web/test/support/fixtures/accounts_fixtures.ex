@@ -24,7 +24,8 @@ defmodule MedicaidClaimsChecker.AccountsFixtures do
     })
   end
 
-  def unconfirmed_user_fixture(attrs \\ %{}) do
+  # A registered user: registration sets a password and confirms the account.
+  def user_fixture(attrs \\ %{}) do
     {:ok, user} =
       attrs
       |> valid_user_attributes()
@@ -33,18 +34,15 @@ defmodule MedicaidClaimsChecker.AccountsFixtures do
     user
   end
 
-  def user_fixture(attrs \\ %{}) do
-    user = unconfirmed_user_fixture(attrs)
+  # A user with no password and no confirmation, which registration no longer
+  # creates (older accounts can still be in this state). Only the magic-link
+  # tests need one.
+  def unconfirmed_user_fixture(attrs \\ %{}) do
+    attrs = valid_user_attributes(attrs)
 
-    token =
-      extract_user_token(fn url ->
-        Accounts.deliver_login_instructions(user, url)
-      end)
-
-    {:ok, {user, _expired_tokens}} =
-      Accounts.login_user_by_magic_link(token)
-
-    user
+    %Accounts.User{}
+    |> Ecto.Changeset.change(Map.take(attrs, [:email, :username, :first_name, :last_name]))
+    |> MedicaidClaimsChecker.Repo.insert!()
   end
 
   def user_scope_fixture do

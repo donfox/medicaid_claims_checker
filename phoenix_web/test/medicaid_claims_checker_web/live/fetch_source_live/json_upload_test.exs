@@ -11,7 +11,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.JsonUploadTest do
 
   setup %{conn: conn} do
     # Registration only; avoids the login-email path (no mail in tests).
-    user = AccountsFixtures.unconfirmed_user_fixture()
+    user = AccountsFixtures.user_fixture()
     %{conn: log_in_user(conn, user)}
   end
 

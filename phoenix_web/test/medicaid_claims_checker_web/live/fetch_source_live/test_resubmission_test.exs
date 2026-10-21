@@ -19,8 +19,8 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.TestResubmissionTest do
   setup :set_swoosh_global
 
   setup %{conn: conn} do
-    {:ok, _} = AccountsFixtures.unconfirmed_user_fixture() |> Accounts.set_user_admin(true)
-    user = AccountsFixtures.unconfirmed_user_fixture()
+    {:ok, _} = AccountsFixtures.user_fixture() |> Accounts.set_user_admin(true)
+    user = AccountsFixtures.user_fixture()
     on_exit(fn -> Application.delete_env(:medicaid_claims_checker, :allow_test_resubmission) end)
     %{conn: log_in_user(conn, user)}
   end

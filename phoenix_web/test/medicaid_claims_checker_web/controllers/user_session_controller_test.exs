@@ -14,7 +14,8 @@ defmodule MedicaidClaimsCheckerWeb.UserSessionControllerTest do
       response = html_response(conn, 200)
       assert response =~ "Log in"
       assert response =~ ~p"/users/register"
-      assert response =~ "Log in with email"
+      assert response =~ "Email or username"
+      assert response =~ "Password"
     end
 
     test "renders login page with email filled in (sudo mode)", %{conn: conn, user: user} do
@@ -26,18 +27,9 @@ defmodule MedicaidClaimsCheckerWeb.UserSessionControllerTest do
 
       assert html =~ "You need to reauthenticate"
       refute html =~ "Register"
-      assert html =~ "Log in with email"
 
       assert html =~
-               ~s(<input type="email" name="user[email]" id="login_form_magic_email" value="#{user.email}")
-    end
-
-    test "renders login page (email + password)", %{conn: conn} do
-      conn = get(conn, ~p"/users/log-in?mode=password")
-      response = html_response(conn, 200)
-      assert response =~ "Log in"
-      assert response =~ ~p"/users/register"
-      assert response =~ "Log in with email"
+               ~r/<input type="text" name="user\[email\]" id="login_form_password_email" value="#{user.email}"[^>]*readonly/
     end
   end
 
@@ -123,7 +115,7 @@ defmodule MedicaidClaimsCheckerWeb.UserSessionControllerTest do
         })
 
       assert redirected_to(conn) == "/foo/bar"
-      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Welcome back!"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) == "Welcome back, Test User"
     end
 
     test "emits error message with invalid credentials", %{conn: conn, user: user} do
@@ -138,17 +130,9 @@ defmodule MedicaidClaimsCheckerWeb.UserSessionControllerTest do
     end
   end
 
+  # The login page has no "email me a link" form; these tests cover links
+  # already issued.
   describe "POST /users/log-in - magic link" do
-    test "sends magic link email when user exists", %{conn: conn, user: user} do
-      conn =
-        post(conn, ~p"/users/log-in", %{
-          "user" => %{"email" => user.email}
-        })
-
-      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "If your email is in our system"
-      assert MedicaidClaimsChecker.Repo.get_by!(Accounts.UserToken, user_id: user.id).context == "login"
-    end
-
     test "logs the user in", %{conn: conn, user: user} do
       {token, _hashed_token} = generate_user_magic_link_token(user)
 
@@ -180,7 +164,9 @@ defmodule MedicaidClaimsCheckerWeb.UserSessionControllerTest do
 
       assert get_session(conn, :user_token)
       assert redirected_to(conn) == ~p"/"
-      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "User confirmed successfully."
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) ==
+               "Account confirmed. Welcome, Test User!"
 
       assert Accounts.get_user!(user.id).confirmed_at
 

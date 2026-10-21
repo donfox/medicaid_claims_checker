@@ -88,7 +88,7 @@ defmodule MedicaidClaimsCheckerWeb.UseCaseCase do
     ExUnit.CaptureIO.capture_io(fn -> Code.eval_file(seeds_path()) end)
     load_nppes_extract()
 
-    user = AccountsFixtures.unconfirmed_user_fixture()
+    user = AccountsFixtures.user_fixture()
     %{conn: MedicaidClaimsCheckerWeb.ConnCase.log_in_user(Phoenix.ConnTest.build_conn(), user)}
   end
 

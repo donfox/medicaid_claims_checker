@@ -39,6 +39,8 @@ Planned for Edition 2:
 ## Getting Started
 
 - [Setup instructions](setup.sh)
+- [Where the Phoenix code is](phoenix_web/README.md#where-the-code-is) — the web app's folders explained
+- [Test data](mock_data/README.md) — every test file, by use case
 - [Architecture](docs/ARCHITECTURE.md)
 - [Documentation guide](docs/README.md)
 - [Business-rule syntax guide](docs/SYNTAX_GUIDE.md)

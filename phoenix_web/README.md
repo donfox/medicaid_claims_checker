@@ -2,6 +2,54 @@
 
 Phoenix LiveView application providing the user interface for claim ingestion, rule management, batch evaluation, and fraud detection scoring.
 
+## Where the code is
+
+This is a standard Phoenix project: Phoenix creates the same folders in every project, which is why some names repeat the project name. You don't need to know Phoenix to find your way around.
+
+| Folder | What it holds |
+|---|---|
+| `lib/` | The application code (two folders, below) |
+| `test/` | The automated tests (`mix test`); same folders as `lib/` |
+| `priv/` | What the running app needs that isn't code: database setup (`repo/migrations/`), the starting business rules (`repo/seeds.exs`), files the site serves (`static/`) |
+| `config/` | Settings: `config.exs` for all environments, `dev.exs`, `test.exs`, `prod.exs`, and `runtime.exs` (read when the app starts, e.g. from environment variables) |
+| `assets/` | The browser side: CSS and JavaScript |
+| `deps/`, `_build/` | Downloaded libraries and compiled output. Not in git; never edited by hand |
+
+All test data (claim files, rule files, expected results) is outside this folder, in [`../mock_data/`](../mock_data/README.md).
+
+### The two folders in `lib/`
+
+| Folder | Holds | Examples |
+|---|---|---|
+| `lib/medicaid_claims_checker/` | **What the app does.** Reading claims, checking providers, calling the rule engine, the database. No web pages. | `x12/` reads X12 files, `claims/` evaluates and stores claims, `nppes/` checks NPIs, `ingestion/` fetches files on a schedule |
+| `lib/medicaid_claims_checker_web/` | **The web pages and URLs** people use to reach it | `live/fetch_source_live/` is the upload page (`/`), `live/rule_live/` the Rules page (`/rules`), `router.ex` maps each URL to its page |
+
+The web folder calls the other folder, never the reverse. That's why the same processing serves an upload, a scheduled fetch and `mock_data/verify.exs`, which has no web page at all. A manual upload goes:
+
+```
+upload page          live/fetch_source_live/          receives the file
+  → X12 reading      x12/  (parser, claim_splitter,   splits it into claims and turns
+                           converter, segment_mapper)  each one into JSON
+  → claims           claims.ex, claims/               stores the claims, refuses duplicates
+  → background job   workers/batch_evaluation_worker  starts the evaluation
+  → evaluation       claims/evaluator.ex              NPPES check, and the Haskell rule engine
+                                                       (through claims/engine_client.ex)
+  → upload page      shows the results in Batch History
+```
+
+Inside `lib/medicaid_claims_checker/`, a file and a folder with the same name go together: `claims.ex` is the entry point the rest of the app calls, and `claims/` holds the pieces behind it.
+
+### Tests mirror the code
+
+Every folder under `test/` matches one under `lib/`, so the tests for a file are always in the same place:
+
+```
+lib/medicaid_claims_checker/x12/claim_splitter.ex
+test/medicaid_claims_checker/x12/claim_splitter_test.exs
+```
+
+`test/support/` holds setup shared by the tests: `conn_case.ex` (tests of pages), `data_case.ex` (tests that use the database), `mock_data.ex` (paths into `../mock_data/`), and `fixtures/`, which despite the name is code that creates test users, not data.
+
 ## Features
 
 - Scheduled X12 file ingestion via configured SFTP/HTTP sources with cron or interval-based schedules

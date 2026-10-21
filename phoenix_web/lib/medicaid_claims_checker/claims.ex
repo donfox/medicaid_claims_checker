@@ -607,21 +607,6 @@ defmodule MedicaidClaimsChecker.Claims do
 
   defp parse_date(_), do: :error
 
-  @doc """
-  Returns catalogue entries whose names are similar to `name` (Jaro distance > 0.85),
-  excluding exact case-insensitive matches (which are conflicts, not near-duplicates).
-  """
-  def find_similar_catalogue_entries(name) do
-    name_lower = String.downcase(String.trim(name))
-
-    RuleCatalogue
-    |> Repo.all()
-    |> Enum.filter(fn entry ->
-      entry_lower = String.downcase(entry.name)
-      entry_lower != name_lower and String.jaro_distance(name_lower, entry_lower) > 0.85
-    end)
-  end
-
   defp default_batch_name(source) do
     timestamp = format_eastern_timestamp()
 

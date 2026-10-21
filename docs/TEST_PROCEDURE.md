@@ -91,17 +91,18 @@ They use the engine at `HASKELL_ENGINE_URL` (default `http://localhost:8080`) an
 
 **Pass criterion:** each script exits with status `0`.
 
-### X12 suite and sample claims
+### Mock data
 
+All test data is in `mock_data/`, one folder per use case (see `mock_data/README.md`).
 From `phoenix_web`, with the engine running and the dev database seeded:
 
 ```bash
-mix run --no-start test/scripts/verify_x12_suite.exs                        # X12 837 suite
-mix run --no-start test/scripts/verify_x12_suite.exs --suite ../mock_data # mock claims
+mix run --no-start ../mock_data/verify.exs            # every generated file
+mix run --no-start ../mock_data/verify.exs --only R5  # one use case
 ```
 
 Each file goes through the same steps as an upload, then the NPPES check and the active
-rules, and the outcome is compared with the suite's `manifest.json`.
+rules, and the outcome is compared with `mock_data/manifest.json`.
 
 **Pass criterion:** no `FAIL` lines.
 
@@ -114,8 +115,7 @@ new round of manual uploads, write copies whose claim IDs end in `-N`, with a ne
 each round:
 
 ```bash
-elixir phoenix_web/test/scripts/retag_test_data.exs --tag 3 --out ~/upload_round3 \
-  mock_data phoenix_web/test/fixtures/x12_suite phoenix_web/test/fixtures/x12 phoenix_web/test/fixtures/json_upload
+elixir mock_data/retag.exs --tag 3 --out ~/upload_round3 mock_data
 ```
 
 Files without claims (the X12 error cases) are never recorded, so they can be uploaded

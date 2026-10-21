@@ -3,44 +3,54 @@ defmodule MedicaidClaimsChecker.Claims.JsonClaimTest do
 
   alias MedicaidClaimsChecker.Claims.JsonClaim
 
-  @fixtures Path.expand("../../fixtures/json_upload", __DIR__)
-  # Hand-made claims for manual testing in the UI; each must stay uploadable.
-  @mock_claims Path.expand("../../../../mock_data/claims", __DIR__)
-
-  defp fixture(path), do: File.read!(Path.join(@fixtures, path))
+  alias MedicaidClaimsChecker.MockData
 
   describe "accepts" do
     test "a claim with a top-level claim_id" do
       assert {:ok, [%{"claim_id" => _}], []} =
-               JsonClaim.parse(fixture("claim_routine_office_visit.json"))
+               JsonClaim.parse(
+                 MockData.read!("J_json_files/J1_one_claim/routine_office_visit.json")
+               )
     end
 
     test "the X12 converter's output, normalized" do
       assert {:ok, [claim], []} =
                JsonClaim.parse(
-                 File.read!(Path.expand("../../fixtures/converter_output/valid_837p_lab_work.json", __DIR__))
+                 MockData.read!("pipeline/converter_output/valid_837p_lab_work.json")
                )
 
       assert Map.has_key?(claim, "claim_id")
       assert Map.has_key?(claim, "provider")
     end
 
-    test "every mock claim" do
-      paths = Path.wildcard(Path.join(@mock_claims, "**/*.json"))
-      assert paths != []
+    test "every generated mock claim file, with all its claims" do
+      cases =
+        MockData.read!("manifest.json")
+        |> Jason.decode!()
+        |> Map.fetch!("cases")
+        |> Enum.filter(&String.ends_with?(&1["file"], ".json"))
 
-      for path <- paths do
-        assert {:ok, [_], []} = JsonClaim.parse(File.read!(path)), "refused #{path}"
+      assert cases != []
+
+      for %{"file" => file, "expect" => %{"claims" => expected}} <- cases do
+        assert {:ok, claims, []} = JsonClaim.parse(MockData.read!(file)), "refused #{file}"
+        assert length(claims) == length(expected), file
       end
     end
 
     test "the multi-claim fixtures" do
-      assert {:ok, claims, []} = JsonClaim.parse(fixture("claims_list_mixed_risk.json"))
+      assert {:ok, claims, []} =
+               JsonClaim.parse(MockData.read!("J_json_files/J3_claims_wrapper/mixed_risk.json"))
+
       assert length(claims) == 8
 
       assert {:ok, [%{"claim_id" => "CLM-ROUTINE-001"}, %{"claim_id" => "CLM-HIGHVAL-001"}],
               [{2, _}, {4, _}]} =
-               JsonClaim.parse(fixture("claims_list_with_bad_entries.json"))
+               JsonClaim.parse(
+                 MockData.read!(
+                   "J_json_files/J4_claims_mixed_with_non_claims/list_with_bad_entries.json"
+                 )
+               )
     end
 
     test "a bare list of claims, in order" do
@@ -67,7 +77,11 @@ defmodule MedicaidClaimsChecker.Claims.JsonClaimTest do
 
   describe "refuses" do
     test "an engine test request (rules and a list of claims)" do
-      assert {:error, reason} = JsonClaim.parse(fixture("batch_redundancy_extended.json"))
+      assert {:error, reason} =
+               JsonClaim.parse(
+                 MockData.read!("J_json_files/J6_engine_request/rules_text_and_claims.json")
+               )
+
       assert reason =~ "engine test request"
     end
 

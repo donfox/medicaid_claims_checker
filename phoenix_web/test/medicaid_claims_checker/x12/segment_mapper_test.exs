@@ -5,8 +5,16 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapperTest do
 
   # Load X12Translator output fixtures at compile time.
   # These are the real files produced by X12Translator from 837P EDI input.
-  @lab_work Jason.decode!(File.read!("test/fixtures/converter_output/valid_837p_lab_work.json"))
-  @preventive Jason.decode!(File.read!("test/fixtures/converter_output/valid_837p_preventive.json"))
+  @lab_work Jason.decode!(
+              MedicaidClaimsChecker.MockData.read!(
+                "pipeline/converter_output/valid_837p_lab_work.json"
+              )
+            )
+  @preventive Jason.decode!(
+                MedicaidClaimsChecker.MockData.read!(
+                  "pipeline/converter_output/valid_837p_preventive.json"
+                )
+              )
 
   # ---------------------------------------------------------------------------
   # Idempotency and edge cases
@@ -226,7 +234,12 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapperTest do
       # Every line is dated 20260307 (March 7, 2026), in the past
       for line <- claim["service_lines"] do
         date_str = line["date_of_service"]
-        {:ok, date} = Date.from_iso8601("#{String.slice(date_str, 0, 4)}-#{String.slice(date_str, 4, 2)}-#{String.slice(date_str, 6, 2)}")
+
+        {:ok, date} =
+          Date.from_iso8601(
+            "#{String.slice(date_str, 0, 4)}-#{String.slice(date_str, 4, 2)}-#{String.slice(date_str, 6, 2)}"
+          )
+
         refute Date.after?(date, Date.utc_today())
       end
     end
@@ -234,7 +247,12 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapperTest do
     test "RULE PatientAgeOutOfRange — patient age is in valid range (0-130)", %{claim: claim} do
       # DOB 19551108 → ~70 years old
       dob_str = claim["patient"]["date_of_birth"]
-      {:ok, dob} = Date.from_iso8601("#{String.slice(dob_str, 0, 4)}-#{String.slice(dob_str, 4, 2)}-#{String.slice(dob_str, 6, 2)}")
+
+      {:ok, dob} =
+        Date.from_iso8601(
+          "#{String.slice(dob_str, 0, 4)}-#{String.slice(dob_str, 4, 2)}-#{String.slice(dob_str, 6, 2)}"
+        )
+
       age_years = Date.diff(Date.utc_today(), dob) |> div(365)
       assert age_years >= 0 and age_years <= 130
     end
@@ -322,14 +340,24 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapperTest do
 
     test "RULE PatientAgeOutOfRange — pediatric patient age is in range (0-130)", %{claim: claim} do
       dob_str = claim["patient"]["date_of_birth"]
-      {:ok, dob} = Date.from_iso8601("#{String.slice(dob_str, 0, 4)}-#{String.slice(dob_str, 4, 2)}-#{String.slice(dob_str, 6, 2)}")
+
+      {:ok, dob} =
+        Date.from_iso8601(
+          "#{String.slice(dob_str, 0, 4)}-#{String.slice(dob_str, 4, 2)}-#{String.slice(dob_str, 6, 2)}"
+        )
+
       age_years = Date.diff(Date.utc_today(), dob) |> div(365)
       assert age_years >= 0 and age_years <= 130
     end
 
     test "RULE FutureServiceDate — service date 20260312 is in the past", %{claim: claim} do
       date_str = hd(claim["service_lines"])["date_of_service"]
-      {:ok, date} = Date.from_iso8601("#{String.slice(date_str, 0, 4)}-#{String.slice(date_str, 4, 2)}-#{String.slice(date_str, 6, 2)}")
+
+      {:ok, date} =
+        Date.from_iso8601(
+          "#{String.slice(date_str, 0, 4)}-#{String.slice(date_str, 4, 2)}-#{String.slice(date_str, 6, 2)}"
+        )
+
       refute Date.after?(date, Date.utc_today())
     end
   end
@@ -340,14 +368,14 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapperTest do
 
   describe "CLM05 by claim type" do
     defp convert(file) do
-      x12 = File.read!(Path.join("test/fixtures/x12_suite/files", file))
+      x12 = MedicaidClaimsChecker.MockData.read!(file)
       {:ok, flat} = Converter.convert_content(x12)
       {:ok, claim} = SegmentMapper.map_from_json(flat)
       claim |> Jason.encode!() |> Jason.decode!()
     end
 
     test "837I: CLM05-1 is the facility type code, and there is no place of service" do
-      claim = convert("formats/06_institutional_inpatient_weekend.x12")
+      claim = convert("R_business_rules/R7_weekend_inpatient_stay/inpatient_weekend.x12")
       assert claim["transaction_type"] == "837I"
       assert claim["claim_details"]["facility_type_code"] == "11"
       assert claim["claim_details"]["place_of_service"] == nil
@@ -355,7 +383,7 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapperTest do
     end
 
     test "837P: CLM05-1 is the place of service, and there is no facility type code" do
-      claim = convert("single/24_weekend_office_visit.x12")
+      claim = convert("R_business_rules/R6_weekend_office_variants/saturday_office.x12")
       assert claim["transaction_type"] == "837P"
       assert claim["claim_details"]["place_of_service"] == "11"
       assert claim["claim_details"]["facility_type_code"] == nil
@@ -363,7 +391,7 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapperTest do
     end
 
     test "837D: CLM05-1 is the place of service" do
-      claim = convert("formats/02_dental_837d.x12")
+      claim = convert("X_x12_files/X3_837d_dental/dental.x12")
       assert claim["transaction_type"] == "837D"
       assert claim["claim_details"]["place_of_service"] == "11"
       assert claim["claim_details"]["facility_type_code"] == nil

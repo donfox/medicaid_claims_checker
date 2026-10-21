@@ -8,7 +8,9 @@ defmodule MedicaidClaimsChecker.DuplicateAlertTest do
   alias MedicaidClaimsChecker.Claims.Batch
   alias MedicaidClaimsChecker.Ingestion.FetchRunner
 
-  @three_claims Path.expand("../fixtures/x12_suite/files/multi/01_three_claims.x12", __DIR__)
+  @three_claims MedicaidClaimsChecker.MockData.path(
+                  "X_x12_files/X4_several_claims_one_transaction_set/three_claims.x12"
+                )
 
   defp admin(attrs \\ %{}) do
     {:ok, user} =

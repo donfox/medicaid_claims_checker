@@ -6,8 +6,16 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
   alias MedicaidClaimsChecker.X12.SegmentMapper
 
   # Real X12Translator output fixtures — the claims that were previously mis-evaluated
-  @lab_work Jason.decode!(File.read!("test/fixtures/converter_output/valid_837p_lab_work.json"))
-  @preventive Jason.decode!(File.read!("test/fixtures/converter_output/valid_837p_preventive.json"))
+  @lab_work Jason.decode!(
+              MedicaidClaimsChecker.MockData.read!(
+                "pipeline/converter_output/valid_837p_lab_work.json"
+              )
+            )
+  @preventive Jason.decode!(
+                MedicaidClaimsChecker.MockData.read!(
+                  "pipeline/converter_output/valid_837p_preventive.json"
+                )
+              )
 
   setup do
     bypass = Bypass.open()
@@ -332,7 +340,9 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
       # The summary counts the NPPES finding, like totalRules and matchedRules.
       assert file.evaluation_report["totalRules"] == 1
       assert file.evaluation_report["matchedRules"] == 1
-      assert file.evaluation_report["summary"] == "Evaluated 1 rules, 1 matched. Overall risk: CriticalRisk"
+
+      assert file.evaluation_report["summary"] ==
+               "Evaluated 1 rules, 1 matched. Overall risk: CriticalRisk"
     end
 
     test "rejects claims with unknown NPI", %{bypass: bypass} do

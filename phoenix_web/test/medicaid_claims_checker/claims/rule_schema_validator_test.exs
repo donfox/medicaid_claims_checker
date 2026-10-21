@@ -2,9 +2,8 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidatorTest do
   use ExUnit.Case, async: true
 
   alias MedicaidClaimsChecker.Claims.RuleSchemaValidator
+  alias MedicaidClaimsChecker.MockData
   alias MedicaidClaimsChecker.X12.{ClaimSplitter, Converter, SegmentMapper}
-
-  @x12_suite Path.expand("../../fixtures/x12_suite/files", __DIR__)
 
   test "accepts current contract paths and helper-aware rules" do
     rule_text = """
@@ -115,20 +114,25 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidatorTest do
 
   test "the field list is exactly the converter's output for the X12 suite" do
     produced =
-      Path.wildcard(Path.join(@x12_suite, "**/*.{x12,edi}"))
+      Path.wildcard(MockData.path("**/*.{x12,edi}"))
       |> Enum.flat_map(&converted_claims/1)
       |> Enum.flat_map(&leaf_paths(&1, []))
       |> MapSet.new()
 
     # A section that is nil on some claims (no rendering provider, say) shows
     # up as a bare path; it is a parent of real fields, not a field itself.
-    produced = MapSet.reject(produced, fn path -> Enum.any?(produced, &String.starts_with?(&1, path <> ".")) end)
+    produced =
+      MapSet.reject(produced, fn path ->
+        Enum.any?(produced, &String.starts_with?(&1, path <> "."))
+      end)
 
     assert MapSet.size(produced) > 50
     listed = MapSet.new(RuleSchemaValidator.valid_patterns())
 
     refused = MapSet.difference(produced, listed) |> Enum.sort()
-    assert refused == [], "the converter produces fields the Rules page would refuse: #{inspect(refused)}"
+
+    assert refused == [],
+           "the converter produces fields the Rules page would refuse: #{inspect(refused)}"
 
     stale = MapSet.difference(listed, produced) |> Enum.sort()
     assert stale == [], "the Rules page accepts fields no converted claim has: #{inspect(stale)}"

@@ -7,12 +7,11 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.TestResubmissionTest do
   import Phoenix.LiveViewTest
   import Swoosh.TestAssertions
 
-  alias MedicaidClaimsChecker.{Accounts, AccountsFixtures, Claims, Repo}
+  alias MedicaidClaimsChecker.{Accounts, AccountsFixtures, Claims, MockData, Repo}
   alias MedicaidClaimsChecker.Claims.Batch
 
-  @three_claims Path.expand(
-                  "../../../fixtures/x12_suite/files/multi/01_three_claims.x12",
-                  __DIR__
+  @three_claims MockData.path(
+                  "X_x12_files/X4_several_claims_one_transaction_set/three_claims.x12"
                 )
 
   # Alert emails are sent from the LiveView process (Oban runs inline in
@@ -53,8 +52,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.TestResubmissionTest do
     content = File.read!(@three_claims)
 
     for _ <- 1..3,
-        do:
-          assert(upload(view, "01_three_claims.x12", content) =~ "3 X12/EDI claim(s) translated")
+        do: assert(upload(view, "three_claims.x12", content) =~ "3 X12/EDI claim(s) translated")
 
     assert Enum.map(batches(), & &1.duplicates) == [[], [], []]
     assert Enum.all?(batches(), &(&1.batch_name =~ "(test re-submission)"))
@@ -68,9 +66,9 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.TestResubmissionTest do
     refute has_element?(view, "#allow-resubmission[checked]")
     content = File.read!(@three_claims)
 
-    assert upload(view, "01_three_claims.x12", content) =~ "3 X12/EDI claim(s) translated"
+    assert upload(view, "three_claims.x12", content) =~ "3 X12/EDI claim(s) translated"
 
-    assert upload(view, "01_three_claims.x12", content) =~
+    assert upload(view, "three_claims.x12", content) =~
              "Nothing was evaluated: every claim was already submitted."
 
     assert_email_sent()

@@ -10,7 +10,9 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.DuplicateUploadTest do
   alias MedicaidClaimsChecker.Claims.{Batch, EdiFile}
   alias MedicaidClaimsChecker.Repo
 
-  @three_claims Path.expand("../../../fixtures/x12_suite/files/multi/01_three_claims.x12", __DIR__)
+  @three_claims MedicaidClaimsChecker.MockData.path(
+                  "X_x12_files/X4_several_claims_one_transaction_set/three_claims.x12"
+                )
 
   setup %{conn: conn} do
     user = AccountsFixtures.unconfirmed_user_fixture()
@@ -21,7 +23,9 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.DuplicateUploadTest do
     {:ok, view, _html} = live(conn, ~p"/")
 
     view
-    |> file_input("#manual-upload-form", :manual_files, [%{name: name, content: content, type: "text/plain"}])
+    |> file_input("#manual-upload-form", :manual_files, [
+      %{name: name, content: content, type: "text/plain"}
+    ])
     |> render_upload(name)
 
     view |> form("#manual-upload-form") |> render_submit()
@@ -36,11 +40,13 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.DuplicateUploadTest do
   # Uploads the same file twice and returns the view showing the refusal.
   defp refused_view(conn) do
     content = File.read!(@three_claims)
-    upload(conn, "01_three_claims.x12", content)
+    upload(conn, "three_claims.x12", content)
     {:ok, view, _html} = live(conn, ~p"/")
 
     view
-    |> file_input("#manual-upload-form", :manual_files, [%{name: "again.x12", content: content, type: "text/plain"}])
+    |> file_input("#manual-upload-form", :manual_files, [
+      %{name: "again.x12", content: content, type: "text/plain"}
+    ])
     |> render_upload("again.x12")
 
     view |> form("#manual-upload-form") |> render_submit()
@@ -58,6 +64,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.DuplicateUploadTest do
 
     test "by Clear display", %{conn: conn} do
       view = refused_view(conn)
+
       unless has_element?(view, "#clear-history-display") do
         view |> element("button[aria-controls=batch-history-panel]") |> render_click()
       end
@@ -76,7 +83,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.DuplicateUploadTest do
   test "the same file uploaded again is refused and names the first upload", %{conn: conn} do
     content = File.read!(@three_claims)
 
-    assert upload(conn, "01_three_claims.x12", content) =~ "3 X12/EDI claim(s) translated"
+    assert upload(conn, "three_claims.x12", content) =~ "3 X12/EDI claim(s) translated"
     html = upload(conn, "daily_copy.x12", content)
 
     assert html =~ "Nothing was evaluated: every claim was already submitted."
@@ -92,7 +99,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.DuplicateUploadTest do
 
   test "the same claims in a new interchange envelope are refused claim by claim", %{conn: conn} do
     content = File.read!(@three_claims)
-    upload(conn, "01_three_claims.x12", content)
+    upload(conn, "three_claims.x12", content)
 
     resent =
       content
@@ -100,7 +107,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.DuplicateUploadTest do
       |> String.replace("IEA*1*000000101", "IEA*1*000000909")
       |> String.replace("*261016*1200*^", "*261018*0900*^")
 
-    html = upload(conn, "01_three_claims_resent.x12", resent)
+    html = upload(conn, "three_claims_resent.x12", resent)
 
     assert html =~ "Nothing was evaluated: every claim was already submitted."
     assert html =~ "was already submitted in"
@@ -108,12 +115,12 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.DuplicateUploadTest do
     [_first, second] = batches()
     assert length(second.duplicates) == 3
     assert Enum.all?(second.duplicates, &(&1["kind"] == "claim"))
-    assert Enum.all?(second.duplicates, &(Claims.describe_duplicate(&1) =~ "01_three_claims_"))
+    assert Enum.all?(second.duplicates, &(Claims.describe_duplicate(&1) =~ "three_claims_"))
   end
 
   test "a void of an uploaded claim is accepted", %{conn: conn} do
     content = File.read!(@three_claims)
-    upload(conn, "01_three_claims.x12", content)
+    upload(conn, "three_claims.x12", content)
 
     # CLM05-3 frequency code 1 (original) -> 8 (void), in a new envelope.
     voided =
@@ -123,37 +130,60 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.DuplicateUploadTest do
       |> String.replace("IEA*1*000000101", "IEA*1*000000910")
 
     assert voided != content
-    assert upload(conn, "01_three_claims_void.x12", voided) =~ "3 X12/EDI claim(s) translated"
+    assert upload(conn, "three_claims_void.x12", voided) =~ "3 X12/EDI claim(s) translated"
 
     frequency_codes =
-      Repo.all(from(f in EdiFile, order_by: f.id, select: f.json_output["claim_details"]["frequency_code"]))
+      Repo.all(
+        from(f in EdiFile,
+          order_by: f.id,
+          select: f.json_output["claim_details"]["frequency_code"]
+        )
+      )
 
     assert frequency_codes == ["1", "1", "1", "8", "8", "8"]
   end
 
-  describe "retag_test_data.exs copies" do
-    @retag Path.expand("../../../scripts/retag_test_data.exs", __DIR__)
-    @office_visit Path.expand("../../../../../mock_data/claims/clean/office_visit.json", __DIR__)
+  describe "mock_data/retag.exs copies" do
+    @retag MedicaidClaimsChecker.MockData.path("retag.exs")
+    @office_visit MedicaidClaimsChecker.MockData.path(
+                    "R_business_rules/R1_clean_claim/office_visit.json"
+                  )
 
     @tag :tmp_dir
     test "are accepted after the originals, X12 and JSON alike", %{conn: conn, tmp_dir: tmp_dir} do
-      {_, 0} = System.cmd("elixir", [@retag, "--tag", "2", "--out", tmp_dir, @three_claims, @office_visit])
+      {_, 0} =
+        System.cmd("elixir", [
+          @retag,
+          "--tag",
+          "2",
+          "--out",
+          tmp_dir,
+          @three_claims,
+          @office_visit
+        ])
+
       x12 = File.read!(@three_claims)
       json = File.read!(@office_visit)
 
-      assert upload(conn, "01_three_claims.x12", x12) =~ "3 X12/EDI claim(s) translated"
+      assert upload(conn, "three_claims.x12", x12) =~ "3 X12/EDI claim(s) translated"
       assert upload(conn, "office_visit.json", json) =~ "1 JSON claim(s) submitted"
-      assert upload(conn, "01_three_claims.x12", x12) =~ "Nothing was evaluated"
+      assert upload(conn, "three_claims.x12", x12) =~ "Nothing was evaluated"
       assert upload(conn, "office_visit.json", json) =~ "Nothing was evaluated"
 
-      assert upload(conn, "01_three_claims.x12", File.read!(Path.join(tmp_dir, "01_three_claims.x12"))) =~
+      assert upload(conn, "three_claims.x12", File.read!(Path.join(tmp_dir, "three_claims.x12"))) =~
                "3 X12/EDI claim(s) translated"
 
-      assert upload(conn, "office_visit.json", File.read!(Path.join(tmp_dir, "office_visit.json"))) =~
+      assert upload(
+               conn,
+               "office_visit.json",
+               File.read!(Path.join(tmp_dir, "office_visit.json"))
+             ) =~
                "1 JSON claim(s) submitted"
 
       ids = Repo.all(from(f in EdiFile, order_by: f.id, select: f.json_output["claim_id"]))
-      assert ids == ~w(MULTI01 MULTI02 MULTI03 SMP-CLEAN-001 MULTI01-2 MULTI02-2 MULTI03-2 SMP-CLEAN-001-2)
+
+      assert ids ==
+               ~w(MULTI01 MULTI02 MULTI03 SMP-CLEAN-001 MULTI01-2 MULTI02-2 MULTI03-2 SMP-CLEAN-001-2)
     end
   end
 end

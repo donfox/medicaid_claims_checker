@@ -9,8 +9,6 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.JsonUploadTest do
   alias MedicaidClaimsChecker.Claims.{Batch, EdiFile}
   alias MedicaidClaimsChecker.Repo
 
-  @fixtures Path.expand("../../../fixtures/json_upload", __DIR__)
-
   setup %{conn: conn} do
     # Registration only; avoids the login-email path (no mail in tests).
     user = AccountsFixtures.unconfirmed_user_fixture()
@@ -32,7 +30,10 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.JsonUploadTest do
   end
 
   test "a file with no claim is refused and no batch is created", %{conn: conn} do
-    content = File.read!(Path.join(@fixtures, "batch_redundancy_extended.json"))
+    content =
+      MedicaidClaimsChecker.MockData.read!(
+        "J_json_files/J6_engine_request/rules_text_and_claims.json"
+      )
 
     html = upload(conn, [{"batch_redundancy_extended.json", content}])
 
@@ -42,7 +43,8 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.JsonUploadTest do
   end
 
   test "claims are accepted and the refused file is named", %{conn: conn} do
-    claim = File.read!(Path.join(@fixtures, "claim_routine_office_visit.json"))
+    claim =
+      MedicaidClaimsChecker.MockData.read!("J_json_files/J1_one_claim/routine_office_visit.json")
 
     html = upload(conn, [{"claim.json", claim}, {"notes.json", ~s({"name": "x"})}])
 

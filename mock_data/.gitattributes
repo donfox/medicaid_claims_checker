@@ -1,0 +1,4 @@
+# X12 test inputs must keep their exact bytes (e.g. the CRLF line-endings case).
+*.x12 -text
+*.edi -text
+*.zip -text

@@ -1,0 +1,100 @@
+<!doctype html>
+<!--
+  Source of Repeat_Testing_Guide.pdf. After editing, rebuild both PDFs:
+    docs/testing/build_pdfs.sh
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Repeat Testing with Mock Data</title>
+<link rel="stylesheet" href="testing.css">
+</head>
+<body>
+<h1>Repeat Testing with Mock Data</h1>
+<p class="sub">Medicaid Claims Checker · uploading the same test files round after round · October 21, 2026</p>
+
+<div class="callout">
+  <b>The short version.</b> In development, Manual Upload has a checkbox,
+  <b>Test upload: allow re-submission</b>, ticked by default. While it is ticked, upload the files in
+  <code>mock_data/</code> as they are, as often as you like. Untick it only to test the duplicate check itself.
+</div>
+
+<h2>Why a file is refused without the checkbox</h2>
+<p>The app accepts each claim only once, on purpose. It refuses a file it has already received, and any claim whose
+content matches a claim already submitted, even in a different file. The refusal names the earlier batch, shows in Batch
+History, and emails the admin users. This is the production behaviour. “Clear display” does not reset it; it only hides old
+batches.</p>
+<p>The checkbox lets test files skip that check. It appears only when the app runs in development
+(<code>config/dev.exs</code> sets <code>allow_test_resubmission: true</code>); production never shows it, and the server
+ignores the request if it is sent anyway.</p>
+
+<h2>Each round</h2>
+<ol>
+  <li>Start the app with <code>./start.sh</code> and open <code>http://localhost:4000/</code>.</li>
+  <li>In Manual Upload, check that <b>Test upload: allow re-submission</b> is ticked. It is ticked again each time the
+    page loads.</li>
+  <li>Drag in files from <code>mock_data/</code> (up to 100 files, 10 MB each) and click <b>Process Files</b>. Each use case
+    has its own folder, for example <code>mock_data/R_business_rules/R5_exact_thresholds/</code>; the
+    <a href="Frontend_Use_Cases.pdf">Frontend Use Cases</a> list says which files go with which case.</li>
+  <li>The batch name ends in “(test re-submission)”. Open it in Batch History and compare each claim with the expected
+    result in the use-case list, <code>mock_data/README.md</code>, or <code>mock_data/manifest.json</code>.</li>
+</ol>
+<p>Leave out <code>manifest.json</code>, the <code>.dsl</code> rule files (they go on the Rules page) and the claims in
+<code>P_rules_page/P2_redundancy_levels/claims/</code>, which are written for <code>redundancy_levels.dsl</code>, not the
+live rules.</p>
+
+<h2>Testing the duplicate refusal itself</h2>
+<ol>
+  <li><b>Untick</b> the checkbox.</li>
+  <li>Upload any claim file that has been uploaded before (with or without the checkbox). Expect: “Nothing was evaluated:
+    every claim was already submitted. Refused as already submitted: …”, a red “Refused as already submitted” box on that
+    batch in Batch History, and an alert email to each active admin user.</li>
+  <li>Dismiss the message with its ×, by choosing new files, or with Clear display.</li>
+</ol>
+<div class="note">
+  <b>Where the alert email goes.</b> When Phoenix runs with the Brevo mail settings (as <code>./start.sh</code> does when
+  they are set), the email goes to the admins’ real inboxes, so each test sends real mail. Without those settings it stays
+  in the app, at <code>http://localhost:4000/dev/mailbox</code>.
+</div>
+
+<h2>Checking every file at once</h2>
+<p>Two scripts check all the mock data without any clicking. Neither adds batches to Batch History, and both can be run
+any number of times.</p>
+<table>
+  <tr><th>Command</th><th>What it does</th></tr>
+  <tr>
+    <td><code>./test.sh</code><br><code>./test.sh R5 N7</code></td>
+    <td>Uploads every file through the real Upload and Rules pages (in a test database) and checks the results, for all 59
+      use cases or only the ones named. Starts and stops its own engine, so a running <code>./start.sh</code> is left alone.
+      Pass = no failures in the last line.</td>
+  </tr>
+  <tr>
+    <td><code>cd phoenix_web</code><br><code>mix run --no-start ../mock_data/verify.exs</code><br>
+      <code>… verify.exs --only R5</code></td>
+    <td>Sends each generated file through the same steps as an upload, using the running engine and the dev database,
+      and compares the outcome with <code>manifest.json</code>. Pass = the last line reads FAIL 0.</td>
+  </tr>
+</table>
+
+<h2>Good to know</h2>
+<table>
+  <tr><th>Situation</th><th>What to do</th></tr>
+  <tr><td>A file is refused as already submitted</td>
+    <td>The checkbox was unticked. Tick it and upload again.</td></tr>
+  <tr><td>The checkbox isn’t there</td>
+    <td>The app isn’t running in development. Start it with <code>./start.sh</code>; after a change to
+      <code>config/dev.exs</code>, restart Phoenix.</td></tr>
+  <tr><td>X12 error files (X7, E3) or zips with nothing usable (Z4, Z6)</td>
+    <td>They hold no claims, so they are never recorded and are refused only for what is wrong with them.</td></tr>
+  <tr><td>A new-provider rule doesn’t fire on an X12 file</td>
+    <td>Provider tenure comes only from JSON claims; use the JSON files for R8.</td></tr>
+  <tr><td>Z7 (more than 15,000 claims) has no file</td>
+    <td>It is too big to keep in git. Make one with <code>elixir mock_data/generate.exs --large 15001</code>; it is written
+      to <code>Z_zip_files/Z7_over_15000_claims/</code>.</td></tr>
+  <tr><td>Copies with new claim IDs are wanted anyway</td>
+    <td><code>elixir mock_data/retag.exs --tag 3 --out ~/upload_round3 mock_data</code> writes copies whose claim IDs end
+      in <code>-3</code>, with a matching <code>manifest.json</code>; check them with
+      <code>verify.exs --suite ~/upload_round3/mock_data</code>. Not needed while the checkbox is ticked.</td></tr>
+</table>
+</body>
+</html>

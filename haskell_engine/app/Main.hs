@@ -12,6 +12,9 @@
 --   without TLS stops the server at startup.
 -- * With both set it serves HTTPS on any host.
 --
+-- @ENGINE_RATE_LIMIT@ (default 100) is the most requests one address may make
+-- per 60 s; the use-case tests (../test.sh) raise it for their own engine.
+--
 -- endpoints:
 --
 -- * @post /api/evaluate@          — evaluate one claim against a rule set
@@ -89,12 +92,17 @@ main = do
   let workerCount = max 1 numCaps
   sem <- newQSem workerCount
   secret <- BS8.pack . fromMaybe "" <$> lookupEnv "RULE_ENGINE_SECRET"
+  rateLimit <- lookupEnv "ENGINE_RATE_LIMIT" >>= \v -> case v of
+    Nothing -> pure defaultRateLimit
+    Just s -> case readMaybe s of
+      Just n | n > 0 -> pure n
+      _ -> hPutStrLn stderr ("Engine not started: ENGINE_RATE_LIMIT must be a positive number, got " ++ show s) >> exitFailure
   rateRef <- newIORef Map.empty
   putStrLn $ "Worker pool: " ++ show workerCount ++ " concurrent claim evaluations"
   putStrLn $ "Auth: " ++ if BS8.null secret then "WARNING — RULE_ENGINE_SECRET not set, all requests will be rejected" else "shared-secret enabled"
-  putStrLn $ "Rate limit: " ++ show rateLimitMax ++ " requests per " ++ show rateLimitWindowSecs ++ " s per IP"
+  putStrLn $ "Rate limit: " ++ show rateLimit ++ " requests per " ++ show rateLimitWindowSecs ++ " s per IP"
   let settings = setHost (fromString (lcHost config)) (setPort (lcPort config) defaultSettings)
-      handler = rateLimitMiddleware rateRef (authMiddleware secret (app sem))
+      handler = rateLimitMiddleware rateLimit rateRef (authMiddleware secret (app sem))
   case lcTls config of
     Just (cert, key) -> runTLS (tlsSettings cert key) settings handler
     Nothing -> runSettings settings handler
@@ -133,14 +141,14 @@ authMiddleware secret inner request respond
 
 -- | Sliding-window rate-limiter middleware.
 --
--- Each unique remote address is allowed at most 'rateLimitMax' requests within
+-- Each unique remote address is allowed at most @limit@ requests within
 -- a rolling 'rateLimitWindowSecs' second window. Requests exceeding the limit
 -- receive a 429 response before any body parsing or authentication occurs.
 -- The /api/health endpoint is exempt so liveness probes are never throttled.
 type RateMap = Map.Map SockAddr [UTCTime]
 
-rateLimitMiddleware :: IORef RateMap -> Application -> Application
-rateLimitMiddleware ref inner request respond
+rateLimitMiddleware :: Int -> IORef RateMap -> Application -> Application
+rateLimitMiddleware limit ref inner request respond
   | pathInfo request == ["api", "health"] = inner request respond
   | otherwise = do
       now <- getCurrentTime
@@ -148,7 +156,7 @@ rateLimitMiddleware ref inner request respond
           cutoff = addUTCTime (fromIntegral (negate rateLimitWindowSecs)) now
       allowed <- atomicModifyIORef' ref $ \m ->
         let recent = filter (> cutoff) (Map.findWithDefault [] addr m)
-        in if length recent >= rateLimitMax
+        in if length recent >= limit
              then (m, False)
              else (Map.insert addr (now : recent) m, True)
       if allowed
@@ -157,7 +165,7 @@ rateLimitMiddleware ref inner request respond
                responseLBS
                  status429
                  [("Content-Type", "application/json"), ("Retry-After", "60")]
-                 (encode $ object ["error" .= ("Rate limit exceeded — max 100 requests per 60 s" :: String)])
+                 (encode $ object ["error" .= ("Rate limit exceeded — max " ++ show limit ++ " requests per " ++ show rateLimitWindowSecs ++ " s")])
 
 -- | Validate that an ML scorer URL does not target a private or cloud-metadata
 -- hostname, preventing SSRF when ML_SCORER_URL is influenced by a misconfigured
@@ -196,9 +204,10 @@ maxRulesTextChars = 512 * 1024
 evalTimeoutMicros :: Int
 evalTimeoutMicros = 30 * 1000000
 
--- | Sliding-window rate limit: maximum requests per IP per window.
-rateLimitMax :: Int
-rateLimitMax = 100
+-- | Sliding-window rate limit: maximum requests per IP per window, unless
+-- ENGINE_RATE_LIMIT sets another.
+defaultRateLimit :: Int
+defaultRateLimit = 100
 
 -- | Rate-limit window size in seconds.
 rateLimitWindowSecs :: Int

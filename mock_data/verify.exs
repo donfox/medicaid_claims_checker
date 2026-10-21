@@ -49,7 +49,8 @@ defmodule MockDataVerify do
         _ -> [{name, content}]
       end
 
-    Enum.reduce(entries, {[], []}, fn {fname, data}, {claims, failures} ->
+    entries
+    |> Enum.reduce({[], []}, fn {fname, data}, {claims, failures} ->
       {c, f} =
         case Path.extname(fname) |> String.downcase() do
           ".json" -> json_file(fname, data)
@@ -59,6 +60,12 @@ defmodule MockDataVerify do
 
       {claims ++ c, failures ++ f}
     end)
+    |> case do
+      # Nothing to read (an empty, corrupt or text-only zip): the upload
+      # page says this.
+      {[], []} -> {[], ["No processable claims found. Supported file types: .json, .x12, .edi, .zip"]}
+      result -> result
+    end
   end
 
   defp unzip(content) do

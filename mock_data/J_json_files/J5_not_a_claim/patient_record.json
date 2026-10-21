@@ -1,0 +1,11 @@
+{
+  "note": "Not a claim: there is no claim_id or claim field.",
+  "patient": {
+    "date_of_birth": "1989-02-17",
+    "name": {
+      "first": "ELENA",
+      "last": "VASQUEZ"
+    }
+  }
+}
+

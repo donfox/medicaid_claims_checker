@@ -5,6 +5,19 @@
       "expect": {
         "claims": [
           {
+            "claim_id": "EDICLEAN01",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "E_edi_files/E1_plain_edi/clean_claim.edi",
+      "purpose": "Ordinary clean 837P claim in a file named .edi"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
             "claim_id": "ALTDELIM01",
             "matched": [
               "HighComplexityERVisit",
@@ -24,6 +37,26 @@
       "expect": { "error": "must start with ISA" },
       "file": "E_edi_files/E3_not_x12/not_x12.edi",
       "purpose": "Plain text that is not X12 → reject"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "MOCK-LIST-001",
+            "matched": [],
+            "nppes": "ok"
+          },
+          {
+            "claim_id": "MOCK-LIST-002",
+            "matched": [
+              "MissingDiagnosisCodes"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "J_json_files/J2_list_of_claims/two_claims.json",
+      "purpose": "A plain list [...] of two claims, without the {\"claims\": ...} wrapper"
     },
     {
       "expect": {
@@ -98,6 +131,42 @@
       },
       "file": "J_json_files/J3_claims_wrapper/mixed_batch.json",
       "purpose": "Six claims in one file: two clean, four that each match different rules"
+    },
+    {
+      "expect": { "error": "no claim found" },
+      "file": "J_json_files/J5_not_a_claim/patient_record.json",
+      "purpose": "Valid JSON that is not a claim (a patient record, no claim_id) → refused, nothing evaluated"
+    },
+    {
+      "expect": { "error": "not valid JSON" },
+      "file": "J_json_files/J7_invalid_json/cut_off.json",
+      "purpose": "A claim file cut off part-way, so not valid JSON → refused, nothing evaluated"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "MOCK-DENTAL-001",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "J_json_files/J8_837i_or_837d_style_json/dental_837d.json",
+      "purpose": "837D-style JSON claim (procedure qualifier AD, tooth number); clean"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "MOCK-INST-001",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "J_json_files/J8_837i_or_837d_style_json/institutional_837i.json",
+      "purpose": "837I-style JSON claim (facility type, revenue codes, no procedure codes); clean"
     },
     {
       "expect": {
@@ -695,6 +764,74 @@
       },
       "file": "R_business_rules/R10_age_out_of_range_or_missing_dob/missing_dob.x12",
       "purpose": "No DMG segment (no date of birth) → MissingRequiredFields"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "MOCK-FREQ-REPLACE",
+            "matched": [
+              "HighValueClaim"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "R_business_rules/R11_replacement_or_void_claim/replacement_frequency_7.json",
+      "purpose": "Replacement (frequency code 7) of a claim over $50,000: the rules apply as to an original"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "FREQ7X12",
+            "matched": [
+              "HighValueClaim",
+              "UnauthorizedProcedure"
+            ],
+            "not_checked": [
+              "NewProviderLargeSubmission"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "R_business_rules/R11_replacement_or_void_claim/replacement_frequency_7.x12",
+      "purpose": "Replacement (CLM05-3 = 7) of a claim over $50,000: the rules apply as to an original"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "MOCK-FREQ-VOID",
+            "matched": [
+              "HighValueClaim"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "R_business_rules/R11_replacement_or_void_claim/void_frequency_8.json",
+      "purpose": "Void (frequency code 8) of a claim over $50,000: the rules apply as to an original"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "FREQ8X12",
+            "matched": [
+              "HighValueClaim",
+              "UnauthorizedProcedure"
+            ],
+            "not_checked": [
+              "NewProviderLargeSubmission"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "R_business_rules/R11_replacement_or_void_claim/void_frequency_8.x12",
+      "purpose": "Void (CLM05-3 = 8) of a claim over $50,000: the rules apply as to an original"
     },
     {
       "expect": {
@@ -1704,6 +1841,24 @@
       "expect": {
         "claims": [
           {
+            "claim_id": "ZIPJSON02",
+            "matched": [],
+            "nppes": "ok"
+          },
+          {
+            "claim_id": "ZIPJSON03",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "Z_zip_files/Z2_json_only_zip/two_json_claims.zip",
+      "purpose": "Zip holding only .json claims"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
             "claim_id": "ESCAPE01",
             "matched": [],
             "nppes": "ok"
@@ -1712,6 +1867,34 @@
       },
       "file": "Z_zip_files/Z3_path_traversal/path_traversal.zip",
       "purpose": "Zip whose only entry is ../escape.x12 → Erlang's in-memory unzip strips the ../ and the entry is read as escape.x12; nothing is written to disk"
+    },
+    {
+      "expect": { "error": "No processable claims found" },
+      "file": "Z_zip_files/Z4_nothing_usable/empty.zip",
+      "purpose": "Zip with no entries → nothing to evaluate"
+    },
+    {
+      "expect": { "error": "No processable claims found" },
+      "file": "Z_zip_files/Z4_nothing_usable/text_files_only.zip",
+      "purpose": "Zip holding only .txt and .csv files, which are ignored → nothing to evaluate"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "OUTER01",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "Z_zip_files/Z5_zip_inside_zip/nested.zip",
+      "purpose": "Zip holding an .x12 and another zip; the inner zip is ignored, so only the outer claim is evaluated"
+    },
+    {
+      "expect": { "error": "No processable claims found" },
+      "file": "Z_zip_files/Z6_corrupt_zip/cut_off.zip",
+      "purpose": "Zip file cut off part-way, so it can't be opened → nothing to evaluate"
     }
   ]
 }

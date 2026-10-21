@@ -218,25 +218,25 @@
 
         <%= if @catalog_rule_text != "" && @selected_catalog_rule_type not in ["Default Rule", "ML Model"] do %>
           <%= if @catalog_parse_error do %>
-            <div role="alert" class="mt-3 p-3 bg-red-100 border border-red-300 rounded-md">
+            <div id="rule-syntax-error" role="alert" class="mt-3 p-3 bg-red-100 border border-red-300 rounded-md">
               <p class="text-sm text-red-900 font-semibold">Rule syntax issue</p>
               <p class="text-xs text-red-800 mt-1 whitespace-pre-wrap"><%= @catalog_parse_error %></p>
             </div>
           <% else %>
-            <div role="alert" class="mt-3 p-3 bg-green-100 border border-green-300 rounded-md">
+            <div id="rule-syntax-ok" role="alert" class="mt-3 p-3 bg-green-100 border border-green-300 rounded-md">
               <p class="text-sm text-green-900 font-semibold">✓ Rule syntax is valid</p>
             </div>
           <% end %>
         <% end %>
 
         <%= if @catalog_error do %>
-          <div role="alert" class="mt-3 p-3 bg-red-100 border border-red-300 rounded-md">
+          <div id="catalog-error" role="alert" class="mt-3 p-3 bg-red-100 border border-red-300 rounded-md">
             <p class="text-sm text-red-900"><%= @catalog_error %></p>
           </div>
         <% end %>
 
         <%= if @redundancy_matches != [] do %>
-          <div class="mt-3 space-y-3">
+          <div id="redundancy-warning" class="mt-3 space-y-3">
             <%= for {tier, matches} <- group_redundancy_matches(@redundancy_matches) do %>
               <div class={[
                 "p-4 rounded-md border",
@@ -286,7 +286,7 @@
             <% end %>
 
             <div class="flex gap-2 mt-2">
-              <button type="button" phx-click="dismiss_redundancy_warning"
+              <button type="button" id="save-anyway" phx-click="dismiss_redundancy_warning"
                 class={"px-4 py-2.5 text-white rounded-md text-sm font-medium cursor-pointer " <> if(redundancy_has_conflicts?(@redundancy_matches), do: "bg-red-600 hover:bg-red-700", else: "bg-yellow-600 hover:bg-yellow-700")}>
                 Save Anyway
               </button>

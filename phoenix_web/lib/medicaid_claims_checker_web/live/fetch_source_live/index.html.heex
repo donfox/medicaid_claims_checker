@@ -306,7 +306,7 @@
               <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
               <span class="relative inline-flex rounded-full h-3 w-3 bg-yellow-500"></span>
             </span>
-            <p class="text-sm text-yellow-900"><%= @upload_message %></p>
+            <p id="upload-message" class="text-sm text-yellow-900"><%= @upload_message %></p>
             <p class="text-xs text-yellow-700 ml-auto">Results will appear in history below when translation completes.</p>
           </div>
         <% end %>
@@ -317,13 +317,13 @@
               <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
               <span class="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
             </span>
-            <p class="text-sm text-blue-900"><%= @upload_message %></p>
+            <p id="upload-message" class="text-sm text-blue-900"><%= @upload_message %></p>
           </div>
         <% end %>
 
         <%= if @upload_status == :done do %>
           <div role="alert" class="mt-4 p-3 bg-green-50 border border-green-300 rounded-lg flex items-start gap-2">
-            <p class="text-sm font-medium text-green-900"><%= @upload_message %></p>
+            <p id="upload-message" class="text-sm font-medium text-green-900"><%= @upload_message %></p>
             <button
               type="button"
               id="dismiss-upload-message"
@@ -336,7 +336,7 @@
 
         <%= if @upload_status == :error do %>
           <div role="alert" class="mt-4 p-3 bg-red-50 border border-red-300 rounded-lg flex items-start gap-2">
-            <p class="text-sm text-red-900"><%= @upload_message %></p>
+            <p id="upload-message" class="text-sm text-red-900"><%= @upload_message %></p>
             <button
               type="button"
               id="dismiss-upload-message"

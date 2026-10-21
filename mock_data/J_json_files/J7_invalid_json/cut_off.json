@@ -1,0 +1,13 @@
+{
+  "authorization": { "authorization_number": null },
+  "billing_provider": {
+    "address": {
+      "city": "VERNON",
+      "state": "TX",
+      "street": "4103 WILBARGER ST",
+      "zip": "763843137"
+    },
+    "name": "KEVIN LANE DO PA",
+    "npi": "1003001579",
+    "tax_id": "973304424",
+    "t

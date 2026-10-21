@@ -1,0 +1,98 @@
+{
+  "authorization": { "authorization_number": null },
+  "billing_provider": {
+    "address": {
+      "city": "WILLIMANTIC",
+      "state": "CT",
+      "street": "123 QUARRY ST",
+      "zip": "062261247"
+    },
+    "name": "WINDHAM COMMUNITY MEMORIAL HOSPITAL",
+    "npi": "1003023482",
+    "tax_id": "902028240",
+    "taxonomy": "282N00000X"
+  },
+  "claim_details": {
+    "facility_type_code": "13",
+    "frequency_code": "1",
+    "place_of_service": null
+  },
+  "claim_id": "MOCK-INST-001",
+  "claim_totals": { "total_charges": 600.0 },
+  "diagnosis_codes": [
+    {
+      "code": "R1010",
+      "qualifier": "ABK"
+    }
+  ],
+  "financial": { "claim_amount": 600.0 },
+  "patient": {
+    "date_of_birth": "1971-09-30",
+    "gender": "M",
+    "name": {
+      "first": "DONALD",
+      "last": "PRUITT",
+      "middle": "R"
+    }
+  },
+  "payer": {
+    "name": "STATE MEDICAID PROGRAM",
+    "payer_id": "STMED01"
+  },
+  "provider": {
+    "name": "WINDHAM COMMUNITY MEMORIAL HOSPITAL",
+    "npi": "1003023482",
+    "tax_id": "902028240",
+    "taxonomy": "282N00000X",
+    "tenure_days": 2400
+  },
+  "rendering_provider": null,
+  "sample_notes": "Hospital outpatient (facility type 13) claim with revenue-code lines only, on a weekday, $600. No rule should match.",
+  "service_lines": [
+    {
+      "charge_amount": 420.0,
+      "date_of_service": "2026-09-16",
+      "diagnosis_pointer": "1",
+      "line_number": 1,
+      "place_of_service": null,
+      "procedure_code": null,
+      "procedure_qualifier": null,
+      "revenue_code": "0450",
+      "tooth_info": null,
+      "unit_type": "DA",
+      "units": 1
+    },
+    {
+      "charge_amount": 180.0,
+      "date_of_service": "2026-09-16",
+      "diagnosis_pointer": "1",
+      "line_number": 2,
+      "place_of_service": null,
+      "procedure_code": null,
+      "procedure_qualifier": null,
+      "revenue_code": "0300",
+      "tooth_info": null,
+      "unit_type": "DA",
+      "units": 1
+    }
+  ],
+  "subscriber": {
+    "address": {
+      "city": "WILLIMANTIC",
+      "state": "CT",
+      "street": "100 MAIN ST",
+      "zip": "06226"
+    },
+    "date_of_birth": "1971-09-30",
+    "first_name": "DONALD",
+    "gender": "M",
+    "group_number": null,
+    "last_name": "PRUITT",
+    "member_id": "MCD036956836",
+    "middle_name": "R",
+    "payer_responsibility": "P",
+    "relationship_code": "18"
+  },
+  "transaction_type": "837I"
+}
+

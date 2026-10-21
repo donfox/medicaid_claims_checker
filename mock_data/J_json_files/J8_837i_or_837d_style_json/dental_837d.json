@@ -1,0 +1,102 @@
+{
+  "authorization": { "authorization_number": null },
+  "billing_provider": {
+    "address": {
+      "city": "DEARBORN HEIGHTS",
+      "state": "MI",
+      "street": "2184 N BEECH DALY RD STE 4",
+      "zip": "481273492"
+    },
+    "name": "SHAZA AWAD DDS",
+    "npi": "1003625385",
+    "tax_id": "982509283",
+    "taxonomy": "261QD0000X"
+  },
+  "claim_details": {
+    "facility_type_code": null,
+    "frequency_code": "1",
+    "place_of_service": "11"
+  },
+  "claim_id": "MOCK-DENTAL-001",
+  "claim_totals": { "total_charges": 245.0 },
+  "diagnosis_codes": [
+    {
+      "code": "K0251",
+      "qualifier": "ABK"
+    }
+  ],
+  "financial": { "claim_amount": 245.0 },
+  "patient": {
+    "date_of_birth": "2004-06-05",
+    "gender": "M",
+    "name": {
+      "first": "JAMAL",
+      "last": "WHITAKER",
+      "middle": "T"
+    }
+  },
+  "payer": {
+    "name": "STATE MEDICAID PROGRAM",
+    "payer_id": "STMED01"
+  },
+  "provider": {
+    "name": "SHAZA AWAD DDS",
+    "npi": "1003625385",
+    "tax_id": "982509283",
+    "taxonomy": "261QD0000X",
+    "tenure_days": 2400
+  },
+  "rendering_provider": null,
+  "sample_notes": "Dental claim as the converter writes an 837D: periodic exam and a one-surface filling on tooth 19, $245. No rule should match.",
+  "service_lines": [
+    {
+      "charge_amount": 65.0,
+      "date_of_service": "2026-09-15",
+      "diagnosis_pointer": "1",
+      "line_number": 1,
+      "place_of_service": "11",
+      "procedure_code": "D0120",
+      "procedure_qualifier": "AD",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    },
+    {
+      "charge_amount": 180.0,
+      "date_of_service": "2026-09-15",
+      "diagnosis_pointer": "1",
+      "line_number": 2,
+      "place_of_service": "11",
+      "procedure_code": "D2391",
+      "procedure_qualifier": "AD",
+      "revenue_code": null,
+      "tooth_info": {
+        "tooth_code_qualifier": "JP",
+        "tooth_number": "19",
+        "tooth_surface": "O"
+      },
+      "unit_type": "UN",
+      "units": 1
+    }
+  ],
+  "subscriber": {
+    "address": {
+      "city": "DEARBORN HEIGHTS",
+      "state": "MI",
+      "street": "100 MAIN ST",
+      "zip": "48127"
+    },
+    "date_of_birth": "2004-06-05",
+    "first_name": "JAMAL",
+    "gender": "M",
+    "group_number": null,
+    "last_name": "WHITAKER",
+    "member_id": "MCD890820914",
+    "middle_name": "T",
+    "payer_responsibility": "P",
+    "relationship_code": "18"
+  },
+  "transaction_type": "837D"
+}
+

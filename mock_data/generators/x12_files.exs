@@ -68,7 +68,9 @@ defmodule X12Suite.Builder do
       lines: lines,
       member: Map.merge(@default_member, Map.new(Keyword.get(opts, :member, []))),
       rendering: Keyword.get(opts, :rendering),
-      prior_auth: Keyword.get(opts, :prior_auth)
+      prior_auth: Keyword.get(opts, :prior_auth),
+      # CLM05-3: 1 original, 7 replacement, 8 void.
+      frequency: Keyword.get(opts, :frequency, "1")
     }
   end
 
@@ -183,7 +185,7 @@ defmodule X12Suite.Builder do
         _ -> {"B", []}
       end
 
-    clm = [["CLM", c.id, c.amount, "", "", comp.([c.pos, facility_code, "1"]), "Y", "A", "Y", "Y"]]
+    clm = [["CLM", c.id, c.amount, "", "", comp.([c.pos, facility_code, c.frequency]), "Y", "A", "Y", "Y"]]
     auth = if c.prior_auth, do: [["REF", "G1", c.prior_auth]], else: []
 
     hi =
@@ -244,7 +246,7 @@ defmodule X12Suite.Cases do
   end
 
   def all do
-    single_claims() ++ formats() ++ multi_claim() ++ envelope_errors()
+    single_claims() ++ formats() ++ multi_claim() ++ envelope_errors() ++ frequency_codes() ++ broken_zips()
   end
 
   def single_claims do
@@ -392,6 +394,8 @@ defmodule X12Suite.Cases do
         kind: :i, billing: [name: "THE ROSS ORTHOPAEDIC WELLNESS CENTER", npi: "1003005000", taxonomy: "207X00000X"]),
       single("X_x12_files/X3_837d_dental/dental.x12", "837D dental claim (SV3, TOO), clean",
         claim("DENT01", lines: [{"D1110", "95.00", "20260912"}]), ok("DENT01", []), kind: :d),
+      single("E_edi_files/E1_plain_edi/clean_claim.edi", "Ordinary clean 837P claim in a file named .edi",
+        claim("EDICLEAN01"), ok("EDICLEAN01", [])),
       single("X_x12_files/X6_one_line_or_windows_line_endings/no_newlines.x12", "Whole file on one line (no newlines), clean",
         claim("ONELINE01"), ok("ONELINE01", []), format: [newline: ""]),
       single("X_x12_files/X6_one_line_or_windows_line_endings/crlf_line_endings.x12", "Windows CRLF line endings, clean",
@@ -514,11 +518,40 @@ defmodule X12Suite.Cases do
     ]
   end
 
+  # Replacement (7) and void (8) claims: no rule looks at the frequency code,
+  # so they match the same rules as the original (HighValueClaim.x12).
+  def frequency_codes do
+    for {code, kind} <- [{"7", "replacement"}, {"8", "void"}] do
+      id = "FREQ#{code}X12"
+
+      single("R_business_rules/R11_replacement_or_void_claim/#{kind}_frequency_#{code}.x12",
+        "#{String.capitalize(kind)} (CLM05-3 = #{code}) of a claim over $50,000: the rules apply as to an original",
+        claim(id, frequency: code, lines: [{"27447", "62000.00", "20260814"}]),
+        ok(id, ["HighValueClaim", "UnauthorizedProcedure"], not_checked: ["NewProviderLargeSubmission"]),
+        @valid_ortho)
+    end
+  end
+
+  # A zip that can't be opened: a real zip cut off part-way.
+  def broken_zips do
+    {:ok, {_, whole}} =
+      :zip.create(~c"claims.zip", [{~c"claim.x12", interchange([transaction([claim("CORRUPT01")])])}], [:memory])
+
+    [
+      %{
+        file: "Z_zip_files/Z6_corrupt_zip/cut_off.zip",
+        purpose: "Zip file cut off part-way, so it can't be opened → nothing to evaluate",
+        content: binary_part(whole, 0, div(byte_size(whole), 2)),
+        expect: %{error: "No processable claims found"}
+      }
+    ]
+  end
+
   # A business-schema JSON claim, as a .json upload or a .json inside a zip.
   # JSON claims can carry fields X12 conversion never fills (tenure, auth).
-  def json_claim do
+  def json_claim(id \\ "ZIPJSON01") do
     %{
-      "claim_id" => "ZIPJSON01",
+      "claim_id" => id,
       "provider" => %{"npi" => "1003001538", "tenure_days" => 400},
       "billing_provider" => %{"npi" => "1003001538", "taxonomy" => "207R00000X"},
       "patient" => %{"date_of_birth" => "19850315"},
@@ -550,8 +583,41 @@ defmodule X12Suite.Cases do
            "Zip whose only entry is ../escape.x12 → Erlang's in-memory unzip strips the ../ " <>
              "and the entry is read as escape.x12; nothing is written to disk",
          expect: %{claims: [ok("ESCAPE01", [])]}
-       }, [{"../escape.x12", interchange([transaction([claim("ESCAPE01")])])}]}
+       }, [{"../escape.x12", interchange([transaction([claim("ESCAPE01")])])}]},
+      {%{
+         file: "Z_zip_files/Z2_json_only_zip/two_json_claims.zip",
+         purpose: "Zip holding only .json claims",
+         expect: %{claims: [ok("ZIPJSON02", []), ok("ZIPJSON03", [])]}
+       },
+       [
+         {"claims/first.json", X12Suite.pretty_json(json_claim("ZIPJSON02"))},
+         {"claims/second.json", X12Suite.pretty_json(json_claim("ZIPJSON03"))}
+       ]},
+      {%{
+         file: "Z_zip_files/Z4_nothing_usable/empty.zip",
+         purpose: "Zip with no entries → nothing to evaluate",
+         expect: %{error: "No processable claims found"}
+       }, []},
+      {%{
+         file: "Z_zip_files/Z4_nothing_usable/text_files_only.zip",
+         purpose: "Zip holding only .txt and .csv files, which are ignored → nothing to evaluate",
+         expect: %{error: "No processable claims found"}
+       }, [{"notes.txt", "Not a claim.\n"}, {"export.csv", "claim_id,amount\nX1,100\n"}]},
+      {%{
+         file: "Z_zip_files/Z5_zip_inside_zip/nested.zip",
+         purpose: "Zip holding an .x12 and another zip; the inner zip is ignored, so only the outer claim is evaluated",
+         expect: %{claims: [ok("OUTER01", [])]}
+       },
+       [
+         {"outer.x12", interchange([transaction([claim("OUTER01")])])},
+         {"inner.zip", inner_zip([{"inner.x12", interchange([transaction([claim("INNER01")])], control: "000000103")}])}
+       ]}
     ]
+  end
+
+  defp inner_zip(entries) do
+    {:ok, {_, bin}} = :zip.create(~c"inner.zip", Enum.map(entries, fn {n, d} -> {String.to_charlist(n), d} end), [:memory])
+    bin
   end
 
   # Large batch: `n` clean claims split into 1,000-claim X12 files inside one

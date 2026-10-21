@@ -50,9 +50,13 @@ different results; `manifest.json` has each one's.
 | Folder | Contents |
 |---|---|
 | `J_json_files/J1_one_claim/` | One claim in a `.json` file |
+| `J_json_files/J2_list_of_claims/` | A plain list `[...]` of claims, no wrapper |
 | `J_json_files/J3_claims_wrapper/` | Claims wrapped as `{"claims": [...]}`: `mixed_batch`, `clean_batch`, `mixed_risk` |
 | `J_json_files/J4_claims_mixed_with_non_claims/` | A list holding claims and entries that aren't claims |
+| `J_json_files/J5_not_a_claim/` | Valid JSON that isn't a claim: refused |
 | `J_json_files/J6_engine_request/` | An engine request (`rulesText` + claims), which must be refused as an upload |
+| `J_json_files/J7_invalid_json/` | A claim file cut off part-way: not valid JSON, refused |
+| `J_json_files/J8_837i_or_837d_style_json/` | JSON claims in the 837D (dental) and 837I (institutional) layouts |
 | `X_x12_files/X1_837p_professional/` | Clean 837P claims |
 | `X_x12_files/X2_837i_institutional/` | An 837I claim |
 | `X_x12_files/X3_837d_dental/` | An 837D claim |
@@ -60,11 +64,16 @@ different results; `manifest.json` has each one's.
 | `X_x12_files/X5_several_transaction_sets/` | Two transaction sets in one file |
 | `X_x12_files/X6_one_line_or_windows_line_endings/` | No newlines; CRLF line endings |
 | `X_x12_files/X7_broken_envelope_or_file/` | Truncated, wrong segment count, mismatched control numbers, too short, no claims |
+| `E_edi_files/E1_plain_edi/` | An ordinary clean 837P claim named `.edi` |
 | `E_edi_files/E2_alternate_delimiters/` | `\|` and `>` as separators |
 | `E_edi_files/E3_not_x12/` | Plain text named `.edi` |
 | `Z_zip_files/Z1_mixed_file_types/` | A zip with `.x12`, `.edi`, `.json` and an ignored `.txt` |
+| `Z_zip_files/Z2_json_only_zip/` | A zip holding only `.json` claims |
 | `Z_zip_files/Z3_path_traversal/` | A zip entry named `../escape.x12` |
-| `Z_zip_files/Z7_over_15000_claims/` | Not committed: made by `generate.exs --large N` |
+| `Z_zip_files/Z4_nothing_usable/` | An empty zip; a zip of `.txt`/`.csv` only: nothing to evaluate |
+| `Z_zip_files/Z5_zip_inside_zip/` | A zip holding an `.x12` and another zip, which is ignored |
+| `Z_zip_files/Z6_corrupt_zip/` | A zip cut off part-way, which can't be opened |
+| `Z_zip_files/Z7_over_15000_claims/` | Not committed: made by `generate.exs --large N` (the use-case test builds its own) |
 | `R_business_rules/R1_clean_claim/` | Claims no rule should match |
 | `R_business_rules/R2_each_rule_alone/` | One file per rule, named after it |
 | `R_business_rules/R3_several_rules/` | Claims that match several rules |
@@ -74,6 +83,7 @@ different results; `manifest.json` has each one's.
 | `R_business_rules/R7_weekend_inpatient_stay/` | Weekend inpatient stays, which WeekendOfficeVisit must skip |
 | `R_business_rules/R9_rule_not_decidable/` | A rule reported "not checked" because the claim lacks its field |
 | `R_business_rules/R10_age_out_of_range_or_missing_dob/` | Born 1880, born 2099, no date of birth |
+| `R_business_rules/R11_replacement_or_void_claim/` | Frequency codes 7 and 8: the rules apply as to an original |
 | `N_nppes_provider_checks/N2_malformed_npi/` | Wrong length; failed check digit |
 | `N_nppes_provider_checks/N3_npi_never_issued/` | Valid check digit, never issued |
 | `N_nppes_provider_checks/N4_deactivated_provider/` | Deactivated 2024-12-12, service in 2026 |
@@ -86,6 +96,8 @@ different results; `manifest.json` has each one's.
 | `N_nppes_provider_checks/N11_deactivated_rendering_provider/` | Valid billing NPI, deactivated rendering provider |
 | `P_rules_page/P1_feature_examples/` | `examples.dsl`: DSL features the business rules don't use |
 | `P_rules_page/P2_redundancy_levels/` | `redundancy_levels.dsl` and the claims written for it (`claims/`) |
+| `P_rules_page/P3_syntax_error/` | A rule with a syntax error: shown as an issue, not saved |
+| `P_rules_page/P4_unknown_field/` | A rule using an old field name: saved as an inactive draft, with the current name suggested |
 
 ## Generated and hand-written files
 
@@ -112,7 +124,7 @@ touches the **hand-written** files, which are not in the manifest:
 - `J_json_files/J3_claims_wrapper/mixed_risk.json`
 - `J_json_files/J4_claims_mixed_with_non_claims/list_with_bad_entries.json`
 - `J_json_files/J6_engine_request/rules_text_and_claims.json`
-- the two `.dsl` files in `P_rules_page/`
+- the `.dsl` files in `P_rules_page/`
 - `pipeline/converter_output/`
 
 ### `pipeline/converter_output/`
@@ -175,6 +187,22 @@ mix run --no-start ../mock_data/verify.exs --large ../mock_data/Z_zip_files/Z7_o
 Each file goes through the same steps as an upload, then the NPPES check and
 the rules, and the outcome is compared with `manifest.json`. Hand-written
 files aren't in the manifest; the Phoenix tests (`mix test`) check those.
+
+`./test.sh` at the repo root checks the same files through the app itself:
+each is uploaded on the home page (or entered on the Rules page) and
+evaluated by an engine the script starts. It also covers the hand-written
+files and the use cases with no file of their own (U1–U8, N1, R8). The tests
+are in `phoenix_web/test/use_cases/`; see `docs/TEST_PROCEDURE.md`.
+
+### `nppes_extract.json`
+
+The NPPES registry rows for every NPI in the mock data, copied from the dev
+database, which `./test.sh` loads into the empty test database. Rewrite it
+after an NPPES re-import or after adding a provider to the mock data:
+
+```bash
+cd phoenix_web && mix run --no-start ../mock_data/export_nppes_extract.exs
+```
 
 ## Uploading a file more than once
 

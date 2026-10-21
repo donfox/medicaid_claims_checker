@@ -101,11 +101,12 @@ defmodule Samples do
   @doc """
   One claim in the rule engine's field layout.
 
-  opts: :type ("837P" or "837I"), :pos, :facility, :frequency, :tenure,
+  opts: :type ("837P", "837I" or "837D"), :pos, :facility, :frequency, :tenure,
   :taxonomy (false = missing), :auth (nil = none), :dx, :lines, :patient
   (index into @patients), :dob (false = missing), :notes.
   Each line is {date, procedure_code, amount} or {date, procedure_code,
-  amount, line_opts} with :units, :pos, :revenue, :tooth.
+  amount, line_opts} with :units, :pos, :revenue, :tooth, :qualifier (default
+  HC; AD for dental codes).
   """
   def claim(id, provider_key, opts) do
     {npi, name, taxonomy, street, city, state, zip} = provider!(provider_key)
@@ -186,7 +187,7 @@ defmodule Samples do
       "date_of_service" => Date.to_iso8601(date),
       "place_of_service" => Keyword.get(o, :pos, pos),
       "procedure_code" => code,
-      "procedure_qualifier" => if(code, do: "HC"),
+      "procedure_qualifier" => Keyword.get(o, :qualifier, if(code, do: "HC")),
       "charge_amount" => amount / 1,
       "units" => Keyword.get(o, :units, 1),
       "unit_type" => if(Keyword.has_key?(o, :revenue), do: "DA", else: "UN"),
@@ -556,7 +557,48 @@ samples = [
      dx: ["J069"],
      lines: [{wed, "99213", 150}],
      notes: "1999999992 passes the check digit, so no rule matches, but no such NPI exists. Name and address are made up."),
-   {[], "not found in NPPES"}}
+   {[], "not found in NPPES"}},
+
+  # ------------------------------------------------- 837I and 837D layouts
+  {"J_json_files/J8_837i_or_837d_style_json", "dental_837d", "837D-style JSON claim (procedure qualifier AD, tooth number); clean",
+   Samples.claim("MOCK-DENTAL-001", :awad,
+     patient: 3,
+     dx: ["K0251"],
+     lines: [{tue, "D0120", 65, qualifier: "AD"}, {tue, "D2391", 180, qualifier: "AD", tooth: {"19", "O"}}],
+     type: "837D",
+     notes: "Dental claim as the converter writes an 837D: periodic exam and a one-surface filling on tooth 19, $245. No rule should match."),
+   {[], "ok"}},
+  {"J_json_files/J8_837i_or_837d_style_json", "institutional_837i", "837I-style JSON claim (facility type, revenue codes, no procedure codes); clean",
+   Samples.claim("MOCK-INST-001", :windham,
+     type: "837I",
+     facility: "13",
+     patient: 1,
+     dx: ["R1010"],
+     lines: [{wed, nil, 420, revenue: "0450"}, {wed, nil, 180, revenue: "0300"}],
+     notes: "Hospital outpatient (facility type 13) claim with revenue-code lines only, on a weekday, $600. No rule should match."),
+   {[], "ok"}},
+
+  # ---------------------------------------- replacement and void claims
+  {"R_business_rules/R11_replacement_or_void_claim", "replacement_frequency_7",
+   "Replacement (frequency code 7) of a claim over $50,000: the rules apply as to an original",
+   Samples.claim("MOCK-FREQ-REPLACE", :ross,
+     pos: "21",
+     frequency: "7",
+     auth: "PA2026090802",
+     dx: ["M1711", "Z96641"],
+     lines: [{mon, "27447", 58_000}, {wed, "99232", 7_000}],
+     notes: "Like MOCK-RULE-HIGHVALUE but a replacement claim (CLM05-3 = 7). No rule looks at the frequency code, so HighValueClaim matches."),
+   {["HighValueClaim"], "ok"}},
+  {"R_business_rules/R11_replacement_or_void_claim", "void_frequency_8",
+   "Void (frequency code 8) of a claim over $50,000: the rules apply as to an original",
+   Samples.claim("MOCK-FREQ-VOID", :ross,
+     pos: "21",
+     frequency: "8",
+     auth: "PA2026090803",
+     dx: ["M1711", "Z96641"],
+     lines: [{mon, "27447", 58_000}, {wed, "99232", 7_000}],
+     notes: "Like MOCK-RULE-HIGHVALUE but a void (CLM05-3 = 8). No rule looks at the frequency code, so HighValueClaim matches."),
+   {["HighValueClaim"], "ok"}}
 ]
 
 # Redundancy samples: evaluated against P2's redundancy_levels.dsl, not
@@ -781,4 +823,36 @@ end) ++
       "content" => json.(%{"claims" => claims}),
       "expect" => %{"claims" => Enum.map(expected, fn {id, m, n} -> expect.(id, m, n) end)}
     }
-  end)
+  end) ++
+  [
+    %{
+      "file" => "J_json_files/J2_list_of_claims/two_claims.json",
+      "purpose" => "A plain list [...] of two claims, without the {\"claims\": ...} wrapper",
+      "content" =>
+        json.(
+          batch.("MOCK-LIST-", [
+            {"001", :lane, dx: ["J069"], lines: [{tue, "99213", 150}], notes: "Clean."},
+            {"002", :citydoc, patient: 6, dx: [], lines: [{mon, "99213", 140}], notes: "MissingDiagnosisCodes."}
+          ])
+        ),
+      "expect" => %{
+        "claims" => [expect.("MOCK-LIST-001", [], "ok"), expect.("MOCK-LIST-002", ["MissingDiagnosisCodes"], "ok")]
+      }
+    },
+    %{
+      "file" => "J_json_files/J5_not_a_claim/patient_record.json",
+      "purpose" => "Valid JSON that is not a claim (a patient record, no claim_id) → refused, nothing evaluated",
+      "content" =>
+        json.(%{
+          "patient" => %{"name" => %{"first" => "ELENA", "last" => "VASQUEZ"}, "date_of_birth" => "1989-02-17"},
+          "note" => "Not a claim: there is no claim_id or claim field."
+        }),
+      "expect" => %{"error" => "no claim found"}
+    },
+    %{
+      "file" => "J_json_files/J7_invalid_json/cut_off.json",
+      "purpose" => "A claim file cut off part-way, so not valid JSON → refused, nothing evaluated",
+      "content" => String.slice(json.(Samples.claim("MOCK-BROKEN-001", :lane, lines: [{tue, "99213", 150}], notes: "Cut off.")), 0, 300),
+      "expect" => %{"error" => "not valid JSON"}
+    }
+  ]

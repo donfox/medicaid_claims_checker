@@ -87,7 +87,7 @@ THEN REJECT "ER claims auto-rejected by policy";
 -- Level 2 — implies high_amount_50k and new_provider_90 (same action)
 RULE high_amount_new_provider "High amount from a new provider"
 WHEN financial.claim_amount > 50000 AND provider.tenure_days < 90
-THEN [FLAG_FRAUD "High amount from new provider", RISK_SCORE 85];
+THEN FLAG_FRAUD "High amount from new provider";
 
 -- Level 4 — shares the amount field with mid_range_review and the tenure
 -- field with provider_probation

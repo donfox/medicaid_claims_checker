@@ -91,6 +91,28 @@ They use the engine at `HASKELL_ENGINE_URL` (default `http://localhost:8080`) an
 
 **Pass criterion:** each script exits with status `0`.
 
+### Use-case tests (the frontend, end to end)
+
+From the repo root:
+
+```bash
+./test.sh            # every use case
+./test.sh R5 N7      # only these use cases
+```
+
+Each test uploads a `mock_data` file through the home page's Manual Upload form (or
+enters a rule on the Rules page), the real engine evaluates it against the seeded
+business rules, and the result is checked against `mock_data/manifest.json`. The
+tests live in `phoenix_web/test/use_cases/`, one file per group, each test tagged
+with its use-case ID. `test.sh` starts its own engine on port 8092 (another with
+`TEST_ENGINE_PORT=...`) and stops it afterwards, so a running `./start.sh` is left
+alone. The tests use the test database, with the registry rows for the mock data's
+NPIs loaded from `mock_data/nppes_extract.json`, so the dev database is untouched.
+
+A plain `mix test` skips them (they need the engine).
+
+**Pass criterion:** `0 failures`.
+
 ### Mock data
 
 All test data is in `mock_data/`, one folder per use case (see `mock_data/README.md`).
@@ -108,11 +130,11 @@ rules, and the outcome is compared with `mock_data/manifest.json`.
 
 ### Uploading test data more than once
 
-Phoenix refuses a file or a claim it has already received, so each test file can be
-uploaded on the Fetch Source page once per database ("Clear display" doesn't reset
-this). The scripts above don't upload, so they can run any number of times. For a
-new round of manual uploads, write copies whose claim IDs end in `-N`, with a new N
-each round:
+Phoenix refuses a file or a claim it has already received ("Clear display" doesn't
+reset this). In development, the Manual Upload box "Test upload: allow re-submission"
+(ticked by default) lets the same files be uploaded again. The scripts above don't
+upload, so they can run any number of times. To upload copies under new claim IDs
+instead (ending in `-N`, with a new N each round):
 
 ```bash
 elixir mock_data/retag.exs --tag 3 --out ~/upload_round3 mock_data

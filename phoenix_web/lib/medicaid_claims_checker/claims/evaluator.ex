@@ -213,7 +213,11 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
     Phoenix.PubSub.broadcast(
       MedicaidClaimsChecker.PubSub,
       @topic,
-      {:batch_failed, %{batch_id: batch.batch_id, reason: inspect(reason)}}
+      {:batch_failed,
+       %{
+         batch_id: batch.batch_id,
+         reason: if(is_binary(reason), do: reason, else: inspect(reason))
+       }}
     )
   end
 
@@ -269,7 +273,10 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
     |> Map.put("matchedRules", matched_rules)
     |> Map.put("totalRules", total_rules)
     |> Map.put("overallRisk", "CriticalRisk")
-    |> Map.put("summary", report_summary(total_rules, matched_rules, report["undecidedRules"] || 0, "CriticalRisk"))
+    |> Map.put(
+      "summary",
+      report_summary(total_rules, matched_rules, report["undecidedRules"] || 0, "CriticalRisk")
+    )
   end
 
   # The engine writes the summary before the NPPES finding is added, so it is

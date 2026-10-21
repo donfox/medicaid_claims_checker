@@ -143,7 +143,7 @@ WHEN EXISTS day IN service_lines WHERE day.revenue_code = "0120" AND day.units B
 THEN REQUIRE_REVIEW "Short stay — possible premature discharge";
 
 
--- GROUP G: OR conditions  (Levels 1, 2, 4)
+-- GROUP G: OR conditions  (Levels 1, 2)
 
 RULE high_or_er "Flag a high amount or an ER visit"
 WHEN financial.claim_amount > 50000 OR claim_details.place_of_service = "23"
@@ -159,7 +159,8 @@ RULE high_amount_only "Flag a high amount (no OR)"
 WHEN financial.claim_amount > 50000
 THEN FLAG_FRAUD "High amount flagged";
 
--- Level 4 — shares the amount field with the OR rule
+-- No warning against high_or_er: the checker does not compare OR conditions
+-- for overlap. (It is reported as covering the earlier amount rules.)
 RULE moderate_amount_flag "Flag moderate amounts"
 WHEN financial.claim_amount > 30000
 THEN FLAG_FRAUD "Moderate amount flagged";

@@ -71,6 +71,9 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
      |> assign(:upload_status, :idle)
      |> assign(:upload_message, nil)
      |> assign(:pending_upload_batch_ids, MapSet.new())
+     # Notes about the current upload (refused entries, translation issues,
+     # duplicates), kept on the message after evaluation finishes.
+     |> assign(:upload_notes, "")
      |> assign(:resubmission_available, Claims.test_resubmission_allowed?())
      |> assign(:allow_resubmission, Claims.test_resubmission_allowed?())
      |> allow_upload(:manual_files,
@@ -166,7 +169,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
       {:noreply,
        socket
        |> assign(:upload_status, :done)
-       |> assign(:upload_message, msg)
+       |> assign(:upload_message, msg <> socket.assigns.upload_notes)
        |> assign(:show_batch_history, true)
        |> assign(:pending_upload_batch_ids, MapSet.delete(socket.assigns.pending_upload_batch_ids, batch_id))}
     else
@@ -178,14 +181,20 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     {:noreply, socket}
   end
 
-  def handle_info({:batch_failed, %{batch_id: batch_id}}, socket) do
+  def handle_info({:batch_failed, %{batch_id: batch_id} = payload}, socket) do
     socket = merge_batch_update(socket, batch_id)
 
     if MapSet.member?(socket.assigns.pending_upload_batch_ids, batch_id) do
+      message =
+        case Map.get(payload, :reason) do
+          reason when is_binary(reason) and reason != "" -> "Evaluation failed: #{reason}"
+          _ -> "Evaluation failed — see Batch History for details."
+        end
+
       {:noreply,
        socket
        |> assign(:upload_status, :error)
-       |> assign(:upload_message, "Evaluation failed — see Batch History for details.")
+       |> assign(:upload_message, message <> socket.assigns.upload_notes)
        |> assign(:show_batch_history, true)
        |> assign(:pending_upload_batch_ids, MapSet.delete(socket.assigns.pending_upload_batch_ids, batch_id))}
     else
@@ -539,7 +548,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
   end
 
   def handle_event("process_manual_upload", _params, socket) do
-    socket = assign(socket, :upload_message, nil)
+    socket = socket |> assign(:upload_message, nil) |> assign(:upload_notes, "")
 
     files =
       consume_uploaded_entries(socket, :manual_files, fn %{path: path}, entry ->
@@ -798,6 +807,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
             :upload_message,
             "#{length(edi_files)} JSON claim(s) submitted for evaluation — evaluating...#{refused_suffix}#{duplicates_suffix(duplicates)}"
           )
+          |> add_upload_notes(refused_suffix <> duplicates_suffix(duplicates))
           |> show_newest_history()
           |> assign(:pending_upload_batch_ids, MapSet.put(socket.assigns.pending_upload_batch_ids, batch.batch_id))
 
@@ -852,6 +862,8 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
       socket
     end
   end
+
+  defp add_upload_notes(socket, notes), do: assign(socket, :upload_notes, socket.assigns.upload_notes <> notes)
 
   defp duplicates_suffix([]), do: ""
   defp duplicates_suffix(duplicates), do: " " <> Claims.duplicates_notice(duplicates)
@@ -926,6 +938,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
           socket
           |> assign(:upload_status, :processing)
           |> assign(:upload_message, if(prior, do: "#{prior} #{message}", else: message))
+          |> add_upload_notes(failure_suffix <> duplicates_suffix(duplicates))
           |> show_newest_history()
           |> assign(:pending_upload_batch_ids, MapSet.put(socket.assigns.pending_upload_batch_ids, batch.batch_id))
 

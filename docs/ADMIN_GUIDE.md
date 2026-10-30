@@ -7,16 +7,18 @@ The app sends no email; every step is done on this page.
 
 ## The first admin
 
-`./setup.sh` runs the database seeds, which create an admin account if none
-with that email exists:
+`./setup.sh` runs the database seeds. When the database has **no admin at
+all**, they create one and print its email and password:
 
-- Email: `admin@example.com`
-- Password: `AdminPassword123!`
+- Email `admin@example.com` and username `admin`, unless `SEED_ADMIN_EMAIL`
+  and `SEED_ADMIN_USERNAME` say otherwise.
+- In development and tests the password is `AdminPassword123!`, so a fresh
+  local setup can log in straight away. Anywhere else it is
+  `SEED_ADMIN_PASSWORD`, or, if that is unset, a random password printed once.
 
-Anyone who has read the seeds knows this password. On any database other than
-a throwaway development one, log in with it once, make your own account an
-admin (below), then deactivate `admin@example.com` or remove its admin role.
-Deactivating it keeps the seeds from creating it again.
+Once any admin exists the seeds create nothing, so removing the seeded
+account's admin role or deactivating it is permanent. A good first step is to
+make your own account an admin (below), then do that to the seeded account.
 
 ## Registration
 

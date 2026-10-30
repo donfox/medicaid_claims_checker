@@ -99,7 +99,8 @@ default_catalogue_entries = [
   },
   %{
     name: "DuplicateClaims",
-    description: "Detects duplicate claim submissions within 30 days for the same member and provider",
+    description:
+      "Detects duplicate claim submissions within 30 days for the same member and provider",
     entry_type: "Default Rule",
     status: "Active",
     editable: false,
@@ -135,7 +136,8 @@ default_catalogue_entries = [
   },
   %{
     name: "NPPESProviderLookup",
-    description: "Validates provider NPI exists in the NPPES national registry and was active on the date of service",
+    description:
+      "Validates provider NPI exists in the NPPES national registry and was active on the date of service",
     entry_type: "Default Rule",
     status: "Active",
     editable: false,
@@ -159,7 +161,8 @@ Repo.insert_all(
 ba_catalogue_entries = [
   %{
     name: "HighValueReview",
-    description: "Flag high-value claims over $50,000 for manual review — inactive, duplicates HighValueClaim",
+    description:
+      "Flag high-value claims over $50,000 for manual review — inactive, duplicates HighValueClaim",
     entry_type: "BA Rule",
     status: "Inactive",
     editable: true,
@@ -431,7 +434,8 @@ Repo.insert_all(
 ml_model_entries = [
   %{
     name: "BillingPatternAnomalyModel",
-    description: "Detects statistically unusual billing sequences relative to provider peer group",
+    description:
+      "Detects statistically unusual billing sequences relative to provider peer group",
     entry_type: "ML Model",
     status: "Active",
     editable: false,
@@ -443,7 +447,8 @@ ml_model_entries = [
   },
   %{
     name: "ProviderBehaviorRiskModel",
-    description: "Scores provider fraud likelihood using tenure, claim volume, and amount patterns",
+    description:
+      "Scores provider fraud likelihood using tenure, claim volume, and amount patterns",
     entry_type: "ML Model",
     status: "Active",
     editable: false,
@@ -455,7 +460,8 @@ ml_model_entries = [
   },
   %{
     name: "DiagnosisProcedureConsistencyModel",
-    description: "AI model that verifies alignment of diagnosis codes with billed procedure codes",
+    description:
+      "AI model that verifies alignment of diagnosis codes with billed procedure codes",
     entry_type: "ML Model",
     status: "Active",
     editable: false,
@@ -594,7 +600,8 @@ new_ba_catalogue_entries = [
   },
   %{
     name: "NewProviderLargeSubmission",
-    description: "Review large submissions ($10k+) from providers credentialed fewer than 90 days",
+    description:
+      "Review large submissions ($10k+) from providers credentialed fewer than 90 days",
     entry_type: "BA Rule",
     status: "Active",
     editable: true,
@@ -618,7 +625,8 @@ new_ba_catalogue_entries = [
   },
   %{
     name: "HighComplexityERVisit",
-    description: "Require clinical review for high-complexity ER visits (99285) exceeding $10,000",
+    description:
+      "Require clinical review for high-complexity ER visits (99285) exceeding $10,000",
     entry_type: "BA Rule",
     status: "Active",
     editable: true,
@@ -685,7 +693,8 @@ Repo.insert_all(
 taxonomy_ba_catalogue_entries = [
   %{
     name: "MissingProviderTaxonomy",
-    description: "Flag claims over $1,000 that are missing the provider taxonomy code from PRV segment",
+    description:
+      "Flag claims over $1,000 that are missing the provider taxonomy code from PRV segment",
     entry_type: "BA Rule",
     status: "Active",
     editable: true,
@@ -697,7 +706,8 @@ taxonomy_ba_catalogue_entries = [
   },
   %{
     name: "TaxonomyMismatchNewProvider",
-    description: "Flag new providers (<90 days) submitting $5k+ claims without taxonomy as potential fraud",
+    description:
+      "Flag new providers (<90 days) submitting $5k+ claims without taxonomy as potential fraud",
     entry_type: "BA Rule",
     status: "Active",
     editable: true,
@@ -719,18 +729,39 @@ Repo.insert_all(
 # --- NPPES Refresh Config (ensure default row exists) ---
 RefreshConfig.get_or_create()
 
-# --- Admin user ---
+# --- First admin user ---
+# Created only while the database has no admin, so it never comes back once
+# real admins exist. SEED_ADMIN_EMAIL and SEED_ADMIN_USERNAME choose the
+# account. Development and tests use a known password; anywhere else it comes
+# from SEED_ADMIN_PASSWORD, or a random one is printed once.
 alias MedicaidClaimsChecker.Accounts
 
-unless Accounts.get_user_by_email("admin@example.com") do
-  {:ok, _} =
-    Accounts.register_admin(%{
-      email: "admin@example.com",
-      password: "AdminPassword123!",
-      username: "admin",
-      first_name: "Admin",
-      last_name: "User"
-    })
+unless Enum.any?(Accounts.list_users(), & &1.is_admin) do
+  dev_or_test? = Code.ensure_loaded?(Mix) and Mix.env() in [:dev, :test]
+  email = System.get_env("SEED_ADMIN_EMAIL") || "admin@example.com"
+  username = System.get_env("SEED_ADMIN_USERNAME") || "admin"
 
-  IO.puts("Admin user created: admin@example.com / AdminPassword123!")
+  password =
+    System.get_env("SEED_ADMIN_PASSWORD") ||
+      if(dev_or_test?,
+        do: "AdminPassword123!",
+        else: Base.url_encode64(:crypto.strong_rand_bytes(18), padding: false)
+      )
+
+  case Accounts.register_admin(%{
+         email: email,
+         password: password,
+         username: username,
+         first_name: "Admin",
+         last_name: "User"
+       }) do
+    {:ok, _} ->
+      IO.puts("Admin user created: #{email} / #{password}")
+
+    {:error, changeset} ->
+      IO.puts(
+        "No admin created: #{inspect(changeset.errors)}. " <>
+          "Set SEED_ADMIN_EMAIL and SEED_ADMIN_USERNAME to unused values, or make an existing user an admin."
+      )
+  end
 end

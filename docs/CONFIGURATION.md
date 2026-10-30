@@ -42,6 +42,8 @@ Read by `phoenix_web/config/runtime.exs` unless noted.
 | `SFTP_HOST`, `SFTP_USERNAME`, `SFTP_PASSWORD`, `SFTP_PORT` | unset; port `22` | Default SFTP connection for fetch sources. A source's own address and saved credentials take priority. |
 | `TENANT_ID` | `default_tenant` | Tenant name the Rules page sends in evaluation requests (read in `RuleLive.PayloadBuilder`). |
 | `PORT` | `4000` | Port the web app listens on (development and production). |
+| `SEED_ADMIN_EMAIL`, `SEED_ADMIN_USERNAME` | `admin@example.com`, `admin` | The account the database seeds create when no admin exists. |
+| `SEED_ADMIN_PASSWORD` | `AdminPassword123!` in development and tests; otherwise a random password, printed once | Its password. See [ADMIN_GUIDE.md](ADMIN_GUIDE.md#the-first-admin). |
 
 ### Production only
 

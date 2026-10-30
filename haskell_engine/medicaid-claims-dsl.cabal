@@ -74,6 +74,12 @@ test-suite medicaid-claims-dsl-test
     main-is:          Spec.hs
     other-modules:    ParserProps
                     , Claims.Pretty
+                    , Claims.ParserSpec
+                    , Claims.EvaluatorSpec
+                    , Claims.PolicyCombinerSpec
+                    , Claims.MLClientSpec
+                    , Claims.PipelineSpec
+                    , Claims.RedundancyCheckerSpec
                     , BusinessRulesSpec
                     , ListenConfigSpec
     build-depends:    base >=4.14 && <5

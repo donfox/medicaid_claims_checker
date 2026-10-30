@@ -54,19 +54,16 @@ import System.IO (BufferMode (..), hPutStrLn, hSetBuffering, stderr, stdout)
 import System.Timeout (timeout)
 import Text.Read (readMaybe)
 import Claims.EvaluationContract (EvaluationRequest (..))
-import Claims.MLClient (MLClientConfig (..), scoreClaimWithMl)
+import Claims.MLClient (MLClientConfig (..), MLResult, mlErrorResult, mlStubResult, scoreClaimWithMl)
 import Claims.ListenConfig (ListenConfig (..), resolveListen)
 import Claims.Parser
 import Claims.PolicyCombiner
   ( CombinedEnvelope,
     FallbackPolicy (..),
-    MLResult,
     PolicyConfig,
     buildCombinedEnvelope,
     defaultPolicyConfig,
     fallbackPolicy,
-    mlErrorResult,
-    mlStubResult,
   )
 import Claims.RedundancyChecker (checkRedundancy)
 import Claims.Evaluator (EvaluationReport (..), evaluateSimpleJson)

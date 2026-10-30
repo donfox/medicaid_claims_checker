@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -22,7 +23,15 @@
 -- }
 -- @
 module Claims.MLClient
-  ( MLClientConfig (..),
+  ( -- * ML result types
+    MLModelInfo (..),
+    MLTopFactor (..),
+    MLResult (..),
+    mlStubResult,
+    mlErrorResult,
+
+    -- * Calling the scorer
+    MLClientConfig (..),
     scoreClaimWithMl,
     parseMlResultFromValue,
   )
@@ -30,7 +39,7 @@ where
 
 import Control.Exception (SomeException, try)
 import Data.List (isPrefixOf)
-import Data.Aeson (Value)
+import Data.Aeson (ToJSON, Value)
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Key qualified as Key
 import Data.Aeson.KeyMap qualified as KM
@@ -39,6 +48,7 @@ import Data.ByteString.Lazy qualified as BL
 import Data.Scientific (toRealFloat)
 import Data.Text (Text)
 import Data.Text qualified as T
+import GHC.Generics (Generic)
 import Network.HTTP.Client qualified as HC
 import Network.HTTP.Simple
   ( Request,
@@ -51,12 +61,65 @@ import Network.HTTP.Simple
     setRequestResponseTimeout,
   )
 import Network.HTTP.Types (hContentType)
-import Claims.PolicyCombiner
-  ( MLModelInfo (..),
-    MLResult (..),
-    MLTopFactor (..),
-    mlErrorResult,
-  )
+
+-- | Identity metadata returned by the ML service for audit trails.
+data MLModelInfo = MLModelInfo
+  { modelId :: Text,
+    modelVersion :: Text
+  }
+  deriving (Show, Eq, Generic)
+
+instance ToJSON MLModelInfo
+
+-- | A single SHAP-style feature attribution from the ML model.
+data MLTopFactor = MLTopFactor
+  { feature :: Text,
+    direction :: Text,
+    contribution :: Double
+  }
+  deriving (Show, Eq, Generic)
+
+instance ToJSON MLTopFactor
+
+-- | Normalised ML scoring result.  Constructed either from a live ML response
+-- ('parseMlResultFromValue'), a stub ('mlStubResult'), or an
+-- error sentinel ('mlErrorResult').
+data MLResult = MLResult
+  { mlStatus :: Text,
+    mlRiskScore :: Maybe Double,
+    mlConfidence :: Maybe Double,
+    mlModelInfo :: Maybe MLModelInfo,
+    mlTopFactors :: [MLTopFactor]
+  }
+  deriving (Show, Eq, Generic)
+
+instance ToJSON MLResult
+
+-- | Deterministic stub for testing without a live ML service.
+mlStubResult :: MLResult
+mlStubResult =
+  MLResult
+    { mlStatus = "ok",
+      mlRiskScore = Just 0.42,
+      mlConfidence = Just 0.74,
+      mlModelInfo = Just (MLModelInfo "fraud_stub_v1" "1.0.0"),
+      mlTopFactors =
+        [ MLTopFactor "provider_30d_outlier_rate" "up" 0.19,
+          MLTopFactor "cpt_mix_divergence" "up" 0.12
+        ]
+    }
+
+-- | Sentinel value used when the ML service call fails.  All score fields
+-- are 'Nothing' and 'mlStatus' is @"error"@.
+mlErrorResult :: Text -> MLResult
+mlErrorResult _errMsg =
+  MLResult
+    { mlStatus = "error",
+      mlRiskScore = Nothing,
+      mlConfidence = Nothing,
+      mlModelInfo = Nothing,
+      mlTopFactors = []
+    }
 
 -- | Connection settings for the ML scoring service.
 data MLClientConfig = MLClientConfig

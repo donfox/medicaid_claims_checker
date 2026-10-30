@@ -35,8 +35,8 @@ defmodule MedicaidClaimsChecker.AccountsFixtures do
   end
 
   # A user with no password and no confirmation, which registration no longer
-  # creates (older accounts can still be in this state). Only the magic-link
-  # tests need one.
+  # creates (older accounts can still be in this state). An admin gives them
+  # a password-setup link.
   def unconfirmed_user_fixture(attrs \\ %{}) do
     attrs = valid_user_attributes(attrs)
 
@@ -61,9 +61,9 @@ defmodule MedicaidClaimsChecker.AccountsFixtures do
     user
   end
 
-  def extract_user_token(fun) do
-    {:ok, captured_email} = fun.(&"[TOKEN]#{&1}[TOKEN]")
-    [_, token | _] = String.split(captured_email.text_body, "[TOKEN]")
+  # The token of a new password-setup link for a user with no password.
+  def password_setup_token(user) do
+    {:ok, token} = Accounts.create_password_setup_link(user, & &1)
     token
   end
 
@@ -74,12 +74,6 @@ defmodule MedicaidClaimsChecker.AccountsFixtures do
       ),
       set: [authenticated_at: authenticated_at]
     )
-  end
-
-  def generate_user_magic_link_token(user) do
-    {encoded_token, user_token} = Accounts.UserToken.build_email_token(user, "login")
-    MedicaidClaimsChecker.Repo.insert!(user_token)
-    {encoded_token, user_token.token}
   end
 
   def offset_user_token(token, amount_to_add, unit) do

@@ -113,70 +113,24 @@ defmodule MedicaidClaimsChecker.AccountsTest do
     end
   end
 
-  describe "deliver_user_update_email_instructions/3" do
-    setup do
-      %{user: user_fixture()}
-    end
-
-    test "sends token through notification", %{user: user} do
-      token =
-        extract_user_token(fn url ->
-          Accounts.deliver_user_update_email_instructions(user, "current@example.com", url)
-        end)
-
-      {:ok, token} = Base.url_decode64(token, padding: false)
-      assert user_token = Repo.get_by(UserToken, token: :crypto.hash(:sha256, token))
-      assert user_token.user_id == user.id
-      assert user_token.sent_to == user.email
-      assert user_token.context == "change:current@example.com"
-    end
-  end
-
   describe "update_user_email/2" do
-    setup do
+    test "changes the email at once" do
       user = user_fixture()
       email = unique_user_email()
 
-      token =
-        extract_user_token(fn url ->
-          Accounts.deliver_user_update_email_instructions(%{user | email: email}, user.email, url)
-        end)
-
-      %{user: user, token: token, email: email}
+      assert {:ok, %{email: ^email}} = Accounts.update_user_email(user, %{email: email})
+      assert Repo.get!(User, user.id).email == email
     end
 
-    test "updates the email with a valid token", %{user: user, token: token, email: email} do
-      assert {:ok, %{email: ^email}} = Accounts.update_user_email(user, token)
-      changed_user = Repo.get!(User, user.id)
-      assert changed_user.email != user.email
-      assert changed_user.email == email
-      refute Repo.get_by(UserToken, user_id: user.id)
-    end
+    test "rejects an invalid or taken email, or the same one" do
+      user = user_fixture()
+      other = user_fixture()
 
-    test "does not update email with invalid token", %{user: user} do
-      assert Accounts.update_user_email(user, "oops") ==
-               {:error, :transaction_aborted}
+      for email <- ["with spaces", other.email, user.email] do
+        assert {:error, %Ecto.Changeset{}} = Accounts.update_user_email(user, %{email: email})
+      end
 
       assert Repo.get!(User, user.id).email == user.email
-      assert Repo.get_by(UserToken, user_id: user.id)
-    end
-
-    test "does not update email if user email changed", %{user: user, token: token} do
-      assert Accounts.update_user_email(%{user | email: "current@example.com"}, token) ==
-               {:error, :transaction_aborted}
-
-      assert Repo.get!(User, user.id).email == user.email
-      assert Repo.get_by(UserToken, user_id: user.id)
-    end
-
-    test "does not update email if token expired", %{user: user, token: token} do
-      {1, nil} = Repo.update_all(UserToken, set: [inserted_at: ~N[2020-01-01 00:00:00]])
-
-      assert Accounts.update_user_email(user, token) ==
-               {:error, :transaction_aborted}
-
-      assert Repo.get!(User, user.id).email == user.email
-      assert Repo.get_by(UserToken, user_id: user.id)
     end
   end
 
@@ -307,60 +261,6 @@ defmodule MedicaidClaimsChecker.AccountsTest do
     end
   end
 
-  describe "get_user_by_magic_link_token/1" do
-    setup do
-      user = user_fixture()
-      {encoded_token, _hashed_token} = generate_user_magic_link_token(user)
-      %{user: user, token: encoded_token}
-    end
-
-    test "returns user by token", %{user: user, token: token} do
-      assert session_user = Accounts.get_user_by_magic_link_token(token)
-      assert session_user.id == user.id
-    end
-
-    test "does not return user for invalid token" do
-      refute Accounts.get_user_by_magic_link_token("oops")
-    end
-
-    test "does not return user for expired token", %{token: token} do
-      {1, nil} = Repo.update_all(UserToken, set: [inserted_at: ~N[2020-01-01 00:00:00]])
-      refute Accounts.get_user_by_magic_link_token(token)
-    end
-  end
-
-  describe "login_user_by_magic_link/1" do
-    test "confirms user and expires tokens" do
-      user = unconfirmed_user_fixture()
-      refute user.confirmed_at
-      {encoded_token, hashed_token} = generate_user_magic_link_token(user)
-
-      assert {:ok, {user, [%{token: ^hashed_token}]}} =
-               Accounts.login_user_by_magic_link(encoded_token)
-
-      assert user.confirmed_at
-    end
-
-    test "returns user and (deleted) token for confirmed user" do
-      user = user_fixture()
-      assert user.confirmed_at
-      {encoded_token, _hashed_token} = generate_user_magic_link_token(user)
-      assert {:ok, {^user, []}} = Accounts.login_user_by_magic_link(encoded_token)
-      # one time use only
-      assert {:error, :not_found} = Accounts.login_user_by_magic_link(encoded_token)
-    end
-
-    test "raises when unconfirmed user has password set" do
-      user = unconfirmed_user_fixture()
-      {1, nil} = Repo.update_all(User, set: [hashed_password: "hashed"])
-      {encoded_token, _hashed_token} = generate_user_magic_link_token(user)
-
-      assert_raise RuntimeError, ~r/magic link log in is not allowed/, fn ->
-        Accounts.login_user_by_magic_link(encoded_token)
-      end
-    end
-  end
-
   describe "delete_user_session_token/1" do
     test "deletes the token" do
       user = user_fixture()
@@ -370,22 +270,107 @@ defmodule MedicaidClaimsChecker.AccountsTest do
     end
   end
 
-  describe "deliver_login_instructions/2" do
-    setup do
-      %{user: unconfirmed_user_fixture()}
-    end
-
-    test "sends token through notification", %{user: user} do
-      token =
-        extract_user_token(fn url ->
-          Accounts.deliver_login_instructions(user, url)
-        end)
+  describe "create_password_setup_link/2" do
+    test "makes a password_setup token for a user with no password" do
+      user = unconfirmed_user_fixture()
+      assert {:ok, "url/" <> token} = Accounts.create_password_setup_link(user, &"url/#{&1}")
 
       {:ok, token} = Base.url_decode64(token, padding: false)
       assert user_token = Repo.get_by(UserToken, token: :crypto.hash(:sha256, token))
       assert user_token.user_id == user.id
       assert user_token.sent_to == user.email
-      assert user_token.context == "login"
+      assert user_token.context == "password_setup"
+    end
+
+    test "refuses a user who already has a password" do
+      assert Accounts.create_password_setup_link(user_fixture(), &"url/#{&1}") ==
+               {:error, :password_already_set}
+    end
+  end
+
+  describe "get_user_by_password_setup_token/1" do
+    setup do
+      user = unconfirmed_user_fixture()
+
+      token = password_setup_token(user)
+
+      %{user: user, token: token}
+    end
+
+    test "returns the user for a valid token", %{user: user, token: token} do
+      assert Accounts.get_user_by_password_setup_token(token).id == user.id
+    end
+
+    test "is valid for three days", %{token: token} do
+      {:ok, raw} = Base.url_decode64(token, padding: false)
+      hashed = :crypto.hash(:sha256, raw)
+
+      offset_user_token(hashed, -(3 * 24 * 60 - 1), :minute)
+      assert Accounts.get_user_by_password_setup_token(token)
+
+      offset_user_token(hashed, -(3 * 24 * 60 + 1), :minute)
+      refute Accounts.get_user_by_password_setup_token(token)
+    end
+
+    test "rejects an invalid token, and a session token", %{user: user} do
+      refute Accounts.get_user_by_password_setup_token("oops")
+
+      session_token =
+        Base.url_encode64(Accounts.generate_user_session_token(user), padding: false)
+
+      refute Accounts.get_user_by_password_setup_token(session_token)
+    end
+
+    test "rejects the token once the user's email has changed", %{user: user, token: token} do
+      Repo.update!(Ecto.Changeset.change(user, email: unique_user_email()))
+      refute Accounts.get_user_by_password_setup_token(token)
+    end
+  end
+
+  describe "set_password_with_setup_token/2" do
+    setup do
+      user = unconfirmed_user_fixture()
+
+      token = password_setup_token(user)
+
+      %{user: user, token: token}
+    end
+
+    test "sets the password, confirms the account, and works only once",
+         %{user: user, token: token} do
+      password = valid_user_password()
+
+      assert {:ok, {updated, expired}} =
+               Accounts.set_password_with_setup_token(token, %{
+                 "password" => password,
+                 "password_confirmation" => password
+               })
+
+      assert updated.confirmed_at
+      assert Accounts.get_user_by_email_and_password(user.email, password)
+      assert expired != []
+      refute Repo.get_by(UserToken, user_id: user.id)
+
+      assert Accounts.set_password_with_setup_token(token, %{"password" => password}) ==
+               {:error, :not_found}
+    end
+
+    test "returns a changeset for an invalid password and keeps the link usable",
+         %{token: token} do
+      assert {:error, %Ecto.Changeset{} = changeset} =
+               Accounts.set_password_with_setup_token(token, %{
+                 "password" => "short",
+                 "password_confirmation" => "different"
+               })
+
+      assert "should be at least 12 character(s)" in errors_on(changeset).password
+      assert "does not match password" in errors_on(changeset).password_confirmation
+      assert Accounts.get_user_by_password_setup_token(token)
+    end
+
+    test "rejects an invalid token" do
+      assert Accounts.set_password_with_setup_token("oops", %{"password" => "x"}) ==
+               {:error, :not_found}
     end
   end
 

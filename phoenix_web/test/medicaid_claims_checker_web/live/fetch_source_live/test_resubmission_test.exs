@@ -5,21 +5,15 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.TestResubmissionTest do
 
   import Ecto.Query
   import Phoenix.LiveViewTest
-  import Swoosh.TestAssertions
 
-  alias MedicaidClaimsChecker.{Accounts, AccountsFixtures, Claims, MockData, Repo}
+  alias MedicaidClaimsChecker.{AccountsFixtures, Claims, MockData, Repo}
   alias MedicaidClaimsChecker.Claims.Batch
 
   @three_claims MockData.path(
                   "X_x12_files/X4_several_claims_one_transaction_set/three_claims.x12"
                 )
 
-  # Alert emails are sent from the LiveView process (Oban runs inline in
-  # tests); deliver them to the test process instead.
-  setup :set_swoosh_global
-
   setup %{conn: conn} do
-    {:ok, _} = AccountsFixtures.user_fixture() |> Accounts.set_user_admin(true)
     user = AccountsFixtures.user_fixture()
     on_exit(fn -> Application.delete_env(:medicaid_claims_checker, :allow_test_resubmission) end)
     %{conn: log_in_user(conn, user)}
@@ -56,7 +50,6 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.TestResubmissionTest do
 
     assert Enum.map(batches(), & &1.duplicates) == [[], [], []]
     assert Enum.all?(batches(), &(&1.batch_name =~ "(test re-submission)"))
-    refute_email_sent()
   end
 
   test "unticked, the duplicate check works as in production", %{conn: conn} do
@@ -70,8 +63,6 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.TestResubmissionTest do
 
     assert upload(view, "three_claims.x12", content) =~
              "Nothing was evaluated: every claim was already submitted."
-
-    assert_email_sent()
   end
 
   test "without the setting, a request to re-submit is ignored" do

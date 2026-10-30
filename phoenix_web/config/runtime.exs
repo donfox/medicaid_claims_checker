@@ -36,21 +36,6 @@ if config_env() == :prod and (System.get_env("RULE_ENGINE_SECRET") || "") == "" 
   """
 end
 
-# Tests always use Swoosh.Adapters.Test (config/test.exs), even when the
-# shell has Brevo credentials set.
-if config_env() != :test and System.get_env("BREVO_MAIL_USERNAME") do
-  config :swoosh, :api_client, Swoosh.ApiClient.Finch
-
-  config :medicaid_claims_checker, MedicaidClaimsChecker.Mailer,
-    adapter: Swoosh.Adapters.SMTP,
-    relay: "smtp-relay.brevo.com",
-    port: 587,
-    username: System.get_env("BREVO_MAIL_USERNAME"),
-    password: System.get_env("BREVO_MAIL_PASSWORD"),
-    tls: :always,
-    auth: :always
-end
-
 if System.get_env("SFTP_HOST") do
   config :medicaid_claims_checker, :sftp,
     host: System.get_env("SFTP_HOST"),
@@ -144,8 +129,6 @@ if config_env() == :prod do
 
   config :medicaid_claims_checker, MedicaidClaimsChecker.Vault,
     ciphers: [
-      default: {Cloak.Ciphers.AES.GCM,
-                tag: "AES.GCM.V1",
-                key: Base.decode64!(cloak_key)}
+      default: {Cloak.Ciphers.AES.GCM, tag: "AES.GCM.V1", key: Base.decode64!(cloak_key)}
     ]
 end

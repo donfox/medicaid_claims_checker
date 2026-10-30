@@ -10,20 +10,14 @@ config :medicaid_claims_checker, MedicaidClaimsCheckerWeb.Endpoint,
   secret_key_base: "OUSZpXgWfdVui+SaauV/FdI48KGr0dWpD1UoDeYvVEWp2F50ScwJFUZNs2q4a9w0",
   server: false
 
-# In test we don't send emails
-config :medicaid_claims_checker, MedicaidClaimsChecker.Mailer, adapter: Swoosh.Adapters.Test
-
-# Disable swoosh api client as it is only required for production adapters
-config :swoosh, :api_client, false
-
 # Print only warnings and errors during test
 config :logger, level: :warning
 
 config :medicaid_claims_checker, MedicaidClaimsChecker.Vault,
   ciphers: [
-    default: {Cloak.Ciphers.AES.GCM,
-              tag: "AES.GCM.V1",
-              key: Base.decode64!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")}
+    default:
+      {Cloak.Ciphers.AES.GCM,
+       tag: "AES.GCM.V1", key: Base.decode64!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")}
   ]
 
 # Initialize plugs at runtime for faster test compilation

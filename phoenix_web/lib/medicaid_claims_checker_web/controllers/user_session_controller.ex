@@ -12,27 +12,6 @@ defmodule MedicaidClaimsCheckerWeb.UserSessionController do
     render(conn, :new, form: form)
   end
 
-  # magic link login
-  def create(conn, %{"user" => %{"token" => token} = user_params} = params) do
-    case Accounts.login_user_by_magic_link(token) do
-      {:ok, {user, _expired_tokens}} ->
-        info =
-          case params do
-            %{"_action" => "confirmed"} -> "Account confirmed. Welcome, #{User.full_name(user)}!"
-            _ -> "Welcome back, #{User.full_name(user)}"
-          end
-
-        conn
-        |> put_flash(:info, info)
-        |> UserAuth.log_in_user(user, user_params)
-
-      {:error, :not_found} ->
-        conn
-        |> put_flash(:error, "The link is invalid or it has expired.")
-        |> render(:new, form: Phoenix.Component.to_form(%{}, as: "user"))
-    end
-  end
-
   # email or username + password login
   def create(conn, %{"user" => %{"email" => login, "password" => password} = user_params}) do
     if user = Accounts.get_user_by_login_and_password(login, password) do
@@ -43,24 +22,14 @@ defmodule MedicaidClaimsCheckerWeb.UserSessionController do
       form = Phoenix.Component.to_form(user_params, as: "user")
 
       # In order to prevent user enumeration attacks, don't disclose whether the email is registered.
+      # Accounts created before password registration have no password; the
+      # app sends no email, so an admin creates a link for them.
       conn
-      |> put_flash(:error, "Invalid email or password")
+      |> put_flash(
+        :error,
+        "Invalid email or password. If you don't have a password yet, ask an administrator."
+      )
       |> render(:new, form: form)
-    end
-  end
-
-  def confirm(conn, %{"token" => token}) do
-    if user = Accounts.get_user_by_magic_link_token(token) do
-      form = Phoenix.Component.to_form(%{"token" => token}, as: "user")
-
-      conn
-      |> assign(:user, user)
-      |> assign(:form, form)
-      |> render(:confirm)
-    else
-      conn
-      |> put_flash(:error, "Magic link is invalid or it has expired.")
-      |> redirect(to: ~p"/users/log-in")
     end
   end
 

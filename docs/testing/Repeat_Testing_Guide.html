@@ -21,8 +21,8 @@
 
 <h2>Why a file is refused without the checkbox</h2>
 <p>The app accepts each claim only once, on purpose. It refuses a file it has already received, and any claim whose
-content matches a claim already submitted, even in a different file. The refusal names the earlier batch, shows in Batch
-History, and emails the admin users. This is the production behaviour. “Clear display” does not reset it; it only hides old
+content matches a claim already submitted, even in a different file. The refusal names the earlier batch and shows in Batch
+History. This is the production behaviour. “Clear display” does not reset it; it only hides old
 batches.</p>
 <p>The checkbox lets test files skip that check. It appears only when the app runs in development
 (<code>config/dev.exs</code> sets <code>allow_test_resubmission: true</code>); production never shows it, and the server
@@ -47,15 +47,10 @@ live rules.</p>
 <ol>
   <li><b>Untick</b> the checkbox.</li>
   <li>Upload any claim file that has been uploaded before (with or without the checkbox). Expect: “Nothing was evaluated:
-    every claim was already submitted. Refused as already submitted: …”, a red “Refused as already submitted” box on that
-    batch in Batch History, and an alert email to each active admin user.</li>
+    every claim was already submitted. Refused as already submitted: …”, and a red “Refused as already submitted” box on
+    that batch in Batch History.</li>
   <li>Dismiss the message with its ×, by choosing new files, or with Clear display.</li>
 </ol>
-<div class="note">
-  <b>Where the alert email goes.</b> When Phoenix runs with the Brevo mail settings (as <code>./start.sh</code> does when
-  they are set), the email goes to the admins’ real inboxes, so each test sends real mail. Without those settings it stays
-  in the app, at <code>http://localhost:4000/dev/mailbox</code>.
-</div>
 
 <h2>Checking every file at once</h2>
 <p>Two scripts check all the mock data without any clicking. Neither adds batches to Batch History, and both can be run

@@ -21,7 +21,6 @@ defmodule MedicaidClaimsCheckerWeb.UseCaseCase do
       the mock data uses
     * points the app at the engine (RULE_ENGINE_URL, RULE_ENGINE_SECRET)
       and turns on evaluation after upload, which plain tests skip
-    * sends mail through Swoosh's Logger adapter (see setup)
     * logs in a user
   """
 
@@ -69,18 +68,7 @@ defmodule MedicaidClaimsCheckerWeb.UseCaseCase do
 
     Application.put_env(:medicaid_claims_checker, :skip_async_evaluation, false)
 
-    # Jobs run inline, so a duplicate alert is sent from the page's own
-    # process; the test mail adapter would deliver it there as a message the
-    # page doesn't expect. Log it instead.
-    mailer = Application.get_env(:medicaid_claims_checker, MedicaidClaimsChecker.Mailer)
-
-    Application.put_env(:medicaid_claims_checker, MedicaidClaimsChecker.Mailer,
-      adapter: Swoosh.Adapters.Logger,
-      level: :debug
-    )
-
     on_exit(fn ->
-      Application.put_env(:medicaid_claims_checker, MedicaidClaimsChecker.Mailer, mailer)
       Enum.each(env_keys(), &Application.delete_env(:medicaid_claims_checker, &1))
       Enum.each(previous, fn {k, v} -> Application.put_env(:medicaid_claims_checker, k, v) end)
     end)

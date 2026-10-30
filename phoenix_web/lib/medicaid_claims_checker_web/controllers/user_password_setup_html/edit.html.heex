@@ -1,0 +1,38 @@
+<Layouts.app flash={@flash} current_scope={@current_scope}>
+  <div class="mx-auto max-w-sm">
+    <div class="text-center">
+      <.header>
+        Set your password
+        <:subtitle>For {@user.email}</:subtitle>
+      </.header>
+    </div>
+
+    <.form
+      for={@form}
+      id="password_setup_form"
+      action={~p"/users/set-password/#{@token}"}
+      method="put"
+    >
+      <.input
+        field={@form[:password]}
+        type="password"
+        label="New password"
+        autocomplete="new-password"
+        required
+        phx-mounted={JS.focus()}
+      />
+      <.input
+        field={@form[:password_confirmation]}
+        type="password"
+        label="Confirm password"
+        autocomplete="new-password"
+        required
+      />
+      <p class="text-sm text-gray-500 mb-4">At least 12 characters.</p>
+
+      <.button phx-disable-with="Saving..." class="btn btn-primary w-full">
+        Set password and log in
+      </.button>
+    </.form>
+  </div>
+</Layouts.app>

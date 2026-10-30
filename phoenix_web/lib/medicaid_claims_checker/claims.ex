@@ -101,9 +101,8 @@ defmodule MedicaidClaimsChecker.Claims do
   A claim is refused as a duplicate when its source file was submitted
   before, when the same claim (ignoring the X12 envelope) is in an earlier
   batch, or when it repeats an earlier claim in this submission. Each refusal
-  is stored in `batch.duplicates` and names the earlier submission, and the
-  admin users are emailed about it (`Claims.DuplicateAlert`); the other
-  claims are evaluated as usual. When every claim is a duplicate the batch is
+  is stored in `batch.duplicates` and names the earlier submission; the
+  other claims are evaluated as usual. When every claim is a duplicate the batch is
   recorded as "failed" with no claims, so the refusal still shows in history.
 
   With "allow_resubmission" => true, and only where the
@@ -172,7 +171,9 @@ defmodule MedicaidClaimsChecker.Claims do
                 else: %{}
 
             batch
-            |> Batch.changeset(Map.merge(refused_attrs, %{file_count: length(edi_files), duplicates: duplicates}))
+            |> Batch.changeset(
+              Map.merge(refused_attrs, %{file_count: length(edi_files), duplicates: duplicates})
+            )
             |> Repo.update!()
           end
 
@@ -182,7 +183,6 @@ defmodule MedicaidClaimsChecker.Claims do
     case result do
       {:ok, %{batch: batch, edi_files: [], duplicates: duplicates}} ->
         Logger.warning("Batch #{batch.batch_id} not evaluated — #{duplicates_notice(duplicates)}")
-        alert_duplicates(batch)
 
         Phoenix.PubSub.broadcast(
           MedicaidClaimsChecker.PubSub,
@@ -195,7 +195,6 @@ defmodule MedicaidClaimsChecker.Claims do
       {:ok, %{batch: batch, duplicates: duplicates}} ->
         if duplicates != [] do
           Logger.warning("Batch #{batch.batch_id}: #{duplicates_notice(duplicates)}")
-          alert_duplicates(batch)
         end
 
         Logger.info("Batch #{batch.batch_id} ingested — launching auto-evaluation")
@@ -214,12 +213,6 @@ defmodule MedicaidClaimsChecker.Claims do
   end
 
   def ingest_batch(_), do: {:error, :invalid_payload}
-
-  defp alert_duplicates(batch) do
-    %{"batch_id" => batch.id}
-    |> MedicaidClaimsChecker.Workers.DuplicateAlertWorker.new()
-    |> Oban.insert!()
-  end
 
   # --- Duplicate submissions ---
 
@@ -245,7 +238,8 @@ defmodule MedicaidClaimsChecker.Claims do
     known_claims = previous_claims(entries)
 
     {accepted, duplicates, _seen, _refused_files} =
-      Enum.reduce(entries, {[], [], %{}, MapSet.new()}, fn {entry, fingerprint}, {acc, dups, seen, refused_files} ->
+      Enum.reduce(entries, {[], [], %{}, MapSet.new()}, fn {entry, fingerprint},
+                                                           {acc, dups, seen, refused_files} ->
         file_sha = get_in(entry, ["source_file", "sha256"])
 
         cond do
@@ -261,10 +255,12 @@ defmodule MedicaidClaimsChecker.Claims do
             {acc, [claim_duplicate(entry, known_claims[fingerprint]) | dups], seen, refused_files}
 
           Map.has_key?(seen, fingerprint) ->
-            {acc, [claim_duplicate(entry, %{filename: seen[fingerprint], batch: nil}) | dups], seen, refused_files}
+            {acc, [claim_duplicate(entry, %{filename: seen[fingerprint], batch: nil}) | dups],
+             seen, refused_files}
 
           true ->
-            {[{entry, fingerprint} | acc], dups, Map.put(seen, fingerprint, entry["filename"]), refused_files}
+            {[{entry, fingerprint} | acc], dups, Map.put(seen, fingerprint, entry["filename"]),
+             refused_files}
         end
       end)
 
@@ -272,7 +268,10 @@ defmodule MedicaidClaimsChecker.Claims do
   end
 
   defp previous_files(entries) do
-    shas = entries |> Enum.map(fn {e, _} -> get_in(e, ["source_file", "sha256"]) end) |> Enum.reject(&is_nil/1)
+    shas =
+      entries
+      |> Enum.map(fn {e, _} -> get_in(e, ["source_file", "sha256"]) end)
+      |> Enum.reject(&is_nil/1)
 
     SubmittedFile
     |> join(:inner, [s], b in assoc(s, :batch))
@@ -308,12 +307,19 @@ defmodule MedicaidClaimsChecker.Claims do
   end
 
   defp file_duplicate(source_file, previous) do
-    Map.merge(%{"kind" => "file", "filename" => source_file["filename"]}, previous_fields(previous))
+    Map.merge(
+      %{"kind" => "file", "filename" => source_file["filename"]},
+      previous_fields(previous)
+    )
   end
 
   defp claim_duplicate(entry, previous) do
     Map.merge(
-      %{"kind" => "claim", "filename" => entry["filename"], "claim_id" => entry["claim"]["claim_id"]},
+      %{
+        "kind" => "claim",
+        "filename" => entry["filename"],
+        "claim_id" => entry["claim"]["claim_id"]
+      },
       previous_fields(previous)
     )
   end
@@ -336,10 +342,12 @@ defmodule MedicaidClaimsChecker.Claims do
     do: "#{filename} was already submitted #{earlier_submission(dup)}"
 
   def describe_duplicate(%{"previous_batch_id" => nil} = dup),
-    do: "#{claim_label(dup)} appears twice in this submission (first as #{dup["previous_filename"]})"
+    do:
+      "#{claim_label(dup)} appears twice in this submission (first as #{dup["previous_filename"]})"
 
   def describe_duplicate(dup),
-    do: "#{claim_label(dup)} was already submitted #{earlier_submission(dup)} as #{dup["previous_filename"]}"
+    do:
+      "#{claim_label(dup)} was already submitted #{earlier_submission(dup)} as #{dup["previous_filename"]}"
 
   @doc "Summary of a batch's refused duplicates for upload messages and logs."
   def duplicates_notice([]), do: ""
@@ -359,8 +367,14 @@ defmodule MedicaidClaimsChecker.Claims do
   defp earlier_submission(dup) do
     when_text =
       case DateTime.from_iso8601(dup["previous_submitted_at"] || "") do
-        {:ok, dt, _} -> " on " <> (dt |> DateTime.shift_zone!("America/New_York") |> Calendar.strftime("%b %d, %Y %I:%M %p %Z"))
-        _ -> ""
+        {:ok, dt, _} ->
+          " on " <>
+            (dt
+             |> DateTime.shift_zone!("America/New_York")
+             |> Calendar.strftime("%b %d, %Y %I:%M %p %Z"))
+
+        _ ->
+          ""
       end
 
     "in \"#{dup["previous_batch_name"] || dup["previous_batch_id"]}\"#{when_text}"
@@ -520,10 +534,12 @@ defmodule MedicaidClaimsChecker.Claims do
   defp provider_problem(provider, npi, date) do
     cond do
       not NppesProvider.issued_by?(provider, date) ->
-        {:reject, "Provider NPI #{npi} was not issued until #{provider.enumeration_date}, service rendered on #{date}"}
+        {:reject,
+         "Provider NPI #{npi} was not issued until #{provider.enumeration_date}, service rendered on #{date}"}
 
       not NppesProvider.active_on_date?(provider, date) ->
-        {:reject, "Provider NPI #{npi} was deactivated on #{provider.deactivation_date}, service rendered on #{date}"}
+        {:reject,
+         "Provider NPI #{npi} was deactivated on #{provider.deactivation_date}, service rendered on #{date}"}
 
       not NppesProvider.listed_on?(provider, date) ->
         {:reject,

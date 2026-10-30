@@ -9,7 +9,8 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive do
     {:ok,
      socket
      |> assign(:registration_open, Accounts.registration_open?())
-     |> assign(:users, Accounts.list_users())}
+     |> assign(:users, Accounts.list_users())
+     |> assign(:password_link, nil)}
   end
 
   def handle_event("toggle_registration", _params, socket) do
@@ -56,6 +57,25 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive do
     end
   end
 
+  # Accounts created before password registration have no password. The app
+  # sends no email, so the link is shown here for the admin to give the user.
+  def handle_event("create_password_link", %{"id" => id}, socket) do
+    with :ok <- assert_admin(socket),
+         {user_id, ""} <- Integer.parse(id) do
+      user = Accounts.get_user!(user_id)
+
+      case Accounts.create_password_setup_link(user, &url(~p"/users/set-password/#{&1}")) do
+        {:ok, link} ->
+          {:noreply, assign(socket, :password_link, %{email: user.email, url: link})}
+
+        {:error, :password_already_set} ->
+          {:noreply, put_flash(socket, :error, "#{user.email} already has a password.")}
+      end
+    else
+      _ -> {:noreply, put_flash(socket, :error, "Invalid request.")}
+    end
+  end
+
   defp assert_admin(socket) do
     user = socket.assigns[:current_user]
     if user && user.is_admin, do: :ok, else: :error
@@ -63,79 +83,130 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive do
 
   def render(assigns) do
     ~H"""
-    <div class="mx-auto max-w-4xl space-y-8">
-      <.header>Admin Settings</.header>
+    <div class="px-4 py-6 sm:px-6 sm:py-8 lg:px-8 xl:px-28 xl:py-10">
+      <div class="mx-auto max-w-7xl space-y-8">
+        <.header>Admin Settings</.header>
 
-      <%!-- Registration toggle --%>
-      <div>
-        <h2 class="text-lg font-semibold mb-3">System</h2>
-        <div class="flex items-center justify-between rounded border p-4">
-          <div>
-            <p class="font-semibold">User Registration</p>
-            <p class="text-sm text-gray-500">Allow new users to create accounts</p>
-          </div>
-          <button
-            phx-click="toggle_registration"
-            class={"btn #{if @registration_open, do: "btn-success", else: "btn-error"}"}
-          >
-            <%= if @registration_open, do: "Open — click to close", else: "Closed — click to open" %>
-          </button>
+        <div
+          :if={Phoenix.Flash.get(@flash, :error)}
+          role="alert"
+          class="p-4 bg-red-100 border border-red-300 rounded-lg"
+        >
+          <p class="text-sm text-red-900 font-semibold">{Phoenix.Flash.get(@flash, :error)}</p>
         </div>
-      </div>
 
-      <%!-- User management table --%>
-      <div>
-        <h2 class="text-lg font-semibold mb-3">Users</h2>
-        <div class="overflow-x-auto rounded border">
-          <table class="table w-full">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Joined</th>
-                <th>Status</th>
-                <th>Role</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr :for={user <- @users}>
-                <td>{user.first_name} {user.last_name}</td>
-                <td class="font-mono text-sm">{user.email}</td>
-                <td class="text-sm text-gray-500">
-                  {Calendar.strftime(user.inserted_at, "%b %d, %Y")}
-                </td>
-                <td>
-                  <span class={"badge #{if user.active, do: "badge-success", else: "badge-error"}"}>
-                    {if user.active, do: "Active", else: "Inactive"}
-                  </span>
-                </td>
-                <td>
-                  <span class={"badge #{if user.is_admin, do: "badge-warning", else: "badge-ghost"}"}>
-                    {if user.is_admin, do: "Admin", else: "User"}
-                  </span>
-                </td>
-                <td class="flex gap-2 justify-end">
-                  <button
-                    phx-click="toggle_active"
-                    phx-value-id={user.id}
-                    class={"btn btn-sm #{if user.active, do: "btn-error btn-soft", else: "btn-success btn-soft"}"}
-                    disabled={user.id == @current_user.id}
-                  >
-                    {if user.active, do: "Deactivate", else: "Activate"}
-                  </button>
-                  <button
-                    phx-click="toggle_admin"
-                    phx-value-id={user.id}
-                    class="btn btn-sm btn-soft"
-                    disabled={user.id == @current_user.id}
-                  >
-                    {if user.is_admin, do: "Remove admin", else: "Make admin"}
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div
+          :if={Phoenix.Flash.get(@flash, :info)}
+          role="alert"
+          aria-live="polite"
+          class="p-4 bg-blue-100 border border-blue-300 rounded-lg"
+        >
+          <p class="text-sm text-blue-900">{Phoenix.Flash.get(@flash, :info)}</p>
+        </div>
+
+        <div
+          :if={@password_link}
+          id="password-link"
+          role="alert"
+          class="p-4 bg-blue-100 border border-blue-300 rounded-lg space-y-2"
+        >
+          <p class="text-sm text-blue-900">
+            Password link for <span class="font-semibold">{@password_link.email}</span>.
+            Give it to them; it works once and expires in {Accounts.UserToken.password_setup_validity_in_days()} days.
+          </p>
+          <input
+            type="text"
+            readonly
+            value={@password_link.url}
+            class="w-full rounded border border-blue-300 bg-white px-2 py-1 font-mono text-sm"
+          />
+        </div>
+
+        <%!-- Registration toggle --%>
+        <div>
+          <h2 class="text-lg font-semibold mb-3">System</h2>
+          <div class="flex items-center justify-between rounded border p-4">
+            <div>
+              <p class="font-semibold">User Registration</p>
+              <p class="text-sm text-gray-500">Allow new users to create accounts</p>
+            </div>
+            <button
+              phx-click="toggle_registration"
+              class={"btn #{if @registration_open, do: "btn-success", else: "btn-error"}"}
+            >
+              {if @registration_open, do: "Open — click to close", else: "Closed — click to open"}
+            </button>
+          </div>
+        </div>
+
+        <%!-- User management table --%>
+        <div>
+          <h2 class="text-lg font-semibold mb-3">Users</h2>
+          <div class="overflow-x-auto rounded border">
+            <table class="table w-full">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Joined</th>
+                  <th>Status</th>
+                  <th>Role</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr :for={user <- @users}>
+                  <td class="whitespace-nowrap">{user.first_name} {user.last_name}</td>
+                  <td class="font-mono text-sm">{user.email}</td>
+                  <td class="text-sm text-gray-500 whitespace-nowrap">
+                    {Calendar.strftime(user.inserted_at, "%b %d, %Y")}
+                  </td>
+                  <td>
+                    <span class={"badge #{if user.active, do: "badge-success", else: "badge-error"}"}>
+                      {if user.active, do: "Active", else: "Inactive"}
+                    </span>
+                    <span :if={is_nil(user.hashed_password)} class="badge badge-warning badge-outline">
+                      No password
+                    </span>
+                  </td>
+                  <td>
+                    <span class={"badge #{if user.is_admin, do: "badge-warning", else: "badge-ghost"}"}>
+                      {if user.is_admin, do: "Admin", else: "User"}
+                    </span>
+                  </td>
+                  <td class="flex flex-wrap gap-2 justify-end">
+                    <button
+                      :if={is_nil(user.hashed_password)}
+                      id={"create-password-link-#{user.id}"}
+                      phx-click="create_password_link"
+                      phx-value-id={user.id}
+                      class="btn btn-sm btn-primary btn-soft"
+                      disabled={!user.active}
+                      title={if !user.active, do: "Activate the account first"}
+                    >
+                      Create password link
+                    </button>
+                    <button
+                      phx-click="toggle_active"
+                      phx-value-id={user.id}
+                      class={"btn btn-sm #{if user.active, do: "btn-error btn-soft", else: "btn-success btn-soft"}"}
+                      disabled={user.id == @current_user.id}
+                    >
+                      {if user.active, do: "Deactivate", else: "Activate"}
+                    </button>
+                    <button
+                      phx-click="toggle_admin"
+                      phx-value-id={user.id}
+                      class="btn btn-sm btn-soft"
+                      disabled={user.id == @current_user.id}
+                    >
+                      {if user.is_admin, do: "Remove admin", else: "Make admin"}
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

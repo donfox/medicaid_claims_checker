@@ -69,7 +69,7 @@ test/medicaid_claims_checker/x12/claim_splitter_test.exs
 | `/` | `FetchSourceLive.Index` | Fetch source and schedule management, NPPES config and refresh, manual file upload, batch history |
 | `/rules` | `RuleLive.Index` | DSL editor, rule evaluation, redundancy checking |
 
-Development-only routes: `/dev/dashboard` (Phoenix LiveDashboard), `/dev/mailbox` (Swoosh).
+Development-only route: `/dev/dashboard` (Phoenix LiveDashboard). The app sends no email.
 
 ## API Endpoints
 

@@ -15,7 +15,8 @@ config :medicaid_claims_checker, MedicaidClaimsCheckerWeb.Endpoint,
   debug_errors: true,
   secret_key_base: "gJbfwm1vRTR60Ek0y2msaAAkiyRpPS0ZeISMOUM5pydYVsacZjC8yRNzUQhmpGVD",
   watchers: [
-    esbuild: {Esbuild, :install_and_run, [:medicaid_claims_checker, ~w(--sourcemap=inline --watch)]},
+    esbuild:
+      {Esbuild, :install_and_run, [:medicaid_claims_checker, ~w(--sourcemap=inline --watch)]},
     tailwind: {Tailwind, :install_and_run, [:medicaid_claims_checker, ~w(--watch)]}
   ]
 
@@ -53,7 +54,7 @@ config :medicaid_claims_checker, MedicaidClaimsCheckerWeb.Endpoint,
     ]
   ]
 
-# Enable dev routes for dashboard and mailbox
+# Enable dev routes for the dashboard
 config :medicaid_claims_checker, dev_routes: true
 
 # Do not include metadata nor timestamps in development logs
@@ -85,16 +86,13 @@ config :medicaid_claims_checker, MedicaidClaimsChecker.Repo,
   pool_size: 10,
   log: false
 
-# Disable swoosh api client as it is only required for production adapters.
-config :swoosh, :api_client, false
-
 # Vault — dev-only key, NOT for production use.
 # Generate a production key with: :crypto.strong_rand_bytes(32) |> Base.encode64() |> IO.puts()
 config :medicaid_claims_checker, MedicaidClaimsChecker.Vault,
   ciphers: [
-    default: {Cloak.Ciphers.AES.GCM,
-              tag: "AES.GCM.V1",
-              key: Base.decode64!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")}
+    default:
+      {Cloak.Ciphers.AES.GCM,
+       tag: "AES.GCM.V1", key: Base.decode64!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")}
   ]
 
 # Shows the "Test upload: allow re-submission" checkbox on Manual Upload, so

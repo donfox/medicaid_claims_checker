@@ -6,7 +6,7 @@ defmodule MedicaidClaimsChecker.Accounts do
   import Ecto.Query, warn: false
   alias MedicaidClaimsChecker.Repo
 
-  alias MedicaidClaimsChecker.Accounts.{User, UserToken, UserNotifier, AppSettings}
+  alias MedicaidClaimsChecker.Accounts.{User, UserToken, AppSettings}
 
   ## Database getters
 
@@ -73,12 +73,7 @@ defmodule MedicaidClaimsChecker.Accounts do
   def get_user!(id), do: Repo.get!(User, id)
 
   def list_users do
-    Repo.all(from u in User, order_by: [asc: u.inserted_at])
-  end
-
-  @doc "Email addresses of active admin users, who receive operational alerts."
-  def list_admin_emails do
-    Repo.all(from u in User, where: u.is_admin and u.active, order_by: [asc: u.inserted_at], select: u.email)
+    Repo.all(from(u in User, order_by: [asc: u.inserted_at]))
   end
 
   def set_user_active(user, active) when is_boolean(active) do
@@ -188,24 +183,13 @@ defmodule MedicaidClaimsChecker.Accounts do
   end
 
   @doc """
-  Updates the user email using the given token.
-
-  If the token matches, the user email is updated and the token is deleted.
+  Changes the user's email address. The settings page asks for a recent
+  log-in first (sudo mode); there is no confirmation email.
   """
-  def update_user_email(user, token) do
-    context = "change:#{user.email}"
-
-    Repo.transact(fn ->
-      with {:ok, query} <- UserToken.verify_change_email_token_query(token, context),
-           %UserToken{sent_to: email} <- Repo.one(query),
-           {:ok, user} <- Repo.update(User.email_changeset(user, %{email: email})),
-           {_count, _result} <-
-             Repo.delete_all(from(UserToken, where: [user_id: ^user.id, context: ^context])) do
-        {:ok, user}
-      else
-        _ -> {:error, :transaction_aborted}
-      end
-    end)
+  def update_user_email(user, attrs) do
+    user
+    |> User.email_changeset(attrs)
+    |> Repo.update()
   end
 
   @doc """
@@ -265,11 +249,32 @@ defmodule MedicaidClaimsChecker.Accounts do
   end
 
   @doc """
-  Gets the user with the given magic link token.
+  Creates a one-time link for a user with no password to set one. An admin
+  creates it on the Admin page and gives it to the user; the app sends no
+  email. Accounts created before password registration have no password
+  and cannot log in until they set one.
+
+  Returns `{:ok, url}`, or `{:error, :password_already_set}` for a user who
+  has a password.
   """
-  def get_user_by_magic_link_token(token) do
-    with {:ok, query} <- UserToken.verify_magic_link_token_query(token),
-         {user, _token} <- Repo.one(query) do
+  def create_password_setup_link(%User{} = user, setup_url_fun)
+      when is_function(setup_url_fun, 1) do
+    if user.hashed_password do
+      {:error, :password_already_set}
+    else
+      {encoded_token, user_token} = UserToken.build_link_token(user, "password_setup")
+      Repo.insert!(user_token)
+      {:ok, setup_url_fun.(encoded_token)}
+    end
+  end
+
+  @doc """
+  Gets the user a valid password-setup token belongs to, if they still have
+  no password; otherwise `nil`.
+  """
+  def get_user_by_password_setup_token(token) do
+    with {:ok, query} <- UserToken.verify_password_setup_token_query(token),
+         {%User{hashed_password: nil} = user, _token} <- Repo.one(query) do
       user
     else
       _ -> nil
@@ -277,99 +282,27 @@ defmodule MedicaidClaimsChecker.Accounts do
   end
 
   @doc """
-  Logs the user in by magic link.
+  Sets the password of the user a password-setup token belongs to, and
+  confirms the account: the emailed link proves the address is theirs.
+  Every token the user has is deleted, so the link works once.
 
-  There are three cases to consider:
-
-  1. The user has already confirmed their email. They are logged in
-     and the magic link is expired.
-
-  2. The user has not confirmed their email and no password is set.
-     In this case, the user gets confirmed, logged in, and all tokens -
-     including session ones - are expired. In theory, no other tokens
-     exist but we delete all of them for best security practices.
-
-  3. The user has not confirmed their email but a password is set.
-     This cannot happen in the default implementation but may be the
-     source of security pitfalls. See the "Mixing magic link and password registration" section of
-     `mix help phx.gen.auth`.
+  Returns `{:ok, {user, expired_tokens}}`, `{:error, changeset}` for an
+  invalid password, or `{:error, :not_found}` when the link is invalid,
+  expired, or the user already has a password.
   """
-  def login_user_by_magic_link(token) do
-    {:ok, query} = UserToken.verify_magic_link_token_query(token)
-
-    case Repo.one(query) do
-      # Prevent session fixation attacks by disallowing magic links for unconfirmed users with password
-      {%User{confirmed_at: nil, hashed_password: hash}, _token} when not is_nil(hash) ->
-        raise """
-        magic link log in is not allowed for unconfirmed users with a password set!
-
-        This cannot happen with the default implementation, which indicates that you
-        might have adapted the code to a different use case. Please make sure to read the
-        "Mixing magic link and password registration" section of `mix help phx.gen.auth`.
-        """
-
-      {%User{confirmed_at: nil} = user, _token} ->
-        user
-        |> User.confirm_changeset()
-        |> update_user_and_delete_all_tokens()
-
-      {user, token} ->
-        Repo.delete!(token)
-        {:ok, {user, []}}
-
+  def set_password_with_setup_token(token, attrs) do
+    case get_user_by_password_setup_token(token) do
       nil ->
         {:error, :not_found}
-    end
-  end
 
-  @doc ~S"""
-  Delivers the update email instructions to the given user.
-
-  ## Examples
-
-      iex> deliver_user_update_email_instructions(user, current_email, &url(~p"/users/settings/confirm-email/#{&1}"))
-      {:ok, %{to: ..., body: ...}}
-
-  """
-  def deliver_user_update_email_instructions(%User{} = user, current_email, update_email_url_fun)
-      when is_function(update_email_url_fun, 1) do
-    {encoded_token, user_token} = UserToken.build_email_token(user, "change:#{current_email}")
-
-    Repo.insert!(user_token)
-    UserNotifier.deliver_update_email_instructions(user, update_email_url_fun.(encoded_token))
-  end
-
-  @doc """
-  Delivers the magic link login instructions to the given user.
-  """
-  def deliver_login_instructions(%User{} = user, magic_link_url_fun)
-      when is_function(magic_link_url_fun, 1) do
-    {encoded_token, user_token} = UserToken.build_email_token(user, "login")
-    Repo.insert!(user_token)
-    UserNotifier.deliver_login_instructions(user, magic_link_url_fun.(encoded_token))
-  end
-
-  @doc """
-  Verifies the magic link token for a new (unconfirmed) user, sets their password,
-  and confirms the account. Used in the post-registration password-setup flow.
-
-  Returns `{:ok, {user, expired_tokens}}` on success, or an error tuple.
-  """
-  def confirm_user_and_set_password(token, attrs) do
-    {:ok, query} = UserToken.verify_magic_link_token_query(token)
-
-    case Repo.one(query) do
-      {%User{confirmed_at: nil} = user, _token} ->
+      user ->
         user
         |> User.password_changeset(attrs)
-        |> Ecto.Changeset.put_change(:confirmed_at, DateTime.utc_now(:second))
+        |> Ecto.Changeset.put_change(
+          :confirmed_at,
+          user.confirmed_at || DateTime.utc_now(:second)
+        )
         |> update_user_and_delete_all_tokens()
-
-      {%User{confirmed_at: _already}, _token} ->
-        {:error, :already_confirmed}
-
-      nil ->
-        {:error, :not_found}
     end
   end
 

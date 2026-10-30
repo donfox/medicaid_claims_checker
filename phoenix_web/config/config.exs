@@ -42,15 +42,6 @@ config :medicaid_claims_checker, MedicaidClaimsCheckerWeb.Endpoint,
   pubsub_server: MedicaidClaimsChecker.PubSub,
   live_view: [signing_salt: "4SAj6dYS"]
 
-# Configures the mailer
-#
-# By default it uses the "Local" adapter which stores the emails
-# locally. You can see the emails in your browser, at "/dev/mailbox".
-#
-# For production it's recommended to configure a different adapter
-# at the `config/runtime.exs`.
-config :medicaid_claims_checker, MedicaidClaimsChecker.Mailer, adapter: Swoosh.Adapters.Local
-
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",
@@ -88,7 +79,7 @@ config :medicaid_claims_checker, Oban,
   repo: MedicaidClaimsChecker.Repo,
   # Match the Haskell engine's worker pool size (max 1 numCaps) so Phoenix
   # never issues more concurrent batch-evaluate calls than the engine can serve.
-  queues: [batch_evaluation: max(1, :erlang.system_info(:schedulers_online)), alerts: 1]
+  queues: [batch_evaluation: max(1, :erlang.system_info(:schedulers_online))]
 
 config :medicaid_claims_checker, :config_poller, poll_interval_ms: 60_000
 

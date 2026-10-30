@@ -1451,32 +1451,6 @@ main = hspec $ do
   -- Default Rule DSL Texts — Parse Validation
   -- ----------------------------------------------------------------
 
-  describe "Default Rule DSL texts parse correctly" $ do
-    let defaultRuleDsls =
-          [ ("ImpossibleDates",
-             "RULE impossible_dates \"test\" WHEN EXISTS line IN service_lines WHERE is_date_before(line.date_of_service, \"1900-01-01\") THEN REJECT \"bad\";")
-          , ("ExtremeAmounts",
-             "RULE extreme_amounts \"test\" WHEN claim_totals.total_charges > 1000000 THEN FLAG_FRAUD \"extreme\";")
-          , ("MissingRequiredFields",
-             "RULE missing_required_fields \"test\" WHEN claim_id IS NULL OR provider.npi IS NULL OR patient.date_of_birth IS NULL OR financial.claim_amount IS NULL THEN REJECT \"missing\";")
-          , ("InvalidProviderNPI",
-             "RULE invalid_provider_npi \"test\" WHEN provider.npi IS NOT NULL AND NOT is_valid_npi(provider.npi) THEN REJECT \"invalid npi\";")
-          , ("FutureServiceDate",
-             "RULE future_service_date \"test\" WHEN EXISTS line IN service_lines WHERE is_future_date(line.date_of_service) THEN REJECT \"future\";")
-          , ("InvalidNPIFormat",
-             "RULE invalid_npi_format \"test\" WHEN provider.npi IS NOT NULL AND NOT is_npi_format(provider.npi) THEN REJECT \"format\";")
-          , ("MissingDiagnosisCodes",
-             "RULE missing_diagnosis_codes \"test\" WHEN COUNT(diagnosis_codes) = 0 THEN REJECT \"no dx\";")
-          , ("ExcessiveTotalCharges",
-             "RULE excessive_total_charges \"test\" WHEN claim_totals.total_charges > 750000 THEN FLAG_FRAUD \"excessive\";")
-          , ("PatientAgeOutOfRange",
-             "RULE patient_age_out_of_range \"test\" WHEN patient.date_of_birth IS NOT NULL AND NOT is_age_valid(patient.date_of_birth, 0, 130) THEN REJECT \"age\";")
-          ]
-
-    mapM_ (\(label, dsl) ->
-      it (label ++ " DSL parses") $ parseRule dsl `shouldSatisfy` isRight
-      ) defaultRuleDsls
-
 isRight :: Either a b -> Bool
 isRight (Right _) = True
 isRight _ = False

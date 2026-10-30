@@ -3,8 +3,11 @@
 -- | Tests for "Claims.Parser".
 module Claims.ParserSpec (parserSpec) where
 
+import Control.Applicative ((<|>))
 import Data.Aeson (object, (.=))
 import Data.Either (isLeft, isRight)
+import Data.List (isPrefixOf, stripPrefix)
+import Data.Text qualified as T
 import Data.Time (Day, fromGregorian)
 import Test.Hspec
 import Claims.Evaluator (evaluateRuleSimple)
@@ -18,6 +21,20 @@ testDay = fromGregorian 2026 2 28
 
 parserSpec :: Spec
 parserSpec = do
+  describe "Rule fixture files" $ do
+    validRules <- runIO (fixtureRules <$> readFile "test/fixtures/valid_rules.dsl")
+    faultyRules <- runIO (fixtureRules <$> readFile "test/fixtures/faulty_rules.dsl")
+
+    it "finds every rule in both files" $ do
+      length validRules `shouldBe` 10
+      length faultyRules `shouldBe` 9
+
+    describe "valid_rules.dsl: each rule parses" $
+      mapM_ (\(label, text) -> it label $ parseRules text `shouldSatisfy` isRight) validRules
+
+    describe "faulty_rules.dsl: each rule is rejected" $
+      mapM_ (\(label, text) -> it label $ parseRules text `shouldSatisfy` isLeft) faultyRules
+
   describe "DSL Parser" $ do
     it "parses simple equality predicate" $ do
       let input = "RULE test \"Test rule\" WHEN field = \"value\" THEN FLAG_FRAUD \"test\";"
@@ -155,3 +172,24 @@ parserSpec = do
         , "is_npi_format(npi)"
         , "is_age_valid(dob, 0, 130)"
         ]
+
+-- | The rules in a .dsl fixture file, each with a test label. A rule starts
+-- at a line beginning @RULE @ and runs to the next one; @--@ comment lines
+-- are left out. A @-- FAULT n: why@ comment adds its reason to the label of
+-- the rule after it.
+fixtureRules :: String -> [(String, T.Text)]
+fixtureRules = go Nothing . lines
+  where
+    go _ [] = []
+    go fault (l : ls)
+      | isRule l =
+          let (body, rest) = break isRule ls
+              label = takeWhile (/= ' ') (drop 5 l) <> maybe "" (\why -> " (" <> why <> ")") fault
+              text = T.pack (unlines (l : filter (not . isComment) body))
+           in (label, text) : go (lastFault body) rest
+      | otherwise = go (faultReason l <|> fault) ls
+
+    isRule = ("RULE " `isPrefixOf`)
+    isComment = ("--" `isPrefixOf`)
+    lastFault body = foldr (\l acc -> acc <|> faultReason l) Nothing body
+    faultReason l = drop 2 . dropWhile (/= ':') <$> stripPrefix "-- FAULT" l

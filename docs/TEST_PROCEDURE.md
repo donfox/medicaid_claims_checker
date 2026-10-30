@@ -25,6 +25,10 @@ cd haskell_engine
 stack test
 ```
 
+Besides the unit tests (one file per engine module under `test/Claims/`), this
+checks that every rule in `test/fixtures/valid_rules.dsl` parses and every rule in
+`test/fixtures/faulty_rules.dsl` is rejected.
+
 Alternative:
 
 ```bash
@@ -70,26 +74,7 @@ curl -s http://localhost:4000/api/health
 - Haskell returns `{"status":"healthy"}`
 - Phoenix returns HTTP `200`
 
-## 4. Run Integration Scripts
-
-These call the engine's HTTP API directly. From `haskell_engine`:
-
-```bash
-bash test/scripts/run_tests.sh
-bash test/scripts/run_faulty_tests.sh
-bash test/scripts/test_integration.sh
-```
-
-They use the engine at `HASKELL_ENGINE_URL` (default `http://localhost:8080`) and send
-`RULE_ENGINE_SECRET` as the bearer token.
-
-### What these scripts validate
-
-- DSL parse success for valid rules
-- DSL parse failure for intentionally broken rules
-- End-to-end batch-evaluate behavior
-
-**Pass criterion:** each script exits with status `0`.
+## 4. Run the Use-Case Tests
 
 ### Use-case tests (the frontend, end to end)
 

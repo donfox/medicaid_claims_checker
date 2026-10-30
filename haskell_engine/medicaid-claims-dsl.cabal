@@ -21,8 +21,7 @@ library
     import:           warnings
     exposed-modules:  Claims.Syntax
                     , Claims.Parser
-                    , Claims.SimpleEvaluator
-                    , Claims.RuleEngine
+                    , Claims.Evaluator
                     , Claims.PolicyCombiner
                     , Claims.MLClient
                     , Claims.EvaluationContract

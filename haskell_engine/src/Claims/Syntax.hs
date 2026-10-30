@@ -6,7 +6,7 @@
 -- Description : Abstract syntax tree for the claims rule DSL
 --
 -- The AST produced by "Claims.Parser" and evaluated by
--- "Claims.SimpleEvaluator". The DSL itself is described in
+-- "Claims.Evaluator". The DSL itself is described in
 -- @docs/SYNTAX_GUIDE.md@.
 --
 -- The AST's JSON encoding (returned by @/api/parse-rule@) is not read by any
@@ -186,7 +186,7 @@ retagActions _ v = v
 -- | Argument count of each built-in helper, keyed by lower-case name.
 -- The parser checks calls against this table, so a misspelled helper or a
 -- wrong argument count is a parse error instead of a rule that never fires.
--- Keep it in step with 'Claims.SimpleEvaluator.evaluateHelperCall'.
+-- Keep it in step with 'Claims.Evaluator.evaluateHelperCall'.
 helperArities :: Map Text Int
 helperArities =
   Map.fromList

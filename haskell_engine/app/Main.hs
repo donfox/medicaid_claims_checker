@@ -69,7 +69,7 @@ import Claims.PolicyCombiner
     mlStubResult,
   )
 import Claims.RedundancyChecker (checkRedundancy)
-import Claims.RuleEngine (EvaluationReport (..), evaluateSimpleJson, loadRules)
+import Claims.Evaluator (EvaluationReport (..), evaluateSimpleJson)
 
 main :: IO ()
 main = do

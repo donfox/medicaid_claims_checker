@@ -14,7 +14,7 @@ import Data.Text qualified as T
 import Data.Time (Day, fromGregorian)
 import Test.Hspec
 import Claims.Parser (parseRule)
-import Claims.SimpleEvaluator (evaluateRuleSimple)
+import Claims.Evaluator (evaluateRuleSimple)
 import Claims.Syntax (RuleResult (..))
 
 -- ---------------------------------------------------------------------------

@@ -21,8 +21,7 @@ Haskell-based engine for parsing, evaluating, and compiling fraud detection rule
 |---|---|
 | `Claims.Syntax` | AST types for rules, predicates, actions, field references, and evaluation results |
 | `Claims.Parser` | Parsec-based DSL parser |
-| `Claims.SimpleEvaluator` | Evaluate predicates against generic JSON claim payloads |
-| `Claims.RuleEngine` | Multi-rule evaluation engine and reporting |
+| `Claims.Evaluator` | Evaluate rules against generic JSON claim payloads, and summarise them in a report |
 | `Claims.PolicyCombiner` | Merge DSL results with ML scoring into a combined policy envelope |
 | `Claims.RedundancyChecker` | Detect redundant rules: exact duplicates, condition overlap, and subsumption |
 | `Claims.MLClient` | HTTP client for calling the external ML scoring service |
@@ -103,7 +102,7 @@ The UI shows, per evaluated claim under **Fraud Detection Details**, the number 
 
 ### Overall risk level
 
-A classification derived from the *actions* of the matched rules, not just their count. The `determineRiskLevel` function in `RuleEngine.hs` computes it, looking inside composite actions:
+A classification derived from the *actions* of the matched rules, not just their count. The `determineRiskLevel` function in `Evaluator.hs` computes it, looking inside composite actions:
 
 | Level | Condition |
 |---|---|
@@ -123,7 +122,7 @@ A rule whose condition depends on missing or unusable data does not match. Its r
 DSL Text  -->  Parser  -->  Rule AST  -->  evaluateRuleSimple
 ```
 
-Rules are parsed on every request and evaluated directly against JSON claim payloads using `SimpleEvaluator`. No Haskell code generation or GHC invocation.
+Rules are parsed on every request and evaluated directly against JSON claim payloads using `Evaluator`. No Haskell code generation or GHC invocation.
 
 ## License
 

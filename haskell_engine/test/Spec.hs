@@ -12,12 +12,11 @@ import BusinessRulesSpec (businessRulesSpec)
 import ListenConfigSpec (listenConfigSpec)
 import ParserProps (parserProperties)
 import Claims.EvaluationContract
+import Claims.Evaluator (EvaluationReport (..), RiskLevel (..), evaluateRuleSimple, evaluateSimpleJson)
 import Claims.MLClient
 import Claims.Parser
 import Claims.PolicyCombiner
-import Claims.RuleEngine (EvaluationReport (..), RiskLevel (..), evaluateSimpleJson, loadRules)
 import Claims.RedundancyChecker
-import Claims.SimpleEvaluator (evaluateRuleSimple)
 import Claims.Syntax
 import Prelude hiding (EQ, GT, LT)
 

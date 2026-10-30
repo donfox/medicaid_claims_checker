@@ -19,6 +19,7 @@
 module Claims.Parser
   ( parseRule,
     parseRules,
+    loadRules,
     ParseError,
   )
 where
@@ -41,6 +42,12 @@ parseRule = parse ruleParser "rule"
 -- | Parse zero or more rules; the whole input must be consumed.
 parseRules :: Text -> Either ParseError [Rule]
 parseRules = parse rulesParser "rules"
+
+-- | Parse a rule set, with the error as the text an API response carries.
+loadRules :: Text -> Either String [Rule]
+loadRules rulesText = case parseRules rulesText of
+  Left err    -> Left $ "Parse error: " ++ show err
+  Right rules -> Right rules
 
 -- ----------------------------------------------------------------------------
 -- Lexical helpers

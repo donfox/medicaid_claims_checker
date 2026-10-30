@@ -281,7 +281,7 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
 
   # The engine writes the summary before the NPPES finding is added, so it is
   # rewritten from the merged counts, in the engine's wording
-  # (generateSummary in haskell_engine/src/Claims/RuleEngine.hs).
+  # (generateSummary in haskell_engine/src/Claims/Evaluator.hs).
   defp report_summary(total, matched, undecided, risk) do
     not_checked = if undecided > 0, do: ", #{undecided} not checked (missing data). ", else: ". "
     "Evaluated #{total} rules, #{matched} matched#{not_checked}Overall risk: #{risk}"

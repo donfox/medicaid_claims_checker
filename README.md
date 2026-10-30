@@ -42,6 +42,8 @@ Planned for Edition 2:
 - [Where the Phoenix code is](phoenix_web/README.md#where-the-code-is) — the web app's folders explained
 - [Test data](mock_data/README.md) — every test file, by use case
 - [Architecture](docs/ARCHITECTURE.md)
+- [Configuration](docs/CONFIGURATION.md) — every setting, with its default
+- [Admin guide](docs/ADMIN_GUIDE.md) — managing accounts
 - [Documentation guide](docs/README.md)
 - [Business-rule syntax guide](docs/SYNTAX_GUIDE.md)
 - [Test procedure](docs/TEST_PROCEDURE.md)

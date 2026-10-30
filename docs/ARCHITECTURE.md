@@ -28,6 +28,51 @@ In normal operation, the Phoenix app sends rule text plus claim payloads to the 
 The engine's modules and what each does are listed in
 [haskell_engine/README.md](../haskell_engine/README.md#module-overview).
 
+## Engine Call Structure
+
+Every request passes the rate limit, then the shared-secret check, before
+`Routes` sends it to its handler. Boxes are modules; arrows are calls.
+
+```mermaid
+flowchart TD
+    Main["Main<br/>startup, worker pool, TLS"] --> RL["Middleware.rateLimitMiddleware"]
+    RL --> Auth["Middleware.authMiddleware"]
+    Auth --> App["Routes.app"]
+
+    App --> Health["/api/health<br/>handleHealth"]
+    App --> Eval["/api/evaluate<br/>handleEvaluate"]
+    App --> Batch["/api/batch-evaluate<br/>handleBatchEvaluate"]
+    App --> Parse["/api/parse-rule<br/>handleParseRule"]
+    App --> Redund["/api/check-redundancy<br/>handleCheckRedundancy"]
+
+    Eval --> PE["Pipeline.processEvaluation"]
+    PE --> Load["Parser.loadRules"]
+    PE --> EC["Pipeline.evaluateClaim<br/>30 s limit per claim"]
+    PE --> Sel["Pipeline.selectMlResult"]
+    PE --> Comb["PolicyCombiner.buildCombinedEnvelope"]
+    Sel --> Score["MLClient.scoreClaimWithMl<br/>or the stand-in score"]
+
+    Batch --> Load
+    Batch -->|"each claim, in parallel on the worker pool"| EC
+    EC --> ESJ["Evaluator.evaluateSimpleJson"]
+    ESJ --> ERS["Evaluator.evaluateRuleSimple<br/>each rule"]
+
+    Parse --> PR["Parser.parseRules"]
+    Redund --> PR
+    Redund --> CR["RedundancyChecker.checkRedundancy"]
+```
+
+Which module uses which. Every arrow points down a layer, with no cycles:
+
+```
+Main → ListenConfig, Middleware, Routes
+Routes → Pipeline, Parser, RedundancyChecker
+Pipeline → Evaluator, Parser, MLClient, PolicyCombiner, Syntax
+PolicyCombiner → MLClient, Syntax
+Evaluator, Parser, RedundancyChecker → Syntax
+Syntax, MLClient, ListenConfig, Middleware → nothing in the engine
+```
+
 ## Primary Flows
 
 ### 1. Rule Evaluation

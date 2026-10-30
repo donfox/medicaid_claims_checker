@@ -3,12 +3,20 @@
 ## Start here
 
 - [ARCHITECTURE.md](ARCHITECTURE.md): how the Phoenix app and the Haskell engine fit
-  together, the engine's API, and how claims flow through the system
+  together, the engine's API and call structure, and how claims flow through the
+  system
 - [DATABASE_ERD.md](DATABASE_ERD.md): every database table, its columns and how they
   relate
 - [SYNTAX_GUIDE.md](SYNTAX_GUIDE.md): writing business rules in the rule language
 
-## Running and testing
+## Running and administering
+
+- [CONFIGURATION.md](CONFIGURATION.md): every setting both services read, with its
+  default
+- [ADMIN_GUIDE.md](ADMIN_GUIDE.md): managing accounts on the Admin page, including
+  password links for users without a password
+
+## Testing
 
 - [TEST_PROCEDURE.md](TEST_PROCEDURE.md): running the tests and checking a local setup
 - [testing/](testing/): the frontend use-case list and the repeat-testing guide, as

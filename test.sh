@@ -42,7 +42,7 @@ mkdir -p "$LOG_DIR"
 echo "Building the rule engine..."
 (cd "$ROOT_DIR/haskell_engine" && stack build 2>&1 | grep -E "^(Error|.*error)" || true)
 
-# The tests make far more than the engine's default 100 requests a minute.
+# The tests can make more than the engine's default 1000 requests a minute.
 export RULE_ENGINE_SECRET="${RULE_ENGINE_SECRET:-dev-secret-change-in-production}"
 (cd "$ROOT_DIR/haskell_engine" &&
   ENGINE_PORT="$ENGINE_PORT" ENGINE_RATE_LIMIT=100000 exec stack exec medicaid-claims-dsl-server) >"$ENGINE_LOG" 2>&1 &

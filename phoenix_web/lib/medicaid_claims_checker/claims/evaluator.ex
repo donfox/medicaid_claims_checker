@@ -14,11 +14,12 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
 
   require Logger
 
-  # Batches are sent to the engine in chunks of @batch_chunk_size (200), and
-  # the engine accepts at most 100 requests a minute on one connection, so a
-  # batch over about 20,000 claims would be rejected partway through. The cap
-  # leaves room for other requests on the same connection. Revisit it if the
-  # chunk size or the engine's rate limit (haskell_engine/app/Main.hs) changes.
+  # Batches are sent to the engine in chunks of @batch_chunk_size (200), so a
+  # 15,000-claim batch is 75 requests. The engine accepts 1000 requests a
+  # minute from one IP address, and all of this app's requests share that
+  # address: the cap leaves room for ten such batches at once plus Rules page
+  # calls. Revisit it if the chunk size or the engine's rate limit
+  # (haskell_engine/app/Middleware.hs) changes.
   @max_batch_claims 15_000
 
   @doc "Largest number of claims a single batch may send to the engine."

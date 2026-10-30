@@ -34,7 +34,9 @@ In normal operation, the Phoenix app sends rule text plus claim payloads to the 
 | `RedundancyChecker.hs` | Rule redundancy analysis |
 | `MLClient.hs` | Optional ML scoring client, its result types and its settings |
 | `Pipeline.hs` | One claim evaluation end to end: rules, timeout, ML score, combined decision |
-| `Main.hs` | HTTP routing and request handlers |
+| `app/Main.hs` | Server startup: settings, worker pool, TLS |
+| `app/Middleware.hs` | Rate limit and shared-secret auth, applied to every request |
+| `app/Routes.hs` | HTTP routing and request handlers |
 
 ## Primary Flows
 

@@ -6,7 +6,7 @@ Edition 2's rule applies here as well: an ML score is evidence for an analyst, n
 
 ## Current state
 
-- No Python code exists yet. All ML code is in the Haskell engine: `Claims.MLClient` (the HTTP client), `Claims.PolicyCombiner` (combines rule results with the ML score), and the `/api/evaluate` handler in `haskell_engine/app/Main.hs`.
+- No Python code exists yet. All ML code is in the Haskell engine: `Claims.MLClient` (the HTTP client, its result types and its settings), `Claims.PolicyCombiner` (combines rule results with the ML score), and `Claims.Pipeline` (when the scorer is called, and the stub and fallback results), which the `/api/evaluate` handler in `haskell_engine/app/Routes.hs` calls.
 - **The app does not use ML today.** Phoenix calls only `/api/batch-evaluate`, which runs the rules and never contacts a scorer. Only `/api/evaluate` calls the scorer, and it is used only by direct API calls and tests.
 - When `ML_SCORER_URL` is unset, `/api/evaluate` uses a built-in stub result instead of calling a scorer.
 

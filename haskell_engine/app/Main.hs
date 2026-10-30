@@ -27,17 +27,14 @@ module Main where
 import Control.Concurrent (getNumCapabilities)
 import Control.Concurrent.Async (mapConcurrently)
 import Control.Concurrent.QSem (QSem, newQSem, signalQSem, waitQSem)
-import Control.Exception (bracket_, evaluate)
+import Control.Exception (bracket_)
 import Control.Monad (filterM, unless)
-import Data.Aeson (FromJSON (..), ToJSON (..), Value (..), decode, encode, object, withObject, (.:), (.:?), (.=))
-import Data.Aeson.Types (parseMaybe)
+import Data.Aeson (FromJSON (..), ToJSON (..), Value (..), decode, encode, object, withObject, (.:), (.=))
 import Data.IORef (IORef, atomicModifyIORef', newIORef)
-import Data.List (isInfixOf, isPrefixOf)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe)
 import Data.Text qualified as T
 import Data.Time.Clock (UTCTime, addUTCTime, getCurrentTime, utctDay)
-import Data.Time.Format (defaultTimeLocale, formatTime)
 import Data.ByteString qualified as BS
 import Data.ByteString.Char8 qualified as BS8
 import Data.ByteString.Lazy qualified as BL
@@ -51,22 +48,11 @@ import System.Directory (doesFileExist)
 import System.Exit (exitFailure)
 import System.Environment (lookupEnv)
 import System.IO (BufferMode (..), hPutStrLn, hSetBuffering, stderr, stdout)
-import System.Timeout (timeout)
 import Text.Read (readMaybe)
-import Claims.EvaluationContract (EvaluationRequest (..))
-import Claims.MLClient (MLClientConfig (..), MLResult, mlErrorResult, mlStubResult, scoreClaimWithMl)
 import Claims.ListenConfig (ListenConfig (..), resolveListen)
-import Claims.Parser
-import Claims.PolicyCombiner
-  ( CombinedEnvelope,
-    FallbackPolicy (..),
-    PolicyConfig,
-    buildCombinedEnvelope,
-    defaultPolicyConfig,
-    fallbackPolicy,
-  )
+import Claims.Parser (loadRules, parseRules)
+import Claims.Pipeline (evaluateClaim, processEvaluation, reportToJSON)
 import Claims.RedundancyChecker (checkRedundancy)
-import Claims.Evaluator (EvaluationReport (..), evaluateSimpleJson)
 
 main :: IO ()
 main = do
@@ -164,23 +150,6 @@ rateLimitMiddleware limit ref inner request respond
                  [("Content-Type", "application/json"), ("Retry-After", "60")]
                  (encode $ object ["error" .= ("Rate limit exceeded — max " ++ show limit ++ " requests per " ++ show rateLimitWindowSecs ++ " s")])
 
--- | Validate that an ML scorer URL does not target a private or cloud-metadata
--- hostname, preventing SSRF when ML_SCORER_URL is influenced by a misconfigured
--- secrets manager or CI pipeline. Blocks RFC-1918 ranges, loopback, link-local,
--- and known cloud metadata hostnames.
-validateMlScorerUrl :: String -> Either String ()
-validateMlScorerUrl url
-  | not ("https://" `isPrefixOf` url) =
-      Left "ML_SCORER_URL must begin with https://"
-  | otherwise =
-      let host = takeWhile (\c -> c /= '/' && c /= ':') (drop 8 url)
-      in if any (`isPrefixOf` host) blockedPrefixes || any (`isInfixOf` host) blockedSubstrings
-           then Left $ "ML_SCORER_URL hostname is blocked (SSRF prevention): " ++ host
-           else Right ()
-  where
-    blockedPrefixes   = ["127.", "10.", "192.168.", "169.254.", "0.", "::1", "fc00:", "fd"]
-    blockedSubstrings = ["localhost", "internal", "metadata", ".local"]
-
 -- | Maximum allowed request body size (10 MB).
 maxBodyBytes :: Int
 maxBodyBytes = 10 * 1024 * 1024
@@ -194,12 +163,6 @@ maxBatchClaims = 500
 -- substring specifically to prevent the O(rules × claims) blow-up.
 maxRulesTextChars :: Int
 maxRulesTextChars = 512 * 1024
-
--- | Per-claim evaluation timeout in microseconds (30 s). Prevents a
--- pathological rule (e.g. FORALL over a very large array) from holding a
--- semaphore slot indefinitely after the Phoenix caller has disconnected.
-evalTimeoutMicros :: Int
-evalTimeoutMicros = 30 * 1000000
 
 -- | Sliding-window rate limit: maximum requests per IP per window, unless
 -- ENGINE_RATE_LIMIT sets another.
@@ -316,12 +279,7 @@ handleBatchEvaluate sem request respond = do
                   results <- mapConcurrently
                     ( \(i, doc) ->
                         bracket_ (waitQSem sem) (signalQSem sem) $ do
-                          mReport <- timeout evalTimeoutMicros $ do
-                            let report = evaluateSimpleJson engine today doc
-                            -- Forcing the match count runs every predicate here, inside the
-                            -- timeout and the semaphore; the rule list length alone does not.
-                            _ <- evaluate (reportMatchedRules report)
-                            pure report
+                          mReport <- evaluateClaim engine today doc
                           pure $ case mReport of
                             Just report ->
                               object
@@ -378,30 +336,6 @@ jsonResponse :: Status -> Value -> Response
 jsonResponse status val =
   responseLBS status [("Content-Type", "application/json")] (encode val)
 
-data EvaluationResponse = EvaluationResponse
-  { respReport :: EvaluationReport,
-    respCombined :: CombinedEnvelope
-  }
-  deriving (Show)
-
-instance ToJSON EvaluationResponse where
-  toJSON (EvaluationResponse report combined) =
-    object
-      [ "report" .= reportToJSON report,
-        "combined" .= combined
-      ]
-
-reportToJSON :: EvaluationReport -> Value
-reportToJSON report =
-  object
-    [ "results" .= reportResults report,
-      "totalRules" .= reportTotalRules report,
-      "matchedRules" .= reportMatchedRules report,
-      "undecidedRules" .= reportUndecidedRules report,
-      "overallRisk" .= show (reportOverallRisk report),
-      "summary" .= reportSummary report
-    ]
-
 newtype ParseRuleRequest = ParseRuleRequest
   { parseRuleText :: T.Text
   }
@@ -422,91 +356,6 @@ instance FromJSON BatchEvaluationRequest where
     BatchEvaluationRequest
       <$> v .: "rulesText"
       <*> v .: "claims"
-
--- Business logic
-
-processEvaluation :: EvaluationRequest -> IO (Either String EvaluationResponse)
-processEvaluation req = do
-  case loadRules (evalRulesText req) of
-    Left err -> return $ Left err
-    Right engine -> do
-      now <- getCurrentTime
-      let today = utctDay now
-      mReport <- timeout evalTimeoutMicros $ do
-        let report = evaluateSimpleJson engine today (evalDocument req)
-        -- Forcing the match count runs every predicate here, inside the
-        -- timeout; the rule list length alone does not.
-        _ <- evaluate (reportMatchedRules report)
-        pure report
-      case mReport of
-        Nothing -> return $ Left "Evaluation timed out after 30 s"
-        Just report -> do
-          let evaluatedAt = T.pack (formatTime defaultTimeLocale "%Y-%m-%dT%H:%M:%SZ" now)
-          mlResult <- selectMlResult req
-          let combined =
-                buildCombinedEnvelope
-                  defaultPolicyConfig
-                  (evalClaimId req)
-                  evaluatedAt
-                  (reportResults report)
-                  mlResult
-          return $ Right $ EvaluationResponse report combined
-
--- | Resolve the ML score for a claim.
---
--- The @_mlStatus: "error"@ test override is only honoured when
--- @ALLOW_ML_TEST_OVERRIDE=true@ is set in the environment, so it cannot be
--- triggered by crafted claim payloads in production.  A warning is emitted to
--- stderr whenever the override fires so it is auditable.
-selectMlResult :: EvaluationRequest -> IO MLResult
-selectMlResult req = do
-  mOverride <- lookupEnv "ALLOW_ML_TEST_OVERRIDE"
-  let allowOverride = mOverride == Just "true"
-      doc = evalDocument req
-      claimId = evalClaimId req
-  if allowOverride
-    then case doc of
-      Object _ ->
-        case parseMaybe parseMlStatus doc of
-          Just (Just s) | T.toLower s == "error" -> do
-            hPutStrLn stderr "WARNING: _mlStatus test override triggered — ML scorer bypassed"
-            pure $ mlErrorResult "forced"
-          _ -> fetchOrStub claimId doc
-      _ -> fetchOrStub claimId doc
-    else fetchOrStub claimId doc
-  where
-    parseMlStatus = withObject "MLStatus" $ \obj -> obj .:? "_mlStatus"
-
--- | Call the ML scorer when configured; fall back to a neutral stub result
--- when @ML_SCORER_URL@ is absent so the server runs without the scorer service.
-fetchOrStub :: T.Text -> Value -> IO MLResult
-fetchOrStub claimId doc = do
-  mCfg <- getMlClientConfig
-  case mCfg of
-    Nothing -> pure mlStubResult
-    Just cfg -> do
-      result <- scoreClaimWithMl cfg claimId doc
-      case result of
-        Right ml -> pure ml
-        Left errMsg -> pure $ applyFallback defaultPolicyConfig errMsg
-
-getMlClientConfig :: IO (Maybe MLClientConfig)
-getMlClientConfig = do
-  mUrl <- lookupEnv "ML_SCORER_URL"
-  mTimeout <- lookupEnv "ML_TIMEOUT_MS"
-  let timeoutMs = fromMaybe 120 (mTimeout >>= readMaybe)
-  case mUrl of
-    Nothing -> pure Nothing
-    Just url -> case validateMlScorerUrl url of
-      Left err -> do
-        hPutStrLn stderr $ "WARNING: ML_SCORER_URL rejected — " ++ err
-        pure Nothing
-      Right () -> pure $ Just $ MLClientConfig url timeoutMs
-
-applyFallback :: PolicyConfig -> T.Text -> MLResult
-applyFallback cfg errMsg =
-  case fallbackPolicy cfg of
-    FallbackDslOnly -> mlErrorResult errMsg
 
 parseRuleRequest :: ParseRuleRequest -> Either String Value
 parseRuleRequest req =

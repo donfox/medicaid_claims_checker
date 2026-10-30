@@ -32,13 +32,15 @@ module Claims.MLClient
 
     -- * Calling the scorer
     MLClientConfig (..),
+    getMlClientConfig,
+    validateMlScorerUrl,
     scoreClaimWithMl,
     parseMlResultFromValue,
   )
 where
 
 import Control.Exception (SomeException, try)
-import Data.List (isPrefixOf)
+import Data.List (isInfixOf, isPrefixOf)
 import Data.Aeson (ToJSON, Value)
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Key qualified as Key
@@ -47,6 +49,7 @@ import Data.Aeson.Types qualified as AesonTypes
 import Data.ByteString.Lazy qualified as BL
 import Data.Scientific (toRealFloat)
 import Data.Text (Text)
+import Data.Maybe (fromMaybe)
 import Data.Text qualified as T
 import GHC.Generics (Generic)
 import Network.HTTP.Client qualified as HC
@@ -61,6 +64,9 @@ import Network.HTTP.Simple
     setRequestResponseTimeout,
   )
 import Network.HTTP.Types (hContentType)
+import System.Environment (lookupEnv)
+import System.IO (hPutStrLn, stderr)
+import Text.Read (readMaybe)
 
 -- | Identity metadata returned by the ML service for audit trails.
 data MLModelInfo = MLModelInfo
@@ -127,6 +133,38 @@ data MLClientConfig = MLClientConfig
     mlTimeoutMs :: Int          -- ^ Request timeout in milliseconds
   }
   deriving (Show, Eq)
+
+-- | The scorer settings from @ML_SCORER_URL@ and @ML_TIMEOUT_MS@, or
+-- 'Nothing' when no URL is set or the URL is refused.
+getMlClientConfig :: IO (Maybe MLClientConfig)
+getMlClientConfig = do
+  mUrl <- lookupEnv "ML_SCORER_URL"
+  mTimeout <- lookupEnv "ML_TIMEOUT_MS"
+  let timeoutMs = fromMaybe 120 (mTimeout >>= readMaybe)
+  case mUrl of
+    Nothing -> pure Nothing
+    Just url -> case validateMlScorerUrl url of
+      Left err -> do
+        hPutStrLn stderr $ "WARNING: ML_SCORER_URL rejected — " ++ err
+        pure Nothing
+      Right () -> pure $ Just $ MLClientConfig url timeoutMs
+
+-- | Validate that an ML scorer URL does not target a private or cloud-metadata
+-- hostname, preventing SSRF when ML_SCORER_URL is influenced by a misconfigured
+-- secrets manager or CI pipeline. Blocks RFC-1918 ranges, loopback, link-local,
+-- and known cloud metadata hostnames.
+validateMlScorerUrl :: String -> Either String ()
+validateMlScorerUrl url
+  | not ("https://" `isPrefixOf` url) =
+      Left "ML_SCORER_URL must begin with https://"
+  | otherwise =
+      let host = takeWhile (\c -> c /= '/' && c /= ':') (drop 8 url)
+      in if any (`isPrefixOf` host) blockedPrefixes || any (`isInfixOf` host) blockedSubstrings
+           then Left $ "ML_SCORER_URL hostname is blocked (SSRF prevention): " ++ host
+           else Right ()
+  where
+    blockedPrefixes   = ["127.", "10.", "192.168.", "169.254.", "0.", "::1", "fc00:", "fd"]
+    blockedSubstrings = ["localhost", "internal", "metadata", ".local"]
 
 -- | POST a claim to the ML service and return the parsed result.  Returns
 -- @Left msg@ on network errors, decode failures, or contract mismatches.

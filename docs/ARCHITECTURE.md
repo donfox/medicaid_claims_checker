@@ -32,7 +32,8 @@ In normal operation, the Phoenix app sends rule text plus claim payloads to the 
 | `Evaluator.hs` | Rule evaluation against JSON claims, and report aggregation |
 | `PolicyCombiner.hs` | DSL + ML policy merge logic |
 | `RedundancyChecker.hs` | Rule redundancy analysis |
-| `MLClient.hs` | Optional ML scoring client |
+| `MLClient.hs` | Optional ML scoring client, its result types and its settings |
+| `Pipeline.hs` | One claim evaluation end to end: rules, timeout, ML score, combined decision |
 | `Main.hs` | HTTP routing and request handlers |
 
 ## Primary Flows

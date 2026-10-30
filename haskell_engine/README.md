@@ -25,7 +25,7 @@ Haskell-based engine for parsing, evaluating, and compiling fraud detection rule
 | `Claims.PolicyCombiner` | Merge DSL results with ML scoring into a combined policy envelope |
 | `Claims.RedundancyChecker` | Detect redundant rules: exact duplicates, condition overlap, and subsumption |
 | `Claims.MLClient` | HTTP client for calling the external ML scoring service |
-| `Claims.EvaluationContract` | Request/response types for the evaluation API |
+| `Claims.Pipeline` | One claim evaluation end to end: rules, timeout, ML score, combined decision; and the evaluation request type |
 
 ## Building
 

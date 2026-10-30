@@ -11,7 +11,7 @@ import Test.Hspec
 import BusinessRulesSpec (businessRulesSpec)
 import ListenConfigSpec (listenConfigSpec)
 import ParserProps (parserProperties)
-import Claims.EvaluationContract
+import Claims.Pipeline (EvaluationRequest (..))
 import Claims.Evaluator (EvaluationReport (..), RiskLevel (..), evaluateRuleSimple, evaluateSimpleJson)
 import Claims.MLClient
 import Claims.Parser

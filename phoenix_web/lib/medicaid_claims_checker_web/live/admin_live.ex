@@ -57,20 +57,16 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive do
     end
   end
 
-  # Accounts created before password registration have no password. The app
-  # sends no email, so the link is shown here for the admin to give the user.
+  # For accounts made before password registration, which have no password,
+  # and for users who have forgotten theirs. The app sends no email, so the
+  # link is shown here for the admin to give the user.
   def handle_event("create_password_link", %{"id" => id}, socket) do
     with :ok <- assert_admin(socket),
          {user_id, ""} <- Integer.parse(id) do
       user = Accounts.get_user!(user_id)
 
-      case Accounts.create_password_setup_link(user, &url(~p"/users/set-password/#{&1}")) do
-        {:ok, link} ->
-          {:noreply, assign(socket, :password_link, %{email: user.email, url: link})}
-
-        {:error, :password_already_set} ->
-          {:noreply, put_flash(socket, :error, "#{user.email} already has a password.")}
-      end
+      {:ok, link} = Accounts.create_password_setup_link(user, &url(~p"/users/set-password/#{&1}"))
+      {:noreply, assign(socket, :password_link, %{email: user.email, url: link})}
     else
       _ -> {:noreply, put_flash(socket, :error, "Invalid request.")}
     end
@@ -176,7 +172,6 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive do
                   </td>
                   <td class="flex flex-wrap gap-2 justify-end">
                     <button
-                      :if={is_nil(user.hashed_password)}
                       id={"create-password-link-#{user.id}"}
                       phx-click="create_password_link"
                       phx-value-id={user.id}

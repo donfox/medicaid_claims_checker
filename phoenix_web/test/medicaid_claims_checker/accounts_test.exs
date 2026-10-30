@@ -282,9 +282,21 @@ defmodule MedicaidClaimsChecker.AccountsTest do
       assert user_token.context == "password_setup"
     end
 
-    test "refuses a user who already has a password" do
-      assert Accounts.create_password_setup_link(user_fixture(), &"url/#{&1}") ==
-               {:error, :password_already_set}
+    test "resets a forgotten password and ends the user's other sessions" do
+      user = user_fixture()
+      session = Accounts.generate_user_session_token(user)
+      token = password_setup_token(user)
+      new_password = "a brand new password"
+
+      assert {:ok, {_user, _expired}} =
+               Accounts.set_password_with_setup_token(token, %{
+                 "password" => new_password,
+                 "password_confirmation" => new_password
+               })
+
+      assert Accounts.get_user_by_email_and_password(user.email, new_password)
+      refute Accounts.get_user_by_email_and_password(user.email, valid_user_password())
+      refute Accounts.get_user_by_session_token(session)
     end
   end
 

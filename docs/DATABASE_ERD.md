@@ -232,8 +232,9 @@ foreign key**: a catalogue entry with `entry_type = "BA Rule"` has a
 ### Accounts and settings
 
 - **`users`**: accounts. Log-in is by email or username. `hashed_password`
-  is empty for accounts made before password registration; an admin gives
-  those users a password link (see [ADMIN_GUIDE.md](ADMIN_GUIDE.md)).
+  is empty for accounts made before password registration. An admin gives
+  those users, and users who forget their password, a one-time password link
+  (see [ADMIN_GUIDE.md](ADMIN_GUIDE.md)).
   `history_cleared_at` hides older batches from that user's Batch History
   without deleting them.
 - **`users_tokens`**: hashed tokens. `session` tokens keep a user logged in

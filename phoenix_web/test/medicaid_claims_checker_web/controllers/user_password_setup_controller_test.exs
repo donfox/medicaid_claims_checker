@@ -41,6 +41,17 @@ defmodule MedicaidClaimsCheckerWeb.UserPasswordSetupControllerTest do
       assert Accounts.get_user_by_email_and_password(user.email, valid_user_password())
     end
 
+    test "resets the password of a user who has forgotten theirs", %{conn: conn} do
+      user = user_fixture()
+      token = password_setup_token(user)
+
+      conn = put(conn, ~p"/users/set-password/#{token}", passwords("a brand new password"))
+
+      assert redirected_to(conn) == ~p"/"
+      assert Accounts.get_user_by_email_and_password(user.email, "a brand new password")
+      refute Accounts.get_user_by_email_and_password(user.email, valid_user_password())
+    end
+
     test "shows errors for an invalid password", %{conn: conn, token: token} do
       response =
         conn

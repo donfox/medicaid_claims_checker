@@ -22,12 +22,12 @@ defmodule MedicaidClaimsCheckerWeb.UserSessionController do
       form = Phoenix.Component.to_form(user_params, as: "user")
 
       # In order to prevent user enumeration attacks, don't disclose whether the email is registered.
-      # Accounts created before password registration have no password; the
-      # app sends no email, so an admin creates a link for them.
+      # The app sends no email: a user with no password, or who has forgotten
+      # it, gets a password link from an admin.
       conn
       |> put_flash(
         :error,
-        "Invalid email or password. If you don't have a password yet, ask an administrator."
+        "Invalid email or password. If you don't have a password yet, or have forgotten it, ask an administrator."
       )
       |> render(:new, form: form)
     end

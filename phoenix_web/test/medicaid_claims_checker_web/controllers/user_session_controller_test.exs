@@ -106,7 +106,7 @@ defmodule MedicaidClaimsCheckerWeb.UserSessionControllerTest do
         })
 
       assert Phoenix.Flash.get(conn.assigns.flash, :error) =~
-               "If you don't have a password yet, ask an administrator."
+               "If you don't have a password yet, or have forgotten it, ask an administrator."
 
       refute get_session(conn, :user_token)
     end

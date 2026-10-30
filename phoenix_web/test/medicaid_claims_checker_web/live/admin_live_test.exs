@@ -18,13 +18,13 @@ defmodule MedicaidClaimsCheckerWeb.AdminLiveTest do
   end
 
   describe "Create password link" do
-    test "is offered only for users with no password", %{conn: conn} do
+    test "is offered for every user, with or without a password", %{conn: conn} do
       passwordless = AccountsFixtures.unconfirmed_user_fixture()
       with_password = AccountsFixtures.user_fixture()
       {:ok, view, _html} = live(conn, ~p"/admin")
 
       assert has_element?(view, "#create-password-link-#{passwordless.id}")
-      refute has_element?(view, "#create-password-link-#{with_password.id}")
+      assert has_element?(view, "#create-password-link-#{with_password.id}")
     end
 
     test "shows a working set-password link for the admin to give the user", %{conn: conn} do

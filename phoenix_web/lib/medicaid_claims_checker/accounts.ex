@@ -249,32 +249,26 @@ defmodule MedicaidClaimsChecker.Accounts do
   end
 
   @doc """
-  Creates a one-time link for a user with no password to set one. An admin
+  Creates a one-time link for a user to set a new password. An admin
   creates it on the Admin page and gives it to the user; the app sends no
-  email. Accounts created before password registration have no password
-  and cannot log in until they set one.
+  email. It lets in accounts made before password registration, which have
+  no password, and users who have forgotten theirs.
 
-  Returns `{:ok, url}`, or `{:error, :password_already_set}` for a user who
-  has a password.
+  Returns `{:ok, url}`.
   """
   def create_password_setup_link(%User{} = user, setup_url_fun)
       when is_function(setup_url_fun, 1) do
-    if user.hashed_password do
-      {:error, :password_already_set}
-    else
-      {encoded_token, user_token} = UserToken.build_link_token(user, "password_setup")
-      Repo.insert!(user_token)
-      {:ok, setup_url_fun.(encoded_token)}
-    end
+    {encoded_token, user_token} = UserToken.build_link_token(user, "password_setup")
+    Repo.insert!(user_token)
+    {:ok, setup_url_fun.(encoded_token)}
   end
 
   @doc """
-  Gets the user a valid password-setup token belongs to, if they still have
-  no password; otherwise `nil`.
+  Gets the user a valid password-setup token belongs to, or `nil`.
   """
   def get_user_by_password_setup_token(token) do
     with {:ok, query} <- UserToken.verify_password_setup_token_query(token),
-         {%User{hashed_password: nil} = user, _token} <- Repo.one(query) do
+         {%User{} = user, _token} <- Repo.one(query) do
       user
     else
       _ -> nil
@@ -283,12 +277,13 @@ defmodule MedicaidClaimsChecker.Accounts do
 
   @doc """
   Sets the password of the user a password-setup token belongs to, and
-  confirms the account: the emailed link proves the address is theirs.
-  Every token the user has is deleted, so the link works once.
+  confirms the account: the admin gave the link to that person. Every token
+  the user has is deleted, so the link works once and any other log-in
+  session ends.
 
   Returns `{:ok, {user, expired_tokens}}`, `{:error, changeset}` for an
-  invalid password, or `{:error, :not_found}` when the link is invalid,
-  expired, or the user already has a password.
+  invalid password, or `{:error, :not_found}` when the link is invalid or
+  expired.
   """
   def set_password_with_setup_token(token, attrs) do
     case get_user_by_password_setup_token(token) do

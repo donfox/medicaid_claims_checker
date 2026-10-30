@@ -45,16 +45,23 @@ The buttons on each row:
 |---|---|
 | **Deactivate** / **Activate** | An inactive user cannot use the app. Someone already logged in is logged out the next time they open a page, with "Your account has been deactivated. Please contact an administrator." The account is kept; **Activate** restores access. |
 | **Make admin** / **Remove admin** | Gives or takes away access to this page. |
-| **Create password link** | Only for accounts with **No password**. See below. |
+| **Create password link** | A one-time link for the user to set a new password. See below. |
 
 You cannot deactivate your own account or change your own admin role, so the
 app cannot be left without an admin by accident.
 
-## Accounts with no password
+## Password links
 
-Accounts made before the app had password registration have no password and
-cannot log in. When such a user tries, the log-in page says: "Invalid email
-or password. If you don't have a password yet, ask an administrator."
+Two kinds of user need one:
+
+- **Accounts with no password.** Accounts made before the app had password
+  registration have no password and cannot log in; their row shows **No
+  password**.
+- **Users who have forgotten their password.**
+
+When either tries to log in, the log-in page says: "Invalid email or
+password. If you don't have a password yet, or have forgotten it, ask an
+administrator."
 
 To let them in:
 
@@ -62,11 +69,15 @@ To let them in:
 2. A link appears at the top of the page. Copy it and give it to the user in
    any way you like: a message, a chat, in person.
 3. They open it, choose a password (at least 12 characters, entered twice) and
-   are logged in. The account is confirmed and the **No password** badge goes.
+   are logged in. The account is confirmed, the **No password** badge goes,
+   and any other place they were logged in is logged out.
 
 The link works **once** and **expires after 3 days**. It also stops working if
-the user's email changes. If it expires, create another; creating a new link
-does not cancel an older one that is still unused.
+the user's email or password changes first. If it expires, create another;
+creating a new link does not cancel an older one that is still unused.
+
+Anyone holding the link can set that account's password, so give it only to
+the user it is for.
 
 ## What users do themselves
 
@@ -77,8 +88,6 @@ logs out their other sessions.
 
 ## Limits to know about
 
-- **Forgotten passwords.** The app has no "forgot password" option, and
-  **Create password link** is offered only to accounts with no password. A user
-  who has forgotten an existing password cannot currently be helped from this
-  page.
+- **No self-service reset.** A user who forgets their password needs an admin
+  to create a link; the app sends no email.
 - **No deleting accounts.** Accounts can be deactivated but not deleted.

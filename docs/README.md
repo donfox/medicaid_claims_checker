@@ -14,7 +14,7 @@
 - [CONFIGURATION.md](CONFIGURATION.md): every setting both services read, with its
   default
 - [ADMIN_GUIDE.md](ADMIN_GUIDE.md): managing accounts on the Admin page, including
-  password links for users without a password
+  password links for users without a password or who have forgotten it
 
 ## Testing
 

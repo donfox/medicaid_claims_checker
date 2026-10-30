@@ -24,8 +24,19 @@ Haskell-based engine for parsing, evaluating, and compiling fraud detection rule
 | `Claims.Evaluator` | Evaluate rules against generic JSON claim payloads, and summarise them in a report |
 | `Claims.PolicyCombiner` | Merge DSL results with ML scoring into a combined policy envelope |
 | `Claims.RedundancyChecker` | Detect redundant rules: exact duplicates, condition overlap, and subsumption |
-| `Claims.MLClient` | HTTP client for calling the external ML scoring service |
+| `Claims.MLClient` | HTTP client for the external ML scoring service, its result types and its settings |
 | `Claims.Pipeline` | One claim evaluation end to end: rules, timeout, ML score, combined decision; and the evaluation request type |
+| `Claims.ListenConfig` | Which host, port and TLS files the server uses, from the environment |
+
+The server itself is in `app/`:
+
+| Module | Purpose |
+|---|---|
+| `Main` | Startup: settings, worker pool, TLS |
+| `Middleware` | Rate limit and shared-secret auth, applied to every request |
+| `Routes` | HTTP routing and the request handlers |
+
+Tests mirror this layout: `test/Claims/<Module>Spec.hs` tests `src/Claims/<Module>.hs`.
 
 ## Building
 

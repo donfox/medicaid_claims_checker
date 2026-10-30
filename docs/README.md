@@ -1,39 +1,38 @@
 # Documentation Guide
 
-This folder is split into two groups:
+## Start here
 
-- **Core docs**: the current, actively maintained references for the system.
-- **Archive**: older reviews, reports, and diagrams kept for history and traceability.
+- [ARCHITECTURE.md](ARCHITECTURE.md): how the Phoenix app and the Haskell engine fit
+  together, the engine's API, and how claims flow through the system
+- [DATABASE_ERD.md](DATABASE_ERD.md): every database table, its columns and how they
+  relate
+- [SYNTAX_GUIDE.md](SYNTAX_GUIDE.md): writing business rules in the rule language
 
-## Core Documents
+## Running and testing
 
-### Getting started
+- [TEST_PROCEDURE.md](TEST_PROCEDURE.md): running the tests and checking a local setup
+- [testing/](testing/): the frontend use-case list and the repeat-testing guide, as
+  HTML with PDF copies (`testing/build_pdfs.sh` rebuilds the PDFs)
+- [scripts/](scripts/): SQL queries that audit a batch's provider NPIs against the
+  NPPES data, used in `TEST_PROCEDURE.md`
 
-- `ARCHITECTURE.md` — current runtime architecture, service boundaries, API surface, and main data flows
-- `DATABASE_ERD.md` — active PostgreSQL/Ecto schema and relationship notes
-- `TEST_PROCEDURE.md` — practical local validation and smoke-test workflow
-- `SYNTAX_GUIDE.md` — business-rule DSL guide for analysts and implementers
+## Planning
 
-### Planning notes
+- [ML_INTEGRATION_NOTES.md](ML_INTEGRATION_NOTES.md): how the engine talks to an ML
+  scorer today, and the open issues for the planned Python scoring service
 
-- `ML_INTEGRATION_NOTES.md` — the engine's current ML scorer contract and open issues for the planned Python model service
+## Formal statement
 
-### Formal statement
+- [MODULE_CAPABILITY_STATEMENT.md](MODULE_CAPABILITY_STATEMENT.md): the capability
+  statement EMRTS submitted for review
 
-- `MODULE_CAPABILITY_STATEMENT.md` — formal capability statement for procurement/review use
+## Elsewhere in the repository
 
-### Validation evidence
+- [haskell_engine/README.md](../haskell_engine/README.md): the engine's modules,
+  building, running and TLS
+- [phoenix_web/README.md](../phoenix_web/README.md): where the web app's code is,
+  its pages and setup
+- [mock_data/README.md](../mock_data/README.md): every test data file, by use case
 
-- `MANUAL_MOCK_VALIDATION_2026-05-10.md` — recorded mock validation results for the May 10, 2026 verification cycle
-
-## Suggested Reading Order
-
-1. Start with `ARCHITECTURE.md` to understand the system at a high level.
-2. Read `DATABASE_ERD.md` to understand the data model.
-3. Use `TEST_PROCEDURE.md` for day-to-day validation.
-4. Use `SYNTAX_GUIDE.md` when authoring or reviewing business rules.
-5. Refer to `MODULE_CAPABILITY_STATEMENT.md` when a formal capability description is needed.
-
-## Archive
-
-Historical analysis and review materials live under `docs/archive/`.
+Older material (earlier reviews, the May 2026 validation report) is in the Git
+history and in the `edition-1` tag.

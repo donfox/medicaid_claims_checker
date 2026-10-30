@@ -1,6 +1,6 @@
 # Medicaid Claims Checker Architecture
 
-This document describes the **current active architecture**. Historical analysis and older review artifacts live under `docs/archive/`.
+How the two services fit together, what the engine's API offers, and how claims flow through the system.
 
 ## System Summary
 
@@ -25,18 +25,8 @@ In normal operation, the Phoenix app sends rule text plus claim payloads to the 
 
 ## Core Engine Modules
 
-| Module | Responsibility |
-|---|---|
-| `Syntax.hs` | DSL AST and shared rule/result types |
-| `Parser.hs` | Parsec grammar for `RULE ... END` and shorthand syntax |
-| `Evaluator.hs` | Rule evaluation against JSON claims, and report aggregation |
-| `PolicyCombiner.hs` | DSL + ML policy merge logic |
-| `RedundancyChecker.hs` | Rule redundancy analysis |
-| `MLClient.hs` | Optional ML scoring client, its result types and its settings |
-| `Pipeline.hs` | One claim evaluation end to end: rules, timeout, ML score, combined decision |
-| `app/Main.hs` | Server startup: settings, worker pool, TLS |
-| `app/Middleware.hs` | Rate limit and shared-secret auth, applied to every request |
-| `app/Routes.hs` | HTTP routing and request handlers |
+The engine's modules and what each does are listed in
+[haskell_engine/README.md](../haskell_engine/README.md#module-overview).
 
 ## Primary Flows
 
@@ -51,8 +41,8 @@ In normal operation, the Phoenix app sends rule text plus claim payloads to the 
 1. A Quantum scheduler triggers a `FetchRunner` job when a `fetch_schedules` entry is due.
 2. `RemoteFetcher` downloads files from the configured `fetch_sources` URI using SFTP or HTTPS.
 3. `ClaimSplitter` splits multi-claim X12 files, and `Converter` plus `SegmentMapper` translate each claim into semantic JSON.
-4. `Claims.ingest_batch/1` writes one `batches` row and one `edi_files` row per claim in a single transaction.
-5. After a successful ingest, `Task.Supervisor` starts `Evaluator.evaluate_batch/1` asynchronously.
+4. `Claims.ingest_batch/1` writes one `batches` row and one `edi_files` row per claim in a single transaction. A file or claim already submitted is refused and recorded in `batches.duplicates`; manual uploads take the same path.
+5. After a successful ingest, an Oban job (`Workers.BatchEvaluationWorker`) runs `Evaluator.evaluate_batch/1`.
 
 ### 3. Batch Evaluation with NPPES Pre-validation
 
@@ -80,49 +70,27 @@ These are active design and implementation constraints, not future goals:
 - DSL rules are the deterministic policy source of truth.
 - JSON claim evaluation is the primary active execution path.
 - `/api/batch-evaluate` reparses rules on every request; there is no rule cache.
-- Batch evaluation uses a hardcoded chunk size of `200` claims per Haskell request.
-- Claims inside a single Haskell request are evaluated sequentially.
-- Larger batches therefore become CPU-bound.
+- Batch evaluation uses a hardcoded chunk size of `200` claims per Haskell request, and a batch may hold at most 15,000 claims.
+- The engine accepts 1,000 requests a minute per client IP by default (`ENGINE_RATE_LIMIT`).
 - NPPES data is refreshed on an interval, so claims evaluated between refreshes use the most recently imported snapshot.
 - Without a TLS certificate the engine listens on loopback only; serving it to another host requires HTTPS (see `haskell_engine/README.md`, "Listening and TLS").
 
-## Concurrency Model and Scaling
+## Concurrency Model
 
-### Current behavior
+- **Engine:** the claims in one `/api/batch-evaluate` request are evaluated in
+  parallel, on a worker pool with one slot per CPU core (the server runs with
+  `+RTS -N`). Rules within a claim run one after another. Each claim has a
+  30-second time limit.
+- **Phoenix:** batch evaluations run as Oban jobs in the `batch_evaluation`
+  queue, whose concurrency matches the engine's worker pool, so Phoenix never
+  sends more concurrent batch requests than the engine can serve. Within one
+  batch the 200-claim chunks are sent one after another.
 
-- Warp can handle concurrent HTTP requests across batches.
-- Claims inside one batch request are evaluated **sequentially**.
-- Rules inside a claim are also evaluated sequentially.
-
-### Main bottleneck
-
-A large batch sent as one request becomes a sequential CPU bottleneck inside the Haskell engine.
-
-### Recommended improvements not yet implemented
-
-- **Bounded parallel claim evaluation** inside Haskell using a worker pool
-- **GHC runtime tuning** with `+RTS -N` to use all available CPU cores
-- **Phoenix backpressure** to limit concurrent in-flight Haskell requests to 1 or 2 at a time
-
-### Production sizing model
-
-| Layer | Setting | Why it matters |
-|---|---|---|
-| Phoenix chunk size | 100–500 claims | Keeps individual requests bounded |
-| Phoenix concurrent batches | 1–2 | Prevents Haskell overload |
-| Haskell workers per request | about 1 per core | Improves CPU utilization |
-
-### Throughput estimates
-
-- Approximately `30–120` claims per second, depending on rule complexity
-- `10,000` claims may take:
-  - `1–3 minutes` for lighter rules
-  - `3–8 minutes` for heavier rules
-
-**Core principle:** the system may accept large volumes of work, but the amount of work in active execution should stay bounded.
+The system may accept large volumes of work, but the work in active
+execution stays bounded by the worker pool.
 
 ## Related Documents
 
-- `SYNTAX_GUIDE.md` — DSL authoring guide
-- `DATABASE_ERD.md` — data model and relationships
-- `TEST_PROCEDURE.md` — local validation workflow
+- [SYNTAX_GUIDE.md](SYNTAX_GUIDE.md): writing business rules
+- [DATABASE_ERD.md](DATABASE_ERD.md): the database tables
+- [TEST_PROCEDURE.md](TEST_PROCEDURE.md): running the tests

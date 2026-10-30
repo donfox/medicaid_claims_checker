@@ -32,8 +32,7 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Text.Parsec hiding ((<|>))
 import Text.Parsec.Text
-import Claims.SimpleEvaluator (compileRegex, helperArity)
-import Claims.Syntax (Action, Binding, CompOp (..), Path (..), Predicate, Rule, Value)
+import Claims.Syntax (Action, Binding, CompOp (..), Path (..), Predicate, Rule, Value, compileRegex, helperArity)
 import Claims.Syntax qualified as Syntax
 
 parseRule :: Text -> Either ParseError Rule

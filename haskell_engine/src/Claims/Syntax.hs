@@ -21,16 +21,22 @@ module Claims.Syntax
     Value (..),
     CompOp (..),
     RuleResult (..),
+    helperArity,
+    compileRegex,
   )
 where
 
 import Data.Aeson (FromJSON (..), ToJSON (..), object, withObject, (.!=), (.:), (.:?), (.=))
 import Data.Aeson qualified as Aeson
 import Data.Aeson.KeyMap qualified as KeyMap
+import Data.Map.Strict (Map)
+import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.Text qualified as T
 import GHC.Generics (Generic)
+import Text.Regex.TDFA (CompOption (multiline), ExecOption, Regex, defaultCompOpt, defaultExecOpt, makeRegexOptsM)
+import Text.Regex.TDFA.Text ()
 
 data Rule = Rule
   { ruleName :: Text,
@@ -170,3 +176,43 @@ retagActions f (Aeson.Object o) =
     step _ v                    = v
 retagActions f (Aeson.Array a) = Aeson.Array (fmap (retagActions f) a)
 retagActions _ v = v
+
+-- ----------------------------------------------------------------------------
+-- Built-in helpers and patterns
+-- ----------------------------------------------------------------------------
+-- Shared by the parser, which rejects bad helper calls and patterns when a
+-- rule is written, and the evaluator, which runs them.
+
+-- | Argument count of each built-in helper, keyed by lower-case name.
+-- The parser checks calls against this table, so a misspelled helper or a
+-- wrong argument count is a parse error instead of a rule that never fires.
+-- Keep it in step with 'Claims.SimpleEvaluator.evaluateHelperCall'.
+helperArities :: Map Text Int
+helperArities =
+  Map.fromList
+    [ ("is_weekend", 1),
+      ("is_high_amount", 2),
+      ("starts_with", 2),
+      ("in_list", 2),
+      ("is_future_date", 1),
+      ("is_date_before", 2),
+      ("is_valid_npi", 1),
+      ("is_npi_format", 1),
+      ("is_age_valid", 3)
+    ]
+
+-- | Argument count of a built-in helper (any letter case), or 'Nothing'
+-- if no helper has that name.
+helperArity :: Text -> Maybe Int
+helperArity name = Map.lookup (T.toLower name) helperArities
+
+-- | Compile a @MATCHES@ pattern (POSIX extended syntax, via regex-tdfa).
+--
+-- regex-tdfa runs in time linear in the input, so analyst-written patterns
+-- cannot cause catastrophic backtracking. Multiline mode is off, so @^@ and
+-- @$@ anchor to the whole field value. Returns 'Nothing' for an invalid
+-- pattern; the parser rejects those, so this only matters for rules loaded
+-- from JSON.
+compileRegex :: Text -> Maybe Regex
+compileRegex pattern =
+  makeRegexOptsM (defaultCompOpt {multiline = False}) (defaultExecOpt :: ExecOption) (T.unpack pattern)

@@ -11,8 +11,6 @@
 -- missing data never makes a rule match by itself (see 'Truth').
 module Claims.SimpleEvaluator
   ( evaluateRuleSimple,
-    helperArity,
-    compileRegex,
   )
 where
 
@@ -34,8 +32,8 @@ import Data.Time (Day, DayOfWeek (Saturday, Sunday), dayOfWeek, defaultTimeLocal
 import Data.Vector qualified as V
 import Prelude hiding (EQ, GT, LT)
 import Claims.Syntax qualified as Syntax
-import Claims.Syntax (CompOp (..), Path (..), RuleResult (..))
-import Text.Regex.TDFA (CompOption (multiline), ExecOption, Regex, defaultCompOpt, defaultExecOpt, makeRegexOptsM, matchTest)
+import Claims.Syntax (CompOp (..), Path (..), RuleResult (..), compileRegex)
+import Text.Regex.TDFA (matchTest)
 import Text.Regex.TDFA.Text ()
 
 -- ----------------------------------------------------------------------------
@@ -254,29 +252,6 @@ buildBindingContext today doc = foldM step Map.empty
        in case lookupFieldWithEnv env (Syntax.bindingField binding) of
             Just value -> Right $ Map.insert (Syntax.bindingName binding) value ctx
             Nothing -> Left $ "Could not resolve LET binding '" <> Syntax.bindingName binding <> "'"
-
--- | Argument count of each built-in helper, keyed by lower-case name.
--- The parser checks calls against this table, so a misspelled helper or a
--- wrong argument count is a parse error instead of a rule that never fires.
--- Keep it in step with 'evaluateHelperCall'.
-helperArities :: Map Text Int
-helperArities =
-  Map.fromList
-    [ ("is_weekend", 1),
-      ("is_high_amount", 2),
-      ("starts_with", 2),
-      ("in_list", 2),
-      ("is_future_date", 1),
-      ("is_date_before", 2),
-      ("is_valid_npi", 1),
-      ("is_npi_format", 1),
-      ("is_age_valid", 3)
-    ]
-
--- | Argument count of a built-in helper (any letter case), or 'Nothing'
--- if no helper has that name.
-helperArity :: Text -> Maybe Int
-helperArity name = Map.lookup (T.toLower name) helperArities
 
 -- | Run a built-in helper. A failed check (an argument missing or
 -- unusable, or an unknown call) is treated by the caller as 'Unknown'.
@@ -605,17 +580,3 @@ yearsBetween dob ref =
       age = fromIntegral (y2 - y1)
    in if (m2, d2) < (m1, d1) then age - 1 else age
 
--- ----------------------------------------------------------------------------
--- Regular Expressions
--- ----------------------------------------------------------------------------
-
--- | Compile a @MATCHES@ pattern (POSIX extended syntax, via regex-tdfa).
---
--- regex-tdfa runs in time linear in the input, so analyst-written patterns
--- cannot cause catastrophic backtracking. Multiline mode is off, so @^@ and
--- @$@ anchor to the whole field value. Returns 'Nothing' for an invalid
--- pattern; the parser rejects those, so this only matters for rules loaded
--- from JSON.
-compileRegex :: Text -> Maybe Regex
-compileRegex pattern =
-  makeRegexOptsM (defaultCompOpt {multiline = False}) (defaultExecOpt :: ExecOption) (T.unpack pattern)

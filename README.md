@@ -4,7 +4,7 @@ A portfolio prototype for evaluating healthcare claims against configurable busi
 
 ## Portfolio Context
 
-I built Medicaid Claims Checker for public portfolio display and technical discussion with interns. Interns were discussion participants only; they did not contribute code and are not co-authors. This is an independent demonstration/proof of concept, not a production claims adjudication or payment system.
+I built Medicaid Claims Checker for public portfolio display and technical discussion with interns. Interns were discussion participants only; they did not contribute code and are not co-authors. Edition 1 was the teaching version used in those discussions; Edition 2 develops it into a production-ready prototype (see [Editions](#editions)). Neither is a live claims adjudication or payment system.
 
 Medicaid Claims Checker is one of three independent healthcare-related projects in this portfolio. They explore different parts of the healthcare data space and are not integrated into a shared runtime or end-to-end system:
 
@@ -14,8 +14,10 @@ Medicaid Claims Checker is one of three independent healthcare-related projects 
 
 ## Editions
 
-- **Edition 2** (the current version, in active development) is built on one principle: the system recommends and a named analyst decides. Rule results, NPPES checks and optional ML risk scores are evidence for an analyst and never a fraud determination. A planned AI assistant will advise the analyst in the same way (see [Roadmap](#roadmap)).
-- **Edition 1** is preserved as completed: [Edition 1 release](https://github.com/donfox/medicaid_claims_checker/releases/tag/edition-1). In Edition 1, claims the engine rated High or Critical risk, and claims whose provider failed the NPPES check, were labelled fraudulent automatically.
+The project has two editions, each a stage in its progression.
+
+- **Edition 1: the teaching edition.** Built as a pedagogical example for discussion with interns: a rule engine and a web interface small enough to read end to end. It is preserved as completed and does not change. In Edition 1, claims the engine rated High or Critical risk, and claims whose provider failed the NPPES check, were labelled fraudulent automatically, a simplification suited to teaching.
+- **Edition 2: the production-ready prototype** (the current version, in active development). It takes the same ideas to the standard a real deployment would need: authentication and optional TLS between the web app and the engine, rate limiting, user accounts with administrator roles, duplicate-submission checks, X12 envelope validation, a full NPI registry checked as of each service date, and automated test suites. It is built on one principle: the system recommends and a named analyst decides. Rule results, NPPES checks and optional ML risk scores are evidence for an analyst and never a fraud determination. A planned AI assistant will advise the analyst in the same way (see [Roadmap](#roadmap)). It is still a prototype, run on synthetic data, not a live claims adjudication or payment system.
 
 Each edition is a Git tag; `main` always holds the latest edition. To look at Edition 1:
 

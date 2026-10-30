@@ -63,7 +63,7 @@
         "date_of_birth": "1955-06-18",
         "gender": "Male",
         "patient_id": "PAT-104",
-        "ssn": "444-55-6666",
+        "ssn": "000-00-0004",
         "address": {
           "street": "77 Broad Street",
           "city": "Columbus",
@@ -232,7 +232,7 @@
         "date_of_birth": "1970-12-03",
         "gender": "Female",
         "patient_id": "PAT-103",
-        "ssn": "333-44-5555",
+        "ssn": "000-00-0003",
         "address": {
           "street": "910 Cherry Creek Drive",
           "city": "Denver",
@@ -401,7 +401,7 @@
         "date_of_birth": "1978-04-22",
         "gender": "Female",
         "patient_id": "PAT-101",
-        "ssn": "111-22-3333",
+        "ssn": "000-00-0001",
         "address": {
           "street": "45 Maple Street",
           "city": "Springfield",
@@ -570,7 +570,7 @@
         "date_of_birth": "1965-08-14",
         "gender": "Male",
         "patient_id": "PAT-102",
-        "ssn": "222-33-4444",
+        "ssn": "000-00-0002",
         "address": {
           "street": "200 Pecan Street",
           "city": "Austin",
@@ -746,7 +746,7 @@
         "date_of_birth": "1952-09-30",
         "gender": "Female",
         "patient_id": "PAT-202",
-        "ssn": "666-77-8888",
+        "ssn": "000-00-0006",
         "address": {
           "street": "500 Park Avenue",
           "city": "New York",
@@ -922,7 +922,7 @@
         "date_of_birth": "1990-03-15",
         "gender": "Male",
         "patient_id": "PAT-201",
-        "ssn": "555-66-7777",
+        "ssn": "000-00-0005",
         "address": {
           "street": "12 Cactus Road",
           "city": "Phoenix",
@@ -1091,7 +1091,7 @@
         "date_of_birth": "1975-02-28",
         "gender": "Male",
         "patient_id": "PAT-204",
-        "ssn": "888-99-0000",
+        "ssn": "000-00-0008",
         "address": {
           "street": "10 Desert Palm Drive",
           "city": "Las Vegas",
@@ -1260,7 +1260,7 @@
         "date_of_birth": "1985-11-07",
         "gender": "Female",
         "patient_id": "PAT-203",
-        "ssn": "777-88-9999",
+        "ssn": "000-00-0007",
         "address": {
           "street": "88 Peachtree Street",
           "city": "Atlanta",

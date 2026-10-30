@@ -61,7 +61,7 @@
         "date_of_birth": "1978-04-22",
         "gender": "Female",
         "patient_id": "PAT-101",
-        "ssn": "111-22-3333",
+        "ssn": "000-00-0001",
         "address": {
             "street": "45 Maple Street",
             "city": "Springfield",

@@ -1,19 +1,17 @@
 <Layouts.app flash={@flash} current_scope={@current_scope}>
-  <div class="mx-auto max-w-sm">
-    <div class="text-center">
-      <.header>
-        Register for an account
-        <:subtitle>
-          Already registered?
-          <.link navigate={~p"/users/log-in"} class="font-semibold text-brand hover:underline">
-            Log in
-          </.link>
-          to your account now.
-        </:subtitle>
-      </.header>
+  <div class="mx-auto max-w-md bg-white rounded-lg shadow-md overflow-hidden">
+    <div class="px-6 py-5 border-b border-gray-200">
+      <h1 class="text-2xl font-bold text-gray-900">Register for an account</h1>
+      <p class="mt-1 text-sm text-gray-700">
+        Already registered?
+        <.link navigate={~p"/users/log-in"} class="font-semibold text-blue-700 hover:underline">
+          Log in
+        </.link>
+        to your account now.
+      </p>
     </div>
 
-    <.form :let={f} for={@changeset} as={:user} action={~p"/users/register"}>
+    <.form :let={f} for={@changeset} as={:user} action={~p"/users/register"} class="px-6 py-5">
       <div class="flex gap-3">
         <.input
           field={f[:first_name]}
@@ -60,7 +58,10 @@
         required
       />
 
-      <.button phx-disable-with="Creating account..." class="btn btn-primary w-full">
+      <.button
+        phx-disable-with="Creating account..."
+        class="mt-2 w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium cursor-pointer transition-colors"
+      >
         Create an account
       </.button>
     </.form>

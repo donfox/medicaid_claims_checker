@@ -193,6 +193,39 @@ defmodule MedicaidClaimsChecker.Accounts do
   end
 
   @doc """
+  Returns an `%Ecto.Changeset{}` for changing the user's name and username.
+  """
+  def change_user_profile(user, attrs \\ %{}, opts \\ []) do
+    User.profile_changeset(user, attrs, opts)
+  end
+
+  @doc """
+  Changes the user's first name, last name and username.
+  """
+  def update_user_profile(user, attrs) do
+    user
+    |> User.profile_changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
+  Deletes every session token of `user` except `current_token`, which logs
+  the user out on every other browser and device (their remember-me cookies
+  hold those tokens too). Returns the number of sessions ended.
+  """
+  def delete_other_user_session_tokens(%User{id: user_id}, current_token)
+      when is_binary(current_token) do
+    {count, _} =
+      Repo.delete_all(
+        from(t in UserToken,
+          where: t.user_id == ^user_id and t.context == "session" and t.token != ^current_token
+        )
+      )
+
+    count
+  end
+
+  @doc """
   Returns an `%Ecto.Changeset{}` for changing the user password.
 
   See `MedicaidClaimsChecker.Accounts.User.password_changeset/3` for a list of supported options.

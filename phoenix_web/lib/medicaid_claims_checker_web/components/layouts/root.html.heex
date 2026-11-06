@@ -35,8 +35,8 @@
     <nav aria-label="Main navigation">
     <ul class="menu menu-horizontal w-full relative z-10 flex items-center gap-4 px-4 sm:px-6 lg:px-8 justify-end">
       <%= if @current_scope do %>
-        <li>
-          {@current_scope.user.email}
+        <li id="current-user-name" title={@current_scope.user.email}>
+          {MedicaidClaimsChecker.Accounts.User.full_name(@current_scope.user)}
         </li>
         <%= if @current_scope.user.is_admin do %>
           <li>

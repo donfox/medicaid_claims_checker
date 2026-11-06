@@ -97,4 +97,72 @@ defmodule MedicaidClaimsCheckerWeb.UserSettingsControllerTest do
       assert response =~ "must have the @ sign and no spaces"
     end
   end
+
+  describe "PUT /users/settings (profile form)" do
+    test "changes the name and username", %{conn: conn, user: user} do
+      username = unique_username()
+
+      conn =
+        put(conn, ~p"/users/settings", %{
+          "action" => "update_profile",
+          "user" => %{"first_name" => "Ada", "last_name" => "Lovelace", "username" => username}
+        })
+
+      assert redirected_to(conn) == ~p"/users/settings"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Profile updated successfully"
+
+      updated = Accounts.get_user!(user.id)
+
+      assert {updated.first_name, updated.last_name, updated.username} ==
+               {"Ada", "Lovelace", username}
+    end
+
+    test "shows the user's name in the top bar", %{conn: conn, user: user} do
+      html = conn |> get(~p"/users/settings") |> html_response(200)
+
+      assert html =~ ~s(id="current-user-name")
+      assert html =~ Accounts.User.full_name(user)
+    end
+
+    test "does not update the profile on invalid data", %{conn: conn, user: user} do
+      other = user_fixture()
+
+      conn =
+        put(conn, ~p"/users/settings", %{
+          "action" => "update_profile",
+          "user" => %{"first_name" => "", "last_name" => "X", "username" => other.username}
+        })
+
+      response = html_response(conn, 200)
+      assert response =~ "can&#39;t be blank"
+      assert response =~ "has already been taken"
+      assert Accounts.get_user!(user.id).username == user.username
+    end
+  end
+
+  describe "PUT /users/settings (log out other sessions)" do
+    test "ends the other sessions and keeps this one", %{conn: conn, user: user} do
+      other_token = Accounts.generate_user_session_token(user)
+      this_token = get_session(conn, :user_token)
+
+      conn = put(conn, ~p"/users/settings", %{"action" => "log_out_other_sessions"})
+
+      assert redirected_to(conn) == ~p"/users/settings"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) == "Logged out of 1 other session."
+      refute Accounts.get_user_by_session_token(other_token)
+      assert Accounts.get_user_by_session_token(this_token)
+    end
+
+    test "does not touch another user's sessions", %{conn: conn} do
+      someone_else = user_fixture()
+      their_token = Accounts.generate_user_session_token(someone_else)
+
+      conn = put(conn, ~p"/users/settings", %{"action" => "log_out_other_sessions"})
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) ==
+               "You were not logged in anywhere else."
+
+      assert Accounts.get_user_by_session_token(their_token)
+    end
+  end
 end

@@ -1,40 +1,147 @@
 <Layouts.app flash={@flash} current_scope={@current_scope}>
-  <div class="text-center">
-    <.header>
-      Account Settings
-      <:subtitle>Manage your account email address and password settings</:subtitle>
-    </.header>
+  <div class="p-6 bg-white rounded-lg shadow-md">
+    <h1 class="text-3xl font-bold text-gray-900">Account Settings</h1>
+    <p class="mt-2 text-base text-gray-800">
+      Logged in as <span class="font-semibold">{@current_scope.user.email}</span>.
+      Here you can update your name, username, email address or password if you need to.
+    </p>
   </div>
 
-  <.form :let={f} for={@email_changeset} action={~p"/users/settings"} id="update_email">
-    <input type="hidden" name="action" value="update_email" />
+  <section id="profile-settings" class="bg-white rounded-lg shadow-md overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-200">
+      <h2 class="text-lg font-semibold text-gray-900">Profile</h2>
+      <p class="mt-1 text-sm text-gray-600">
+        Your name appears at the top of every page. You can log in with your
+        username or your email address.
+      </p>
+    </div>
+    <.form
+      :let={f}
+      for={@profile_changeset}
+      action={~p"/users/settings"}
+      id="update_profile"
+      class="px-6 py-5"
+    >
+      <input type="hidden" name="action" value="update_profile" />
 
-    <.input field={f[:email]} type="email" label="Email" autocomplete="email" required />
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <.input
+          field={f[:first_name]}
+          type="text"
+          label="First name"
+          autocomplete="given-name"
+          required
+        />
+        <.input
+          field={f[:last_name]}
+          type="text"
+          label="Last name"
+          autocomplete="family-name"
+          required
+        />
+      </div>
+      <.input field={f[:username]} type="text" label="Username" autocomplete="username" required />
 
-    <.button variant="primary" phx-disable-with="Changing...">Change Email</.button>
-  </.form>
+      <.button
+        phx-disable-with="Saving..."
+        class="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium cursor-pointer transition-colors"
+      >
+        Save Profile
+      </.button>
+    </.form>
+  </section>
 
-  <div class="divider" />
+  <section id="email-settings" class="bg-white rounded-lg shadow-md overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-200">
+      <h2 class="text-lg font-semibold text-gray-900">Email address</h2>
+      <p class="mt-1 text-sm text-gray-600">
+        The change takes effect as soon as you save it.
+      </p>
+    </div>
+    <.form
+      :let={f}
+      for={@email_changeset}
+      action={~p"/users/settings"}
+      id="update_email"
+      class="px-6 py-5"
+    >
+      <input type="hidden" name="action" value="update_email" />
 
-  <.form :let={f} for={@password_changeset} action={~p"/users/settings"} id="update_password">
-    <input type="hidden" name="action" value="update_password" />
+      <.input field={f[:email]} type="email" label="Email" autocomplete="email" required />
 
-    <.input
-      field={f[:password]}
-      type="password"
-      label="New password"
-      autocomplete="new-password"
-      required
-    />
-    <.input
-      field={f[:password_confirmation]}
-      type="password"
-      label="Confirm new password"
-      autocomplete="new-password"
-      required
-    />
-    <.button variant="primary" phx-disable-with="Changing...">
-      Save Password
-    </.button>
-  </.form>
+      <.button
+        phx-disable-with="Changing..."
+        class="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium cursor-pointer transition-colors"
+      >
+        Change Email
+      </.button>
+    </.form>
+  </section>
+
+  <section id="password-settings" class="bg-white rounded-lg shadow-md overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-200">
+      <h2 class="text-lg font-semibold text-gray-900">Password</h2>
+      <p class="mt-1 text-sm text-gray-600">
+        At least 12 characters. Saving a new password logs you out on every other
+        browser and device, and keeps you logged in here.
+      </p>
+    </div>
+    <.form
+      :let={f}
+      for={@password_changeset}
+      action={~p"/users/settings"}
+      id="update_password"
+      class="px-6 py-5"
+    >
+      <input type="hidden" name="action" value="update_password" />
+
+      <.input
+        field={f[:password]}
+        type="password"
+        label="New password"
+        autocomplete="new-password"
+        required
+      />
+      <.input
+        field={f[:password_confirmation]}
+        type="password"
+        label="Confirm new password"
+        autocomplete="new-password"
+        required
+      />
+      <.button
+        phx-disable-with="Changing..."
+        class="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium cursor-pointer transition-colors"
+      >
+        Save Password
+      </.button>
+    </.form>
+  </section>
+
+  <section id="session-settings" class="bg-white rounded-lg shadow-md overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-200">
+      <h2 class="text-lg font-semibold text-gray-900">Other sessions</h2>
+      <p class="mt-1 text-sm text-gray-600">
+        Log out on every other browser and device without changing your password.
+        You stay logged in here. A page already open elsewhere stays on screen
+        until it is reloaded or someone goes to another page; then it asks for a log-in.
+      </p>
+    </div>
+    <.form
+      for={%{}}
+      as={:sessions}
+      action={~p"/users/settings"}
+      method="put"
+      id="log_out_other_sessions"
+      class="px-6 py-5"
+    >
+      <input type="hidden" name="action" value="log_out_other_sessions" />
+      <.button
+        phx-disable-with="Logging out..."
+        class="px-4 py-2 bg-white hover:bg-blue-50 text-blue-700 border border-blue-300 rounded-md text-sm font-medium cursor-pointer transition-colors"
+      >
+        Log out everywhere else
+      </.button>
+    </.form>
+  </section>
 </Layouts.app>

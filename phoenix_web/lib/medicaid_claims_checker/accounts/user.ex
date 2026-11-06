@@ -47,6 +47,21 @@ defmodule MedicaidClaimsChecker.Accounts.User do
     |> put_change(:confirmed_at, DateTime.utc_now(:second))
   end
 
+  @doc """
+  A user changeset for changing the name and username on the settings page.
+
+  Uses the same rules as registration. `:validate_unique` works as in
+  `email_changeset/3`.
+  """
+  def profile_changeset(user, attrs, opts \\ []) do
+    user
+    |> cast(attrs, [:first_name, :last_name, :username])
+    |> validate_required([:first_name, :last_name])
+    |> validate_length(:first_name, min: 1, max: 80)
+    |> validate_length(:last_name, min: 1, max: 80)
+    |> validate_username(opts)
+  end
+
   def full_name(%__MODULE__{first_name: first, last_name: last})
       when is_binary(first) and first != "" do
     if is_binary(last) and last != "", do: "#{first} #{last}", else: first

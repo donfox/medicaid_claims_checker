@@ -6,6 +6,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
   alias MedicaidClaimsChecker.Claims.{Evaluator, Fingerprint, JsonClaim}
   alias MedicaidClaimsChecker.Ingestion
   alias MedicaidClaimsChecker.Nppes
+  alias MedicaidClaimsCheckerWeb.AdminLive.NppesPanel
   alias MedicaidClaimsChecker.X12.{ClaimSplitter, Converter, SegmentMapper}
 
   @impl true
@@ -14,25 +15,6 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
       Phoenix.PubSub.subscribe(MedicaidClaimsChecker.PubSub, Nppes.topic())
       Phoenix.PubSub.subscribe(MedicaidClaimsChecker.PubSub, Evaluator.topic())
     end
-
-    nppes_config = safe_get_nppes_config()
-    nppes_status = safe_get_nppes_status()
-
-    # If a refresh is already running, pick up its start time and begin ticking
-    {started_at, elapsed_display, timer} =
-      if nppes_status.refreshing and nppes_status.started_at do
-        sa = nppes_status.started_at
-        el = format_elapsed(elapsed_seconds(sa))
-
-        t =
-          if connected?(socket),
-            do: Process.send_after(self(), :nppes_elapsed_tick, 10_000),
-            else: nil
-
-        {sa, el, t}
-      else
-        {nil, "0s", nil}
-      end
 
     {:ok,
      socket
@@ -50,14 +32,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
      |> assign(:schedule_interval, "")
      |> assign(:source_password, "")
      |> assign(:source_username, "")
-     |> assign(:nppes_config, nppes_config)
-     |> assign(:nppes_refreshing, nppes_status.refreshing)
-     |> assign(:nppes_provider_count, safe_provider_count())
-     |> assign(:nppes_form_error, nil)
-     |> assign(:nppes_started_at, started_at)
-     |> assign(:nppes_rows_imported, 0)
-     |> assign(:nppes_elapsed_display, elapsed_display)
-     |> assign(:nppes_elapsed_timer, timer)
+     |> assign(:nppes_summary, NppesPanel.summary())
      |> assign(:current_user, user_from_session(session))
      |> assign(:show_all_history, false)
      |> assign(:history_page, 1)
@@ -84,67 +59,15 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
      )}
   end
 
-  # --- NPPES PubSub handlers ---
+  # --- NPPES: keep the read-only registry status line current ---
 
   @impl true
-  def handle_info({:nppes_status, %{status: :running} = payload}, socket) do
-    cancel_elapsed_timer(socket.assigns.nppes_elapsed_timer)
-    timer = Process.send_after(self(), :nppes_elapsed_tick, 10_000)
-
-    {:noreply,
-     socket
-     |> assign(:nppes_config, safe_get_nppes_config())
-     |> assign(:nppes_refreshing, true)
-     |> assign(:nppes_started_at, Map.get(payload, :started_at, DateTime.utc_now()))
-     |> assign(:nppes_rows_imported, 0)
-     |> assign(:nppes_elapsed_display, "0s")
-     |> assign(:nppes_elapsed_timer, timer)}
-  end
-
-  def handle_info({:nppes_status, %{status: status}}, socket)
-      when status in [:completed, :failed, :cancelled] do
-    cancel_elapsed_timer(socket.assigns.nppes_elapsed_timer)
-
-    {:noreply,
-     socket
-     |> assign(:nppes_config, safe_get_nppes_config())
-     |> assign(:nppes_refreshing, false)
-     |> assign(:nppes_provider_count, safe_provider_count())
-     |> assign(:nppes_started_at, nil)
-     |> assign(:nppes_rows_imported, 0)
-     |> assign(:nppes_elapsed_display, "0s")
-     |> assign(:nppes_elapsed_timer, nil)}
-  end
-
   def handle_info({:nppes_status, _payload}, socket) do
-    {:noreply,
-     socket
-     |> assign(:nppes_config, safe_get_nppes_config())
-     |> assign(:nppes_refreshing, safe_get_nppes_status().refreshing)
-     |> assign(:nppes_provider_count, safe_provider_count())}
+    {:noreply, assign(socket, :nppes_summary, NppesPanel.summary())}
   end
 
-  def handle_info({:nppes_progress, %{rows_imported: rows}}, socket) do
-    {:noreply, assign(socket, :nppes_rows_imported, rows)}
-  end
-
-  def handle_info(:nppes_elapsed_tick, %{assigns: %{nppes_refreshing: true}} = socket) do
-    timer = Process.send_after(self(), :nppes_elapsed_tick, 10_000)
-    elapsed_sec = elapsed_seconds(socket.assigns.nppes_started_at)
-
-    {:noreply,
-     socket
-     |> assign(:nppes_elapsed_timer, timer)
-     |> assign(:nppes_elapsed_display, format_elapsed(elapsed_sec))}
-  end
-
-  def handle_info(:nppes_elapsed_tick, socket) do
-    {:noreply, socket}
-  end
-
-  def handle_info({:nppes_config_updated, _config}, socket) do
-    {:noreply, assign(socket, :nppes_config, safe_get_nppes_config())}
-  end
+  def handle_info({:nppes_progress, _payload}, socket), do: {:noreply, socket}
+  def handle_info({:nppes_config_updated, _config}, socket), do: {:noreply, socket}
 
   # --- Batch completion handlers ---
 
@@ -204,89 +127,6 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
 
   def handle_info({:batch_failed, _payload}, socket) do
     {:noreply, socket}
-  end
-
-  # --- NPPES event handlers ---
-
-  @impl true
-  def handle_event("nppes_refresh_now", _params, socket) do
-    cancel_elapsed_timer(socket.assigns.nppes_elapsed_timer)
-    started_at = DateTime.utc_now() |> DateTime.truncate(:second)
-    timer = Process.send_after(self(), :nppes_elapsed_tick, 10_000)
-
-    Nppes.refresh_now()
-
-    {:noreply,
-     socket
-     |> assign(:nppes_refreshing, true)
-     |> assign(:nppes_started_at, started_at)
-     |> assign(:nppes_rows_imported, 0)
-     |> assign(:nppes_elapsed_display, "0s")
-     |> assign(:nppes_elapsed_timer, timer)}
-  end
-
-  def handle_event("nppes_cancel_refresh", _params, socket) do
-    cancel_elapsed_timer(socket.assigns.nppes_elapsed_timer)
-    Nppes.cancel_refresh()
-
-    {:noreply,
-     socket
-     |> assign(:nppes_refreshing, false)
-     |> assign(:nppes_started_at, nil)
-     |> assign(:nppes_elapsed_display, "0s")
-     |> assign(:nppes_elapsed_timer, nil)}
-  end
-
-  def handle_event("toggle_nppes_auto_refresh", _params, socket) do
-    config = socket.assigns.nppes_config
-    new_val = !config.auto_refresh
-
-    case Nppes.update_refresh_config(%{auto_refresh: new_val}) do
-      {:ok, updated} ->
-        {:noreply, assign(socket, :nppes_config, updated)}
-
-      {:error, _} ->
-        {:noreply, assign(socket, :nppes_form_error, "Could not update auto-refresh.")}
-    end
-  end
-
-  def handle_event("save_nppes_config", %{"nppes" => params}, socket) do
-    interval =
-      case params["interval_seconds"] do
-        val when is_binary(val) ->
-          case Integer.parse(val) do
-            {n, _} -> n
-            :error -> nil
-          end
-
-        _ ->
-          nil
-      end
-
-    attrs =
-      %{
-        interval_seconds: interval,
-        download_url: String.trim(params["download_url"] || "")
-      }
-      |> Enum.reject(fn {_k, v} -> is_nil(v) or v == "" end)
-      |> Map.new()
-
-    case Nppes.update_refresh_config(attrs) do
-      {:ok, updated} ->
-        {:noreply,
-         socket
-         |> assign(:nppes_config, updated)
-         |> assign(:nppes_form_error, nil)
-         |> put_flash(:info, "NPPES settings saved.")}
-
-      {:error, changeset} ->
-        message =
-          changeset.errors
-          |> Enum.map(fn {field, {error, _}} -> "#{field} #{error}" end)
-          |> Enum.join(", ")
-
-        {:noreply, assign(socket, :nppes_form_error, message)}
-    end
   end
 
   @impl true
@@ -1061,79 +901,6 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
   defp source_type_label("http"), do: "HTTP"
   defp source_type_label("databricks"), do: "Databricks"
   defp source_type_label(other), do: other
-
-  # --- NPPES helpers ---
-
-  defp safe_get_nppes_config do
-    Nppes.get_refresh_config()
-  rescue
-    _ -> nppes_config_fallback()
-  catch
-    :exit, _ -> nppes_config_fallback()
-  end
-
-  defp nppes_config_fallback do
-    %{
-      last_status: "never",
-      last_refresh_at: nil,
-      last_row_count: 0,
-      last_error: nil,
-      auto_refresh: true,
-      interval_seconds: 604_800,
-      download_url: ""
-    }
-  end
-
-  defp safe_get_nppes_status do
-    Nppes.get_status()
-  catch
-    :exit, _ -> %{refreshing: false}
-  end
-
-  defp safe_provider_count do
-    Nppes.provider_count()
-  rescue
-    _ -> 0
-  end
-
-  defp format_nppes_time(nil), do: "Never"
-
-  defp format_nppes_time(dt) do
-    diff = DateTime.diff(DateTime.utc_now(), dt, :second)
-
-    cond do
-      diff < 60 -> "just now"
-      diff < 3600 -> "#{div(diff, 60)} min ago"
-      diff < 86_400 -> "#{div(diff, 3600)} hours ago"
-      true -> "#{div(diff, 86_400)} days ago"
-    end
-  end
-
-  defp interval_label(86_400), do: "Daily"
-  defp interval_label(604_800), do: "Weekly"
-  defp interval_label(1_209_600), do: "Bi-weekly"
-  defp interval_label(2_592_000), do: "Monthly"
-  defp interval_label(_), do: "Custom"
-
-  defp cancel_elapsed_timer(nil), do: :ok
-  defp cancel_elapsed_timer(ref), do: Process.cancel_timer(ref)
-
-  defp elapsed_seconds(nil), do: 0
-  defp elapsed_seconds(started_at), do: DateTime.diff(DateTime.utc_now(), started_at, :second)
-
-  defp format_elapsed(seconds) when seconds < 60, do: "#{seconds}s"
-  defp format_elapsed(seconds), do: "#{div(seconds, 60)}m #{rem(seconds, 60)}s"
-
-  defp format_number(n) when n < 1_000, do: Integer.to_string(n)
-
-  defp format_number(n) do
-    n
-    |> Integer.to_string()
-    |> String.reverse()
-    |> String.replace(~r/.{3}/, "\\0,")
-    |> String.reverse()
-    |> String.trim_leading(",")
-  end
 
   # --- Batch History helpers ---
 

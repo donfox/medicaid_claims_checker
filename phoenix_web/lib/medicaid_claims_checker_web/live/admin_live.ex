@@ -2,6 +2,7 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive do
   use MedicaidClaimsCheckerWeb, :live_view
 
   alias MedicaidClaimsChecker.Accounts
+  alias MedicaidClaimsCheckerWeb.AdminLive.NppesPanel
 
   on_mount {MedicaidClaimsCheckerWeb.UserAuth, :require_admin}
 
@@ -10,7 +11,23 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive do
      socket
      |> assign(:registration_open, Accounts.registration_open?())
      |> assign(:users, Accounts.list_users())
-     |> assign(:password_link, nil)}
+     |> assign(:password_link, nil)
+     |> NppesPanel.assign_defaults()}
+  end
+
+  def handle_info(message, socket) do
+    if NppesPanel.message?(message),
+      do: NppesPanel.handle_info(message, socket),
+      else: {:noreply, socket}
+  end
+
+  @nppes_events NppesPanel.events()
+
+  def handle_event(event, params, socket) when event in @nppes_events do
+    case assert_admin(socket) do
+      :ok -> NppesPanel.handle_event(event, params, socket)
+      :error -> {:noreply, put_flash(socket, :error, "Invalid request.")}
+    end
   end
 
   def handle_event("toggle_registration", _params, socket) do
@@ -134,6 +151,15 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive do
             </button>
           </div>
         </div>
+
+        <NppesPanel.panel
+          nppes_config={@nppes_config}
+          nppes_refreshing={@nppes_refreshing}
+          nppes_provider_count={@nppes_provider_count}
+          nppes_form_error={@nppes_form_error}
+          nppes_rows_imported={@nppes_rows_imported}
+          nppes_elapsed_display={@nppes_elapsed_display}
+        />
 
         <%!-- User management table --%>
         <div>

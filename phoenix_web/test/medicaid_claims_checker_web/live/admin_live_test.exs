@@ -17,6 +17,20 @@ defmodule MedicaidClaimsCheckerWeb.AdminLiveTest do
     assert has_element?(view, "[role=alert]", "You cannot deactivate your own account.")
   end
 
+  test "the top bar links back to Claims Intake", %{conn: conn} do
+    {:ok, _view, html} = live(conn, ~p"/admin")
+
+    assert html =~ ~s(id="app-home-link")
+    assert html =~ ~s(href="/")
+  end
+
+  test "on Claims Intake the app name is plain text, not a link to itself", %{conn: conn} do
+    {:ok, _view, html} = live(conn, ~p"/")
+
+    assert html =~ ~s(id="app-name")
+    refute html =~ ~s(id="app-home-link")
+  end
+
   describe "Create password link" do
     test "is offered for every user, with or without a password", %{conn: conn} do
       passwordless = AccountsFixtures.unconfirmed_user_fixture()

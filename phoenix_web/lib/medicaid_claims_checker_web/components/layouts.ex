@@ -35,16 +35,6 @@ defmodule MedicaidClaimsCheckerWeb.Layouts do
 
   def app(assigns) do
     ~H"""
-    <header class="navbar px-4 sm:px-6 lg:px-8">
-      <.link
-        id="app-home-link"
-        navigate={~p"/"}
-        class="text-lg font-semibold text-gray-900 hover:text-blue-700 transition-colors"
-      >
-        Medicaid Claims Checker
-      </.link>
-    </header>
-
     <main class="px-4 py-8 sm:px-6 lg:px-8">
       <div class="mx-auto max-w-2xl space-y-4">
         {render_slot(@inner_block)}

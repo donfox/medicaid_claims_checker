@@ -17,8 +17,8 @@
     <div class="mb-6 p-4 bg-white rounded-lg shadow-md">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-3xl font-bold text-gray-900">Claims Ingestion</h1>
-          <p class="mt-2 text-base text-gray-800 font-medium">Configure how claim files are ingested — manual uploads, scheduled fetches, and processing history</p>
+          <h1 class="text-3xl font-bold text-gray-900">Claims Intake</h1>
+          <p class="mt-2 text-base text-gray-800 font-medium">Bring in claim files by upload or scheduled fetch, and track each batch</p>
         </div>
         <div class="flex gap-2">
           <a href={~p"/rules"} class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium rounded-md border border-gray-300">
@@ -808,7 +808,7 @@
               <p class="text-sm font-medium">No batches in this date range</p>
             <% true -> %>
               <p class="text-sm font-medium">No batches received yet</p>
-              <p class="text-xs mt-1">Batches will appear here as claims are ingested</p>
+              <p class="text-xs mt-1">Batches will appear here as claim files come in</p>
           <% end %>
         </div>
       <% else %>

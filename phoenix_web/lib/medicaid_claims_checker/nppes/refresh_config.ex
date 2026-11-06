@@ -8,7 +8,9 @@ defmodule MedicaidClaimsChecker.Nppes.RefreshConfig do
 
   alias MedicaidClaimsChecker.Repo
 
-  @default_url "https://download.cms.gov/nppes/NPPES_Data_Dissemination_March_2026.zip"
+  # A CMS monthly file. Before each refresh, Nppes.LatestFile swaps in the
+  # newest month listed on CMS's download page, so this need not be current.
+  @default_url "https://download.cms.gov/nppes/NPPES_Data_Dissemination_November_2026_V2.zip"
 
   schema "nppes_refresh_config" do
     field :auto_refresh, :boolean, default: true

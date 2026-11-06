@@ -11,7 +11,7 @@ defmodule MedicaidClaimsChecker.Nppes.RefreshWorker do
 
   alias MedicaidClaimsChecker.Repo
   alias MedicaidClaimsChecker.Nppes
-  alias MedicaidClaimsChecker.Nppes.{RefreshConfig, Importer}
+  alias MedicaidClaimsChecker.Nppes.{RefreshConfig, Importer, LatestFile}
 
   require Logger
 
@@ -46,11 +46,27 @@ defmodule MedicaidClaimsChecker.Nppes.RefreshWorker do
   def init(_) do
     # The test config turns off the timed check: it reads the database outside
     # any test's sandbox and could start a full NPPES download.
-    timer_ref =
-      if Application.get_env(:medicaid_claims_checker, __MODULE__, []) |> Keyword.get(:scheduled, true),
-        do: Process.send_after(self(), :tick, @initial_delay_ms),
-        else: nil
-    {:ok, %{timer_ref: timer_ref, refreshing: false, task_ref: nil, task_pid: nil, started_at: nil}}
+    scheduled? =
+      Application.get_env(:medicaid_claims_checker, __MODULE__, [])
+      |> Keyword.get(:scheduled, true)
+
+    # Clear folders left by a refresh cancelled or cut off before the app
+    # stopped. Not in tests, which share the machine's temp folder with a
+    # dev server that may be downloading.
+    if scheduled?, do: Importer.remove_stale_tmp_dirs()
+
+    timer_ref = if scheduled?, do: Process.send_after(self(), :tick, @initial_delay_ms)
+
+    {:ok,
+     %{
+       timer_ref: timer_ref,
+       refreshing: false,
+       task_ref: nil,
+       task_pid: nil,
+       started_at: nil,
+       tmp_dir: nil,
+       previous_status: nil
+     }}
   end
 
   @impl true
@@ -78,17 +94,33 @@ defmodule MedicaidClaimsChecker.Nppes.RefreshWorker do
     if pid, do: Process.exit(pid, :kill)
     if ref, do: Process.demonitor(ref, [:flush])
 
+    # The killed import never reaches its own clean-up, so remove its
+    # download and unzipped files here.
+    if state.tmp_dir, do: File.rm_rf(state.tmp_dir)
+
+    # A cancel changes no provider data, so show the registry as it was before
+    # the refresh started rather than as a failure.
+    {status, error} = state.previous_status || {"never", nil}
     config = RefreshConfig.get_or_create()
 
     config
-    |> RefreshConfig.changeset(%{last_status: "failed", last_error: "Cancelled by user"})
+    |> RefreshConfig.changeset(%{last_status: status, last_error: error})
     |> Repo.update!()
 
     Logger.info("NPPES refresh cancelled by user")
     Nppes.broadcast({:nppes_status, %{status: :cancelled}})
 
     timer_ref = schedule_tick(config.interval_seconds)
-    {:noreply, %{state | refreshing: false, task_ref: nil, task_pid: nil, timer_ref: timer_ref, started_at: nil}}
+
+    {:noreply,
+     %{
+       state
+       | refreshing: false,
+         task_ref: nil,
+         task_pid: nil,
+         timer_ref: timer_ref,
+         started_at: nil
+     }}
   end
 
   def handle_cast({:update_config, _changes}, state) do
@@ -146,7 +178,16 @@ defmodule MedicaidClaimsChecker.Nppes.RefreshWorker do
     Nppes.broadcast({:nppes_status, %{status: :completed, row_count: count, refreshed_at: now}})
 
     timer_ref = schedule_tick(config.interval_seconds)
-    {:noreply, %{state | refreshing: false, task_ref: nil, task_pid: nil, timer_ref: timer_ref, started_at: nil}}
+
+    {:noreply,
+     %{
+       state
+       | refreshing: false,
+         task_ref: nil,
+         task_pid: nil,
+         timer_ref: timer_ref,
+         started_at: nil
+     }}
   end
 
   # Task returned an error
@@ -169,6 +210,13 @@ defmodule MedicaidClaimsChecker.Nppes.RefreshWorker do
   defp start_import(state) do
     config = RefreshConfig.get_or_create()
 
+    previous_status =
+      if config.last_status in ~w(completed failed never),
+        do: {config.last_status, config.last_error},
+        else: {"never", nil}
+
+    tmp_dir = Importer.new_tmp_dir()
+
     config
     |> RefreshConfig.changeset(%{last_status: "running", last_error: nil})
     |> Repo.update!()
@@ -184,10 +232,40 @@ defmodule MedicaidClaimsChecker.Nppes.RefreshWorker do
 
     %Task{ref: ref, pid: pid} =
       Task.Supervisor.async_nolink(MedicaidClaimsChecker.TaskSupervisor, fn ->
-        Importer.download_and_import(config.download_url, on_progress: progress_callback)
+        url = latest_download_url(config)
+        Importer.download_and_import(url, on_progress: progress_callback, tmp_dir: tmp_dir)
       end)
 
-    %{state | refreshing: true, task_ref: ref, task_pid: pid, timer_ref: nil, started_at: started_at}
+    %{
+      state
+      | refreshing: true,
+        task_ref: ref,
+        task_pid: pid,
+        timer_ref: nil,
+        started_at: started_at,
+        tmp_dir: tmp_dir,
+        previous_status: previous_status
+    }
+  end
+
+  # Runs inside the import task (it reads a web page). When the saved URL is a
+  # CMS monthly file, swaps in the newest month and saves it, so the Admin
+  # panel shows the file being downloaded.
+  defp latest_download_url(config) do
+    url = LatestFile.resolve(config.download_url)
+
+    if url != config.download_url do
+      Logger.info("NPPES: newest monthly file is #{url} (was #{config.download_url})")
+
+      {:ok, updated} =
+        config
+        |> RefreshConfig.changeset(%{download_url: url})
+        |> Repo.update()
+
+      Nppes.broadcast({:nppes_config_updated, updated})
+    end
+
+    url
   end
 
   defp handle_failure(state, reason) do
@@ -202,7 +280,16 @@ defmodule MedicaidClaimsChecker.Nppes.RefreshWorker do
     Nppes.broadcast({:nppes_status, %{status: :failed, error: error_msg}})
 
     timer_ref = schedule_tick(config.interval_seconds)
-    {:noreply, %{state | refreshing: false, task_ref: nil, task_pid: nil, timer_ref: timer_ref, started_at: nil}}
+
+    {:noreply,
+     %{
+       state
+       | refreshing: false,
+         task_ref: nil,
+         task_pid: nil,
+         timer_ref: timer_ref,
+         started_at: nil
+     }}
   end
 
   defp should_refresh?(config) do

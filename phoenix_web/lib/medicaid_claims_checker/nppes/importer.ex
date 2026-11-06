@@ -64,7 +64,7 @@ defmodule MedicaidClaimsChecker.Nppes.Importer do
   Returns `{:ok, row_count}` or `{:error, reason}`.
   """
   def download_and_import(url, opts \\ []) do
-    tmp_dir = Path.join(System.tmp_dir!(), "nppes_#{System.system_time(:second)}")
+    tmp_dir = Keyword.get_lazy(opts, :tmp_dir, &new_tmp_dir/0)
     File.mkdir_p!(tmp_dir)
     zip_path = Path.join(tmp_dir, "nppes.zip")
 
@@ -76,6 +76,49 @@ defmodule MedicaidClaimsChecker.Nppes.Importer do
     after
       File.rm_rf!(tmp_dir)
     end
+  end
+
+  @tmp_prefix "nppes_"
+
+  @doc """
+  A fresh path for one refresh's download and unzipped files (not created).
+  The refresh worker passes it as `:tmp_dir`, so it can delete the folder
+  itself when a refresh is cancelled: a killed import never reaches the
+  `after` clause that normally removes it.
+  """
+  def new_tmp_dir(parent \\ System.tmp_dir!()) do
+    Path.join(parent, "#{@tmp_prefix}#{System.system_time(:millisecond)}")
+  end
+
+  @doc """
+  Deletes refresh folders left by imports that were cancelled or crashed:
+  every `nppes_*` folder in `parent` whose newest file is older than
+  `max_age_seconds`, so a download still in progress is never touched.
+  Returns the paths removed.
+  """
+  def remove_stale_tmp_dirs(parent \\ System.tmp_dir!(), max_age_seconds \\ 3600) do
+    cutoff = System.os_time(:second) - max_age_seconds
+
+    parent
+    |> Path.join(@tmp_prefix <> "*")
+    |> Path.wildcard()
+    |> Enum.filter(&(File.dir?(&1) and newest_mtime(&1) < cutoff))
+    |> Enum.map(fn dir ->
+      File.rm_rf!(dir)
+      Logger.info("NPPES: removed leftover refresh folder #{dir}")
+      dir
+    end)
+  end
+
+  defp newest_mtime(dir) do
+    [dir | Path.wildcard(Path.join(dir, "**"))]
+    |> Enum.map(fn path ->
+      case File.stat(path, time: :posix) do
+        {:ok, %{mtime: mtime}} -> mtime
+        _ -> 0
+      end
+    end)
+    |> Enum.max()
   end
 
   # --- Download helpers ---
@@ -174,7 +217,9 @@ defmodule MedicaidClaimsChecker.Nppes.Importer do
       from(p in NppesProvider, where: p.updated_at < ^now and is_nil(p.dropped_on))
       |> Repo.update_all([set: [dropped_on: DateTime.to_date(now)]], timeout: :infinity)
 
-    Logger.info("NPPES: #{dropped} NPI(s) no longer in the file marked dropped (kept for late claims)")
+    Logger.info(
+      "NPPES: #{dropped} NPI(s) no longer in the file marked dropped (kept for late claims)"
+    )
   end
 
   @doc false

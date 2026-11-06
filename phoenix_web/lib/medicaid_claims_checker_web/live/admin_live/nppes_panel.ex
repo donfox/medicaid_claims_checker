@@ -115,7 +115,14 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive.NppesPanel do
 
   def handle_event("nppes_cancel_refresh", _params, socket) do
     Nppes.cancel_refresh()
-    {:noreply, stop_ticking(socket)}
+
+    {:noreply,
+     socket
+     |> stop_ticking()
+     |> Phoenix.LiveView.put_flash(
+       :info,
+       "Refresh cancelled. The provider registry is unchanged."
+     )}
   end
 
   def handle_event("toggle_nppes_auto_refresh", _params, socket) do
@@ -369,6 +376,10 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive.NppesPanel do
                 class="w-full px-3 py-2 border border-gray-400 rounded-md text-sm text-gray-900 bg-white"
                 placeholder="https://download.cms.gov/nppes/..."
               />
+              <p id="nppes-url-help" class="text-[10px] text-gray-800 mt-1">
+                A CMS monthly file is switched to the newest month before each refresh.
+                Any other URL is used as entered.
+              </p>
             </div>
           </div>
 

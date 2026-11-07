@@ -137,7 +137,7 @@
                 id="allow-resubmission"
                 phx-click="toggle_allow_resubmission"
                 checked={@allow_resubmission}
-                class="h-4 w-4 rounded border-gray-400 cursor-pointer"
+                class="h-4 w-4 rounded border-gray-500 cursor-pointer"
               />
               <span>
                 <span class="font-medium">Test upload: allow re-submission</span>
@@ -256,7 +256,7 @@
                   name="source[name]"
                   value={@source_name}
                   aria-required="true"
-                  class="w-full px-3 py-2 border border-gray-400 rounded-md text-sm text-gray-900 bg-white"
+                  class="w-full px-3 py-2 border border-gray-500 rounded-md text-sm text-gray-900 bg-white"
                   placeholder="e.g., Daily SFTP Drop"
                 />
               </div>
@@ -267,7 +267,7 @@
                   name="source[uri]"
                   value={@source_uri}
                   aria-required="true"
-                  class="w-full px-3 py-2 border border-gray-400 rounded-md text-sm text-gray-900 bg-white"
+                  class="w-full px-3 py-2 border border-gray-500 rounded-md text-sm text-gray-900 bg-white"
                   placeholder="e.g., sftp://claims.example.com/daily"
                 />
               </div>
@@ -277,7 +277,7 @@
                   id="source-type"
                   name="source[type]"
                   aria-required="true"
-                  class="w-full px-3 py-2 border border-gray-400 rounded-md text-sm text-gray-900 bg-white"
+                  class="w-full px-3 py-2 border border-gray-500 rounded-md text-sm text-gray-900 bg-white"
                 >
                   <option value="sftp" selected={@source_type == "sftp"}>SFTP</option>
                   <option value="local" selected={@source_type == "local"}>Local Directory</option>
@@ -295,7 +295,7 @@
                   name="source[password]"
                   value={@source_password}
                   type="password"
-                  class="w-full px-3 py-2 border border-gray-400 rounded-md text-sm text-gray-900 bg-white"
+                  class="w-full px-3 py-2 border border-gray-500 rounded-md text-sm text-gray-900 bg-white"
                   placeholder="SFTP password or API key (leave blank to keep existing)"
                 />
               </div>
@@ -305,7 +305,7 @@
                   id="source-username"
                   name="source[username]"
                   value={@source_username}
-                  class="w-full px-3 py-2 border border-gray-400 rounded-md text-sm text-gray-900 bg-white"
+                  class="w-full px-3 py-2 border border-gray-500 rounded-md text-sm text-gray-900 bg-white"
                   placeholder="Override username from URI (optional)"
                 />
               </div>
@@ -517,7 +517,7 @@
                                 value={@schedule_cron}
                                 phx-debounce="300"
                                 onfocus="this.select()"
-                                class="w-full px-2 py-1.5 border border-gray-400 rounded text-xs text-gray-900 bg-white"
+                                class="w-full px-2 py-1.5 border border-gray-500 rounded text-xs text-gray-900 bg-white"
                                 placeholder="e.g., 0 */6 * * *"
                               />
                               <p class="text-[10px] text-gray-800 mt-1">min hour day month weekday</p>
@@ -529,7 +529,7 @@
                                 value={@schedule_interval}
                                 type="number"
                                 min="60"
-                                class="w-full px-2 py-1.5 border border-gray-400 rounded text-xs text-gray-900 bg-white"
+                                class="w-full px-2 py-1.5 border border-gray-500 rounded text-xs text-gray-900 bg-white"
                                 placeholder="e.g., 3600 (1 hour)"
                               />
                               <p class="text-[10px] text-gray-800 mt-1">Minimum 60 seconds</p>
@@ -651,10 +651,10 @@
       <form id="history-date-filter" phx-change="filter_history_dates" class="flex items-center gap-2 flex-wrap mb-4 text-xs">
         <span class="font-medium text-gray-500">Received:</span>
         <label class="flex items-center gap-1 text-gray-700">
-          from <input type="date" name="from" value={@history_from} class="rounded-md border-gray-300 text-xs py-1" />
+          from <input type="date" name="from" value={@history_from} class="rounded-md border-gray-500 text-xs py-1" />
         </label>
         <label class="flex items-center gap-1 text-gray-700">
-          to <input type="date" name="to" value={@history_to} class="rounded-md border-gray-300 text-xs py-1" />
+          to <input type="date" name="to" value={@history_to} class="rounded-md border-gray-500 text-xs py-1" />
         </label>
         <%= if @history_from != "" or @history_to != "" do %>
           <button type="button" phx-click="reset_history_dates" class="text-blue-700 hover:underline cursor-pointer">Any date</button>

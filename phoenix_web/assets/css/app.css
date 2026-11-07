@@ -91,6 +91,13 @@
   --noise: 0;
 }
 
+/* Form fields: daisyUI draws borders at 20% of the text color (about 1.5:1
+   on white), below WCAG 1.4.11's 3:1 for telling where a field is. Use
+   gray-500 (about 4.8:1) at rest; focus and error states keep daisyUI's colors. */
+:is(.input, .select, .textarea, .checkbox):not([class*="-error"]):not(:focus):not(:focus-within) {
+  --input-color: var(--color-gray-500);
+}
+
 /* Add variants based on LiveView classes */
 @custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
 @custom-variant phx-submit-loading (.phx-submit-loading&, .phx-submit-loading &);

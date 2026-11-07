@@ -363,7 +363,7 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive.NppesPanel do
               <select
                 id="nppes-interval"
                 name="nppes[interval_seconds]"
-                class="w-full px-3 py-2 border border-gray-400 rounded-md text-sm text-gray-900 bg-white"
+                class="w-full px-3 py-2 border border-gray-500 rounded-md text-sm text-gray-900 bg-white"
               >
                 <option value="86400" selected={@nppes_config.interval_seconds == 86_400}>
                   Daily
@@ -391,7 +391,7 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive.NppesPanel do
                 id="nppes-url"
                 name="nppes[download_url]"
                 value={@nppes_config.download_url}
-                class="w-full px-3 py-2 border border-gray-400 rounded-md text-sm text-gray-900 bg-white"
+                class="w-full px-3 py-2 border border-gray-500 rounded-md text-sm text-gray-900 bg-white"
                 placeholder="https://download.cms.gov/nppes/..."
               />
               <p id="nppes-url-help" class="text-[10px] text-gray-800 mt-1">

@@ -129,15 +129,9 @@
     <% end %>
 
     <div class="mb-6 p-6 bg-white rounded-lg shadow-md">
-      <div class="flex items-center justify-between">
-        <h1 class="text-3xl font-bold text-gray-900">Claims Integrity Engine</h1>
-        <div class="flex gap-2">
-          <a href={~p"/"} class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-md">
-            Dashboard
-          </a>
-        </div>
-      </div>
-      <p class="mt-2 text-base text-gray-800 font-medium">Write integrity rules using DSL against healthcare claims</p>
+      <%!-- No "back to Claims Intake" button: the app name in the top bar is that link. --%>
+      <h1 id="rules-title" class="text-3xl font-bold text-gray-900">Business Rules</h1>
+      <p class="mt-2 text-base text-gray-800 font-medium">The rules every claim is checked against: built-in default rules, and rules added by your team.</p>
     </div>
 
 
@@ -156,7 +150,7 @@
           DSL Reference
         </button>
       </div>
-      <p class="mt-1 text-sm text-gray-800">Save reusable rules for BA teams, activate/deactivate them, and apply active rules automatically during claim processing.</p>
+      <p class="mt-1 text-sm text-gray-800">Default rules are built in and always on. Rules added by your team (BA rules) can be turned on or off, or retired; active ones are applied to every claim batch.</p>
 
       <details class="mt-4 group/form">
         <summary class="px-3 py-2 bg-blue-50 border border-blue-200 rounded-md text-sm font-semibold text-blue-800 cursor-pointer select-none flex items-center gap-2">

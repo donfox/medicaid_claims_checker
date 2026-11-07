@@ -31,6 +31,16 @@ defmodule MedicaidClaimsCheckerWeb.AdminLiveTest do
     refute html =~ ~s(id="app-home-link")
   end
 
+  test "Business Rules is titled to match its link, and only the top bar links home",
+       %{conn: conn} do
+    {:ok, view, html} = live(conn, ~p"/rules")
+
+    assert has_element?(view, "#rules-title", "Business Rules")
+    # The top bar is in the root layout, outside the LiveView, so check the page HTML.
+    assert html =~ ~s(id="app-home-link")
+    refute has_element?(view, "#claims-intake-link")
+  end
+
   describe "Create password link" do
     test "is offered for every user, with or without a password", %{conn: conn} do
       passwordless = AccountsFixtures.unconfirmed_user_fixture()

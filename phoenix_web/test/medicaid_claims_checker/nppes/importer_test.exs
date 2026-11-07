@@ -137,6 +137,21 @@ defmodule MedicaidClaimsChecker.Nppes.ImporterTest do
     assert NppesProvider.active_on_date?(back, ~D[2026-01-15])
   end
 
+  test "reports the rows saved after every batch" do
+    path = write_csv([@nppes_header, row(@active_org), row(@deactivated), row(@reactivated)])
+    test_pid = self()
+
+    assert {:ok, 3} =
+             Importer.import_from_file(path,
+               batch_size: 2,
+               on_progress: &send(test_pid, {:progress, &1})
+             )
+
+    assert_received {:progress, 2}
+    assert_received {:progress, 3}
+    refute_received {:progress, _}
+  end
+
   test "finds columns by name when CMS reorders them" do
     reordered = Enum.reverse(@nppes_header)
     values = Enum.map(reordered, &Map.get(@active_org, &1, ""))
@@ -197,7 +212,14 @@ defmodule MedicaidClaimsChecker.Nppes.ImporterTest do
 
     test "are not marked after a weekly update file, which lists only changes" do
       assert {:ok, 3} =
-               Importer.import_from_file(write_csv([@nppes_header, row(@active_org), row(@deactivated), row(@reactivated)]))
+               Importer.import_from_file(
+                 write_csv([
+                   @nppes_header,
+                   row(@active_org),
+                   row(@deactivated),
+                   row(@reactivated)
+                 ])
+               )
 
       backdate_updated_at()
       assert {:ok, 1} = Importer.import_from_file(write_csv([@nppes_header, row(@active_org)]))

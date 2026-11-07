@@ -40,7 +40,10 @@ defmodule MedicaidClaimsChecker.Nppes.Importer do
   Imports NPPES providers from a local CSV file.
 
   Options:
-  - `:on_progress` — `fn rows_imported -> ... end` called every #{@progress_interval} rows
+  - `:on_progress` — `fn rows_imported -> ... end` called after each batch
+    of rows is saved, with the total saved so far. A cancelled refresh uses
+    the last count to say how many rows already hold the newer data.
+  - `:batch_size` — rows saved per database insert (default #{@batch_size})
   - `:full_file` — whether the file lists every NPI (CMS's monthly full
     replacement file). Defaults to true for files named like CMS's full file
     (`npidata_pfile_20050523-*.csv`). After a full import, NPIs missing from
@@ -174,6 +177,7 @@ defmodule MedicaidClaimsChecker.Nppes.Importer do
 
   defp do_import(path, opts) do
     on_progress = Keyword.get(opts, :on_progress, fn _count -> :ok end)
+    batch_size = Keyword.get(opts, :batch_size, @batch_size)
     full_file? = Keyword.get_lazy(opts, :full_file, fn -> full_file_name?(path) end)
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
@@ -181,7 +185,7 @@ defmodule MedicaidClaimsChecker.Nppes.Importer do
 
     try do
       with {:ok, cols} <- read_columns(path),
-           {:ok, count} <- import_rows(path, cols, now, on_progress) do
+           {:ok, count} <- import_rows(path, cols, now, on_progress, batch_size) do
         if full_file?, do: mark_dropped(now)
         {:ok, count}
       end
@@ -246,14 +250,14 @@ defmodule MedicaidClaimsChecker.Nppes.Importer do
     end
   end
 
-  defp import_rows(path, cols, now, on_progress) do
+  defp import_rows(path, cols, now, on_progress, batch_size) do
     {count, _} =
       path
       |> File.stream!(read_ahead: 128 * 1024)
       |> NimbleCSV.RFC4180.parse_stream(skip_headers: true)
       |> Stream.map(&parse_row(&1, cols, now))
       |> Stream.reject(&is_nil/1)
-      |> Stream.chunk_every(@batch_size)
+      |> Stream.chunk_every(batch_size)
       |> Enum.reduce({0, 0}, fn batch, {total, _} ->
         Repo.insert_all(
           NppesProvider,
@@ -263,10 +267,11 @@ defmodule MedicaidClaimsChecker.Nppes.Importer do
         )
 
         new_total = total + length(batch)
+        on_progress.(new_total)
 
-        if rem(new_total, @progress_interval) < @batch_size do
+        # The log stays quieter than the progress count shown on the page.
+        if div(new_total, @progress_interval) > div(total, @progress_interval) do
           Logger.info("NPPES: #{new_total} rows imported")
-          on_progress.(new_total)
         end
 
         {new_total, 0}

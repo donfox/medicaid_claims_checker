@@ -69,6 +69,56 @@ defmodule MedicaidClaimsCheckerWeb.NppesPanelTest do
 
       assert Nppes.get_refresh_config().auto_refresh == !before
     end
+
+    # Status messages are sent straight to the page, as the worker's
+    # broadcasts would be, so no real refresh runs.
+    test "a new refresh or its result clears an earlier notice", %{conn: conn, worker: worker} do
+      {:ok, view, _html} = live(conn, ~p"/admin")
+
+      for status <- [%{status: :running, started_at: DateTime.utc_now()}, %{status: :completed}] do
+        view |> form("#nppes-config-form") |> render_submit()
+        wait_for(worker)
+        assert has_element?(view, "[role=alert]", "NPPES settings saved.")
+
+        send(view.pid, {:nppes_status, status})
+        refute has_element?(view, "[role=alert]", "NPPES settings saved.")
+      end
+    end
+
+    test "the cancelled status keeps the cancel notice", %{conn: conn, worker: worker} do
+      {:ok, view, _html} = live(conn, ~p"/admin")
+      view |> form("#nppes-config-form") |> render_submit()
+      wait_for(worker)
+
+      send(view.pid, {:nppes_status, %{status: :cancelled}})
+      assert has_element?(view, "[role=alert]", "NPPES settings saved.")
+    end
+  end
+
+  test "time_ago uses the singular for one hour or one day" do
+    alias MedicaidClaimsCheckerWeb.AdminLive.NppesPanel
+    ago = &DateTime.add(DateTime.utc_now(), -&1, :second)
+
+    assert NppesPanel.time_ago(ago.(3_700)) == "1 hour ago"
+    assert NppesPanel.time_ago(ago.(7_300)) == "2 hours ago"
+    assert NppesPanel.time_ago(ago.(86_500)) == "1 day ago"
+    assert NppesPanel.time_ago(ago.(3 * 86_400 + 5)) == "3 days ago"
+  end
+
+  describe "cancel notice" do
+    alias MedicaidClaimsCheckerWeb.AdminLive.NppesPanel
+
+    test "says the registry is unchanged when no rows were imported" do
+      assert NppesPanel.cancel_message(0) =~ "unchanged"
+    end
+
+    test "says how many rows kept the newer details once the import has started" do
+      message = NppesPanel.cancel_message(1_200_000)
+
+      assert message =~ "after 1,200,000 rows"
+      assert message =~ "no providers were removed"
+      refute message =~ "unchanged"
+    end
   end
 
   describe "non-admin users" do

@@ -58,15 +58,20 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive.NppesPanel do
 
   ## Messages
 
+  # A new refresh, or its result, makes any earlier notice (such as a
+  # cancel) out of date, so it is cleared. A :cancelled status keeps it.
   def handle_info({:nppes_status, %{status: :running} = payload}, socket) do
     {:noreply,
      socket
+     |> Phoenix.LiveView.clear_flash()
      |> start_ticking(Map.get(payload, :started_at, DateTime.utc_now()))
      |> assign(:nppes_config, safe_get_config())}
   end
 
   def handle_info({:nppes_status, %{status: status}}, socket)
       when status in [:completed, :failed, :cancelled] do
+    socket = if status == :cancelled, do: socket, else: Phoenix.LiveView.clear_flash(socket)
+
     {:noreply,
      socket
      |> stop_ticking()
@@ -110,19 +115,21 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive.NppesPanel do
 
   def handle_event("nppes_refresh_now", _params, socket) do
     Nppes.refresh_now()
-    {:noreply, start_ticking(socket, DateTime.utc_now() |> DateTime.truncate(:second))}
+
+    {:noreply,
+     socket
+     |> Phoenix.LiveView.clear_flash()
+     |> start_ticking(DateTime.utc_now() |> DateTime.truncate(:second))}
   end
 
   def handle_event("nppes_cancel_refresh", _params, socket) do
     Nppes.cancel_refresh()
+    message = cancel_message(socket.assigns.nppes_rows_imported)
 
     {:noreply,
      socket
      |> stop_ticking()
-     |> Phoenix.LiveView.put_flash(
-       :info,
-       "Refresh cancelled. The provider registry is unchanged."
-     )}
+     |> Phoenix.LiveView.put_flash(:info, message)}
   end
 
   def handle_event("toggle_nppes_auto_refresh", _params, socket) do
@@ -163,6 +170,17 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive.NppesPanel do
 
         {:noreply, assign(socket, :nppes_form_error, message)}
     end
+  end
+
+  # The import saves rows in batches as it goes, so a cancel during the import
+  # leaves the rows already saved with the newer file's details. Nothing is
+  # deleted or marked dropped: that happens only after a whole file is read.
+  @doc false
+  def cancel_message(0), do: "Refresh cancelled. The provider registry is unchanged."
+
+  def cancel_message(rows) do
+    "Refresh cancelled after #{format_number(rows)} rows. Those providers keep " <>
+      "the newer details; no providers were removed or marked dropped."
   end
 
   defp start_ticking(socket, started_at) do
@@ -442,10 +460,13 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive.NppesPanel do
     cond do
       diff < 60 -> "just now"
       diff < 3600 -> "#{div(diff, 60)} min ago"
-      diff < 86_400 -> "#{div(diff, 3600)} hours ago"
-      true -> "#{div(diff, 86_400)} days ago"
+      diff < 86_400 -> plural(div(diff, 3600), "hour") <> " ago"
+      true -> plural(div(diff, 86_400), "day") <> " ago"
     end
   end
+
+  defp plural(1, unit), do: "1 #{unit}"
+  defp plural(n, unit), do: "#{n} #{unit}s"
 
   @doc "Formats an integer with thousands separators: 9852182 -> \"9,852,182\"."
   def format_number(n) when n < 1_000, do: Integer.to_string(n)

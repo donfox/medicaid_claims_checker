@@ -141,7 +141,7 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive do
           <div class="flex items-center justify-between rounded border p-4">
             <div>
               <p class="font-semibold">User Registration</p>
-              <p class="text-sm text-gray-500">Allow new users to create accounts</p>
+              <p class="text-sm text-gray-600">Allow new users to create accounts</p>
             </div>
             <button
               phx-click="toggle_registration"
@@ -180,7 +180,7 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive do
                 <tr :for={user <- @users}>
                   <td class="whitespace-nowrap">{user.first_name} {user.last_name}</td>
                   <td class="font-mono text-sm">{user.email}</td>
-                  <td class="text-sm text-gray-500 whitespace-nowrap">
+                  <td class="text-sm text-gray-600 whitespace-nowrap">
                     {Calendar.strftime(user.inserted_at, "%b %d, %Y")}
                   </td>
                   <td>

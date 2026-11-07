@@ -56,7 +56,7 @@
     </div>
 
     <!-- Manual Upload -->
-    <div class="mb-6 bg-blue-100 border border-blue-200 shadow-md rounded-lg overflow-hidden">
+    <div class="mb-6 bg-white border border-gray-200 shadow-md rounded-lg overflow-hidden">
       <div class="px-4 py-3 border-b border-blue-200">
         <h2 class="text-lg font-semibold text-gray-900">Manual Upload</h2>
         <p class="text-xs text-gray-800 mt-1">Drag & drop claim files from your system for on-the-fly processing</p>
@@ -70,21 +70,21 @@
             class="border-2 border-dashed border-gray-400 rounded-lg p-8 text-center bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer mb-4 phx-drop-target-active:bg-blue-50 phx-drop-target-active:border-blue-400"
             phx-drop-target={@uploads.manual_files.ref}
           >
-            <svg aria-hidden="true" class="mx-auto h-10 w-10 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg aria-hidden="true" class="mx-auto h-10 w-10 text-gray-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
             <p class="text-sm text-gray-800">Drag & drop <strong>.json</strong>, <strong>.x12</strong>, <strong>.edi</strong>, or <strong>.zip</strong> files here</p>
-            <p class="text-xs text-gray-400 mt-1">JSON files are evaluated directly. X12/EDI files are translated in-app before evaluation.</p>
+            <p class="text-xs text-gray-600 mt-1">JSON files are evaluated directly. X12/EDI files are translated in-app before evaluation.</p>
           </div>
 
           <div class="flex items-center gap-3 mb-4">
             <div class="flex-1 border-t border-gray-300"></div>
-            <span class="text-xs font-medium text-gray-400 uppercase">or</span>
+            <span class="text-xs font-medium text-gray-600 uppercase">or</span>
             <div class="flex-1 border-t border-gray-300"></div>
           </div>
 
           <div class="mb-4">
-            <label for={@uploads.manual_files.ref} class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md cursor-pointer">
+            <label for={@uploads.manual_files.ref} class="inline-flex items-center px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white text-sm font-medium rounded-md cursor-pointer">
               Choose Files
             </label>
           </div>
@@ -102,7 +102,7 @@
                   type="button"
                   phx-click="clear_manual_uploads"
                   disabled={@upload_status == :processing}
-                  class="px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  class="px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded text-xs font-medium disabled:bg-gray-300 disabled:text-gray-700 disabled:hover:bg-gray-300 disabled:cursor-not-allowed cursor-pointer"
                 >
                   Clear Files
                 </button>
@@ -126,7 +126,7 @@
           <% end %>
 
           <%= for err <- upload_errors(@uploads.manual_files) do %>
-            <p class="text-sm text-red-600 mt-2"><%= upload_error_to_string(err) %></p>
+            <p class="text-sm text-red-700 mt-2"><%= upload_error_to_string(err) %></p>
           <% end %>
 
           <%= if @resubmission_available do %>
@@ -158,7 +158,7 @@
             <button
               type="submit"
               disabled={@uploads.manual_files.entries == []}
-              class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              class="px-5 py-2.5 bg-blue-700 hover:bg-blue-800 text-white rounded-md text-sm font-medium disabled:bg-gray-300 disabled:text-gray-700 disabled:hover:bg-gray-300 disabled:cursor-not-allowed cursor-pointer"
             >
               Process Files
             </button>
@@ -216,7 +216,7 @@
     </div>
 
     <!-- Sources -->
-    <div class="mb-6 bg-blue-100 border border-blue-200 shadow-md rounded-lg overflow-hidden">
+    <div class="mb-6 bg-white border border-gray-200 shadow-md rounded-lg overflow-hidden">
       <div class="px-4 py-3 border-b border-blue-200 flex items-center justify-between">
         <div class="flex items-center gap-3">
           <h2 class="text-lg font-semibold text-gray-900">Scheduled Jobs</h2>
@@ -231,7 +231,7 @@
           type="button"
           phx-click="toggle_add_source_form"
           aria-expanded={to_string(@show_source_form)}
-          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md cursor-pointer"
+          class="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white text-sm font-medium rounded-md cursor-pointer"
         >
           <%= if @show_source_form, do: "Cancel", else: "+ New Job" %>
         </button>
@@ -250,7 +250,7 @@
             </p>
             <div class="grid grid-cols-1 md:grid-cols-[1fr_3fr_auto] gap-4">
               <div>
-                <label for="source-name" class="block text-sm font-medium text-gray-900 mb-1">Name <span class="text-red-600">*</span></label>
+                <label for="source-name" class="block text-sm font-medium text-gray-900 mb-1">Name <span class="text-red-700">*</span></label>
                 <input
                   id="source-name"
                   name="source[name]"
@@ -261,7 +261,7 @@
                 />
               </div>
               <div>
-                <label for="source-uri" class="block text-sm font-medium text-gray-900 mb-1">URI / Path <span class="text-red-600">*</span></label>
+                <label for="source-uri" class="block text-sm font-medium text-gray-900 mb-1">URI / Path <span class="text-red-700">*</span></label>
                 <input
                   id="source-uri"
                   name="source[uri]"
@@ -272,7 +272,7 @@
                 />
               </div>
               <div class="w-32">
-                <label for="source-type" class="block text-sm font-medium text-gray-900 mb-1">Type <span class="text-red-600">*</span></label>
+                <label for="source-type" class="block text-sm font-medium text-gray-900 mb-1">Type <span class="text-red-700">*</span></label>
                 <select
                   id="source-type"
                   name="source[type]"
@@ -320,7 +320,7 @@
             <div class="flex gap-2">
               <button
                 type="submit"
-                class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium cursor-pointer"
+                class="px-5 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-md text-sm font-medium cursor-pointer"
               >
                 <%= if @editing_source, do: "Update Job", else: "Save Job" %>
               </button>
@@ -563,7 +563,7 @@
     </div>
 
     <!-- Batch History section -->
-    <div class="mt-8 mb-6 bg-gray-100 border border-gray-300 rounded-lg shadow-md overflow-hidden">
+    <div class="mt-8 mb-6 bg-white border border-gray-200 rounded-lg shadow-md overflow-hidden">
       <div>
         <button
           type="button"
@@ -592,7 +592,7 @@
           <span class="text-xs font-medium text-gray-500 mr-1">Filter by risk:</span>
           <%= for {label, level, active_class, inactive_class} <- [
             {"All",      nil,            "bg-gray-800 text-white border-gray-800",         "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"},
-            {"Clean",    "Clean",        "bg-blue-600 text-white border-blue-600",          "bg-white text-blue-700 border-blue-300 hover:bg-blue-50"},
+            {"Clean",    "Clean",        "bg-blue-700 text-white border-blue-700",          "bg-white text-blue-700 border-blue-300 hover:bg-blue-50"},
             {"Low",      "LowRisk",      "bg-green-600 text-white border-green-600",        "bg-white text-green-700 border-green-300 hover:bg-green-50"},
             {"High",     "HighRisk",     "bg-orange-500 text-white border-orange-500",      "bg-white text-orange-700 border-orange-300 hover:bg-orange-50"},
             {"Critical", "CriticalRisk", "bg-red-600 text-white border-red-600",            "bg-white text-red-700 border-red-300 hover:bg-red-50"}
@@ -715,7 +715,7 @@
                     <% end %>
                     <span><%= local_time(batch.inserted_at) %></span>
                     <svg aria-hidden="true" class={[
-                      "w-5 h-5 text-gray-400 transition-transform",
+                      "w-5 h-5 text-gray-500 transition-transform",
                       if(MapSet.member?(@expanded_batch_ids, batch.id), do: "rotate-180", else: "")
                     ]} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
@@ -726,7 +726,7 @@
                   type="button"
                   phx-click="dismiss_batch"
                   phx-value-id={batch.id}
-                  class="ml-2 p-1 rounded hover:bg-red-100 text-gray-400 hover:text-red-600 cursor-pointer"
+                  class="ml-2 p-1 rounded hover:bg-red-100 text-gray-500 hover:text-red-700 cursor-pointer"
                   aria-label="Remove from display"
                 >
                   <svg aria-hidden="true" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -782,7 +782,7 @@
                           phx-value-id={file.id}
                         >
                           <td class="py-2 pl-1">
-                            <svg aria-hidden="true" class={"w-4 h-4 text-gray-400 transition-transform #{if file_expanded, do: "rotate-90"}"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg aria-hidden="true" class={"w-4 h-4 text-gray-500 transition-transform #{if file_expanded, do: "rotate-90"}"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                             </svg>
                           </td>
@@ -803,7 +803,7 @@
                               "text-xs font-semibold",
                               cond do
                                 file.risk == "CriticalRisk" -> "text-red-700"
-                                file.risk == "HighRisk" -> "text-orange-600"
+                                file.risk == "HighRisk" -> "text-orange-700"
                                 file.risk == "MediumRisk" -> "text-yellow-700"
                                 true -> "text-green-700"
                               end
@@ -817,9 +817,9 @@
                               "text-xs font-semibold",
                               cond do
                                 file.weighted_score >= 6 -> "text-red-700"
-                                file.weighted_score >= 3 -> "text-orange-600"
+                                file.weighted_score >= 3 -> "text-orange-700"
                                 file.weighted_score >= 1 -> "text-yellow-700"
-                                true -> "text-gray-400"
+                                true -> "text-gray-500"
                               end
                             ]}>
                               <%= file.weighted_score %>
@@ -830,7 +830,7 @@
                               <%= (file.matched_results |> List.first()).rule %>
                               <%= if length(file.matched_results) > 1, do: "+ #{length(file.matched_results) - 1} more" %>
                             <% else %>
-                              <span class={if(file.not_checked != [], do: "text-gray-700", else: "text-green-600")}>No rules triggered</span>
+                              <span class={if(file.not_checked != [], do: "text-gray-700", else: "text-green-700")}>No rules triggered</span>
                             <% end %>
                             <%= if file.not_checked != [] do %>
                               <div class="text-amber-700"><%= length(file.not_checked) %> not checked (missing data)</div>
@@ -876,9 +876,9 @@
                                         "text-2xl font-bold",
                                         cond do
                                           file.weighted_score >= 6 -> "text-red-700"
-                                          file.weighted_score >= 3 -> "text-orange-600"
+                                          file.weighted_score >= 3 -> "text-orange-700"
                                           file.weighted_score >= 1 -> "text-yellow-700"
-                                          true -> "text-green-600"
+                                          true -> "text-green-700"
                                         end
                                       ]}>
                                         <%= file.weighted_score %>
@@ -890,25 +890,25 @@
                                     <div class="space-y-1 text-xs text-gray-700">
                                       <%= if reject_count > 0 do %>
                                         <div class="flex justify-between">
-                                          <span><span class="font-semibold text-red-700">REJECT</span> &times; <%= reject_count %> &nbsp;<span class="text-gray-400">(3 pts each)</span></span>
+                                          <span><span class="font-semibold text-red-700">REJECT</span> &times; <%= reject_count %> &nbsp;<span class="text-gray-500">(3 pts each)</span></span>
                                           <span class="font-semibold text-red-700"><%= reject_count * 3 %></span>
                                         </div>
                                       <% end %>
                                       <%= if fraud_count > 0 do %>
                                         <div class="flex justify-between">
-                                          <span><span class="font-semibold text-orange-600">FRAUD</span> &times; <%= fraud_count %> &nbsp;<span class="text-gray-400">(2 pts each)</span></span>
-                                          <span class="font-semibold text-orange-600"><%= fraud_count * 2 %></span>
+                                          <span><span class="font-semibold text-orange-700">FRAUD</span> &times; <%= fraud_count %> &nbsp;<span class="text-gray-500">(2 pts each)</span></span>
+                                          <span class="font-semibold text-orange-700"><%= fraud_count * 2 %></span>
                                         </div>
                                       <% end %>
                                       <%= if review_count > 0 do %>
                                         <div class="flex justify-between">
-                                          <span><span class="font-semibold text-yellow-700">REVIEW</span> &times; <%= review_count %> &nbsp;<span class="text-gray-400">(1 pt each)</span></span>
+                                          <span><span class="font-semibold text-yellow-700">REVIEW</span> &times; <%= review_count %> &nbsp;<span class="text-gray-500">(1 pt each)</span></span>
                                           <span class="font-semibold text-yellow-700"><%= review_count %></span>
                                         </div>
                                       <% end %>
                                       <%= if file.weighted_score == 0 do %>
                                         <%= if file.not_checked == [] do %>
-                                          <div class="text-green-600">No weighted triggers — claim is clean</div>
+                                          <div class="text-green-700">No weighted triggers — claim is clean</div>
                                         <% else %>
                                           <div class="text-gray-700">No weighted triggers</div>
                                         <% end %>
@@ -950,7 +950,7 @@
                                         <%= for mr <- file.matched_results do %>
                                           <div class="bg-red-50 border border-red-200 rounded-lg p-3">
                                             <div class="flex items-start gap-2">
-                                              <svg aria-hidden="true" class="w-4 h-4 text-red-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <svg aria-hidden="true" class="w-4 h-4 text-red-700 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
                                               </svg>
                                               <div class="flex-1">

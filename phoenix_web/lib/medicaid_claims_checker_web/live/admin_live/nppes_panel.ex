@@ -240,7 +240,7 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive.NppesPanel do
 
   def panel(assigns) do
     ~H"""
-    <section id="nppes-panel" class="bg-green-100 border border-green-200 shadow-md rounded-lg">
+    <section id="nppes-panel" class="bg-white border border-gray-200 shadow-md rounded-lg">
       <div class="px-4 py-3 border-b border-gray-200">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -271,7 +271,7 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive.NppesPanel do
               type="button"
               id="nppes-refresh-now"
               phx-click="nppes_refresh_now"
-              class="px-3 py-1.5 text-xs font-medium rounded bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+              class="px-3 py-1.5 text-xs font-medium rounded bg-blue-700 hover:bg-blue-800 text-white cursor-pointer"
             >
               Refresh Now
             </button>
@@ -320,7 +320,7 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive.NppesPanel do
         class="px-4 py-3 bg-red-50 border-t border-b border-red-300"
       >
         <div class="flex items-start gap-2">
-          <.icon name="hero-exclamation-triangle" class="w-5 h-5 text-red-600 mt-0.5 shrink-0" />
+          <.icon name="hero-exclamation-triangle" class="w-5 h-5 text-red-700 mt-0.5 shrink-0" />
           <div>
             <p class="text-sm font-semibold text-red-900">NPPES refresh failed</p>
             <p class="text-sm text-red-800 mt-1">{@nppes_config.last_error}</p>
@@ -342,7 +342,7 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive.NppesPanel do
                   aria-label="Auto-refresh NPPES"
                   class={[
                     "relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer",
-                    if(@nppes_config.auto_refresh, do: "bg-blue-600", else: "bg-gray-300")
+                    if(@nppes_config.auto_refresh, do: "bg-blue-700", else: "bg-gray-300")
                   ]}
                 >
                   <span class={[
@@ -407,7 +407,7 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive.NppesPanel do
 
           <button
             type="submit"
-            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium cursor-pointer"
+            class="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-md text-sm font-medium cursor-pointer"
           >
             Save Settings
           </button>

@@ -210,7 +210,7 @@ foreign key**: a catalogue entry with `entry_type = "BA Rule"` has a
 - **`submitted_files`**: every file a batch was built from, keyed by the
   SHA-256 of its bytes (unique), so a file already received is refused.
 - **`rule_catalogue`**: the registry of every rule entry (Default Rule, BA
-  Rule, ML Model) with its description, status (Active, Inactive or Retired)
+  Rule, ML Model) with its description, status (Active, Inactive, Retired, or Not connected for an ML Model with no scoring service yet)
   and what may be done with it (edited, removed).
 - **`business_rules`**: the DSL text of each BA rule and whether it is active
   in evaluation.

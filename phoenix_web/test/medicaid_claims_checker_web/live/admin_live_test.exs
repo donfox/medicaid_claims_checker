@@ -41,6 +41,22 @@ defmodule MedicaidClaimsCheckerWeb.AdminLiveTest do
     refute has_element?(view, "#claims-intake-link")
   end
 
+  test "an ML Model with no scoring service shows as Not connected, not active",
+       %{conn: conn} do
+    {:ok, entry} =
+      MedicaidClaimsChecker.Claims.create_catalogue_entry(%{
+        name: "SomeRiskModel",
+        description: "",
+        entry_type: "ML Model",
+        status: "Not connected"
+      })
+
+    {:ok, view, _html} = live(conn, ~p"/rules")
+
+    assert has_element?(view, "#not-connected-#{entry.id}", "Not connected")
+    assert render(view) =~ "1 total, not connected"
+  end
+
   describe "Create password link" do
     test "is offered for every user, with or without a password", %{conn: conn} do
       passwordless = AccountsFixtures.unconfirmed_user_fixture()

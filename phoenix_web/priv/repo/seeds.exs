@@ -430,6 +430,8 @@ Repo.insert_all(
 )
 
 # --- ML Model catalogue entries (logic in external ML service; no DSL text) ---
+# No ML scoring service exists yet, so these are "Not connected": shown in the
+# catalogue, never run on claims.
 
 ml_model_entries = [
   %{
@@ -437,7 +439,7 @@ ml_model_entries = [
     description:
       "Detects statistically unusual billing sequences relative to provider peer group",
     entry_type: "ML Model",
-    status: "Active",
+    status: "Not connected",
     editable: false,
     removable: false,
     redundant: false,
@@ -450,7 +452,7 @@ ml_model_entries = [
     description:
       "Scores provider fraud likelihood using tenure, claim volume, and amount patterns",
     entry_type: "ML Model",
-    status: "Active",
+    status: "Not connected",
     editable: false,
     removable: false,
     redundant: false,
@@ -463,7 +465,7 @@ ml_model_entries = [
     description:
       "AI model that verifies alignment of diagnosis codes with billed procedure codes",
     entry_type: "ML Model",
-    status: "Active",
+    status: "Not connected",
     editable: false,
     removable: false,
     redundant: false,

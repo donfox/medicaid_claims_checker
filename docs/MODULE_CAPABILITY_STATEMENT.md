@@ -26,7 +26,7 @@ This module is a **pre-adjudication tool**. It does not adjudicate claims, make 
 - Validates provider National Provider Identifiers (NPIs) against the CMS NPPES provider registry
 - Hard-rejects claims with unrecognised or deactivated provider NPIs prior to rule evaluation
 - Evaluates claims against a configurable library of business rules authored in a domain-specific language (DSL)
-- Supports three rule types: Default Rules (system-defined), BA Rules (business-analyst-authored), and ML Model scoring
+- Supports three rule types: Default Rules (system-defined), BA Rules (business-analyst-authored), and ML Models (catalogued; the ML scoring service is not connected yet)
 - Detects redundant or conflicting rules in the rule library before activation
 - Produces per-claim risk findings: CriticalRisk, HighRisk, LowRisk
 - Produces per-claim weighted fraud scores based on the severity of triggered rules

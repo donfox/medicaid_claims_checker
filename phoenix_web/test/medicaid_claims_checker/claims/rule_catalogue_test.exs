@@ -19,6 +19,16 @@ defmodule MedicaidClaimsChecker.Claims.RuleCatalogueTest do
     assert %{status: "Retired"} = entry!("Retired")
   end
 
+  test "accepts the Not connected status" do
+    assert %{status: "Not connected"} = entry!("Not connected")
+  end
+
+  test "a Not connected entry can't be toggled on" do
+    entry = entry!("Not connected")
+    assert {:error, :not_connected} = Claims.toggle_catalogue_status(entry)
+    assert %{status: "Not connected"} = Claims.get_catalogue_entry(entry.id)
+  end
+
   test "rejects an unknown status" do
     assert {:error, changeset} =
              Claims.create_catalogue_entry(%{

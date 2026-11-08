@@ -369,7 +369,11 @@
             <span class={badge_class <> " px-1.5 py-0.5 text-[10px] rounded font-medium"}><%= type_key %></span>
             <%= label %>
             <span class="text-xs font-normal text-gray-800">
-              — <%= count %> total<%= if type_key != "Default Rule", do: ", #{type_active} active" %>
+              — <%= count %> total<%= cond do %>
+                <% type_key == "Default Rule" -> %>
+                <% type_rules != [] and Enum.all?(type_rules, &(&1.status == "Not connected")) -> %>, not connected
+                <% true -> %>, <%= type_active %> active
+              <% end %>
             </span>
           </summary>
 
@@ -397,6 +401,12 @@
                               <span class="px-1.5 py-0.5 text-[10px] bg-green-100 text-green-900 rounded font-medium">Active</span>
                             <% "Retired" -> %>
                               <span class="px-1.5 py-0.5 text-[10px] bg-gray-300 text-gray-900 rounded font-medium">Retired</span>
+                            <% "Not connected" -> %>
+                              <span
+                                id={"not-connected-#{entry.id}"}
+                                class="px-1.5 py-0.5 text-[10px] bg-amber-100 text-amber-900 rounded font-medium"
+                                title="No ML scoring service is connected yet; this model is not run on claims."
+                              >Not connected</span>
                             <% _ -> %>
                               <span class="px-1.5 py-0.5 text-[10px] bg-gray-200 text-gray-800 rounded font-medium">Inactive</span>
                           <% end %>

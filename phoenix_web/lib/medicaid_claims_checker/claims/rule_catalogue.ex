@@ -14,15 +14,20 @@ defmodule MedicaidClaimsChecker.Claims.RuleCatalogue do
   | "Default Rule" | Haskell engine (fixed) | false    | false     |
   | "BA Rule"      | `business_rules` table | true     | true      |
   | "ML Model"     | external ML service    | false    | false     |
+
+  No ML scoring service exists yet, so ML Model entries are seeded as
+  "Not connected". Claims are checked by Default and BA Rules only.
   """
 
   use Ecto.Schema
   import Ecto.Changeset
 
   # All permitted values for `entry_type` and `status`. A "Retired" entry is
-  # kept for the record only: it can't be activated or edited.
+  # kept for the record only: it can't be activated or edited. "Not connected"
+  # marks an ML Model whose scoring service doesn't exist yet: nothing runs
+  # it, so it can't be activated either.
   @valid_types ["Default Rule", "BA Rule", "ML Model"]
-  @valid_statuses ["Active", "Inactive", "Retired"]
+  @valid_statuses ["Active", "Inactive", "Retired", "Not connected"]
 
   schema "rule_catalogue" do
     # Human-readable identifier; must be unique across all rule types.

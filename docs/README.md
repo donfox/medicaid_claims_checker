@@ -19,8 +19,10 @@
 ## Testing
 
 - [TEST_PROCEDURE.md](TEST_PROCEDURE.md): running the tests and checking a local setup
-- [testing/](testing/): the frontend use-case list and the repeat-testing guide, as
-  HTML with PDF copies (`testing/build_pdfs.sh` rebuilds the PDFs)
+- [testing/Frontend_Use_Cases.md](testing/Frontend_Use_Cases.md): the 59 things to test
+  in the running app, with each one's test files and expected result
+- [testing/Repeat_Testing_Guide.md](testing/Repeat_Testing_Guide.md): uploading the same
+  test files round after round
 - [scripts/](scripts/): SQL queries that audit a batch's provider NPIs against the
   NPPES data, used in `TEST_PROCEDURE.md`
 

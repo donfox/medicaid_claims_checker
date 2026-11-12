@@ -32,6 +32,7 @@
   scorer today, and the open issues for the planned Python scoring service
 - [ML_PLAN.md](ML_PLAN.md): the proposed plan for trained ML models (data, training,
   scoring service), ahead of the LLM scorer
+
 ## Formal statement
 
 - [MODULE_CAPABILITY_STATEMENT.md](MODULE_CAPABILITY_STATEMENT.md): the capability

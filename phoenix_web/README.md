@@ -1,6 +1,6 @@
 # Medicaid Claims Checker Web Frontend
 
-Phoenix LiveView application providing the user interface for claim ingestion, rule management, batch evaluation, and fraud detection scoring.
+Phoenix LiveView application providing the user interface for claim ingestion, rule management, batch evaluation, and risk scoring.
 
 ## Where the code is
 

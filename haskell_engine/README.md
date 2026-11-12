@@ -108,9 +108,9 @@ CA-signed one.
 | `/api/batch-evaluate` | POST | Evaluate one ruleset against many claim payloads |
 | `/api/check-redundancy` | POST | Compare a new rule with existing rules for duplicates, overlap and conflicts |
 
-## Fraud Detection Scoring
+## Risk Scoring
 
-The UI shows, per evaluated claim under **Fraud Detection Details**, the number of rules triggered, a weighted score, the overall risk level, the triggered rules, and any rules that could not be checked.
+The UI shows, per evaluated claim under **Risk Scoring Details**, the number of rules triggered, a weighted score, the overall risk level, the triggered rules, and any rules that could not be checked.
 
 ### Overall risk level
 

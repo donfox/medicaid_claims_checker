@@ -106,6 +106,7 @@ CA-signed one.
 | `/api/parse-rule` | POST | Parse DSL rule text and return AST |
 | `/api/evaluate` | POST | Evaluate rules against a JSON claim payload |
 | `/api/batch-evaluate` | POST | Evaluate one ruleset against many claim payloads |
+| `/api/check-redundancy` | POST | Compare a new rule with existing rules for duplicates, overlap and conflicts |
 
 ## Fraud Detection Scoring
 
@@ -127,13 +128,96 @@ The app counts HighRisk and CriticalRisk claims as flagged for analyst review. `
 
 A rule whose condition depends on missing or unusable data does not match. Its result has `resultUndecided: true` and its `resultDetails` names the fields that were missing or unusable, the report's `undecidedRules` counts such rules, and the app lists them as not checked instead of calling the claim clean. See the Missing data section of `docs/SYNTAX_GUIDE.md`.
 
-## Parse and Evaluate Pipeline
+## How the Engine Checks a Batch of Claims
 
-```
-DSL Text  -->  Parser  -->  Rule AST  -->  evaluateRuleSimple
+What happens to one `POST /api/batch-evaluate` request from Phoenix. GitHub
+draws the chart below; in VS Code, the markdown preview needs the
+*Markdown Preview Mermaid Support* extension.
+
+```mermaid
+flowchart TD
+    IN(["Phoenix sends<br/><b>POST /api/batch-evaluate</b><br/>rule text + up to 500 claims"])
+
+    subgraph S1["①&nbsp;Check&nbsp;the&nbsp;request&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"]
+        RL{"Under the rate limit?<br/>1,000 requests a minute<br/>per address"}
+        AU{"Correct shared secret?<br/>RULE_ENGINE_SECRET"}
+        SZ{"Valid JSON, at most<br/>500 claims and<br/>512 KB of rule text?"}
+    end
+
+    subgraph S2["②&nbsp;Parse&nbsp;the&nbsp;rules&nbsp;once&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"]
+        PR{"Every rule valid?<br/>at most 200 rules"}
+        AST["A list of rules, each with<br/>name · LET values ·<br/>WHEN condition · THEN action"]
+    end
+
+    subgraph S3["③&nbsp;Check&nbsp;every&nbsp;claim&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"]
+        CL["Take a claim<br/>one claim per CPU core at a time<br/>30-second limit per claim"]
+        RU["Take the next rule<br/>look up its LET values,<br/>then work out its WHEN condition<br/>against the claim's JSON"]
+        TV{"The condition is…"}
+        YES["<b>Yes</b> — matched<br/>record the THEN action"]
+        NO["<b>No</b> — not matched"]
+        UNK["<b>Unknown</b> — not checked<br/>record which data was missing"]
+        MORE{"More rules?"}
+        RK["Set the claim's risk level<br/><b>Critical</b>: any REJECT or FLAG_FRAUD<br/><b>High</b>: any REQUIRE_REVIEW or score ≥ 70<br/><b>Low</b>: anything else"]
+    end
+
+    OUT(["Send back one report per claim<br/>each rule's result · counts ·<br/>risk level · summary line"])
+
+    E429["429 Too Many Requests"]
+    E401["401 Unauthorized"]
+    E400["400 Bad Request<br/>with the reason"]
+
+    IN --> RL
+    RL -- yes --> AU
+    RL -- no --> E429
+    AU -- yes --> SZ
+    AU -- no --> E401
+    SZ -- yes --> PR
+    SZ -- no --> E400
+    PR -- yes --> AST
+    PR -- "no: the whole<br/>request fails" --> E400
+    AST --> CL --> RU --> TV
+    TV --> YES
+    TV --> NO
+    TV --> UNK
+    YES --> MORE
+    NO --> MORE
+    UNK --> MORE
+    MORE -- yes --> RU
+    MORE -- no --> RK
+    RK -- "every claim done" --> OUT
+
+    classDef err fill:#fde8e8,stroke:#b42318,color:#7a1a12
+    classDef good fill:#e7f4ea,stroke:#1e7b34,color:#14532d
+    classDef unk fill:#fff6db,stroke:#a15c00,color:#6b3d00
+    classDef io fill:#e8eefc,stroke:#1d4ed8,color:#1e3a8a
+    class E429,E401,E400 err
+    class YES good
+    class UNK unk
+    class IN,OUT io
+    style S1 fill:#f6f7f9,stroke:#9aa3af,color:#1f2937
+    style S2 fill:#f6f7f9,stroke:#9aa3af,color:#1f2937
+    style S3 fill:#f6f7f9,stroke:#9aa3af,color:#1f2937
+    classDef default fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+    linkStyle default stroke:#6b7280,stroke-width:1.5px
 ```
 
-Rules are parsed on every request and evaluated directly against JSON claim payloads using `Evaluator`. No Haskell code generation or GHC invocation.
+| Step | Where the code is |
+|---|---|
+| ① Check the request | `app/Middleware.hs` (rate limit, shared secret), then `handleBatchEvaluate` in `app/Routes.hs` (size limits) |
+| ② Parse the rules once | `loadRules` in `src/Claims/Parser.hs`, building the types in `src/Claims/Syntax.hs` |
+| ③ Check every claim | `evaluateClaim` (the 30-second limit) in `src/Claims/Pipeline.hs`; `evaluateSimpleJson`, `evaluateRuleSimple`, `evaluateWithEnv` and `determineRiskLevel` in `src/Claims/Evaluator.hs` |
+
+The rules are parsed on every request and run directly against the claim
+JSON; no Haskell code is generated. A claim that runs past 30 seconds gets an
+error entry instead of a report, and the rest of the batch carries on.
+
+**Unknown** is what keeps missing data from rejecting a claim by accident: a
+rule fires only on a definite Yes. `Unknown AND No` is No and
+`Unknown OR Yes` is Yes, as in SQL. See [Rules not checked](#rules-not-checked)
+above.
+
+The batch path does not use the ML score. `PolicyCombiner` and `MLClient`
+run only for the single-claim `/api/evaluate`.
 
 ## License
 

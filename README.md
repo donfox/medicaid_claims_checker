@@ -42,6 +42,8 @@ Planned for Edition 2:
 
 - [Setup instructions](setup.sh)
 - [Where the Phoenix code is](phoenix_web/README.md#where-the-code-is) — the web app's folders explained
+- [How a batch of claims is processed](phoenix_web/README.md#how-a-batch-of-claims-is-processed) — flowchart of the web app's side
+- [How the engine checks claims](haskell_engine/README.md#how-the-engine-checks-a-batch-of-claims) — flowchart of the rule engine
 - [Test data](mock_data/README.md) — every test file, by use case
 - [Architecture](docs/ARCHITECTURE.md)
 - [Configuration](docs/CONFIGURATION.md) — every setting, with its default

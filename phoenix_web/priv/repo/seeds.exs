@@ -1,3 +1,38 @@
+# Seed data: the rule catalogue, the rule DSL text, the NPPES refresh
+# settings row and a first admin user.
+#
+# How it runs
+#   `mix ecto.setup` (and `mix ecto.reset`) runs this file, and so does
+#   ../setup.sh. To run it by hand: `mix run priv/repo/seeds.exs`.
+#
+# Two tables, joined by `name`
+#   rule_catalogue  - one row per rule the app knows about: its type
+#                     ("Default Rule", "BA Rule", "ML Model"), status and
+#                     UI flags. This is what the Rules page lists.
+#   business_rules  - the DSL text the Haskell engine runs. Only rules with
+#                     logic in the DSL have a row here (Default Rules and
+#                     BA Rules). ML Models have no row.
+#   At claim-check time Evaluator.gather_rules_text/0 joins the active
+#   business_rules text and sends it to the engine.
+#
+# Running it again
+#   Every insert is an upsert keyed on `name`, so re-running is safe and
+#   adds no duplicates. It does overwrite these columns with the values below:
+#     rule_catalogue: description, status
+#     business_rules: rule_text, active
+#   That undoes any status toggles or BA Rule edits made in the UI for
+#   seeded rules. Rules created in the UI (names not in this file) are left
+#   alone. The other catalogue flags (editable, removable, redundant,
+#   db_access) are written only when a row is first inserted.
+#
+# What gets seeded (24 catalogue entries, 19 DSL rules)
+#   Default Rules  11  always on; can't be edited or removed in the UI
+#   BA Rules       10  written by business analysts; editable
+#   ML Models       3  "Not connected": no scoring service exists yet
+#
+# To add a rule: give it a catalogue entry, plus a business_rules row with
+# the same `name` if its logic is in the DSL.
+
 alias MedicaidClaimsChecker.Repo
 alias MedicaidClaimsChecker.Claims.BusinessRule
 alias MedicaidClaimsChecker.Claims.RuleCatalogue
@@ -8,7 +43,10 @@ now = DateTime.utc_now() |> DateTime.truncate(:second)
 # NPPES providers are not seeded: test claims use real NPIs from the NPPES
 # registry the app imports (Nppes.Importer / Settings → NPPES refresh).
 
-# --- Business Rules (DSL text) ---
+# --- BA Rules: DSL text (business_rules) ---
+# The first BA Rules. Their catalogue entries are in ba_catalogue_entries
+# below. Rows with `active: false` are kept for the record but not sent to
+# the engine.
 
 rules = [
   %{
@@ -70,7 +108,15 @@ Repo.insert_all(
   conflict_target: [:name]
 )
 
-# --- Rule Catalogue: Default Rules (always-on, protected) ---
+# --- Default Rules: catalogue entries (rule_catalogue) ---
+# Always on, and the UI can't edit or remove them. The DSL text for most of
+# them is in default_business_rules further down. Two have no DSL text:
+#   DuplicateClaims      not implemented yet. It would need a database query
+#                        (db_access: true), which the DSL can't do, so it
+#                        is listed but never checks a claim.
+#   NPPESProviderLookup  done in Elixir before the engine is called
+#                        (Claims.validate_claim_providers, run from
+#                        Evaluator), because it reads the NPPES table.
 
 default_catalogue_entries = [
   %{
@@ -156,7 +202,8 @@ Repo.insert_all(
   conflict_target: [:name]
 )
 
-# --- Rule Catalogue: BA Rules (matching existing business rules) ---
+# --- BA Rules: catalogue entries for the first BA Rules ---
+# One for each row in `rules` at the top of the file.
 
 ba_catalogue_entries = [
   %{
@@ -207,11 +254,9 @@ Repo.insert_all(
   conflict_target: [:name]
 )
 
-# ---------------------------------------------------------------------------
-# FRESH RULE SET — added alongside existing entries
-# ---------------------------------------------------------------------------
-
-# --- New Default Rules (hardcoded logic in Haskell; catalogue metadata only) ---
+# --- Default Rules: more catalogue entries ---
+# Catalogue entries only. The logic of each one is DSL text in
+# default_business_rules just below, not code in the Haskell engine.
 
 new_default_rules = [
   %{
@@ -283,9 +328,10 @@ Repo.insert_all(
   conflict_target: [:name]
 )
 
-# --- Default Rules: DSL text stored in business_rules table ---
-# These correspond to the Default Rule catalogue entries and will be
-# evaluated alongside BA Rules via active_catalog_rules_text().
+# --- Default Rules: DSL text (business_rules) ---
+# The logic for 9 of the 11 Default Rules; the other two are covered in the
+# note on default_catalogue_entries. The engine gets this text together with
+# the BA Rules' text (Evaluator.gather_rules_text/0).
 
 default_business_rules = [
   %{
@@ -429,7 +475,7 @@ Repo.insert_all(
   conflict_target: [:name]
 )
 
-# --- ML Model catalogue entries (logic in external ML service; no DSL text) ---
+# --- ML Models: catalogue entries only (no business_rules rows) ---
 # No ML scoring service exists yet, so these are "Not connected": shown in the
 # catalogue, never run on claims.
 
@@ -482,7 +528,8 @@ Repo.insert_all(
   conflict_target: [:name]
 )
 
-# --- New BA Rules: DSL text stored in business_rules table ---
+# --- BA Rules: more DSL text (business_rules) ---
+# Their catalogue entries are in new_ba_catalogue_entries just below.
 
 new_ba_rules = [
   %{
@@ -573,7 +620,7 @@ Repo.insert_all(
   conflict_target: [:name]
 )
 
-# --- New BA Rule catalogue entries (matching business_rules rows above) ---
+# --- BA Rules: catalogue entries for new_ba_rules above ---
 
 new_ba_catalogue_entries = [
   %{
@@ -647,7 +694,9 @@ Repo.insert_all(
   conflict_target: [:name]
 )
 
-# --- Taxonomy Validation Rules ---
+# --- BA Rules: provider taxonomy checks ---
+# DSL text first, then the matching catalogue entries. They read the
+# billing provider's taxonomy code (837 loop 2000A, PRV segment).
 
 taxonomy_ba_rules = [
   %{
@@ -728,7 +777,9 @@ Repo.insert_all(
   conflict_target: [:name]
 )
 
-# --- NPPES Refresh Config (ensure default row exists) ---
+# --- NPPES refresh settings ---
+# Creates the single settings row (weekly auto-refresh by default) if it
+# doesn't exist. An existing row, and any changes made in Settings, are kept.
 RefreshConfig.get_or_create()
 
 # --- First admin user ---

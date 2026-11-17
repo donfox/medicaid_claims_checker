@@ -3,17 +3,22 @@ defmodule MedicaidClaimsChecker.Claims.RuleCatalogue do
   Ecto schema for the `rule_catalogue` table.
 
   The Rule Catalogue is the central registry of every rule known to the system.
-  Each entry describes one rule but does NOT store its logic — logic lives
-  either in the Haskell engine (Default Rules) or in the `business_rules`
-  table (BA Rules), joined by matching `name`.
+  Each entry describes one rule but does NOT store its logic. A rule written
+  in the DSL keeps its text in the `business_rules` table, joined by
+  matching `name`; the Haskell engine runs that text but holds no rules of
+  its own.
 
   ## Entry types
 
-  | type           | logic location         | editable | removable |
-  |----------------|------------------------|----------|-----------|
-  | "Default Rule" | Haskell engine (fixed) | false    | false     |
-  | "BA Rule"      | `business_rules` table | true     | true      |
-  | "ML Model"     | external ML service    | false    | false     |
+  | type           | logic location                        | editable | removable |
+  |----------------|---------------------------------------|----------|-----------|
+  | "Default Rule" | `business_rules` table (seeded)       | false    | false     |
+  | "BA Rule"      | `business_rules` table                | true     | true      |
+  | "ML Model"     | external ML service (none exists yet) | false    | false     |
+
+  Two Default Rules have no DSL text: `NPPESProviderLookup` is done in
+  Elixir (`Claims.validate_claim_providers/1`), and `DuplicateClaims` is
+  listed but not implemented.
 
   No ML scoring service exists yet, so ML Model entries are seeded as
   "Not connected". Claims are checked by Default and BA Rules only.

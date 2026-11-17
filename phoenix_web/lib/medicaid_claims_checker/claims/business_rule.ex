@@ -2,21 +2,24 @@ defmodule MedicaidClaimsChecker.Claims.BusinessRule do
   @moduledoc """
   Ecto schema for the `business_rules` table.
 
-  Stores the DSL rule text for Business Analyst (BA) rules. Each row pairs
-  with a matching `rule_catalogue` entry via the `name` field — the catalogue
-  holds metadata (type, status flags) while this table holds the executable
-  rule logic.
+  Stores the DSL text of every rule written in the DSL: all BA Rules and
+  most Default Rules. Each row pairs with a matching `rule_catalogue` entry
+  via the `name` field — the catalogue holds metadata (type, status flags)
+  while this table holds the executable rule logic.
 
   ## Lifecycle
 
-  1. A BA Rule is authored in the UI as free-form DSL text.
+  1. Default Rules are seeded by `priv/repo/seeds.exs` and can't be edited
+     in the UI. A BA Rule is authored in the UI as free-form DSL text.
   2. On save, `changeset/2` validates and persists the text here.
-  3. At evaluation time `Evaluator` sends the active rules' `rule_text` to
-     the Haskell engine's `POST /api/batch-evaluate`, which parses and runs
-     them on every request.
+  3. At evaluation time `Evaluator` sends the active rules' `rule_text`
+     (Default and BA alike) to the Haskell engine's `POST /api/batch-evaluate`,
+     which parses and runs them on every request.
 
-  Default Rules and ML Models do NOT have rows in this table — their
-  logic lives in the Haskell engine or an external ML service respectively.
+  Catalogue entries with no row here: the ML Models (no scoring service
+  exists yet), and two Default Rules whose logic isn't DSL —
+  `NPPESProviderLookup`, done in Elixir (`Claims.validate_claim_providers/1`),
+  and `DuplicateClaims`, listed but not implemented.
   """
 
   use Ecto.Schema

@@ -2,9 +2,9 @@
 
 -- |
 -- Module      : BusinessRulesSpec
--- Description : HSpec tests for all 16 active business rules using business-schema JSON
+-- Description : HSpec tests for all 17 active business rules using business-schema JSON
 --
--- Tests every active default rule by parsing the canonical DSL text and evaluating
+-- Tests every active seeded rule (Default and BA Rules) by parsing the canonical DSL text and evaluating
 -- it against hand-crafted business-schema JSON documents (not X12 segment paths).
 module BusinessRulesSpec (businessRulesSpec) where
 
@@ -25,7 +25,7 @@ testDay :: Day
 testDay = fromGregorian 2026 2 28
 
 -- ---------------------------------------------------------------------------
--- Canonical DSL texts for all 16 active business rules
+-- Canonical DSL texts for all 17 active business rules
 -- ---------------------------------------------------------------------------
 
 ruleExcessiveTotalCharges :: String
@@ -130,6 +130,26 @@ ruleUnauthorizedProcedure =
   \DESCRIPTION \"High-value claim submitted without a valid authorization number\" \
   \WHEN authorization.authorization_number IS NULL AND financial.claim_amount > 5000 \
   \THEN REJECT \"High-value claim lacks required authorization\" END"
+
+ruleWeekendOfficeVisit :: String
+ruleWeekendOfficeVisit =
+  "RULE weekend_office_visit \
+  \DESCRIPTION \"Office visit on weekend with elevated amount\" \
+  \WHEN financial.claim_amount > 500 \
+  \AND claim_details.facility_type_code IS NULL \
+  \AND EXISTS line IN service_lines \
+  \WHERE is_weekend(line.date_of_service) AND line.place_of_service = \"11\" \
+  \THEN REQUIRE_REVIEW \"Weekend office visit requires verification\" END"
+
+-- | A claim for the given amount with one service line on the given date
+-- and place of service, and optionally a facility type code (inpatient).
+weekendDoc :: Double -> String -> String -> Maybe String -> Aeson.Value
+weekendDoc amount date pos facility =
+  object $
+    [ "financial" .= object ["claim_amount" .= amount]
+    , "service_lines" .= [object ["date_of_service" .= date, "place_of_service" .= pos]]
+    ]
+      ++ maybe [] (\code -> ["claim_details" .= object ["facility_type_code" .= code]]) facility
 
 -- ---------------------------------------------------------------------------
 -- Helper: parse and evaluate a single rule
@@ -664,7 +684,32 @@ businessRulesSpec =
         resultMatched result `shouldBe` True
 
     -- -----------------------------------------------------------------------
-    -- 17. Real fixture NPIs pass all NPI validation rules (regression)
+    -- 17. WeekendOfficeVisit (2026-02-21 is a Saturday, 2026-02-24 a Tuesday)
+    -- -----------------------------------------------------------------------
+    describe "WeekendOfficeVisit fires on a weekend office visit (POS 11) over $500" $ do
+
+      it "Saturday office visit + $800 → fires" $ do
+        result <- evalRule ruleWeekendOfficeVisit (weekendDoc 800 "2026-02-21" "11" Nothing)
+        resultMatched result `shouldBe` True
+
+      it "Tuesday office visit + $800 → does NOT fire (weekday)" $ do
+        result <- evalRule ruleWeekendOfficeVisit (weekendDoc 800 "2026-02-24" "11" Nothing)
+        resultMatched result `shouldBe` False
+
+      it "Saturday home visit (POS 12) + $800 → does NOT fire (not an office)" $ do
+        result <- evalRule ruleWeekendOfficeVisit (weekendDoc 800 "2026-02-21" "12" Nothing)
+        resultMatched result `shouldBe` False
+
+      it "Saturday inpatient claim (facility type set) + $800 → does NOT fire" $ do
+        result <- evalRule ruleWeekendOfficeVisit (weekendDoc 800 "2026-02-21" "11" (Just "11"))
+        resultMatched result `shouldBe` False
+
+      it "Saturday office visit + exactly $500 → does NOT fire (limit is > 500)" $ do
+        result <- evalRule ruleWeekendOfficeVisit (weekendDoc 500 "2026-02-21" "11" Nothing)
+        resultMatched result `shouldBe` False
+
+    -- -----------------------------------------------------------------------
+    -- 18. Real fixture NPIs pass all NPI validation rules (regression)
     -- -----------------------------------------------------------------------
     describe "Real fixture NPIs pass all NPI validation rules" $ do
 

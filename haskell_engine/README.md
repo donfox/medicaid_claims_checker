@@ -1,10 +1,10 @@
 # Medicaid Claims Checker DSL Engine
 
-Haskell-based engine for parsing, evaluating, and compiling fraud detection rules written in a domain-specific language for JSON claim payloads.
+Haskell engine that parses claim-checking rules, written in a domain-specific language (DSL), and evaluates them against JSON claims. Its results are recommendations for an analyst.
 
 ## Features
 
-- Domain-Specific Language (DSL) for fraud detection rules
+- Domain-Specific Language (DSL) for claim-checking rules
 - Parser for business-analyst-friendly syntax
 - Predicate evaluator for rule matching against JSON claim documents
 - HTTP API server for rule parsing, evaluation, and redundancy checks
@@ -13,7 +13,7 @@ Haskell-based engine for parsing, evaluating, and compiling fraud detection rule
 - Domain predicates (`claim.has_diagnosis`, `claim.has_procedure`)
 - Text predicates: `CONTAINS` and `MATCHES` (POSIX regex via regex-tdfa — linear time, invalid patterns rejected at parse time)
 - Parser checked by QuickCheck round-trip properties against a test-only pretty-printer
-- Redundancy detection across rule sets (exact duplicate, condition overlap, subsumption)
+- Redundancy detection across rule sets: exact duplicate, subsumption (one rule covers another with the same action), shadowed (the same, but a different action: a conflict) and condition overlap
 
 ## Module Overview
 
@@ -36,7 +36,7 @@ The server itself is in `app/`:
 | `Middleware` | Rate limit and shared-secret auth, applied to every request |
 | `Routes` | HTTP routing and the request handlers |
 
-Tests mirror this layout: `test/Claims/<Module>Spec.hs` tests `src/Claims/<Module>.hs`.
+Tests mirror this layout: `test/Claims/<Module>Spec.hs` tests `src/Claims/<Module>.hs`. The others in `test/`: `ParserProps.hs` (QuickCheck round-trip properties of the parser), `Claims/Pretty.hs` (the test-only printer they use), `BusinessRulesSpec.hs` (the business rules against sample claims), and `ListenConfigSpec.hs` (`Claims.ListenConfig`'s startup rules). `Spec.hs` runs them all.
 
 ## Building
 
@@ -110,7 +110,7 @@ CA-signed one.
 
 ## Risk Scoring
 
-The UI shows, per evaluated claim under **Risk Scoring Details**, the number of rules triggered, a weighted score, the overall risk level, the triggered rules, and any rules that could not be checked.
+The UI shows, per evaluated claim under **Risk Scoring Details**, the number of rules triggered, a weighted score (computed by Phoenix from the matched actions), the overall risk level, the triggered rules, and any rules that could not be checked.
 
 ### Overall risk level
 
@@ -126,7 +126,7 @@ The app counts HighRisk and CriticalRisk claims as flagged for analyst review. `
 
 ### Rules not checked
 
-A rule whose condition depends on missing or unusable data does not match. Its result has `resultUndecided: true` and its `resultDetails` names the fields that were missing or unusable, the report's `undecidedRules` counts such rules, and the app lists them as not checked instead of calling the claim clean. See the Missing data section of `docs/SYNTAX_GUIDE.md`.
+A rule whose condition depends on missing or unusable data does not match. Its result has `resultUndecided: true` and its `resultDetails` names the fields that were missing or unusable, the report's `undecidedRules` counts such rules, and the app lists them as not checked instead of calling the claim clean. See [Missing data](../docs/SYNTAX_GUIDE.md#missing-data) in the Syntax Guide.
 
 ### Known limitation: a timed-out claim looks clean
 

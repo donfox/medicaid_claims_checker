@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# JSON Claims Integrity DSL - Quick Start Script
+# Medicaid Claims Checker - setup script
 
 set -e
 
-echo "=== JSON Claims Integrity DSL Setup ==="
+echo "=== Medicaid Claims Checker Setup ==="
 echo
 
 # Check prerequisites

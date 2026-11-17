@@ -32,9 +32,9 @@ the limit).
 | `P_rules_page/` | P1–P4 | Rule files for the Rules page |
 | `pipeline/` | none | Inputs for one internal processing step (see below); never uploaded |
 
-A use case with no folder has no test file yet. The use-case list says which
-those are; U1–U8 (upload behaviour) and N1 (active provider) use files from
-other folders.
+Every use case has test data. Those with no folder of their own, U1–U8
+(upload behaviour), N1 (active provider) and R8 (new-provider rules), use
+files from other folders.
 
 **One home per file.** Some files test more than one use case. Every R2 X12
 file is also an 837P file (X1), for instance. Each file lives in the folder of
@@ -192,7 +192,7 @@ files aren't in the manifest; the Phoenix tests (`mix test`) check those.
 each is uploaded on the home page (or entered on the Rules page) and
 evaluated by an engine the script starts. It also covers the hand-written
 files and the use cases with no file of their own (U1–U8, N1, R8). The tests
-are in `phoenix_web/test/use_cases/`; see `docs/TEST_PROCEDURE.md`.
+are in `phoenix_web/test/use_cases/`; see [docs/TEST_PROCEDURE.md](../docs/TEST_PROCEDURE.md).
 
 ### `nppes_extract.json`
 
@@ -206,10 +206,10 @@ cd phoenix_web && mix run --no-start ../mock_data/export_nppes_extract.exs
 
 ## Uploading a file more than once
 
-Phoenix refuses a file it has already received and a claim it has already
-evaluated. To upload the same data again, either tick the development-only
-re-submit checkbox on the upload page, or make copies whose claim IDs end in
-`-N`, using a new N each round:
+Phoenix refuses a file or claim it has already received. The development-only
+re-submit checkbox on the upload page lets the same files through; see
+[Uploading the same files again](../docs/FRONTEND_USE_CASES.md#uploading-the-same-files-again).
+To make copies whose claim IDs end in `-N` instead, using a new N each round:
 
 ```bash
 elixir mock_data/retag.exs --tag 3 --out ~/upload_round3 mock_data

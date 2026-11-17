@@ -186,7 +186,7 @@ cd phoenix_web
 mix setup        # deps.get, ecto.create, ecto.migrate, seeds, assets
 ```
 
-Seed data loads 24 catalogue entries (11 Default Rules, 10 BA Rules, 3 ML Models) and the DSL text for 19 of them in `business_rules`. The header of `priv/repo/seeds.exs` explains what re-running the seeds overwrites.
+Seed data loads 22 catalogue entries (11 Default Rules, 8 BA Rules, 3 ML Models) and the DSL text for 17 of them in `business_rules`, all active. The header of `priv/repo/seeds.exs` explains what re-running the seeds overwrites.
 
 ## Running
 

@@ -25,9 +25,9 @@
 #   alone. The other catalogue flags (editable, removable, redundant,
 #   db_access) are written only when a row is first inserted.
 #
-# What gets seeded (24 catalogue entries, 19 DSL rules)
+# What gets seeded (22 catalogue entries, 17 DSL rules)
 #   Default Rules  11  always on; can't be edited or removed in the UI
-#   BA Rules       10  written by business analysts; editable
+#   BA Rules        8  written by business analysts; editable
 #   ML Models       3  "Not connected": no scoring service exists yet
 #
 # To add a rule: give it a catalogue entry, plus a business_rules row with
@@ -44,26 +44,11 @@ now = DateTime.utc_now() |> DateTime.truncate(:second)
 # registry the app imports (Nppes.Importer / Settings → NPPES refresh).
 
 # --- BA Rules: DSL text (business_rules) ---
-# The first BA Rules. Their catalogue entries are in ba_catalogue_entries
-# below. Rows with `active: false` are kept for the record but not sent to
-# the engine.
+# The first BA Rule. Its catalogue entry is in ba_catalogue_entries below.
+# (HighValueReview and InpatientMismatch, written with X12 loop paths, were
+# deleted on 2026-11-16; they are in the Git history.)
 
 rules = [
-  %{
-    name: "HighValueReview",
-    rule_text:
-      """
-      RULE high_value_review
-      DESCRIPTION \"Flag high-value claims for manual review\"
-      WHEN 2300.CLM.claim_amount > 50000
-      THEN REQUIRE_REVIEW \"Exceeds high-value threshold\"
-      END
-      """
-      |> String.trim(),
-    active: false,
-    inserted_at: now,
-    updated_at: now
-  },
   %{
     name: "WeekendOfficeVisit",
     rule_text:
@@ -79,23 +64,6 @@ rules = [
       """
       |> String.trim(),
     active: true,
-    inserted_at: now,
-    updated_at: now
-  },
-  %{
-    name: "InpatientMismatch",
-    rule_text:
-      """
-      RULE inpatient_mismatch
-      DESCRIPTION \"Outpatient place of service with inpatient billing\"
-      WHEN 2400.SV1.place_of_service = \"22\"
-           AND 2300.CLM.facility_type = \"Inpatient\"
-           AND 2300.CLM.claim_amount > 10000
-      THEN REJECT \"Inpatient/outpatient mismatch detected\"
-      END
-      """
-      |> String.trim(),
-    active: false,
     inserted_at: now,
     updated_at: now
   }
@@ -202,23 +170,10 @@ Repo.insert_all(
   conflict_target: [:name]
 )
 
-# --- BA Rules: catalogue entries for the first BA Rules ---
-# One for each row in `rules` at the top of the file.
+# --- BA Rules: catalogue entry for the first BA Rule ---
+# The one row in `rules` at the top of the file.
 
 ba_catalogue_entries = [
-  %{
-    name: "HighValueReview",
-    description:
-      "Flag high-value claims over $50,000 for manual review — inactive, duplicates HighValueClaim",
-    entry_type: "BA Rule",
-    status: "Inactive",
-    editable: true,
-    removable: true,
-    redundant: false,
-    db_access: false,
-    inserted_at: now,
-    updated_at: now
-  },
   %{
     name: "WeekendOfficeVisit",
     description: "Office visit on weekend with elevated amount requires verification",
@@ -226,20 +181,6 @@ ba_catalogue_entries = [
     status: "Active",
     editable: true,
     removable: true,
-    redundant: false,
-    db_access: false,
-    inserted_at: now,
-    updated_at: now
-  },
-  %{
-    name: "InpatientMismatch",
-    description:
-      "Retired 2026-10-19. Looked for inpatient billing with an outpatient place of service on one claim, " <>
-        "but no 837 carries both (837P has a place of service, 837I a bill type). Kept for the record.",
-    entry_type: "BA Rule",
-    status: "Retired",
-    editable: false,
-    removable: false,
     redundant: false,
     db_access: false,
     inserted_at: now,

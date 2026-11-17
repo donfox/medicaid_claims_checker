@@ -23,7 +23,7 @@ startup, except the ML settings, which `src/Claims/MLClient.hs` and
 | `RULE_ENGINE_TLS_CERT`, `RULE_ENGINE_TLS_KEY` | unset | Certificate and key files. With both set the engine serves HTTPS and may listen on any address. See [haskell_engine/README.md](../haskell_engine/README.md#listening-and-tls); `haskell_engine/gen-dev-tls.sh` makes a development certificate. |
 | `ENGINE_RATE_LIMIT` | `1000` | Most requests one client IP may make per 60 seconds; `/api/health` is not counted. `./test.sh` raises it for its own engine. |
 | `ML_SCORER_URL` | unset | The ML scoring service `/api/evaluate` calls. Unset, a fixed stand-in score is used. Must be `https://`; private and cloud-metadata addresses are refused. |
-| `ML_TIMEOUT_MS` | `120` | How long to wait for the scorer, in milliseconds. Too short for a real model service; see [ML_INTEGRATION_NOTES.md](ML_INTEGRATION_NOTES.md). |
+| `ML_TIMEOUT_MS` | `120` | How long to wait for the scorer, in milliseconds. Too short for a real model service; raise it when one is added. |
 | `ALLOW_ML_TEST_OVERRIDE` | unset | When `true`, a claim containing `"_mlStatus": "error"` skips the scorer as if it had failed. For tests only. |
 
 Phoenix uses only `/api/batch-evaluate`, which never calls the ML scorer, so the

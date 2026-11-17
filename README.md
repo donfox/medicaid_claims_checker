@@ -61,14 +61,8 @@ Running and administering:
 Testing:
 
 - [Test procedure](docs/TEST_PROCEDURE.md): running the tests and checking a local setup
-- [Frontend use cases](docs/testing/Frontend_Use_Cases.md): the 59 things to test in the running app, with each one's test files and expected result
-- [Repeat testing](docs/testing/Repeat_Testing_Guide.md): uploading the same test files round after round
+- [Frontend use cases](docs/FRONTEND_USE_CASES.md): the 59 things to test in the running app, with each one's test files and expected result, and how to upload the same files round after round
 - [Audit queries](docs/scripts/): SQL queries that check a batch's provider NPIs against the NPPES data, used in the test procedure
-
-Planning:
-
-- [ML integration notes](docs/ML_INTEGRATION_NOTES.md): how the engine talks to an ML scorer today, and the open issues for the planned Python scoring service
-- [ML plan](docs/ML_PLAN.md): the proposed plan for trained ML models (data, training, scoring service), ahead of the LLM scorer
 
 Formal statement:
 

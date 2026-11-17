@@ -13,20 +13,14 @@ The platform has two runtime services:
 
 In normal operation, the Phoenix app sends rule text plus claim payloads to the Haskell engine over HTTP using JSON.
 
-## Haskell API Surface
+## Engine API and Modules
 
-| Endpoint | Method | Purpose |
-|---|---|---|
-| `/api/health` | GET | Health and liveness check |
-| `/api/parse-rule` | POST | Parse DSL text and return the parse result |
-| `/api/evaluate` | POST | Evaluate rules against a single claim using the DSL + ML pipeline |
-| `/api/batch-evaluate` | POST | Evaluate rules against multiple claims using the DSL only |
-| `/api/check-redundancy` | POST | Detect duplicate, overlapping, or subsuming rules |
-
-## Core Engine Modules
-
-The engine's modules and what each does are listed in
-[haskell_engine/README.md](../haskell_engine/README.md#module-overview).
+The engine's endpoints are listed in
+[haskell_engine/README.md](../haskell_engine/README.md#api-endpoints), and its
+modules in the same file's [Module Overview](../haskell_engine/README.md#module-overview).
+Phoenix calls only `/api/parse-rule`, `/api/batch-evaluate` and
+`/api/check-redundancy`; `/api/evaluate`, the one claim path that calls the ML
+scorer, is used only by direct API calls and tests.
 
 ## Engine Call Structure
 

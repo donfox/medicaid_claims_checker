@@ -17,8 +17,8 @@
 
 - The engine and Phoenix are running (`./start.sh`); the dev database has the 17 seeded active rules and the October 2026
   NPPES import.
-- Leave **Test upload: allow re-submission** ticked on the upload page so files can be uploaded again (see the companion
-  guide [Repeat Testing with Mock Data](Repeat_Testing_Guide.md)). Untick it only for U4–U6.
+- Leave **Test upload: allow re-submission** ticked on the upload page so files can be uploaded again (see
+  [Uploading the same files again](#uploading-the-same-files-again)). Untick it only for U4–U6.
 - Every path below is relative to `mock_data/`. Each use case has its own folder, `<group>/<ID>_<name>/`; the table names
   the folder and the files in it. The exact expected result of every generated file is in `mock_data/manifest.json`.
 - Use cases with no folder of their own (N1, R8, U1–U8) use files from other folders.
@@ -123,3 +123,29 @@
 | **P2** | Redundancy levels | `P_rules_page/P2_redundancy_levels/` redundancy_levels.dsl (add in file order) | Exact duplicate, subsumption, shadowed and overlap warnings each appear where the file’s comments say. |
 | **P3** | Rule with a syntax error | `P_rules_page/P3_syntax_error/` missing_then.dsl | “Rule syntax issue” shown while typing; saving gives “Could not save rule”; nothing saved. |
 | **P4** | Rule naming an unknown field | `P_rules_page/P4_unknown_field/` old_field_name.dsl | Saved as an inactive draft, with the current name suggested (“subscriber.subscriber_id -> subscriber.member_id”). |
+
+## Uploading the same files again
+
+The app accepts each claim only once, on purpose. It refuses a file it has already received, and any claim whose content
+matches a claim already submitted, even in a different file. The refusal names the earlier batch and shows in Batch
+History. "Clear display" does not reset this; it only hides old batches.
+
+In development, Manual Upload has a checkbox, **Test upload: allow re-submission**, ticked each time the page loads.
+While it is ticked, the files in `mock_data/` can be uploaded as they are, round after round; the batch name ends in
+"(test re-submission)". The checkbox appears only in development (`config/dev.exs` sets `allow_test_resubmission: true`);
+production never shows it, and the server ignores the request if it is sent anyway.
+
+When uploading by hand (up to 100 files, 10 MB each), leave out `manifest.json`, the `.dsl` rule files (they go on the
+Rules page) and the claims in `P_rules_page/P2_redundancy_levels/claims/`, which are written for
+`redundancy_levels.dsl`, not the live rules.
+
+| Situation | What to do |
+|---|---|
+| A file is refused as already submitted | The checkbox was unticked. Tick it and upload again. |
+| The checkbox isn't there | The app isn't running in development. Start it with `./start.sh`; after a change to `config/dev.exs`, restart Phoenix. |
+| X12 error files (X7, E3) or zips with nothing usable (Z4, Z6) | They hold no claims, so they are never recorded and are refused only for what is wrong with them. |
+| A new-provider rule doesn't fire on an X12 file | Provider tenure comes only from JSON claims; use the JSON files for R8. |
+| Copies with new claim IDs are wanted anyway | `elixir mock_data/retag.exs --tag 3 --out ~/upload_round3 mock_data` writes copies whose claim IDs end in `-3`, with a matching `manifest.json`; check them with `verify.exs --suite ~/upload_round3/mock_data`. Not needed while the checkbox is ticked. |
+
+To check every file without clicking, use `./test.sh` or `mock_data/verify.exs`; see
+[TEST_PROCEDURE.md](TEST_PROCEDURE.md#4-run-the-use-case-tests).

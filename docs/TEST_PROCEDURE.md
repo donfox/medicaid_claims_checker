@@ -1,8 +1,8 @@
 # Test Procedure
 
-This is the practical day-to-day workflow for local validation.
-
-Detailed historical expected-output matrices and older review materials are retained in `docs/archive/reviews/`.
+This is the practical day-to-day workflow for local validation. The list of
+use cases to test in the running app, with each one's expected result, is in
+[FRONTEND_USE_CASES.md](FRONTEND_USE_CASES.md).
 
 ## Prerequisites
 
@@ -58,7 +58,7 @@ From the project root:
 Or run each service separately:
 
 ```bash
-cd haskell_engine && cabal run medicaid-claims-dsl-exe
+cd haskell_engine && stack run
 cd phoenix_web && mix phx.server
 ```
 
@@ -115,18 +115,9 @@ rules, and the outcome is compared with `mock_data/manifest.json`.
 
 ### Uploading test data more than once
 
-Phoenix refuses a file or a claim it has already received ("Clear display" doesn't
-reset this). In development, the Manual Upload box "Test upload: allow re-submission"
-(ticked by default) lets the same files be uploaded again. The scripts above don't
-upload, so they can run any number of times. To upload copies under new claim IDs
-instead (ending in `-N`, with a new N each round):
-
-```bash
-elixir mock_data/retag.exs --tag 3 --out ~/upload_round3 mock_data
-```
-
-Files without claims (the X12 error cases) are never recorded, so they can be uploaded
-again as they are.
+The scripts above don't upload, so they can run any number of times. Phoenix
+refuses a file or claim it has already received; for uploading the same files by
+hand, see [Uploading the same files again](FRONTEND_USE_CASES.md#uploading-the-same-files-again).
 
 ## 5. Run API Smoke Checks
 
@@ -149,8 +140,6 @@ At `http://localhost:4000/rules`, verify that:
 - ML model entries are read-only
 - a new BA rule can be created and appears in the catalogue
 
-Also verify that `http://localhost:4000/catalogue` renders correctly.
-
 ## 7. Check Negative Cases
 
 Confirm that the API returns clear errors for:
@@ -160,7 +149,7 @@ Confirm that the API returns clear errors for:
 - empty `tenant_id`
 - malformed DSL input
 
-## 7. Latest Batch NPI/NPPES Audit
+## 8. Latest Batch NPI/NPPES Audit
 
 Use this to verify provider NPI presence and NPPES status for the latest ingested batch,
 including scheduled remote fetch batches.
@@ -195,6 +184,6 @@ Use this list as the final go/no-go check:
 
 - Unit tests pass: `stack test` and `mix test`
 - Both services report healthy
-- Integration scripts exit `0`
+- `./test.sh` reports `0 failures`, and `verify.exs` reports no `FAIL` lines
 - Core API endpoints behave correctly
 - UI rule workflows work end to end

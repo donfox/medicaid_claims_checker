@@ -128,6 +128,10 @@ The app counts HighRisk and CriticalRisk claims as flagged for analyst review. `
 
 A rule whose condition depends on missing or unusable data does not match. Its result has `resultUndecided: true` and its `resultDetails` names the fields that were missing or unusable, the report's `undecidedRules` counts such rules, and the app lists them as not checked instead of calling the claim clean. See the Missing data section of `docs/SYNTAX_GUIDE.md`.
 
+### Known limitation: a timed-out claim looks clean
+
+Each claim has a 30-second limit. When a claim exceeds it, `/api/batch-evaluate` returns `{"claimIndex": i, "error": ...}` for that claim, with no `report`. Phoenix reads the missing report as an empty one and stores the claim as evaluated, so it shows as `LowRisk` with no rules matched or not checked. No claim is known to have come near 30 seconds, so this is not fixed yet. Fix it before adding anything that makes claims slower (such as a call to a scoring service per claim): a timed-out claim should be shown as not assessed, never as clean.
+
 ## How the Engine Checks a Batch of Claims
 
 What happens to one `POST /api/batch-evaluate` request from Phoenix. GitHub

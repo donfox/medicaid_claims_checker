@@ -8,7 +8,7 @@ for manual testing and by the automated tests and scripts.
 ## How it is organised
 
 Files are grouped by the **use case** they test, using the IDs from the
-Frontend Use Cases list ([docs/testing/Frontend_Use_Cases.md](../docs/testing/Frontend_Use_Cases.md)):
+Frontend Use Cases list ([docs/FRONTEND_USE_CASES.md](../docs/FRONTEND_USE_CASES.md)):
 
 ```
 mock_data/

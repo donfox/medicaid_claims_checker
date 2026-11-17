@@ -44,7 +44,37 @@ Planned for Edition 2:
 - [The web app](phoenix_web/README.md): where the code is, and a flowchart of how a batch of claims is processed
 - [The rule engine](haskell_engine/README.md): its modules, its API, and a flowchart of how it checks claims
 - [Test data](mock_data/README.md): every test file, by use case
-- [Documentation guide](docs/README.md): architecture, configuration, the admin guide, rule syntax, testing and plans
+
+## Documentation
+
+How it works:
+
+- [Architecture](docs/ARCHITECTURE.md): how the web app and the rule engine fit together, the engine's API and call structure, and how claims flow through the system
+- [Database](docs/DATABASE_ERD.md): every database table, its columns and how they relate
+- [Rule syntax](docs/SYNTAX_GUIDE.md): writing business rules in the rule language
+
+Running and administering:
+
+- [Configuration](docs/CONFIGURATION.md): every setting both services read, with its default
+- [Admin guide](docs/ADMIN_GUIDE.md): managing accounts on the Admin page, including password links for users without a password or who have forgotten it
+
+Testing:
+
+- [Test procedure](docs/TEST_PROCEDURE.md): running the tests and checking a local setup
+- [Frontend use cases](docs/testing/Frontend_Use_Cases.md): the 59 things to test in the running app, with each one's test files and expected result
+- [Repeat testing](docs/testing/Repeat_Testing_Guide.md): uploading the same test files round after round
+- [Audit queries](docs/scripts/): SQL queries that check a batch's provider NPIs against the NPPES data, used in the test procedure
+
+Planning:
+
+- [ML integration notes](docs/ML_INTEGRATION_NOTES.md): how the engine talks to an ML scorer today, and the open issues for the planned Python scoring service
+- [ML plan](docs/ML_PLAN.md): the proposed plan for trained ML models (data, training, scoring service), ahead of the LLM scorer
+
+Formal statement:
+
+- [Module capability statement](docs/MODULE_CAPABILITY_STATEMENT.md): the capability statement EMRTS submitted for review
+
+Older material (earlier reviews, the May 2026 validation report) is in the Git history and in the `edition-1` tag.
 
 ## Scope and Status
 

@@ -432,7 +432,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     end
   end
 
-  # --- Batch History event handlers ---
+  # --- Jobs History event handlers ---
 
   def handle_event("toggle_batch_history", _params, socket) do
     {:noreply, assign(socket, :show_batch_history, !socket.assigns.show_batch_history)}
@@ -902,7 +902,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
   defp source_type_label("databricks"), do: "Databricks"
   defp source_type_label(other), do: other
 
-  # --- Batch History helpers ---
+  # --- Jobs History helpers ---
 
   @history_per_page 20
   @history_tz "America/New_York"

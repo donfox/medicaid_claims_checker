@@ -73,7 +73,7 @@ Testing:
 
 Formal statement:
 
-- [Module capability statement](docs/MODULE_CAPABILITY_STATEMENT.md): the capability statement EMRTS submitted for review
+- [Module capability statement](docs/MODULE_CAPABILITY_STATEMENT.md): the capability statement EMRTS submitted for review, kept unchanged as a May 2026 record of Edition 1
 
 Older material (earlier reviews, the May 2026 validation report) is in the Git history and in the `edition-1` tag.
 

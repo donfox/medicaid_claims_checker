@@ -1,11 +1,20 @@
+> **Record copy.** This is the capability statement as it stood in May 2026
+> (the earliest version in Git, commit `5ce65bd`). It describes Edition 1 and
+> is kept unchanged as a record; it is not updated as the system changes. For
+> what the system does now, see the [README](../README.md) and the other
+> documents in `docs/`.
+>
+> This document describes a portfolio proof of concept. EMRTS submitted it to
+> the state government entities identified in the submission materials.
+> Submission does not imply agency endorsement, contract award, integration,
+> or production deployment.
+
 # Module Capability Statement
 ## Claims Integrity and Fraud Detection Module
 
 **Version:** 1.0  
 **Date:** May 2026  
-**Status:** Portfolio prototype capability statement submitted by EMRTS to state government entities for review
-
-This document describes a portfolio proof of concept. EMRTS submitted it to the state government entities identified in the submission materials. Submission does not imply agency endorsement, contract award, integration, or production deployment.
+**Status:** Draft — for HCPF procurement review
 
 ---
 
@@ -26,9 +35,9 @@ This module is a **pre-adjudication tool**. It does not adjudicate claims, make 
 - Validates provider National Provider Identifiers (NPIs) against the CMS NPPES provider registry
 - Hard-rejects claims with unrecognised or deactivated provider NPIs prior to rule evaluation
 - Evaluates claims against a configurable library of business rules authored in a domain-specific language (DSL)
-- Supports three rule types: Default Rules (system-defined), BA Rules (business-analyst-authored), and ML Models (catalogued; the ML scoring service is not connected yet)
+- Supports three rule types: Default Rules (system-defined), BA Rules (business-analyst-authored), and ML Model scoring
 - Detects redundant or conflicting rules in the rule library before activation
-- Produces per-claim risk findings: CriticalRisk, HighRisk, LowRisk
+- Produces per-claim risk findings: CriticalRisk, HighRisk, MediumRisk, LowRisk
 - Produces per-claim weighted fraud scores based on the severity of triggered rules
 - Stores evaluation history and per-claim audit trail in a PostgreSQL database
 - Accepts claim files via SFTP, HTTP, local directory, or Databricks on configurable cron or interval schedules
@@ -67,10 +76,9 @@ Each evaluated claim receives an overall risk classification based on the action
 | Risk Level | Condition |
 |---|---|
 | **CriticalRisk** | Any rule triggers RejectClaim or FlagFraud, or NPI validation fails |
-| **HighRisk** | Any rule triggers RequireReview, or a risk score ≥ 70 |
+| **HighRisk** | 3 or more rules trigger risk scores ≥ 70 |
+| **MediumRisk** | 1–2 rules trigger risk scores ≥ 70 |
 | **LowRisk** | No high-severity rule actions triggered |
-
-HighRisk and CriticalRisk claims are counted as flagged for analyst review. MediumRisk is no longer produced by the engine.
 
 A weighted score is also computed per claim based on the severity of each triggered rule action (Reject = 3 pts, FlagFraud = 2 pts, RequireReview = 1 pt).
 

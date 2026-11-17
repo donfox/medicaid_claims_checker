@@ -102,47 +102,54 @@ evaluatorSpec = do
   -- ----------------------------------------------------------------
   -- Claim Scenarios
   -- ----------------------------------------------------------------
-  -- Four BA rules that match the seeded business rules.
-  -- Two extra rules (extreme_amount, impossible_date) emulate the
-  -- Default Rule catalogue entries ImpossibleDates / ExtremeAmounts.
+  -- Four rules on the converted-claim layout (the fields rules really see).
+  -- weekend_office_visit is the seeded WeekendOfficeVisit text; the other
+  -- three are test rules: a $50K review, an outpatient-place-of-service
+  -- claim billed as inpatient, and an extreme amount.
   let claimRulesText =
-        -- BA Rule 1 — seed: HighValueReview
         "RULE high_value_review \"Flag high-value claims for manual review\" \
-        \WHEN 2300.CLM.claim_amount > 50000 \
+        \WHEN financial.claim_amount > 50000 \
         \THEN REQUIRE_REVIEW \"Exceeds high-value threshold\"; \
-        \RULE weekend_office_visit \"Office visit on weekend with elevated amount\" \
-        \WHEN 2400.SV1.place_of_service = \"11\" \
-        \AND 2400.DTP.service_day_of_week = \"SAT\" \
-        \AND 2300.CLM.claim_amount > 500 \
-        \THEN REQUIRE_REVIEW \"Weekend office visit requires verification\"; \
-        \RULE inpatient_mismatch \"Outpatient POS with inpatient billing\" \
-        \WHEN 2400.SV1.place_of_service = \"22\" \
-        \AND 2300.CLM.facility_type = \"Inpatient\" \
-        \AND 2300.CLM.claim_amount > 10000 \
+        \RULE weekend_office_visit \
+        \DESCRIPTION \"Office visit on weekend with elevated amount\" \
+        \WHEN financial.claim_amount > 500 \
+        \AND claim_details.facility_type_code IS NULL \
+        \AND EXISTS line IN service_lines \
+        \WHERE is_weekend(line.date_of_service) AND line.place_of_service = \"11\" \
+        \THEN REQUIRE_REVIEW \"Weekend office visit requires verification\" END \
+        \RULE inpatient_mismatch \"Outpatient place of service with inpatient billing\" \
+        \WHEN EXISTS line IN service_lines WHERE line.place_of_service = \"22\" \
+        \AND claim_details.facility_type_code = \"11\" \
+        \AND financial.claim_amount > 10000 \
         \THEN REJECT \"Inpatient/outpatient mismatch detected\"; \
         \RULE extreme_amount \"Flag extreme billing amounts (Default Rule equivalent)\" \
-        \WHEN 2300.CLM.claim_amount > 1000000 \
+        \WHEN financial.claim_amount > 1000000 \
         \THEN FLAG_FRAUD \"Extreme billing amount exceeds $1M\";"
 
   let Right claimEngine = loadRules claimRulesText
 
-  -- Helper: build an X12-structured JSON claim document
-  let mkX12Claim amount pos dow facilityType =
-        object
-          [ "2300"
-              .= object
-                [ "CLM"
-                    .= object
-                      [ "claim_amount" .= (amount :: Double)
-                      , "facility_type" .= (facilityType :: String)
-                      ]
-                ]
-          , "2400"
-              .= object
-                [ "SV1" .= object ["place_of_service" .= (pos :: String)]
-                , "DTP" .= object ["service_day_of_week" .= (dow :: String)]
-                ]
+  -- A service date on the named day: 2026-02-21 is a Saturday.
+  let dayDate :: String -> String
+      dayDate day = case day of
+        "SAT" -> "2026-02-21"
+        "MON" -> "2026-02-23"
+        _ -> "2026-02-24" -- Tuesday
+  -- An inpatient claim carries a facility type code (11 = hospital
+  -- inpatient); an outpatient or office claim has none.
+  let facilityFields :: String -> [(Aeson.Key, Aeson.Value)]
+      facilityFields facilityType =
+        [ "claim_details" .= object ["facility_type_code" .= ("11" :: String)]
+        | facilityType == "Inpatient"
+        ]
+
+  -- Helper: a converted claim with one service line
+  let mkX12Claim amount pos day facilityType =
+        object $
+          [ "financial" .= object ["claim_amount" .= (amount :: Double)]
+          , "service_lines"
+              .= [object ["place_of_service" .= (pos :: String), "date_of_service" .= dayDate day]]
           ]
+            ++ facilityFields facilityType
 
   let evalTs = "2026-02-24T00:00:00Z"
 
@@ -298,62 +305,56 @@ evaluatorSpec = do
              \WHEN in_list(claim.dx_code, [\"Z76.89\", \"Z09\", \"Z00.00\", \"T78.40XA\"]) \
              \THEN FLAG_FRAUD \"Suspicious diagnosis code\"; \
              \RULE weekend_service_date \"Flag elevated weekend service claims\" \
-             \WHEN is_weekend(claim.service_date) AND 2300.CLM.claim_amount > 1000 \
+             \WHEN is_weekend(claim.service_date) AND financial.claim_amount > 1000 \
              \THEN REQUIRE_REVIEW \"Weekend service date with elevated amount\"; \
              \RULE invalid_npi_prefix \"NPI cannot start with zero\" \
              \WHEN starts_with(provider.npi, \"0\") \
              \THEN FLAG_FRAUD \"Invalid NPI: leading zero\"; \
              \RULE half_million_composite \"Composite flag for claims over $500k\" \
-             \WHEN 2300.CLM.claim_amount > 500000 \
+             \WHEN financial.claim_amount > 500000 \
              \THEN [FLAG_FRAUD \"Half-million dollar claim\", RISK_SCORE 85]; \
              \RULE unapproved_state \"Provider state not in approved network\" \
              \WHEN NOT in_list(claim.state, [\"TX\", \"CA\", \"NY\", \"FL\", \"WA\"]) \
              \THEN REQUIRE_REVIEW \"Provider not in approved network states\"; \
              \RULE medium_value_range \"Medium-value range requiring review\" \
-             \LET claim_amt = 2300.CLM.claim_amount \
+             \LET claim_amt = financial.claim_amount \
              \WHEN claim_amt > 25000 AND claim_amt < 50000 \
              \THEN REQUIRE_REVIEW \"Medium-value claim 25k-50k\";"
 
   let Right extEngine = loadRules extRulesText
 
-  -- Rich claim helper: includes claim.dx_code, claim.service_date, claim.state, provider.npi
-  let mkRichClaim amount pos dowField serviceDate dx claimState npi facilityType =
-        object
+  -- Rich claim helper: the converted claim above plus test-only fields that
+  -- the extended rules read (claim.dx_code, claim.service_date, claim.state)
+  -- and provider.npi. The service line is dated serviceDate.
+  let mkRichClaim amount pos serviceDate dx claimState npi facilityType =
+        object $
           [ "claim"
               .= object
                 [ "dx_code" .= (dx :: String)
                 , "service_date" .= (serviceDate :: String)
                 , "state" .= (claimState :: String)
                 ]
-          , "2300"
-              .= object
-                [ "CLM"
-                    .= object
-                      [ "claim_amount" .= (amount :: Double)
-                      , "facility_type" .= (facilityType :: String)
-                      ]
-                ]
-          , "2400"
-              .= object
-                [ "SV1" .= object ["place_of_service" .= (pos :: String)]
-                , "DTP" .= object ["service_day_of_week" .= (dowField :: String)]
-                ]
+          , "financial" .= object ["claim_amount" .= (amount :: Double)]
+          , "service_lines"
+              .= [object ["place_of_service" .= (pos :: String), "date_of_service" .= serviceDate]]
           , "provider" .= object ["npi" .= (npi :: String)]
           ]
+            ++ facilityFields facilityType
 
   describe "Extended Claim Scenarios — 6 New Rules" $ do
     --  CLM016 ─ suspicious diagnosis code
     it "CLM016 suspicious dx (Z76.89, $3k, Tue): FLAG_FRAUD → CriticalRisk" $ do
-      let claim  = mkRichClaim 3000  "11" "TUE" "2026-02-24" "Z76.89" "TX" "1234567890" "Outpatient"
+      let claim  = mkRichClaim 3000  "11" "2026-02-24" "Z76.89" "TX" "1234567890" "Outpatient"
           report = evaluateSimpleJson extEngine testDay claim
       -- only suspicious_dx fires
       reportMatchedRules report `shouldBe` 1
       reportOverallRisk  report `shouldBe` CriticalRisk
 
-    --  CLM017 ─ service_date is Saturday, but DTP day-of-week field says TUE (data inconsistency)
-    --           weekend_service_date fires (uses actual date); weekend_office_visit does NOT
-    it "CLM017 weekend service_date (2026-02-21 Sat, DOW field=TUE, $2500): weekend_service_date only" $ do
-      let claim  = mkRichClaim 2500  "11" "TUE" "2026-02-21" "M54.5" "TX" "1234567890" "Outpatient"
+    --  CLM017 ─ Saturday home visit (place of service 12)
+    --           weekend_service_date fires on any weekend date; weekend_office_visit
+    --           needs an office (place of service 11), so it does NOT
+    it "CLM017 Saturday home visit (2026-02-21, pos=12, $2500): weekend_service_date only" $ do
+      let claim  = mkRichClaim 2500  "12" "2026-02-21" "M54.5" "TX" "1234567890" "Outpatient"
           report = evaluateSimpleJson extEngine testDay claim
       reportMatchedRules report `shouldBe` 1
       let matched = filter resultMatched (reportResults report)
@@ -361,21 +362,21 @@ evaluatorSpec = do
 
     --  CLM018 ─ invalid NPI (starts with "0")
     it "CLM018 invalid NPI prefix (0123456789, $8k): FLAG_FRAUD → CriticalRisk" $ do
-      let claim  = mkRichClaim 8000  "11" "TUE" "2026-02-24" "M54.5" "TX" "0123456789" "Outpatient"
+      let claim  = mkRichClaim 8000  "11" "2026-02-24" "M54.5" "TX" "0123456789" "Outpatient"
           report = evaluateSimpleJson extEngine testDay claim
       reportMatchedRules report `shouldBe` 1
       reportOverallRisk  report `shouldBe` CriticalRisk
 
     --  CLM019 ─ $750k: half_million_composite [FLAG_FRAUD, RISK_SCORE 85] + high_value_review
     it "CLM019 half-million ($750k, Tue): composite FLAG_FRAUD + high_value_review → CriticalRisk" $ do
-      let claim  = mkRichClaim 750000 "11" "TUE" "2026-02-24" "M54.5" "TX" "1234567890" "Outpatient"
+      let claim  = mkRichClaim 750000 "11" "2026-02-24" "M54.5" "TX" "1234567890" "Outpatient"
           report = evaluateSimpleJson extEngine testDay claim
       reportMatchedRules report `shouldBe` 2
       reportOverallRisk  report `shouldBe` CriticalRisk
 
     --  CLM020 ─ provider in Montana (unapproved state)
     it "CLM020 unapproved state (MT, $4k, Tue): unapproved_state → REQUIRE_REVIEW" $ do
-      let claim  = mkRichClaim 4000  "11" "TUE" "2026-02-24" "M54.5" "MT" "1234567890" "Outpatient"
+      let claim  = mkRichClaim 4000  "11" "2026-02-24" "M54.5" "MT" "1234567890" "Outpatient"
           report = evaluateSimpleJson extEngine testDay claim
       reportMatchedRules report `shouldBe` 1
       -- REQUIRE_REVIEW asks for analyst review, so the claim is HighRisk
@@ -383,7 +384,7 @@ evaluatorSpec = do
 
     --  CLM021 ─ $35k: medium_value_range fires via LET binding; high_value_review does NOT
     it "CLM021 medium value ($35k, Tue, LET binding): medium_value_range only" $ do
-      let claim  = mkRichClaim 35000 "11" "TUE" "2026-02-24" "M54.5" "TX" "1234567890" "Outpatient"
+      let claim  = mkRichClaim 35000 "11" "2026-02-24" "M54.5" "TX" "1234567890" "Outpatient"
           report = evaluateSimpleJson extEngine testDay claim
       -- 25000 < 35000 < 50000 → medium_value_range; high_value_review requires > 50000
       reportMatchedRules report `shouldBe` 1

@@ -111,7 +111,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
       message =
         case Map.get(payload, :reason) do
           reason when is_binary(reason) and reason != "" -> "Evaluation failed: #{reason}"
-          _ -> "Evaluation failed — see Batch History for details."
+          _ -> "Evaluation failed — see Jobs History for details."
         end
 
       {:noreply,

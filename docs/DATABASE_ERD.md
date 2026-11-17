@@ -235,7 +235,7 @@ foreign key**: a catalogue entry with `entry_type = "BA Rule"` has a
   is empty for accounts made before password registration. An admin gives
   those users, and users who forget their password, a one-time password link
   (see [ADMIN_GUIDE.md](ADMIN_GUIDE.md)).
-  `history_cleared_at` hides older batches from that user's Batch History
+  `history_cleared_at` hides older batches from that user's Jobs History
   without deleting them.
 - **`users_tokens`**: hashed tokens. `session` tokens keep a user logged in
   (14 days); `password_setup` tokens back one-time password links (3 days).

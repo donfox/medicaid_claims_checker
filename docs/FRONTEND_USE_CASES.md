@@ -8,7 +8,7 @@
 *Medicaid Claims Checker · test plan for the running app · status as of October 21, 2026*
 
 > **What this is.** The agreed list of things to test in the running Medicaid Claims Checker through its web pages: the
-> Fetch Source page (`http://localhost:4000/`, Manual Upload and Batch History) and the Rules page (`/rules`). Each use
+> Fetch Source page (`http://localhost:4000/`, Manual Upload and Jobs History) and the Rules page (`/rules`). Each use
 > case names its test files and what the app should show. Engine-only checks are out of scope.
 
 **59** use cases · **59** with test data · **59** checked automatically by `./test.sh`
@@ -77,7 +77,7 @@
 | **U1** | Several files of mixed types at once | For example R2_each_rule_alone/HighValueClaim.json, X1…/clean_office_visit.x12, Z1…/mixed_bundle.zip | Every file’s claims are evaluated in one batch. |
 | **U2** | Unsupported file type (.txt, .pdf) | Any non-claim file | “File type not accepted. Allowed: .json, .x12, .edi, .zip”, before upload. |
 | **U3** | File over 10 MB | Any file over 10 MB (not kept in git) | “File is too large (max 10 MB).”, before upload. |
-| **U4** | Same file uploaded twice | Any claim file, checkbox unticked | Second time: “Nothing was evaluated: every claim was already submitted…”, and a red notice in Batch History. |
+| **U4** | Same file uploaded twice | Any claim file, checkbox unticked | Second time: “Nothing was evaluated: every claim was already submitted…”, and a red notice in Jobs History. |
 | **U5** | Same claim in a different file | A copy of an uploaded file with one extra line at the end, checkbox unticked | The claim is refused as already submitted, naming the earlier batch; other claims are evaluated. |
 | **U6** | Same claim twice in one file | A JSON list holding one claim twice, checkbox unticked | Only the first copy is evaluated; the second is refused (“appears twice in this submission”). |
 | **U7** | Void / replacement (frequency 8 / 7) | `R_business_rules/R11_replacement_or_void_claim/` | Accepted: a void or replacement is not a duplicate of the original. |
@@ -127,7 +127,7 @@
 ## Uploading the same files again
 
 The app accepts each claim only once, on purpose. It refuses a file it has already received, and any claim whose content
-matches a claim already submitted, even in a different file. The refusal names the earlier batch and shows in Batch
+matches a claim already submitted, even in a different file. The refusal names the earlier batch and shows in Jobs
 History. "Clear display" does not reset this; it only hides old batches.
 
 In development, Manual Upload has a checkbox, **Test upload: allow re-submission**, ticked each time the page loads.

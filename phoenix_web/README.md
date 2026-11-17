@@ -74,7 +74,7 @@ flowchart TD
         STORE["For each claim: add any NPPES rejection,<br/>add the weighted score, save the report,<br/>mark the claim <i>evaluated</i>"]
     end
 
-    DONE(["Batch <b>completed</b><br/>Batch History updates live:<br/>risk level, matched rules,<br/>rules not checked"])
+    DONE(["Batch <b>completed</b><br/>Jobs History updates live:<br/>risk level, matched rules,<br/>rules not checked"])
     NONE["Batch completed<br/>without evaluation"]
     FAIL["Batch <b>failed</b><br/>the reason is shown<br/>on the upload page"]
 
@@ -117,7 +117,7 @@ flowchart TD
 | ① Read the files | `x12/claim_splitter.ex` splits X12 into claims; `x12/converter.ex` (with `parser.ex`, `segment_mapper.ex`) turns each into JSON; `claims/json_claim.ex` reads `.json` files |
 | ② Store the batch | `Claims.ingest_batch` in `claims.ex`: one database transaction that refuses duplicate claims, saves the rest and queues the job |
 | ③ Evaluate the batch | `workers/batch_evaluation_worker.ex` runs `Evaluator.evaluate_batch` in `claims/evaluator.ex`, which calls the engine through `claims/engine_client.ex` |
-| Results | `Evaluator` announces *completed* or *failed*; the upload page is listening and refreshes Batch History |
+| Results | `Evaluator` announces *completed* or *failed*; the upload page is listening and refreshes Jobs History |
 
 A claim whose provider fails the NPPES check is still sent to the engine. The
 NPPES rejection is added to its report afterwards, so the report shows the

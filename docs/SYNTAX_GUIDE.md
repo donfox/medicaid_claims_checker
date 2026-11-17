@@ -6,9 +6,9 @@ This guide explains how to write Medicaid Claims Checker business rules using th
 
 ## Rule Block Styles
 
-The engine currently accepts two rule styles.
+The engine accepts two rule styles, and the seeded rules use both.
 
-### Style A — Recommended
+### Style A — with `DESCRIPTION` and `END`
 
 ```text
 RULE <rule_name>
@@ -18,13 +18,15 @@ THEN <action>
 END
 ```
 
-### Style B — Legacy shorthand
+### Style B — shorthand, ending in a semicolon
 
 ```text
 RULE <rule_name> "<description>"
 WHEN <predicate>
 THEN <action>;
 ```
+
+The description may also go on its own line after `RULE <rule_name>`.
 
 ## Rule Keywords
 
@@ -221,17 +223,31 @@ This matches an NPI that is present but malformed. It does not match a claim wit
 provider.npi IS NULL OR NOT (provider.npi MATCHES "^[0-9]{10}$")
 ```
 
-### String helper operations
+### Helper functions
 
 ```text
-starts_with(field, "pre")
-in_list(field, ["A", "B"])
+starts_with(provider.taxonomy, "207")
+in_list(claim_details.place_of_service, ["11", "22"])
+is_weekend(line.date_of_service)
 ```
+
+| Helper | True when |
+|---|---|
+| `starts_with(field, "text")` | the field's text begins with `"text"` |
+| `in_list(field, ["A", "B"])` | the field's text is one of the listed values |
+| `is_weekend(date)` | the date is a Saturday or Sunday |
+| `is_future_date(date)` | the date is after today |
+| `is_date_before(date, "1900-01-01")` | the first date is earlier than the second |
+| `is_age_valid(date_of_birth, min, max)` | the age today, in whole years, is from `min` to `max` inclusive |
+| `is_npi_format(npi)` | the value is exactly 10 digits |
+| `is_valid_npi(npi)` | the value is 10 digits and passes the NPI (Luhn-10) check digit |
+| `is_high_amount(amount, threshold)` | the amount is greater than the threshold |
 
 Notes:
 
-- `starts_with` checks for a text prefix.
-- `in_list` checks membership in a list.
+- An argument can be a field, a `LET` name, a quantifier variable's field such as `line.date_of_service`, or a literal.
+- Dates are read in the formats listed under [Date values as strings](#date-values-as-strings). A field that is missing, or not a readable date or number, makes the helper unknown, not false (see [Missing data](#missing-data)).
+- Helper names are not case-sensitive.
 - A misspelled helper name, or a helper called with the wrong number of arguments, is reported as an error when the rule is saved (for example `Unknown helper function: is_weekand`).
 
 ## Field References
@@ -244,8 +260,9 @@ Main sections:
 
 - `claim_id` — claim identifier
 - `financial.claim_amount`, `claim_totals.total_charges` — amounts
-- `claim_details` — `place_of_service`, `frequency_code` (1 original, 7 replacement, 8 void)
+- `claim_details` — `place_of_service`, `facility_type_code`, `frequency_code` (1 original, 7 replacement, 8 void)
 - `provider`, `billing_provider` — `npi`, `name`, `taxonomy`, `tax_id`; `billing_provider.address` has `street`, `city`, `state`, `zip`
+- `provider.tenure_days` — how many days the provider has been credentialed (the two new-provider rules use it). Only JSON claims carry it; X12 conversion leaves it empty, so on an X12 claim a rule using it is not checked
 - `rendering_provider` — `npi`, `taxonomy_code`, `last_name`, `first_name`
 - `patient` — `date_of_birth`, `gender`, `name.first`, `name.last`
 - `subscriber` — `member_id`, `date_of_birth`, `relationship_code`, `group_number`
@@ -254,7 +271,9 @@ Main sections:
 - `diagnosis_codes` — list; each has `code` and `qualifier`
 - `service_lines` — list; each has `procedure_code`, `charge_amount`, `units`, `date_of_service`, `place_of_service`, `line_number`, `diagnosis_pointer`, `revenue_code`
 
-The Rules page checks every field a rule uses against this structure. A rule naming a field that no converted claim has is saved as a draft and cannot be activated; the message suggests the field to use where there is one.
+The list above covers the fields rules usually need. The full list, including middle names, the subscriber's address, dental `tooth_info` and the envelope sections (`submitter`, `receiver`, `interchange`, `functional_group`), is in `phoenix_web/lib/medicaid_claims_checker/claims/rule_schema_validator.ex`.
+
+The Rules page checks every field a rule uses against that list. A rule naming a field that no converted claim has is saved as a draft and cannot be activated; the message suggests the field to use where there is one.
 
 ### X12 loop-style paths are not fields
 
@@ -322,6 +341,7 @@ END
 ```text
 "2026-01-24"
 "20260124"
+"2026-01-24T10:30:00"
 ```
 
 ### Field-to-field comparisons
@@ -335,9 +355,11 @@ EXISTS line IN service_lines WHERE line.charge_amount > financial.claim_amount
 
 ## Actions
 
+An action is a recommendation, not a decision. It sets the claim's overall risk level and records the reason for the analyst; it never changes the claim's status, and nothing is paid, denied or approved by a rule.
+
 ### `FLAG_FRAUD`
 
-Flags a claim as potentially fraudulent with a reason.
+Recommends a fraud investigation, with a reason. Makes the overall risk CriticalRisk.
 
 ```text
 FLAG_FRAUD "Reason for flagging"
@@ -345,7 +367,7 @@ FLAG_FRAUD "Reason for flagging"
 
 ### `REJECT`
 
-Rejects the claim with a reason.
+Recommends rejecting the claim, with a reason. Makes the overall risk CriticalRisk.
 
 ```text
 REJECT "Reason for rejection"
@@ -353,7 +375,7 @@ REJECT "Reason for rejection"
 
 ### `REQUIRE_REVIEW`
 
-Flags the claim for analyst review (overall risk HighRisk) with a reviewer note.
+Asks for analyst review (overall risk HighRisk), with a reviewer note.
 
 ```text
 REQUIRE_REVIEW "Note for reviewer"
@@ -369,7 +391,7 @@ RISK_SCORE 75
 
 ### `APPROVE`
 
-Approves the claim with a reason. This is the least severe action. It does **not** elevate risk and does **not** override a `REJECT` triggered by another rule.
+Records that the claim looks acceptable, with a reason. This is the least severe action. It does **not** raise the risk level and does **not** cancel a `REJECT` or `FLAG_FRAUD` from another rule.
 
 ```text
 APPROVE "Reason for approval"
@@ -410,16 +432,7 @@ WHEN COUNT(service_lines) > 10
 THEN [FLAG_FRAUD "Excessive billing pattern", RISK_SCORE 80];
 ```
 
-### Example 4 — Unbundling detection
-
-```text
-RULE unbundling_check "Detect unbundled E&M codes"
-WHEN EXISTS line IN service_lines WHERE line.procedure_code = "99213"
-     AND EXISTS line IN service_lines WHERE line.procedure_code = "99214"
-THEN FLAG_FRAUD "Possible unbundling of E&M services";
-```
-
-### Example 5 — Age-inappropriate service
+### Example 4 — Age-inappropriate service
 
 ```text
 RULE age_check "Service not appropriate for patient age"
@@ -428,7 +441,7 @@ WHEN NOT is_age_valid(patient.date_of_birth, 18, 130)
 THEN REQUIRE_REVIEW "Adult preventive service for minor";
 ```
 
-### Example 6 — Multiple conditions with `OR`
+### Example 5 — Multiple conditions with `OR`
 
 ```text
 RULE suspicious_location "Service in unusual location"
@@ -456,8 +469,8 @@ THEN [REQUIRE_REVIEW "Verify service location", RISK_SCORE 50];
 ### 3. Use realistic thresholds
 
 ```text
-✓ GOOD: claim_amount > 50000.0
-✗ BAD:  claim_amount > 1000000.0
+✓ GOOD: financial.claim_amount > 50000.0
+✗ BAD:  financial.claim_amount > 1000000.0
 ```
 
 ### 4. Combine related checks when that improves readability
@@ -510,7 +523,7 @@ THEN REQUIRE_REVIEW "High-cost diabetes claim"
 END
 ```
 
-### Pattern — Cross-line correlation with named quantifiers
+### Pattern — Two codes on the same claim (possible unbundling)
 
 ```text
 RULE unbundling_named
@@ -552,11 +565,7 @@ THEN REJECT "Rendering provider NPI fails Luhn-10 validation";
 
 ## Testing Your Rules
 
-1. Start with simple rules.
-2. Test them before adding complexity.
-3. Use the web interface to validate syntax.
-4. Test against sample claims data.
-5. Review false positives and adjust thresholds.
+The Rules page (`/rules`) checks a rule's syntax as you type, and its fields when you save it. Run a rule against sample claims there, or upload the claim files in `mock_data/`. The P use cases in [FRONTEND_USE_CASES.md](FRONTEND_USE_CASES.md#p--rules-page) have rule files for the parser, the field check and redundancy warnings. Start simple, and adjust thresholds when a rule matches claims it shouldn't.
 
 ## Troubleshooting
 
@@ -579,12 +588,3 @@ Check for:
 - X12 loop-style paths such as `2300.CLM.claim_amount` (see [X12 loop-style paths are not fields](#x12-loop-style-paths-are-not-fields))
 
 If a rule never fires, check that the claims actually contain every field the rule uses, and that numbers and dates are in a readable form. Missing or unreadable data makes a condition unknown, and an unknown condition never fires (see [Missing data](#missing-data)).
-
-## Need Help?
-
-Contact the project owner for:
-
-- custom field mappings
-- new operators or helper functions
-- performance issues
-- questions about claim JSON structure

@@ -466,10 +466,6 @@ defmodule MedicaidClaimsChecker.Claims do
 
   def get_business_rule_by_name(name), do: Repo.get_by(BusinessRule, name: name)
 
-  def toggle_business_rule_active(%BusinessRule{} = business_rule) do
-    update_business_rule(business_rule, %{active: !business_rule.active})
-  end
-
   # --- Rule Catalogue operations ---
 
   def list_catalogue_entries do
@@ -501,9 +497,37 @@ defmodule MedicaidClaimsChecker.Claims do
   def toggle_catalogue_status(%RuleCatalogue{status: "Not connected"}),
     do: {:error, :not_connected}
 
+  @doc """
+  Switches a catalogue entry between Active and Inactive, and sets its
+  `business_rules` row's `active` flag to match the new status, in one
+  transaction. Setting `active` from the status (rather than flipping it)
+  means the two can't drift apart. Entries with no `business_rules` row
+  (ML Models, NPPESProviderLookup, DuplicateClaims) change status only.
+  """
   def toggle_catalogue_status(%RuleCatalogue{} = entry) do
     new_status = if entry.status == "Active", do: "Inactive", else: "Active"
-    update_catalogue_entry(entry, %{status: new_status})
+
+    Repo.transaction(fn ->
+      with {:ok, updated} <- update_catalogue_entry(entry, %{status: new_status}),
+           :ok <- sync_business_rule_active(updated) do
+        updated
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+  end
+
+  defp sync_business_rule_active(%RuleCatalogue{name: name, status: status}) do
+    case get_business_rule_by_name(name) do
+      nil ->
+        :ok
+
+      rule ->
+        case update_business_rule(rule, %{active: status == "Active"}) do
+          {:ok, _rule} -> :ok
+          {:error, changeset} -> {:error, changeset}
+        end
+    end
   end
 
   # --- NPPES Provider Lookup ---

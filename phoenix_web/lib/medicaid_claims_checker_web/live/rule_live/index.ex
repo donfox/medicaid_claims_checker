@@ -193,15 +193,8 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
     with {entry_id, ""} <- Integer.parse(id),
          %{} = catalogue_entry <- Claims.get_catalogue_entry(entry_id),
          :ok <- validate_before_activation(catalogue_entry),
+         # Also sets the rule's business_rules.active to match, in one transaction
          {:ok, _updated} <- Claims.toggle_catalogue_status(catalogue_entry) do
-      # Keep business_rule.active in sync for BA Rules and Default Rules
-      if catalogue_entry.entry_type in ["BA Rule", "Default Rule"] do
-        case Claims.get_business_rule_by_name(catalogue_entry.name) do
-          %{} = rule -> Claims.toggle_business_rule_active(rule)
-          nil -> :ok
-        end
-      end
-
       {:noreply, socket |> refresh_catalog_rules() |> assign(:catalog_error, nil)}
     else
       _ -> {:noreply, assign(socket, :catalog_error, "Could not update rule status.")}

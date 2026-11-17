@@ -9,7 +9,7 @@ The platform has two runtime services:
 - **Phoenix LiveView app** on port `4000`  
   Handles the user interface, persistence, batch workflow, scheduling, and orchestration.
 - **Haskell DSL engine** on port `8080`  
-  Parses rules, evaluates claims, and returns deterministic rule decisions.
+  Parses rules, evaluates claims, and returns deterministic rule results: recommendations for an analyst, who decides.
 
 In normal operation, the Phoenix app sends rule text plus claim payloads to the Haskell engine over HTTP using JSON.
 
@@ -78,16 +78,16 @@ Syntax, MLClient, ListenConfig, Middleware → nothing in the engine
 ### 2. Scheduled X12 Ingestion Pipeline
 
 1. A Quantum scheduler triggers a `FetchRunner` job when a `fetch_schedules` entry is due.
-2. `RemoteFetcher` downloads files from the configured `fetch_sources` URI using SFTP or HTTPS.
+2. `RemoteFetcher` downloads files from the configured `fetch_sources` URI using SFTP, HTTP(S), a local directory or Databricks.
 3. `ClaimSplitter` splits multi-claim X12 files, and `Converter` plus `SegmentMapper` translate each claim into semantic JSON.
 4. `Claims.ingest_batch/1` writes one `batches` row and one `edi_files` row per claim in a single transaction. A file or claim already submitted is refused and recorded in `batches.duplicates`; manual uploads take the same path.
 5. After a successful ingest, an Oban job (`Workers.BatchEvaluationWorker`) runs `Evaluator.evaluate_batch/1`.
 
 ### 3. Batch Evaluation with NPPES Pre-validation
 
-1. `Evaluator` collects all active BA rule text and the translated `edi_files` for the batch.
+1. `Evaluator` collects the text of every active rule (Default and BA Rules) and the translated `edi_files` for the batch.
 2. Before rule evaluation, `Claims.validate_claim_providers/1` checks each claim's provider NPI against `nppes_providers`.
-3. Invalid NPIs generate an `NPPESProviderLookup` rejection finding.
+3. An NPI that fails the check (not in the registry, deactivated, not yet issued, or dropped from the registry on the service date) generates an `NPPESProviderLookup` rejection finding. The claim is still sent to the engine.
 4. Claims are chunked into groups of `200` and sent to the Haskell `/api/batch-evaluate` endpoint sequentially with `Enum.reduce_while`.
 5. NPPES findings are merged into each Haskell result, and any NPI rejection forces `overallRisk` to `CriticalRisk`.
 6. Results are written back to `edi_files`, and the batch status is updated to `completed` or `failed`.
@@ -107,7 +107,7 @@ Syntax, MLClient, ListenConfig, Middleware → nothing in the engine
 These are active design and implementation constraints, not future goals:
 
 - DSL rules are the deterministic policy source of truth.
-- JSON claim evaluation is the primary active execution path.
+- Rules always run against the claim as JSON: X12 files are converted first. The app uses only `/api/batch-evaluate`, so the ML path (`/api/evaluate`) is never used by the app.
 - `/api/batch-evaluate` reparses rules on every request; there is no rule cache.
 - Batch evaluation uses a hardcoded chunk size of `200` claims per Haskell request, and a batch may hold at most 15,000 claims.
 - The engine accepts 1,000 requests a minute per client IP by default (`ENGINE_RATE_LIMIT`).

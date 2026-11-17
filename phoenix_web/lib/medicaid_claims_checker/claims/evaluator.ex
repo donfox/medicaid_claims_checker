@@ -35,9 +35,11 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
   Evaluates all edi_files in a batch that are in "translated" status.
 
   Steps:
-    1. Gather active BA rules
-    2. NPPES pre-validation (hard-reject invalid provider NPIs)
-    3. Send passing claims to Haskell rule engine
+    1. Gather the text of every active rule (Default and BA Rules)
+    2. Check each claim's provider NPIs against NPPES
+    3. Send every claim to the Haskell rule engine, in chunks of 200; a
+       claim that failed the NPPES check gets that rejection added to its
+       report afterwards
     4. Store each report in `evaluation_report` (the claim in `json_output`
        is left untouched) and mark the file "evaluated"
     5. Mark batch completed (or failed)
@@ -78,7 +80,7 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
     case gather_rules_text() do
       nil ->
         Logger.warning(
-          "No active BA rules — marking batch #{batch.batch_id} completed without evaluation"
+          "No active rules — marking batch #{batch.batch_id} completed without evaluation"
         )
 
         Claims.update_batch(batch, %{status: "completed", completed_at: DateTime.utc_now()})

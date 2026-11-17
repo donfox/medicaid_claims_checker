@@ -359,7 +359,7 @@ An action is a recommendation, not a decision. It sets the claim's overall risk 
 
 ### `FLAG_FRAUD`
 
-Recommends a fraud investigation, with a reason. Makes the overall risk CriticalRisk.
+Recommends referral for investigation, with a reason. Makes the overall risk CriticalRisk.
 
 ```text
 FLAG_FRAUD "Reason for flagging"

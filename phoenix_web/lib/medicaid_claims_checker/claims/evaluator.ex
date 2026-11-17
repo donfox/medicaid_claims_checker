@@ -10,7 +10,7 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
 
   alias MedicaidClaimsChecker.Claims
   alias MedicaidClaimsChecker.Claims.EngineClient
-  alias MedicaidClaimsCheckerWeb.RuleLive.PayloadBuilder
+  alias MedicaidClaimsChecker.Claims.PayloadBuilder
 
   require Logger
 

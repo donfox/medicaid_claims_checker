@@ -1,6 +1,6 @@
-# Medicaid Claims Checker Web Frontend
+# Medicaid Claims Checker Web App
 
-Phoenix LiveView application providing the user interface for claim ingestion, rule management, batch evaluation, and risk scoring.
+Phoenix LiveView application: the user interface, and behind it claim ingestion, the database, scheduling, rule management and batch evaluation. It calls the Haskell engine to check claims against the rules.
 
 ## Where the code is
 
@@ -24,20 +24,23 @@ All test data (claim files, rule files, expected results) is outside this folder
 | `lib/medicaid_claims_checker/` | **What the app does.** Reading claims, checking providers, calling the rule engine, the database. No web pages. | `x12/` reads X12 files, `claims/` evaluates and stores claims, `nppes/` checks NPIs, `ingestion/` fetches files on a schedule |
 | `lib/medicaid_claims_checker_web/` | **The web pages and URLs** people use to reach it | `live/fetch_source_live/` is the upload page (`/`), `live/rule_live/` the Rules page (`/rules`), `router.ex` maps each URL to its page |
 
-The web folder calls the other folder, never the reverse. That's why the same processing serves an upload, a scheduled fetch and `mock_data/verify.exs`, which has no web page at all. [How a Batch of Claims Is Processed](#how-a-batch-of-claims-is-processed) below charts that path, with the file for each step.
+The web folder calls the other folder, never the reverse (the one exception is `application.ex`, which starts the web server). That's why the same processing serves an upload, a scheduled fetch and `mock_data/verify.exs`, which has no web page at all. [How a Batch of Claims Is Processed](#how-a-batch-of-claims-is-processed) below charts that path, with the file for each step.
 
 Inside `lib/medicaid_claims_checker/`, a file and a folder with the same name go together: `claims.ex` is the entry point the rest of the app calls, and `claims/` holds the pieces behind it.
 
 ### Tests mirror the code
 
-Every folder under `test/` matches one under `lib/`, so the tests for a file are always in the same place:
+The tests for a file under `lib/` are always in the matching place under `test/`:
 
 ```
 lib/medicaid_claims_checker/x12/claim_splitter.ex
 test/medicaid_claims_checker/x12/claim_splitter_test.exs
 ```
 
-`test/support/` holds setup shared by the tests: `conn_case.ex` (tests of pages), `data_case.ex` (tests that use the database), `mock_data.ex` (paths into `../mock_data/`), and `fixtures/`, which despite the name is code that creates test users, not data.
+Two folders under `test/` have no match in `lib/`:
+
+- `test/use_cases/`: the end-to-end tests of the 59 use cases, one file per group. They need the engine, so a plain `mix test` skips them; `./test.sh` from the repository root runs them.
+- `test/support/`: setup shared by the tests: `conn_case.ex` (tests of pages), `data_case.ex` (tests that use the database), `use_case_case.ex` (the use-case tests), `mock_data.ex` (paths into `../mock_data/`), and `fixtures/`, which despite the name is code that creates test users, not data.
 
 ## How a Batch of Claims Is Processed
 
@@ -49,7 +52,7 @@ Support* extension. What the rule engine does with the claims is charted in
 ```mermaid
 flowchart TD
     UP(["A user uploads files<br/>on the upload page<br/>.json · .x12 · .edi · .zip"])
-    SCH(["A fetch schedule fires<br/>files fetched from an<br/>SFTP or HTTP source"])
+    SCH(["A fetch schedule fires<br/>files fetched from an SFTP,<br/>HTTP, local or Databricks source"])
 
     subgraph S1["①&nbsp;Read&nbsp;the&nbsp;files&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"]
         KIND{"What kind of file?"}
@@ -113,10 +116,10 @@ flowchart TD
 
 | Step | Where the code is (under `lib/medicaid_claims_checker/` unless shown) |
 |---|---|
-| Files arrive | Upload: `process_manual_upload` in `lib/medicaid_claims_checker_web/live/fetch_source_live/index.ex`. Schedule: `ingestion/fetch_runner.ex`, run by `scheduler.ex`, fetching through `ingestion/remote_fetcher.ex` |
+| Files arrive | Upload: the `"process_manual_upload"` event (the Process Files button), handled in `lib/medicaid_claims_checker_web/live/fetch_source_live/index.ex`. Schedule: `ingestion/fetch_runner.ex`, run by `scheduler.ex`, fetching through `ingestion/remote_fetcher.ex` |
 | ① Read the files | `x12/claim_splitter.ex` splits X12 into claims; `x12/converter.ex` (with `parser.ex`, `segment_mapper.ex`) turns each into JSON; `claims/json_claim.ex` reads `.json` files |
 | ② Store the batch | `Claims.ingest_batch` in `claims.ex`: one database transaction that refuses duplicate claims, saves the rest and queues the job |
-| ③ Evaluate the batch | `workers/batch_evaluation_worker.ex` runs `Evaluator.evaluate_batch` in `claims/evaluator.ex`, which calls the engine through `claims/engine_client.ex` |
+| ③ Evaluate the batch | `workers/batch_evaluation_worker.ex` runs `Evaluator.evaluate_batch` in `claims/evaluator.ex`, which builds each request with `claims/payload_builder.ex` and sends it through `claims/engine_client.ex` |
 | Results | `Evaluator` announces *completed* or *failed*; the upload page is listening and refreshes Jobs History |
 
 A claim whose provider fails the NPPES check is still sent to the engine. The
@@ -125,7 +128,7 @@ rule results as well.
 
 ## Features
 
-- Scheduled X12 file ingestion via configured SFTP/HTTP sources with cron or interval-based schedules
+- Scheduled X12 file ingestion from configured SFTP, HTTP, local or Databricks sources, with cron or interval-based schedules
 - Manual file upload with in-process X12/EDI-to-JSON translation (supports `.json`, `.x12`, `.edi`, `.zip`)
   - Every file holds one or more claims. A `.json` file holds one claim (an object with `claim_id`, or the X12 converter's output with a `claim` object) or a list of them (`[...]` or `{"claims": [...]}`); claims from a multi-claim file are listed as `<file>_<claim_id>.json`, as split X12 claims are. Files with no claim, and list entries that are not claims, are refused and named in the upload message
 - NPPES provider database with configurable auto-refresh (weekly by default)
@@ -137,11 +140,17 @@ rule results as well.
 
 ## Pages
 
-| Route | LiveView | Purpose |
+Every page needs a log-in except log-in, registration and set-password.
+
+| Route | Handled by | Purpose |
 |---|---|---|
-| `/` | `FetchSourceLive.Index` | Fetch source and schedule management, NPPES config and refresh, manual file upload, batch history |
+| `/` | `FetchSourceLive.Index` | Fetch source and schedule management, NPPES config and refresh, manual file upload, Jobs History |
 | `/rules` | `RuleLive.Index` | DSL editor, rule evaluation, redundancy checking |
 | `/admin` | `AdminLive` | User accounts (admins only) |
+| `/users/log-in` | `UserSessionController` | Log in by email or username |
+| `/users/register` | `UserRegistrationController` | Create an account, while registration is open (only when logged out) |
+| `/users/settings` | `UserSettingsController` | Change your own name, username, email or password, and log out your other sessions |
+| `/users/set-password/:token` | `UserPasswordSetupController` | The one-time password link an admin gives a user (see [docs/ADMIN_GUIDE.md](../docs/ADMIN_GUIDE.md)) |
 
 Development-only route: `/dev/dashboard` (Phoenix LiveDashboard). The app sends no email.
 
@@ -149,8 +158,8 @@ Development-only route: `/dev/dashboard` (Phoenix LiveDashboard). The app sends 
 
 | Route | Purpose |
 |---|---|
-| `GET /api/health` | Liveness check |
-| `GET /api/fetch-config` | Return active fetch source configuration (JSON) |
+| `GET /api/health` | Liveness check; no authentication |
+| `GET /api/fetch-config` | Return active fetch source configuration (JSON). Needs `Authorization: Bearer $RULE_ENGINE_SECRET` |
 
 ## Database Tables
 
@@ -158,7 +167,7 @@ See [docs/DATABASE_ERD.md](../docs/DATABASE_ERD.md): every table, its columns an
 
 ## Backend Integration
 
-The frontend calls the Haskell engine at `http://localhost:8080` with Req, through `lib/medicaid_claims_checker/claims/engine_client.ex`.
+The app calls the Haskell engine with Req, through `lib/medicaid_claims_checker/claims/engine_client.ex`, at `RULE_ENGINE_URL` (default `http://localhost:8080`; see [docs/CONFIGURATION.md](../docs/CONFIGURATION.md)).
 
 | Endpoint | Method | Purpose |
 |---|---|---|
@@ -166,7 +175,7 @@ The frontend calls the Haskell engine at `http://localhost:8080` with Req, throu
 | `/api/batch-evaluate` | POST | Evaluate claims against active rules (chunked at 200 claims/request) |
 | `/api/check-redundancy` | POST | Detect overlap between a candidate rule and existing rules |
 
-Request payloads are built by `PayloadBuilder` (`lib/medicaid_claims_checker_web/live/rule_live/payload_builder.ex`).
+Batch-evaluation requests are built by `Claims.PayloadBuilder` (`lib/medicaid_claims_checker/claims/payload_builder.ex`).
 
 ## Setup
 

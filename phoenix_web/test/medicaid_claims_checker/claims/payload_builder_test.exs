@@ -1,7 +1,7 @@
-defmodule MedicaidClaimsCheckerWeb.RuleLive.PayloadBuilderTest do
+defmodule MedicaidClaimsChecker.Claims.PayloadBuilderTest do
   use ExUnit.Case, async: false
 
-  alias MedicaidClaimsCheckerWeb.RuleLive.PayloadBuilder
+  alias MedicaidClaimsChecker.Claims.PayloadBuilder
 
   test "build_batch_evaluate_payload includes strict contract fields" do
     payload =

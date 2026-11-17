@@ -31,7 +31,7 @@
 alias MedicaidClaimsChecker.{Claims, Repo}
 alias MedicaidClaimsChecker.Claims.{Evaluator, JsonClaim}
 alias MedicaidClaimsChecker.X12.{ClaimSplitter, Converter, SegmentMapper}
-alias MedicaidClaimsCheckerWeb.RuleLive.PayloadBuilder
+alias MedicaidClaimsChecker.Claims.PayloadBuilder
 
 defmodule MockDataVerify do
   @moduledoc false

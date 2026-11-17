@@ -1,5 +1,9 @@
-defmodule MedicaidClaimsCheckerWeb.RuleLive.PayloadBuilder do
-  @moduledoc false
+defmodule MedicaidClaimsChecker.Claims.PayloadBuilder do
+  @moduledoc """
+  Builds the JSON request bodies sent to the Haskell engine: the contract
+  fields (`contract_version`, `request_id`, `tenant_id`, ...) plus the rule
+  text and the claims. `Claims.Evaluator` uses it for `/api/batch-evaluate`.
+  """
 
   def build_evaluate_payload(rules_text, claim_document, opts \\ %{}) do
     contract_metadata(opts)

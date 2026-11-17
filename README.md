@@ -70,7 +70,6 @@ Testing:
 
 - [Test procedure](docs/TEST_PROCEDURE.md): running the tests and checking a local setup
 - [Frontend use cases](docs/FRONTEND_USE_CASES.md): the 59 things to test in the running app, with each one's test files and expected result, and how to upload the same files round after round
-- [Audit queries](docs/scripts/): SQL queries that check a batch's provider NPIs against the NPPES data, used in the test procedure
 
 Formal statement:
 

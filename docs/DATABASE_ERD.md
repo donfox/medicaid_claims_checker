@@ -16,7 +16,7 @@ erDiagram
         bigint id PK
         string batch_id UK "NOT NULL"
         string batch_name "nullable"
-        string source
+        string source "nullable"
         integer file_count "NOT NULL"
         string status "NOT NULL, default pending"
         jsonb_array duplicates "NOT NULL, default []"
@@ -56,7 +56,7 @@ erDiagram
         string name UK "NOT NULL"
         text description "nullable"
         string entry_type "NOT NULL: Default Rule|BA Rule|ML Model"
-        string status "NOT NULL, default Active: Active|Inactive|Retired"
+        string status "NOT NULL, default Active: Active|Inactive|Retired|Not connected"
         boolean editable "NOT NULL, default false"
         boolean removable "NOT NULL, default false"
         boolean redundant "NOT NULL, default false"
@@ -193,8 +193,12 @@ All foreign keys delete in cascade: removing the parent row removes its children
 | `users` | `users_tokens` | Log-in sessions and password-setup links. |
 
 `rule_catalogue` and `business_rules` are linked by matching `name`, with **no
-foreign key**: a catalogue entry with `entry_type = "BA Rule"` has a
-`business_rules` row of the same name holding its DSL text.
+foreign key**. A catalogue entry written in the DSL has a `business_rules` row
+of the same name holding its text: every BA Rule, and 9 of the 11 Default
+Rules. The other two Default Rules have none: `NPPESProviderLookup` is done in
+Elixir before the engine is called, and `DuplicateClaims` is listed but not
+implemented (ingestion refuses duplicate submissions separately). ML Models
+have none.
 
 ## What each table holds
 
@@ -210,10 +214,14 @@ foreign key**: a catalogue entry with `entry_type = "BA Rule"` has a
 - **`submitted_files`**: every file a batch was built from, keyed by the
   SHA-256 of its bytes (unique), so a file already received is refused.
 - **`rule_catalogue`**: the registry of every rule entry (Default Rule, BA
-  Rule, ML Model) with its description, status (Active, Inactive, Retired, or Not connected for an ML Model with no scoring service yet)
-  and what may be done with it (edited, removed).
-- **`business_rules`**: the DSL text of each BA rule and whether it is active
-  in evaluation.
+  Rule, ML Model) with its description, status (Active, Inactive, Retired, or
+  Not connected for an ML Model with no scoring service yet) and what may be
+  done with it (`editable`, `removable`). `redundant` marks a BA Rule the
+  redundancy check found to duplicate or be covered by another rule;
+  `db_access` marks an entry that needs a database query, which the DSL can't
+  do (shown as a DB Access badge).
+- **`business_rules`**: the DSL text of each rule written in the DSL (BA and
+  Default Rules) and whether it is active in evaluation.
 
 ### Ingestion and provider data
 
@@ -248,5 +256,6 @@ foreign key**: a catalogue entry with `entry_type = "BA Rule"` has a
 
 - Columns shown as `jsonb` hold JSON; `duplicates` is an array of JSON objects.
 - `email` and `username` are case-insensitive (`citext`).
+- `users_tokens` is unique on `context` and `token` together.
 - Some relationships, such as catalogue entry to BA rule, are kept by the app
   rather than by database constraints.

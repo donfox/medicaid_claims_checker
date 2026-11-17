@@ -53,7 +53,7 @@ main = do
         exitFailure
     Nothing -> pure ()
   let scheme = maybe "http" (const "https") (lcTls config)
-  putStrLn $ "Starting JSON Claims Integrity DSL Server on " ++ scheme ++ "://" ++ lcHost config ++ ":" ++ show (lcPort config) ++ "..."
+  putStrLn $ "Starting Medicaid Claims Checker rule engine on " ++ scheme ++ "://" ++ lcHost config ++ ":" ++ show (lcPort config) ++ "..."
   numCaps <- getNumCapabilities
   let workerCount = max 1 numCaps
   sem <- newQSem workerCount

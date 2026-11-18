@@ -1,4 +1,5 @@
 {-# LANGUAGE ImportQualifiedPost #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 -- |
@@ -142,8 +143,11 @@ orAt depth = chainr1 (andAt depth) (Syntax.Or <$ try (whitespace *> kw "OR"))
 andAt :: Int -> Parser Predicate
 andAt depth = chainr1 (notAt depth) (Syntax.And <$ try (whitespace *> kw "AND"))
 
+-- | @NOT p@, which may repeat (@NOT NOT p@); each NOT counts as a level.
 notAt :: Int -> Parser Predicate
-notAt depth = (Syntax.Not <$> (kw "NOT" *> atomicAt depth)) <|> atomicAt depth
+notAt depth
+  | depth > maxPredicateDepth = predAt depth
+  | otherwise = (Syntax.Not <$> (kw "NOT" *> notAt (depth + 1))) <|> atomicAt depth
 
 atomicAt :: Int -> Parser Predicate
 atomicAt depth =
@@ -182,64 +186,74 @@ helperCallPred = do
 listValueParser :: Parser Value
 listValueParser =
   Syntax.ListValue
-    <$> listOf '[' ']' (try (Syntax.NumberValue <$> numberLiteral) <|> (Syntax.StringValue . T.pack <$> stringLiteral))
+    <$> listOf '[' ']' ((Syntax.NumberValue <$> numberLiteral) <|> (Syntax.StringValue . T.pack <$> stringLiteral))
 
--- | Comma-separated items between two brackets.
+-- | Comma-separated items between two brackets. Spaces, line breaks and
+-- comments may appear between the items.
 listOf :: Char -> Char -> Parser a -> Parser [a]
 listOf open close item =
-  between (char open *> spaces) (spaces *> char close) (sepBy item (spaces *> char ',' *> spaces))
+  between (char open *> whitespace) (whitespace *> char close) (sepBy item (try (whitespace *> char ',') *> whitespace))
 
 parenAt :: Int -> Parser Predicate
-parenAt depth = between (char '(' *> spaces) (spaces *> char ')') (predAt depth)
+parenAt depth = between (char '(' *> whitespace) (whitespace *> char ')') (predAt depth)
 
 -- | @EXISTS path WHERE p@ or @EXISTS var IN path WHERE p@ (likewise FORALL).
--- The body continues at the current depth, so nesting inside quantifiers is
--- bounded too.
+--
+-- The body @p@ runs to the end of the condition, or to the closing
+-- parenthesis around the quantifier: in @EXISTS l IN lines WHERE a AND b@
+-- both @a@ and @b@ are inside the WHERE. The body is one level deeper, so
+-- nested quantifiers count towards 'maxPredicateDepth'.
 quantifierAt :: String -> (Maybe Text -> Path -> Predicate -> Predicate) -> Int -> Parser Predicate
 quantifierAt word mk depth = do
-  _ <- string word *> spaces
+  kw word
   try named <|> body Nothing
   where
     named = do
-      varName <- identifier <* spaces
+      varName <- identifier <* whitespace
       kw "IN"
       body (Just (T.pack varName))
     body var = do
-      path <- collectionPath <* spaces
-      _ <- string "WHERE" *> spaces
-      mk var path <$> predAt depth
+      path <- collectionPath <* whitespace
+      kw "WHERE"
+      mk var path <$> predAt (depth + 1)
 
 countPred :: Parser Predicate
 countPred =
   Syntax.Count
-    <$> (string "COUNT" *> spaces *> between (char '(') (char ')') (spaces *> collectionPath <* spaces))
-    <*> (spaces *> compOperator)
-    <*> (spaces *> intLiteral)
+    <$> (kw "COUNT" *> between (char '(' *> whitespace) (whitespace *> char ')') collectionPath)
+    <*> (whitespace *> compOperator)
+    <*> (whitespace *> countLiteral)
 
--- | @claim.has_diagnosis "code"@ and @claim.has_procedure "code"@.
+-- | @claim.has_diagnosis "code"@ and @claim.has_procedure "code"@. The code
+-- must be quoted: an unquoted one could never match.
 domainPred :: String -> (Value -> Predicate) -> Parser Predicate
 domainPred name mk = do
   _ <- try (string "claim" *> char '.' *> string name)
-  spaces
-  mk <$> valueParser
+  whitespace
+  (mk . Syntax.StringValue . T.pack <$> stringLiteral)
+    <|> fail ("claim." ++ name ++ " needs a quoted code, e.g. claim." ++ name ++ " \"99213\"")
 
--- | @field BETWEEN lo AND hi@. This parser consumes the inner @AND@ before
--- the boolean @AND@ level sees it.
+-- | @field BETWEEN lo AND hi@, with number bounds. This parser consumes the
+-- inner @AND@ before the boolean @AND@ level sees it.
 betweenPred :: Parser Predicate
 betweenPred = do
   field <- fieldPath
-  spaces
+  whitespace
   kw "BETWEEN"
-  lo <- lexeme valueParser
+  lo <- lexeme bound
   kw "AND"
-  Syntax.Between field lo <$> valueParser
+  Syntax.Between field lo <$> bound
+  where
+    bound =
+      (Syntax.NumberValue <$> numberLiteral)
+        <|> fail "BETWEEN needs number bounds, e.g. amount BETWEEN 100 AND 500"
 
 -- | @field CONTAINS "text"@ or @field MATCHES "regex"@. An invalid regex is
 -- a parse error, so a broken pattern is caught when the rule is written.
 textPred :: Parser Predicate
 textPred = do
   field <- fieldPath
-  spaces
+  whitespace
   containsTail field <|> matchesTail field
   where
     containsTail field = do
@@ -252,18 +266,39 @@ textPred = do
         Just _ -> pure (Syntax.Matches field pattern)
         Nothing -> fail $ "Invalid regular expression in MATCHES: " ++ T.unpack pattern
 
+-- | @field op value@. Values the evaluator could never compare are parse
+-- errors: @>@, @<@, @>=@ and @<=@ need a number or a field, and @=@ / @!=@
+-- cannot take a list.
 comparisonPred :: Parser Predicate
 comparisonPred = do
   field <- fieldPath
-  spaces
+  whitespace
   op <- compOperator
-  spaces
-  Syntax.Compare op field <$> valueParser
+  whitespace
+  val <- valueParser
+  case val of
+    Syntax.StringValue t
+      | op `notElem` [EQ, NE] ->
+          fail $
+            "A quoted value cannot be compared with " ++ opText op
+              ++ ": write the number without quotes (" ++ T.unpack t ++ ")"
+    Syntax.ListValue _ ->
+      fail "A field cannot be compared with a list: use in_list(field, [...])"
+    _ -> pure (Syntax.Compare op field val)
+  where
+    opText = \case
+      GT -> ">"
+      LT -> "<"
+      GTE -> ">="
+      LTE -> "<="
+      EQ -> "="
+      NE -> "!="
 
 nullCheckPred :: Parser Predicate
 nullCheckPred = do
-  field <- fieldPath <* spaces <* string "IS" <* spaces
-  nullCheck <- (Syntax.IsNotNull <$ try (string "NOT NULL")) <|> (Syntax.IsNull <$ string "NULL")
+  field <- fieldPath <* whitespace
+  kw "IS"
+  nullCheck <- (Syntax.IsNotNull <$ try (kw "NOT" *> keyword "NULL")) <|> (Syntax.IsNull <$ keyword "NULL")
   pure $ nullCheck field
 
 boolLiteral :: Parser Predicate
@@ -287,7 +322,7 @@ fieldPath = Path . map T.pack <$> sepBy1 identifier (try (char '.' <* lookAhead 
 
 valueParser :: Parser Value
 valueParser =
-  try (Syntax.NumberValue <$> numberLiteral)
+  (Syntax.NumberValue <$> numberLiteral)
     <|> try listValueParser
     <|> try (Syntax.FieldValue <$> fieldPath)
     <|> (Syntax.StringValue . T.pack <$> stringLiteral)
@@ -309,7 +344,7 @@ actionParser = compositeAction <|> singleAction
   where
     compositeAction =
       Syntax.CompositeAction
-        <$> between (char '[' *> spaces) (spaces *> char ']') (sepBy1 singleAction (spaces *> char ',' *> spaces))
+        <$> between (char '[' *> whitespace) (whitespace *> char ']') (sepBy1 singleAction (try (whitespace *> char ',') *> whitespace))
 
     singleAction =
       choice
@@ -317,11 +352,11 @@ actionParser = compositeAction <|> singleAction
           try $ stringAction "REQUIRE_REVIEW" Syntax.RequireReview,
           try $ stringAction "REJECT" Syntax.RejectClaim,
           try $ stringAction "APPROVE" Syntax.ApproveClaim,
-          Syntax.AssignRiskScore <$> (string "RISK_SCORE" *> spaces *> riskScoreLiteral)
+          Syntax.AssignRiskScore <$> (string "RISK_SCORE" *> whitespace *> riskScoreLiteral)
         ]
 
     stringAction kwd constructor =
-      constructor . T.pack <$> (string kwd *> spaces *> stringLiteral)
+      constructor . T.pack <$> (string kwd *> whitespace *> stringLiteral)
 
 -- ----------------------------------------------------------------------------
 -- Lexical elements
@@ -347,21 +382,38 @@ reservedWords =
 stringLiteral :: Parser String
 stringLiteral = between (char '"') (char '"') (many (noneOf "\""))
 
-intLiteral :: Parser Int
+-- | A whole number, read in full so a huge one cannot wrap around.
+intLiteral :: Parser Integer
 intLiteral = read <$> many1 digit
+
+-- | The count in @COUNT(path) op n@: 0 to 1,000,000.
+countLiteral :: Parser Int
+countLiteral = do
+  n <- intLiteral
+  if n > 1000000
+    then fail $ "COUNT is compared with a number from 0 to 1000000, got: " ++ show n
+    else pure (fromInteger n)
 
 -- | RISK_SCORE is 0 to 100; anything else is a parse error.
 riskScoreLiteral :: Parser Int
 riskScoreLiteral = do
   n <- intLiteral
-  if n < 0 || n > 100
+  if n > 100
     then fail $ "RISK_SCORE must be in range 0-100, got: " ++ show n
-    else pure n
+    else pure (fromInteger n)
 
--- | @123@, @45.67@, @-5@, @-0.5@
+-- | @123@, @45.67@, @-5@, @-0.5@. A number too large for a 'Double' is a
+-- parse error rather than infinity. Only the digits are backtracked over,
+-- so that error is final: the number is not then read as a field name
+-- (which, like @2300@, may start with a digit).
 numberLiteral :: Parser Double
-numberLiteral = do
-  sign <- option "" (string "-")
-  intPart <- many1 digit
-  fracPart <- optionMaybe (char '.' *> many1 digit)
-  pure $ read $ sign ++ maybe intPart ((intPart ++ ".") ++) fracPart
+numberLiteral = try digits >>= finite
+  where
+    digits = do
+      sign <- option "" (string "-")
+      intPart <- many1 digit
+      fracPart <- optionMaybe (char '.' *> many1 digit)
+      pure (sign ++ maybe intPart ((intPart ++ ".") ++) fracPart)
+    finite text =
+      let d = read text :: Double
+       in if isInfinite d then fail ("Number is too large: " ++ take 20 text ++ "...") else pure d

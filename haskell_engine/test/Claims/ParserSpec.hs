@@ -173,6 +173,83 @@ parserSpec = do
         , "is_age_valid(dob, 0, 130)"
         ]
 
+  describe "Values that could never be compared are parse errors" $ do
+    let parseError cond = either show (const "") (parseRule ("RULE t \"T\" WHEN " <> cond <> " THEN FLAG_FRAUD \"x\";"))
+
+    it "an unquoted code in claim.has_procedure / claim.has_diagnosis" $ do
+      parseError "claim.has_procedure 99285" `shouldContain` "claim.has_procedure needs a quoted code"
+      parseError "claim.has_diagnosis E11" `shouldContain` "claim.has_diagnosis needs a quoted code"
+    it "a quoted number with >, <, >= or <=" $
+      mapM_
+        (\op -> parseError ("amount " <> op <> " \"10000\"") `shouldContain` "A quoted value cannot be compared with")
+        [">", "<", ">=", "<="]
+    it "BETWEEN with text or field bounds" $ do
+      parseError "amount BETWEEN \"1\" AND \"9\"" `shouldContain` "BETWEEN needs number bounds"
+      parseError "amount BETWEEN low AND high" `shouldContain` "BETWEEN needs number bounds"
+    it "= or != with a list" $ do
+      parseError "code = [\"A\", \"B\"]" `shouldContain` "use in_list"
+      parseError "code != [1, 2]" `shouldContain` "use in_list"
+    it "still accepts the forms that work" $
+      mapM_
+        (\cond -> (cond, parseError cond) `shouldBe` (cond, ""))
+        [ "claim.has_procedure \"99285\""
+        , "amount > 10000"
+        , "amount > other.amount"
+        , "code = \"A\""
+        , "code != 99213"
+        , "amount BETWEEN 100 AND 500.5"
+        , "amount BETWEEN -5 AND 5"
+        ]
+
+  describe "Numbers too large to use are parse errors" $ do
+    let parseError input = either show (const "") (parseRule input)
+    it "a COUNT number that would wrap around" $
+      parseError "RULE t \"T\" WHEN COUNT(service_lines) > 18446744073709551615 THEN REJECT \"x\";"
+        `shouldContain` "COUNT is compared with a number from 0 to 1000000"
+    it "a RISK_SCORE that would wrap around into 0-100" $
+      parseError "RULE t \"T\" WHEN TRUE THEN RISK_SCORE 18446744073709551666;"
+        `shouldContain` "RISK_SCORE must be in range 0-100"
+    it "a number too large for a Double" $
+      parseError ("RULE t \"T\" WHEN amount > 1" <> T.replicate 400 "0" <> " THEN REJECT \"x\";")
+        `shouldContain` "Number is too large"
+
+  describe "Comments and line breaks anywhere between words" $ do
+    let parses input = parseRule input `shouldSatisfy` isRight
+    it "after WHERE and IN" $
+      parses "RULE t \"T\" WHEN EXISTS l IN -- the lines\n service_lines WHERE -- note\n l.code = \"A\" THEN REJECT \"x\";"
+    it "inside parentheses" $
+      parses "RULE t \"T\" WHEN ( -- note\n amount > 5 -- why\n ) THEN REJECT \"x\";"
+    it "inside helper arguments and lists" $
+      parses "RULE t \"T\" WHEN in_list(code, -- codes\n [\"A\", -- first\n \"B\"]) THEN REJECT \"x\";"
+    it "inside COUNT(...) and before its number" $
+      parses "RULE t \"T\" WHEN COUNT( -- lines\n service_lines ) -- how many\n > 3 THEN REJECT \"x\";"
+    it "inside IS NOT NULL, with extra spaces or a line break" $ do
+      parses "RULE t \"T\" WHEN npi IS NOT  NULL THEN REJECT \"x\";"
+      parses "RULE t \"T\" WHEN npi IS\n NOT\n NULL THEN REJECT \"x\";"
+    it "inside a composite action" $
+      parses "RULE t \"T\" WHEN TRUE THEN [ -- both\n REJECT \"a\", -- and\n RISK_SCORE 90 ];"
+
+  describe "Nesting" $ do
+    let deepQuantifiers n = T.concat ["RULE d \"d\" WHEN ", T.replicate n "EXISTS service_lines WHERE ", "TRUE THEN REJECT \"x\";"]
+    it "nested quantifiers count towards the depth limit" $ do
+      parseRule (deepQuantifiers 50) `shouldSatisfy` isRight
+      either show (const "") (parseRule (deepQuantifiers 51)) `shouldContain` "Predicate nesting exceeds the maximum depth"
+    it "NOT may be repeated" $
+      parseRule "RULE t \"T\" WHEN NOT NOT amount > 5 THEN REJECT \"x\";"
+        `shouldBe` parseRule "RULE t \"T\" WHEN NOT (NOT amount > 5) THEN REJECT \"x\";"
+
+  describe "A WHERE runs to the end of the condition" $ do
+    let condOf input = either (error . show) ruleCondition (parseRule input)
+        lines' = Path ["service_lines"]
+        code = Compare EQ (Path ["procedure_code"]) (StringValue "99285")
+        amount = Compare GT (Path ["financial", "claim_amount"]) (NumberValue 10000)
+    it "an AND after WHERE is inside the quantifier" $
+      condOf "RULE t \"T\" WHEN EXISTS service_lines WHERE procedure_code = \"99285\" AND financial.claim_amount > 10000 THEN REJECT \"x\";"
+        `shouldBe` Exists Nothing lines' (And code amount)
+    it "parentheses end the quantifier" $
+      condOf "RULE t \"T\" WHEN (EXISTS service_lines WHERE procedure_code = \"99285\") AND financial.claim_amount > 10000 THEN REJECT \"x\";"
+        `shouldBe` And (Exists Nothing lines' code) amount
+
 -- | The rules in a .dsl fixture file, each with a test label. A rule starts
 -- at a line beginning @RULE @ and runs to the next one; @--@ comment lines
 -- are left out. A @-- FAULT n: why@ comment adds its reason to the label of

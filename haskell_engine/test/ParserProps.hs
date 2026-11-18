@@ -213,8 +213,9 @@ genAtomic = oneof
   , IsNotNull <$> arbitrary
   , Contains  <$> arbitrary <*> (StringValue <$> pickFrom safeStrings)
   , Matches   <$> arbitrary <*> pickFrom safePatterns
-  , HasDiagnosis <$> genScalar
-  , HasProcedure <$> genScalar
+  -- Codes must be quoted: the parser rejects any other value here.
+  , HasDiagnosis . StringValue <$> pickFrom safeStrings
+  , HasProcedure . StringValue <$> pickFrom safeStrings
   , Count <$> genCollectionPath <*> elements [EQ, NE, GT, LT, GTE, LTE] <*> choose (0, 50)
   , genHelperCall
   ]

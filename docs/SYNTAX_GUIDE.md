@@ -49,6 +49,8 @@ Use comments for plain-English notes:
 -- Check for unusually high claim amounts
 ```
 
+A comment runs from `--` to the end of the line. Comments and line breaks may go anywhere a space may: inside parentheses, after `WHERE`, between list items or helper arguments.
+
 ## Predicates and Conditions
 
 ### Comparison operators
@@ -177,6 +179,21 @@ COUNT(service_lines) > n
 ```
 
 Use these forms when you need to inspect repeated structures such as service lines. The name after `EXISTS`/`FORALL` (here `line`) stands for one item inside the `WHERE`: `line.procedure_code`, `line.charge_amount`. A path with an index, such as `service_lines.0.date_of_service`, reads only that one item, here the first service line.
+
+#### How far a `WHERE` reaches
+
+The condition after `WHERE` runs to the end of the rule's condition, or to the closing parenthesis around the quantifier. Everything joined with `AND` or `OR` after `WHERE` is checked inside each item:
+
+```text
+-- Wrong: claim_amount is looked up inside each service line, where it is
+-- missing, so the rule never fires and every claim is "not checked".
+EXISTS service_lines WHERE procedure_code = "99285" AND financial.claim_amount > 10000
+
+-- Right: parentheses end the quantifier.
+(EXISTS service_lines WHERE procedure_code = "99285") AND financial.claim_amount > 10000
+```
+
+With a named variable (`EXISTS line IN service_lines WHERE line.procedure_code = "99285" AND financial.claim_amount > 10000`) the claim-level field is still found, but it is checked once per line and the whole condition is unknown when the claim has no lines. Put claim-level conditions outside the quantifier, in parentheses, unless they really belong to each item.
 
 - `EXISTS` matches when at least one item definitely matches.
 - `FORALL` matches when every item definitely matches. An item that is missing the field makes `FORALL` unknown, not true.
@@ -584,13 +601,15 @@ Check for:
 - misspelled keywords such as `RULE`, `WHEN`, or `THEN`
 - unmatched parentheses
 - misspelled helper names or the wrong number of helper arguments
+- values that could never be compared, which are refused when the rule is saved: a quoted number with `>`, `<`, `>=` or `<=` (write `amount > 10000`, not `amount > "10000"`), `BETWEEN` with anything but number bounds, a list after `=` or `!=` (use `in_list`), and an unquoted code in `claim.has_diagnosis` or `claim.has_procedure`
+- numbers out of range: `RISK_SCORE` is 0 to 100, a `COUNT` is compared with 0 to 1,000,000
+- more than 50 levels of nesting (parentheses, `NOT`, `EXISTS` and `FORALL` each count as a level)
 
 ### Runtime errors
 
 Check for:
 
 - field names that do not match your claim JSON structure. A misspelled field is treated as missing data, so the rule does not match and is listed as not checked. The Rules page catches most of these when the rule is saved.
-- numeric comparisons written as strings
 - X12 loop-style paths such as `2300.CLM.claim_amount` (see [X12 loop-style paths are not fields](#x12-loop-style-paths-are-not-fields))
 
 If a rule never fires, check that the claims actually contain every field the rule uses, and that numbers and dates are in a readable form. Missing or unreadable data makes a condition unknown, and an unknown condition never fires (see [Missing data](#missing-data)).

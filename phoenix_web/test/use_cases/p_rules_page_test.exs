@@ -48,26 +48,34 @@ defmodule MedicaidClaimsCheckerWeb.UseCases.PRulesPageTest do
   end
 
   # Types a rule into the form and saves it; on a redundancy warning, returns
-  # the warning's lines and presses Save Anyway.
+  # the warning's lines and presses Save Anyway. Overlaps alone do not stop
+  # the save: they are listed in a note afterwards, and returned from there.
   defp save_rule(view, name, text) do
     params = %{"catalog" => %{"name" => name, "text" => text}}
     view |> form("#catalog-rule-form", params) |> render_change()
     view |> form("#catalog-rule-form", params) |> render_submit()
 
-    if has_element?(view, "#redundancy-warning") do
-      lines =
-        view
-        |> element("#redundancy-warning")
-        |> render()
-        |> LazyHTML.from_fragment()
-        |> LazyHTML.query("li")
-        |> Enum.map(&(&1 |> LazyHTML.text() |> String.split() |> Enum.join(" ")))
+    cond do
+      has_element?(view, "#redundancy-warning") ->
+        lines = list_lines(view, "#redundancy-warning")
+        view |> element("#save-anyway") |> render_click()
+        lines
 
-      view |> element("#save-anyway") |> render_click()
-      lines
-    else
-      []
+      has_element?(view, "#overlap-note") ->
+        list_lines(view, "#overlap-note")
+
+      true ->
+        []
     end
+  end
+
+  defp list_lines(view, selector) do
+    view
+    |> element(selector)
+    |> render()
+    |> LazyHTML.from_fragment()
+    |> LazyHTML.query("li")
+    |> Enum.map(&(&1 |> LazyHTML.text() |> String.split() |> Enum.join(" ")))
   end
 
   defp saved(name), do: Repo.one(from(r in BusinessRule, where: r.name == ^name))

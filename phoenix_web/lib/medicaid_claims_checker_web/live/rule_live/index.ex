@@ -25,6 +25,7 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
      |> assign(:catalog_error, nil)
      |> assign(:redundancy_matches, [])
      |> assign(:redundancy_pending_save, nil)
+     |> assign(:overlap_note, [])
      |> assign(:show_dsl_reference, false)
      |> assign(:batch_notification, nil)}
   end
@@ -109,6 +110,7 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
     selected_entry_id = socket.assigns.selected_catalog_rule_id
     normalized_rule_text = normalize_dsl_text(Map.get(params, "text", ""))
     name = String.trim(Map.get(params, "name", ""))
+    socket = assign(socket, :overlap_note, [])
 
     {_parsed, parse_error} = parse_single_rule_text(normalized_rule_text)
 
@@ -130,19 +132,28 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
         end
 
       case check_redundancy(normalized_rule_text, exclude_name) do
+        # Overlaps alone are informational: save at once, then list them.
+        # The rule is not marked redundant.
         {:ok, [_ | _] = matches} ->
-          # Redundancy detected — store pending save and show warning
-          pending = %{
-            name: name,
-            rule_text: normalized_rule_text,
-            selected_entry_id: selected_entry_id
-          }
+          if Enum.all?(matches, &(redundancy_tier(&1["matchLevel"]) == :overlap)) do
+            {:noreply, saved_socket} =
+              do_save_catalog_rule(
+                socket,
+                name,
+                normalized_rule_text,
+                selected_entry_id,
+                false,
+                schema_validation
+              )
 
-          {:noreply,
-           socket
-           |> assign(:redundancy_matches, matches)
-           |> assign(:redundancy_pending_save, pending)
-           |> assign(:catalog_error, nil)}
+            if saved_socket.assigns.catalog_error do
+              {:noreply, saved_socket}
+            else
+              {:noreply, assign(saved_socket, :overlap_note, matches)}
+            end
+          else
+            ask_before_saving(socket, matches, name, normalized_rule_text, selected_entry_id)
+          end
 
         _ ->
           # No redundancy (or check failed) — proceed with save
@@ -179,6 +190,11 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
           RuleSchemaValidator.validate(rule_text)
         )
     end
+  end
+
+  @impl true
+  def handle_event("dismiss_overlap_note", _params, socket) do
+    {:noreply, assign(socket, :overlap_note, [])}
   end
 
   @impl true
@@ -292,7 +308,8 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
        |> assign(:catalog_parse_error, parse_error)
        |> assign(:selected_catalog_rule_id, entry_id)
        |> assign(:selected_catalog_rule_type, catalogue_entry.entry_type)
-       |> assign(:catalog_error, nil)}
+       |> assign(:catalog_error, nil)
+       |> assign(:overlap_note, [])}
     else
       _ -> {:noreply, assign(socket, :catalog_error, "Could not load rule from catalogue.")}
     end
@@ -323,12 +340,29 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
      |> assign(:selected_catalog_rule_type, nil)
      |> assign(:catalog_error, nil)
      |> assign(:redundancy_matches, [])
-     |> assign(:redundancy_pending_save, nil)}
+     |> assign(:redundancy_pending_save, nil)
+     |> assign(:overlap_note, [])}
   end
 
   @impl true
   def handle_event("toggle_dsl_reference", _params, socket) do
     {:noreply, update(socket, :show_dsl_reference, &(!&1))}
+  end
+
+  # A duplicate, redundant or conflicting rule: show the warning and keep the
+  # save pending until Save Anyway or Cancel.
+  defp ask_before_saving(socket, matches, name, normalized_rule_text, selected_entry_id) do
+    pending = %{
+      name: name,
+      rule_text: normalized_rule_text,
+      selected_entry_id: selected_entry_id
+    }
+
+    {:noreply,
+     socket
+     |> assign(:redundancy_matches, matches)
+     |> assign(:redundancy_pending_save, pending)
+     |> assign(:catalog_error, nil)}
   end
 
   defp do_save_catalog_rule(

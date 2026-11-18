@@ -243,6 +243,27 @@
           </div>
         <% end %>
 
+        <%= if @overlap_note != [] do %>
+          <div id="overlap-note" role="status" class="mt-3 p-4 rounded-md border bg-blue-50 border-blue-300">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <p class="text-sm font-semibold text-blue-900">Saved. Partial overlap — informational</p>
+                <p class="text-xs mt-1 text-blue-700">This rule shares some field constraints with an existing rule. Some claims may match both; this may be intentional.</p>
+              </div>
+              <button type="button" phx-click="dismiss_overlap_note" aria-label="Dismiss overlap note" class="text-blue-900 hover:text-blue-700 cursor-pointer">&times;</button>
+            </div>
+            <ul class="mt-2 space-y-2">
+              <%= for match <- @overlap_note do %>
+                <li class="text-xs border-l-2 pl-2 text-blue-900 border-blue-300">
+                  <span class="font-semibold"><%= redundancy_level_label(match["matchLevel"]) %></span>
+                  with <span class="font-mono font-semibold"><%= match["matchRuleName"] %></span>:
+                  <%= match["matchExplanation"] %>
+                </li>
+              <% end %>
+            </ul>
+          </div>
+        <% end %>
+
         <%= if @redundancy_matches != [] do %>
           <div id="redundancy-warning" class="mt-3 space-y-3">
             <%= for {tier, matches} <- group_redundancy_matches(@redundancy_matches) do %>

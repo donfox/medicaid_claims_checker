@@ -1,5 +1,6 @@
 -- Copyright (c) 2024-2025 Don Fox. All rights reserved.
 {-# LANGUAGE ImportQualifiedPost #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 -- | Warp server exposing the Medicaid claims engine.
@@ -18,10 +19,10 @@
 -- Requests pass through "Middleware" (rate limit, then auth) to "Routes".
 module Main where
 
-import Control.Concurrent (getNumCapabilities)
+import Control.Concurrent (forkIO, getNumCapabilities, threadDelay)
 import Control.Concurrent.QSem (newQSem)
-import Control.Monad (filterM, unless)
-import Data.IORef (newIORef)
+import Control.Monad (filterM, forever, unless)
+import Data.IORef (atomicModifyIORef', newIORef)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe)
 import Data.ByteString.Char8 qualified as BS8
@@ -32,9 +33,9 @@ import System.Directory (doesFileExist)
 import System.Exit (exitFailure)
 import System.Environment (lookupEnv)
 import System.IO (BufferMode (..), hPutStrLn, hSetBuffering, stderr, stdout)
-import Text.Read (readMaybe)
 import Claims.ListenConfig (ListenConfig (..), resolveListen)
-import Middleware (authMiddleware, defaultRateLimit, rateLimitMiddleware, rateLimitWindowSecs)
+import Data.Time.Clock (getCurrentTime)
+import Middleware (authMiddleware, parseRateLimit, pruneRateMap, rateLimitMiddleware, rateLimitWindowSecs)
 import Routes (app)
 
 main :: IO ()
@@ -52,18 +53,21 @@ main = do
         hPutStrLn stderr ("Engine not started: TLS file not found: " ++ unwords absent)
         exitFailure
     Nothing -> pure ()
+  rateLimit <- parseRateLimit <$> lookupEnv "ENGINE_RATE_LIMIT" >>= \case
+    Right n -> pure n
+    Left err -> hPutStrLn stderr ("Engine not started: " ++ err) >> exitFailure
   let scheme = maybe "http" (const "https") (lcTls config)
   putStrLn $ "Starting Medicaid Claims Checker rule engine on " ++ scheme ++ "://" ++ lcHost config ++ ":" ++ show (lcPort config) ++ "..."
   numCaps <- getNumCapabilities
   let workerCount = max 1 numCaps
   sem <- newQSem workerCount
   secret <- BS8.pack . fromMaybe "" <$> lookupEnv "RULE_ENGINE_SECRET"
-  rateLimit <- lookupEnv "ENGINE_RATE_LIMIT" >>= \v -> case v of
-    Nothing -> pure defaultRateLimit
-    Just s -> case readMaybe s of
-      Just n | n > 0 -> pure n
-      _ -> hPutStrLn stderr ("Engine not started: ENGINE_RATE_LIMIT must be a positive number, got " ++ show s) >> exitFailure
   rateRef <- newIORef Map.empty
+  -- Forget addresses with no requests in the last window (see pruneRateMap).
+  _ <- forkIO $ forever $ do
+    threadDelay (rateLimitWindowSecs * 1000000)
+    now <- getCurrentTime
+    atomicModifyIORef' rateRef (\m -> (pruneRateMap now m, ()))
   putStrLn $ "Worker pool: " ++ show workerCount ++ " concurrent claim evaluations"
   putStrLn $ "Auth: " ++ if BS8.null secret then "WARNING — RULE_ENGINE_SECRET not set, all requests will be rejected" else "shared-secret enabled"
   putStrLn $ "Rate limit: " ++ show rateLimit ++ " requests per " ++ show rateLimitWindowSecs ++ " s per IP"

@@ -8,17 +8,24 @@
 module Middleware
   ( rateLimitMiddleware,
     RateMap,
+    pruneRateMap,
     defaultRateLimit,
     rateLimitWindowSecs,
+    parseRateLimit,
     authMiddleware,
+    constantTimeEq,
   )
 where
 
 import Data.Aeson (encode, object, (.=))
+import Data.Bits (xor, (.|.))
+import Data.ByteString qualified as BS
 import Data.IORef (IORef, atomicModifyIORef')
+import Data.List (foldl')
 import Data.Map.Strict qualified as Map
 import Data.Time.Clock (UTCTime, addUTCTime, getCurrentTime)
 import Data.ByteString.Char8 qualified as BS8
+import Text.Read (readMaybe)
 import Network.HTTP.Types (status401, status429)
 import Network.Socket (SockAddr (..))
 import Network.Wai
@@ -39,13 +46,22 @@ authMiddleware secret inner request respond
           (encode $ object ["error" .= ("RULE_ENGINE_SECRET not configured — server is locked" :: String)])
   | otherwise =
       case lookup "authorization" (requestHeaders request) of
-        Just h | h == "Bearer " <> secret -> inner request respond
+        Just h | constantTimeEq h ("Bearer " <> secret) -> inner request respond
         _ ->
           respond $
             responseLBS
               status401
               [("Content-Type", "application/json")]
               (encode $ object ["error" .= ("Unauthorized" :: String)])
+
+-- | Compare two strings in time that depends only on their lengths, not on
+-- where they first differ, so response times cannot reveal the secret one
+-- byte at a time. (The length of the expected token is not secret enough to
+-- matter: it is the same for every request.)
+constantTimeEq :: BS.ByteString -> BS.ByteString -> Bool
+constantTimeEq a b =
+  BS.length a == BS.length b
+    && foldl' (.|.) 0 (BS.zipWith xor a b) == 0
 
 -- | Sliding-window rate-limiter middleware.
 --
@@ -62,7 +78,7 @@ rateLimitMiddleware limit ref inner request respond
   | otherwise = do
       now <- getCurrentTime
       let addr = clientIp (remoteHost request)
-          cutoff = addUTCTime (fromIntegral (negate rateLimitWindowSecs)) now
+          cutoff = windowStart now
       allowed <- atomicModifyIORef' ref $ \m ->
         let recent = filter (> cutoff) (Map.findWithDefault [] addr m)
         in if length recent >= limit
@@ -75,6 +91,21 @@ rateLimitMiddleware limit ref inner request respond
                  status429
                  [("Content-Type", "application/json"), ("Retry-After", "60")]
                  (encode $ object ["error" .= ("Rate limit exceeded — max " ++ show limit ++ " requests per " ++ show rateLimitWindowSecs ++ " s")])
+
+-- | Drop timestamps older than the window, and addresses left with none.
+-- The middleware only trims an address's list when that address sends again,
+-- so Main runs this once a window; otherwise every address that ever
+-- connected would stay in memory.
+pruneRateMap :: UTCTime -> RateMap -> RateMap
+pruneRateMap now = Map.mapMaybe keepRecent
+  where
+    keepRecent ts = case filter (> windowStart now) ts of
+      [] -> Nothing
+      recent -> Just recent
+
+-- | The start of the rate-limit window that ends now.
+windowStart :: UTCTime -> UTCTime
+windowStart = addUTCTime (fromIntegral (negate rateLimitWindowSecs))
 
 -- | The client's address without its port. Each connection comes from a new
 -- port, so keying on the full address would give every connection its own
@@ -90,6 +121,15 @@ clientIp addr = addr
 -- requests each, see Phoenix's Claims.Evaluator) plus Rules page calls.
 defaultRateLimit :: Int
 defaultRateLimit = 1000
+
+-- | The rate limit from @ENGINE_RATE_LIMIT@: unset means 'defaultRateLimit';
+-- otherwise a whole number from 1 to 10,000,000, read in full so a huge one
+-- cannot wrap around into range.
+parseRateLimit :: Maybe String -> Either String Int
+parseRateLimit Nothing = Right defaultRateLimit
+parseRateLimit (Just s) = case readMaybe s :: Maybe Integer of
+  Just n | n >= 1 && n <= 10000000 -> Right (fromInteger n)
+  _ -> Left ("ENGINE_RATE_LIMIT must be a whole number from 1 to 10000000, got " ++ show s)
 
 -- | Rate-limit window size in seconds.
 rateLimitWindowSecs :: Int

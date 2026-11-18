@@ -1,5 +1,6 @@
 -- Copyright (c) 2024-2026 Don Fox. All rights reserved.
 {-# LANGUAGE ImportQualifiedPost #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 -- | The engine's HTTP endpoints. Each handler reads and size-checks the
@@ -21,8 +22,9 @@ import Control.Exception (bracket_)
 import Data.Aeson (FromJSON (..), ToJSON (..), Value (..), decode, encode, object, withObject, (.:), (.=))
 import Data.Text qualified as T
 import Data.ByteString qualified as BS
+import Data.ByteString.Char8 qualified as BS8
 import Data.ByteString.Lazy qualified as BL
-import Network.HTTP.Types (Status, status200, status400)
+import Network.HTTP.Types (Method, Status, methodGet, methodPost, status200, status400, status404, status405)
 import Network.Wai
 import Claims.Parser (loadRules, parseRules)
 import Claims.Pipeline (evaluateClaim, evaluationErrorJSON, localToday, processEvaluation, reportToJSON)
@@ -58,24 +60,33 @@ readBodyLimited req = go 0 []
                 then pure $ Left "Request body exceeds the 10 MB limit"
                 else go newTotal (chunk : chunks)
 
+-- | Dispatch by path, then method: an unknown path is 404, a known path
+-- with the wrong method is 405 with an @Allow@ header.
 app :: QSem -> Application
-app sem request respond = do
-  case pathInfo request of
-    ["api", "evaluate"] -> handleEvaluate request respond
-    ["api", "batch-evaluate"] -> handleBatchEvaluate sem request respond
-    ["api", "parse-rule"] -> handleParseRule request respond
-    ["api", "check-redundancy"] -> handleCheckRedundancy request respond
-    ["api", "health"] -> handleHealth respond
-    _ -> respond $ responseLBS status400 [] "Not found"
+app sem request respond =
+  case route (pathInfo request) of
+    Nothing -> respond $ jsonResponse status404 $ object ["error" .= ("Not found" :: String)]
+    Just (method, handler)
+      | requestMethod request == method -> handler request respond
+      | otherwise ->
+          respond $
+            responseLBS
+              status405
+              [("Content-Type", "application/json"), ("Allow", method)]
+              (encode $ object ["error" .= ("Method not allowed; use " <> BS8.unpack method :: String)])
+  where
+    route = \case
+      ["api", "evaluate"] -> Just (methodPost, handleEvaluate)
+      ["api", "batch-evaluate"] -> Just (methodPost, handleBatchEvaluate sem)
+      ["api", "parse-rule"] -> Just (methodPost, handleParseRule)
+      ["api", "check-redundancy"] -> Just (methodPost, handleCheckRedundancy)
+      ["api", "health"] -> Just (methodGet, const handleHealth)
+      _ -> Nothing :: Maybe (Method, Application)
 
 -- | Liveness probe — always returns @{"status":"healthy"}@.
 handleHealth :: (Response -> IO ResponseReceived) -> IO ResponseReceived
 handleHealth respond =
-  respond $
-    responseLBS
-      status200
-      [("Content-Type", "application/json")]
-      (encode $ object ["status" .= ("healthy" :: String)])
+  respond $ jsonResponse status200 $ object ["status" .= ("healthy" :: String)]
 
 -- | Evaluate a single claim document against a DSL rule set, combining DSL
 -- results with an ML score (or stub when @ML_SCORER_URL@ is unset).
@@ -89,10 +100,8 @@ handleEvaluate request respond = do
       case decode body of
         Nothing ->
           respond $
-            responseLBS
-              status400
-              [("Content-Type", "application/json")]
-              (encode $ object ["error" .= ("Invalid JSON" :: String)])
+            jsonResponse status400 $
+              object ["error" .= ("Invalid JSON" :: String)]
         Just evalReq -> do
           result <- processEvaluation evalReq
           case result of
@@ -100,11 +109,7 @@ handleEvaluate request respond = do
               let (status, body') = evaluationErrorJSON err
                in respond $ jsonResponse status body'
             Right report ->
-              respond $
-                responseLBS
-                  status200
-                  [("Content-Type", "application/json")]
-                  (encode report)
+              respond $ jsonResponse status200 (toJSON report)
 
 -- | Evaluate a batch of claims against a set of DSL rules.
 --
@@ -179,24 +184,18 @@ handleParseRule request respond = do
       case decode body of
         Nothing ->
           respond $
-            responseLBS
-              status400
-              [("Content-Type", "application/json")]
-              (encode $ object ["error" .= ("Invalid JSON" :: String)])
+            jsonResponse status400 $
+              object ["error" .= ("Invalid JSON" :: String)]
         Just parseReq ->
           case parseRuleRequest parseReq of
             Left err ->
               respond $
-                responseLBS
-                  status400
-                  [("Content-Type", "application/json")]
-                  (encode $ object ["error" .= err, "success" .= False])
+                jsonResponse status400 $
+                  object ["error" .= err, "success" .= False]
             Right rule ->
               respond $
-                responseLBS
-                  status200
-                  [("Content-Type", "application/json")]
-                  (encode $ object ["rule" .= rule, "success" .= True])
+                jsonResponse status200 $
+                  object ["rule" .= rule, "success" .= True]
 
 -- Helper for JSON responses
 jsonResponse :: Status -> Value -> Response

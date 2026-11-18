@@ -5,6 +5,7 @@
 module Main (main) where
 
 import Test.Hspec
+import AppSpec (appSpec)
 import BusinessRulesSpec (businessRulesSpec)
 import Claims.EvaluatorSpec (evaluatorSpec)
 import Claims.ListenConfigSpec (listenConfigSpec)
@@ -17,6 +18,7 @@ import ParserProps (parserProperties)
 
 main :: IO ()
 main = hspec $ do
+  appSpec
   businessRulesSpec
   listenConfigSpec
   parserProperties

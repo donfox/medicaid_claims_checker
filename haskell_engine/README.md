@@ -36,7 +36,7 @@ The server itself is in `app/`:
 | `Middleware` | Rate limit and shared-secret auth, applied to every request |
 | `Routes` | HTTP routing and the request handlers |
 
-Tests mirror this layout: `test/Claims/<Module>Spec.hs` tests `src/Claims/<Module>.hs`. The others in `test/`: `ParserProps.hs` (QuickCheck round-trip properties of the parser), `Claims/Pretty.hs` (the test-only printer they use), and `BusinessRulesSpec.hs` (the business rules against sample claims). `Spec.hs` runs them all.
+Tests mirror this layout: `test/Claims/<Module>Spec.hs` tests `src/Claims/<Module>.hs`. The others in `test/`: `ParserProps.hs` (QuickCheck round-trip properties of the parser), `Claims/Pretty.hs` (the test-only printer they use), `BusinessRulesSpec.hs` (the business rules against sample claims), and `AppSpec.hs` (the HTTP layer in `app/`: auth, rate limit and routing, run on WAI requests without a server; the test suite compiles `app/` for it). `Spec.hs` runs them all.
 
 ## Building
 
@@ -131,6 +131,10 @@ A rule whose condition depends on missing or unusable data does not match. Its r
 ### A claim that times out is not assessed
 
 Each claim has a 30-second limit. When a claim exceeds it, `/api/batch-evaluate` returns `{"claimIndex": i, "error": "evaluation timed out after 30 s", "reason": "timeout"}` for that claim, with no `report`. The rest of the batch is unaffected. `reason` is a short code for programs; `error` is the message for people. Phoenix stores such a claim with status `not_assessed` and the message, and never as clean: Jobs History shows it as NOT ASSESSED with the reason, counts it separately, and says an analyst must review it. A provider (NPPES) rejection on the same claim is still shown. Any per-claim `error` is treated the same way, with or without a `reason`.
+
+### Known limitation: the engine keeps working after Phoenix stops waiting
+
+Phoenix waits up to 120 seconds for each chunk of 200 claims. If it gives up, the engine does not notice: it finishes evaluating that chunk anyway, and the result is thrown away. In the worst case, 200 claims each running into the 30-second limit on 10 workers, that is about 10 minutes of engine time spent on nothing. No real claim has come near the limit, so this is not fixed. If slow claims ever appear, stop a batch's remaining work when its connection closes.
 
 ## How the Engine Checks a Batch of Claims
 

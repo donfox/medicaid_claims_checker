@@ -78,7 +78,7 @@ field IS NULL
 field IS NOT NULL
 ```
 
-Use these to check whether a field is missing or present.
+Use these to check whether a field is missing or present. A field is null when it is absent or JSON `null`; a field that holds an object (such as `provider`) or a list (such as `service_lines`) is not null.
 
 ### Boolean literals
 
@@ -166,6 +166,8 @@ These search standard claim arrays without requiring explicit `EXISTS` logic:
 - `diagnosis_codes[*].code`
 - `service_lines[*].procedure_code`
 
+A code written as a JSON number (`99213`) matches the same code in quotes (`"99213"`).
+
 ### Quantifiers
 
 ```text
@@ -182,13 +184,15 @@ Use these forms when you need to inspect repeated structures such as service lin
 
 ### Named quantifier variables
 
-You can bind an element to a variable using `IN`. This is especially useful for nested logic because the outer variable stays accessible inside the inner expression.
+You can bind an element to a variable using `IN`. This is especially useful for nested logic because the outer variable stays accessible inside the inner expression: in its fields, and as the start of an inner `EXISTS`, `FORALL` or `COUNT` path.
 
 ```text
 EXISTS x IN path WHERE x.field = "value"
 FORALL x IN path WHERE x.field > 100
 EXISTS x IN lines WHERE x.code = "99213"
   AND EXISTS y IN lines WHERE y.code = "99214"
+EXISTS line IN service_lines WHERE EXISTS m IN line.modifiers WHERE m.code = "25"
+EXISTS line IN service_lines WHERE COUNT(line.modifiers) > 2
 ```
 
 The unnamed form still works:
@@ -236,7 +240,7 @@ is_weekend(line.date_of_service)
 | `starts_with(field, "text")` | the field's text begins with `"text"` |
 | `in_list(field, ["A", "B"])` | the field's text is one of the listed values |
 | `is_weekend(date)` | the date is a Saturday or Sunday |
-| `is_future_date(date)` | the date is after today |
+| `is_future_date(date)` | the date is after today (the date where the engine runs, not UTC) |
 | `is_date_before(date, "1900-01-01")` | the first date is earlier than the second |
 | `is_age_valid(date_of_birth, min, max)` | the age today, in whole years, is from `min` to `max` inclusive |
 | `is_npi_format(npi)` | the value is exactly 10 digits |
@@ -319,6 +323,8 @@ WHEN place = "23" AND amount > 5000
 THEN REQUIRE_REVIEW "ER high amount"
 END
 ```
+
+A `LET` name stands for its field path, so it behaves exactly as if the path were written out: when the field is missing, `place IS NULL` is true and a comparison on `place` is not checked, naming `claim_details.place_of_service` as missing. A `LET` always refers to the whole claim, even inside `EXISTS` or `FORALL`. It may name an object or a list (`LET lines = service_lines`, then `COUNT(lines)`) or an earlier `LET`.
 
 ## Values
 

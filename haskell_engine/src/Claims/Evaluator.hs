@@ -27,7 +27,7 @@ module Claims.Evaluator
 where
 
 import Control.Applicative ((<|>))
-import Control.Monad (foldM, (>=>))
+import Control.Monad ((>=>))
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Key qualified as Key
 import Data.Aeson.KeyMap qualified as KM
@@ -37,7 +37,7 @@ import Data.Map.Strict qualified as Map
 import Data.List (nub)
 import Data.Maybe (isJust, isNothing)
 import Data.Int (Int64)
-import Data.Scientific (Scientific, toBoundedInteger, toRealFloat)
+import Data.Scientific (FPFormat (Fixed), Scientific, base10Exponent, formatScientific, fromFloatDigits, toBoundedInteger, toRealFloat)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Time (Day, DayOfWeek (Saturday, Sunday), dayOfWeek, defaultTimeLocale, parseTimeM, toGregorian)
@@ -54,23 +54,31 @@ import Text.Regex.TDFA.Text ()
 
 -- | Environment for predicate evaluation.
 --
--- Carries LET bindings (text aliases), quantifier-scoped variables (JSON
--- objects from @EXISTS x IN …@), and the current document context.
--- The two prefix fields only affect how field names are written in
--- "not checked" reasons: inside @EXISTS line IN service_lines@ the field
--- @line.date_of_service@ is reported as @service_lines[].date_of_service@.
+-- Carries LET bindings (aliases for field paths of the whole claim),
+-- quantifier-scoped variables (JSON objects from @EXISTS x IN …@), and the
+-- current document context. The two prefix fields only affect how field
+-- names are written in "not checked" reasons: inside
+-- @EXISTS line IN service_lines@ the field @line.date_of_service@ is
+-- reported as @service_lines[].date_of_service@.
 data EvalEnv = EvalEnv
-  { envLetBindings :: Map Text Text
+  { envLetBindings :: Map Text Path      -- ^ LET name → path in 'envRoot'
   , envScopeVars   :: Map Text Aeson.Value
   , envScopeNames  :: Map Text [Text]  -- ^ quantifier variable → display prefix
   , envDocPrefix   :: [Text]           -- ^ display prefix of 'envDoc'
   , envDoc         :: Aeson.Value
+  , envRoot        :: Aeson.Value      -- ^ the whole claim, for LET paths
   , envToday       :: Day
   }
 
--- | Build an initial environment from a document.
-mkEnv :: Day -> Map Text Text -> Aeson.Value -> EvalEnv
-mkEnv today lets doc = EvalEnv lets Map.empty Map.empty [] doc today
+-- | Build an initial environment from a document and its LET bindings.
+-- A LET may name an earlier LET; it then stands for that LET's path.
+mkEnv :: Day -> [Syntax.Binding] -> Aeson.Value -> EvalEnv
+mkEnv today bindings doc = EvalEnv lets Map.empty Map.empty [] doc doc today
+  where
+    lets = foldl bind Map.empty bindings
+    bind acc b = Map.insert (Syntax.bindingName b) (expand acc (Syntax.bindingField b)) acc
+    expand acc ref@(Path [single]) = Map.findWithDefault ref single acc
+    expand _ ref = ref
 
 -- ----------------------------------------------------------------------------
 -- Three-valued logic
@@ -165,11 +173,11 @@ evaluateWithEnv env = \case
   -- Domain-specific checks
   Syntax.HasDiagnosis val -> evaluateHasDiagnosis env val
   Syntax.HasProcedure val -> evaluateHasProcedure env val
-  -- Null checks are always definite
+  -- Null checks are always definite. An object or a list is not null.
   Syntax.IsNull fieldRef ->
-    known $ isNothing $ lookupFieldWithEnv env fieldRef
+    known $ isNothing $ lookupValue env fieldRef
   Syntax.IsNotNull fieldRef ->
-    known $ isJust $ lookupFieldWithEnv env fieldRef
+    known $ isJust $ lookupValue env fieldRef
   -- Boolean logic (recursive)
   Syntax.And p1 p2 ->
     evaluateWithEnv env p1 `tAnd` evaluateWithEnv env p2
@@ -181,7 +189,7 @@ evaluateWithEnv env = \case
   Syntax.ForAll var path p -> tAll (emptyReason path) (quantify var path p)
   -- COUNT is definite: a missing collection counts as zero
   Syntax.Count path op n ->
-    known $ applyOp op (length $ findArrayItems path (envDoc env)) n
+    known $ applyOp op (length $ findArrayItems env path) n
   Syntax.HelperCall helperName args ->
     fromCheck $ evaluateHelperCall env helperName args
   -- String operations
@@ -201,7 +209,7 @@ evaluateWithEnv env = \case
     -- Evaluate the body once per item. Without a variable the item becomes
     -- the document; with one, the item is bound to it and the document stays.
     quantify var path p =
-      [ evaluateWithEnv (enter var path item) p | item <- findArrayItems path (envDoc env) ]
+      [ evaluateWithEnv (enter var path item) p | item <- findArrayItems env path ]
     enter Nothing path item =
       env {envDoc = item, envDocPrefix = itemPrefix path}
     enter (Just name) path item =
@@ -209,7 +217,7 @@ evaluateWithEnv env = \case
         { envScopeVars = Map.insert name item (envScopeVars env),
           envScopeNames = Map.insert name (itemPrefix path) (envScopeNames env)
         }
-    itemPrefix (Path ps) = envDocPrefix env ++ markLast ps
+    itemPrefix path = markLast (displayParts env path)
     markLast ps = case reverse ps of
       (lastPart : before) -> reverse ((lastPart <> "[]") : before)
       [] -> []
@@ -221,49 +229,30 @@ evaluateWithEnv env = \case
 -- action should be taken.
 evaluateRuleSimple :: Day -> Aeson.Value -> Syntax.Rule -> RuleResult
 evaluateRuleSimple today doc rule =
-  case buildBindingContext today doc (Syntax.ruleBindings rule) of
-    Left err ->
-      RuleResult
+  let env = mkEnv today (Syntax.ruleBindings rule) doc
+      truth = evaluateWithEnv env (Syntax.ruleCondition rule)
+      matched = truth == Yes
+      action =
+        if matched
+          then Just (Syntax.ruleAction rule)
+          else Nothing
+      details = case truth of
+        Yes -> "Rule matched: " <> Syntax.ruleDescription rule
+        No -> "Rule did not match"
+        Unknown reasons ->
+          "Rule did not match: missing or unusable data ("
+            <> T.intercalate "; " (nub reasons)
+            <> ")"
+   in RuleResult
         { resultRuleName = Syntax.ruleName rule,
-          resultMatched = False,
-          resultAction = Nothing,
-          resultDetails = "Rule binding error: " <> err,
-          resultUndecided = True
+          resultMatched = matched,
+          resultAction = action,
+          resultDetails = details,
+          resultUndecided = isUnknown truth
         }
-    Right bindings ->
-      let env = mkEnv today bindings doc
-          truth = evaluateWithEnv env (Syntax.ruleCondition rule)
-          matched = truth == Yes
-          action =
-            if matched
-              then Just (Syntax.ruleAction rule)
-              else Nothing
-          details = case truth of
-            Yes -> "Rule matched: " <> Syntax.ruleDescription rule
-            No -> "Rule did not match"
-            Unknown reasons ->
-              "Rule did not match: missing or unusable data ("
-                <> T.intercalate "; " (nub reasons)
-                <> ")"
-       in RuleResult
-            { resultRuleName = Syntax.ruleName rule,
-              resultMatched = matched,
-              resultAction = action,
-              resultDetails = details,
-              resultUndecided = isUnknown truth
-            }
   where
     isUnknown (Unknown _) = True
     isUnknown _ = False
-
-buildBindingContext :: Day -> Aeson.Value -> [Syntax.Binding] -> Either Text (Map Text Text)
-buildBindingContext today doc = foldM step Map.empty
-  where
-    step ctx binding =
-      let env = mkEnv today ctx doc
-       in case lookupFieldWithEnv env (Syntax.bindingField binding) of
-            Just value -> Right $ Map.insert (Syntax.bindingName binding) value ctx
-            Nothing -> Left $ "Could not resolve LET binding '" <> Syntax.bindingName binding <> "'"
 
 -- | Run a built-in helper. A failed check (an argument missing or
 -- unusable, or an unknown call) is treated by the caller as 'Unknown'.
@@ -369,39 +358,42 @@ applyOp = \case
   GTE -> (>=)
   LTE -> (<=)
 
--- | Parse a Text value as a Double.
+-- | Parse a Text value as a finite Double. "NaN", "Infinity" and numbers
+-- too large for a Double are not numbers.
 textToDouble :: Text -> Maybe Double
 textToDouble t = case reads (T.unpack t) of
-  [(d, "")] -> Just d
+  [(d, "")] | not (isNaN d || isInfinite d) -> Just d
   _ -> Nothing
 
 -- ----------------------------------------------------------------------------
 -- JSON Field Lookup
 -- ----------------------------------------------------------------------------
 
--- | Look up a field. Resolution order:
+-- | Look up a field's JSON value; 'Nothing' if it is absent or null.
+-- Every lookup goes through here. Resolution order:
 --
 -- 1. If the first part names a quantifier variable (@EXISTS x IN ...@),
 --    look up the rest inside that item.
--- 2. If the path is a single name bound by @LET@, use the bound value.
+-- 2. If the path is a single name bound by @LET@, look up its path in the
+--    whole claim.
 -- 3. Otherwise look the path up in the document.
-lookupFieldWithEnv :: EvalEnv -> Path -> Maybe Text
-lookupFieldWithEnv env ref = either (const Nothing) Just (lookupText env ref)
+lookupValue :: EvalEnv -> Path -> Maybe Aeson.Value
+lookupValue env (Path parts) = notNull =<< case parts of
+  (first : rest)
+    | Just scopeVal <- Map.lookup first (envScopeVars env) -> lookupPathRaw rest scopeVal
+  [single]
+    | Just (Path letParts) <- Map.lookup single (envLetBindings env) -> lookupPathRaw letParts (envRoot env)
+  _ -> lookupPathRaw parts (envDoc env)
+  where
+    notNull Aeson.Null = Nothing
+    notNull v = Just v
 
 -- | Look up a field as text, or say why it cannot be used: missing (absent
 -- or null) or not a single value (an object or array).
 lookupText :: EvalEnv -> Path -> Check Text
-lookupText env ref@(Path parts) = case parts of
-  (first : rest)
-    | Just scopeVal <- Map.lookup first (envScopeVars env) -> fromRaw (lookupPathRaw rest scopeVal)
-  [single]
-    | Just val <- Map.lookup single (envLetBindings env) -> Right val
-  _ -> fromRaw (lookupPathRaw parts (envDoc env))
-  where
-    fromRaw = \case
-      Nothing -> Left [displayPath env ref <> " missing"]
-      Just Aeson.Null -> Left [displayPath env ref <> " missing"]
-      Just v -> valueToText v `orElse` (displayPath env ref <> " is not a single value")
+lookupText env ref = case lookupValue env ref of
+  Nothing -> Left [displayPath env ref <> " missing"]
+  Just v -> valueToText v `orElse` (displayPath env ref <> " is not a single value")
 
 -- | Look up a field as a number, or say why it cannot be used.
 lookupNumber :: EvalEnv -> Path -> Check Double
@@ -409,11 +401,17 @@ lookupNumber env ref =
   lookupText env ref >>= \t -> textToDouble t `orElse` (displayPath env ref <> " is not a number")
 
 -- | A field path as an analyst would recognise it in the claim, with
--- quantifier variables replaced by their collection (see 'EvalEnv').
+-- quantifier variables replaced by their collection and LET names by their
+-- path (see 'EvalEnv').
 displayPath :: EvalEnv -> Path -> Text
-displayPath env (Path parts) = T.intercalate "." $ case parts of
+displayPath env = T.intercalate "." . displayParts env
+
+displayParts :: EvalEnv -> Path -> [Text]
+displayParts env (Path parts) = case parts of
   (first : rest)
     | Just prefix <- Map.lookup first (envScopeNames env) -> prefix ++ rest
+  [single]
+    | Just (Path letParts) <- Map.lookup single (envLetBindings env) -> letParts
   _ -> envDocPrefix env ++ parts
 
 -- | Follow a path through objects (by key) and arrays (by index) and render
@@ -439,33 +437,45 @@ valueToText = \case
 -- | Render a JSON number the way it would be written in a claim.
 --
 -- Whole numbers keep every digit (@1234567893@, not @1.234567893e9@), so
--- numeric NPIs, codes and IDs compare correctly as text. Values outside
--- the 'Int64' range fall back to 'Double' rather than expanding a huge
+-- numeric NPIs, codes and IDs compare correctly as text. Other numbers are
+-- written out in plain decimal (@0.05@, not @5.0e-2@). Values outside the
+-- 'Int64' range fall back to 'Double' rather than expanding a huge
 -- exponent into a giant 'Integer'.
 scientificToText :: Scientific -> Text
 scientificToText n =
   case toBoundedInteger n :: Maybe Int64 of
     Just i -> T.pack (show i)
-    Nothing -> doubleToText (toRealFloat n)
+    Nothing
+      | plainRange n -> T.pack (formatScientific Fixed Nothing n)
+      | otherwise -> doubleToText (toRealFloat n)
 
 -- | Render a 'Double', dropping the @.0@ from whole numbers so a DSL
--- literal like @99213@ reads the same as the JSON number @99213@.
+-- literal like @99213@ reads the same as the JSON number @99213@, and
+-- writing other numbers in plain decimal like 'scientificToText'.
 doubleToText :: Double -> Text
 doubleToText d
+  | isNaN d || isInfinite d = T.pack (show d)
   | d == fromIntegral i && abs d < 1e15 = T.pack (show i)
+  | plainRange s = T.pack (formatScientific Fixed Nothing s)
   | otherwise = T.pack (show d)
   where
     i = round d :: Integer
+    s = fromFloatDigits d
+
+-- | Numbers small enough in magnitude, either way, to write out in full.
+plainRange :: Scientific -> Bool
+plainRange n = abs (base10Exponent n) <= 30
 
 -- ----------------------------------------------------------------------------
 -- Array Navigation for Quantifiers
 -- ----------------------------------------------------------------------------
 
--- | The items of the collection at a path: an array's elements, or a single
+-- | The items of the collection at a path (which may start with a
+-- quantifier variable or be a LET name): an array's elements, or a single
 -- object as a one-item list. Anything else, or nothing, gives no items.
-findArrayItems :: Path -> Aeson.Value -> [Aeson.Value]
-findArrayItems (Path parts) doc =
-  case lookupPathRaw parts doc of
+findArrayItems :: EvalEnv -> Path -> [Aeson.Value]
+findArrayItems env path =
+  case lookupValue env path of
     Just (Aeson.Array arr) -> V.toList arr
     Just obj@(Aeson.Object _) -> [obj] -- Single object as list of one
     _ -> []
@@ -548,12 +558,13 @@ anyCodeInArray doc rootPath fieldName target =
       | not (V.null arr) -> Just (V.any (matchField fieldName target) arr)
     _ -> Nothing
 
--- | Does a JSON object's named field equal the target text?
+-- | Does a JSON object's named field equal the target text? A code written
+-- as a JSON number (@99213@) matches its text (@"99213"@).
 matchField :: Text -> Text -> Aeson.Value -> Bool
 matchField fieldName target (Aeson.Object obj) =
-  case KM.lookup (Key.fromText fieldName) obj of
-    Just (Aeson.String t) -> t == target
-    _ -> False
+  case KM.lookup (Key.fromText fieldName) obj >>= valueToText of
+    Just t -> t == target
+    Nothing -> False
 matchField _ _ _ = False
 
 -- ----------------------------------------------------------------------------

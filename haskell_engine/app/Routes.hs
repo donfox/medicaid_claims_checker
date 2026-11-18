@@ -20,13 +20,12 @@ import Control.Concurrent.QSem (QSem, signalQSem, waitQSem)
 import Control.Exception (bracket_)
 import Data.Aeson (FromJSON (..), ToJSON (..), Value (..), decode, encode, object, withObject, (.:), (.=))
 import Data.Text qualified as T
-import Data.Time.Clock (getCurrentTime, utctDay)
 import Data.ByteString qualified as BS
 import Data.ByteString.Lazy qualified as BL
 import Network.HTTP.Types (Status, status200, status400)
 import Network.Wai
 import Claims.Parser (loadRules, parseRules)
-import Claims.Pipeline (evaluateClaim, processEvaluation, reportToJSON)
+import Claims.Pipeline (evaluateClaim, localToday, processEvaluation, reportToJSON)
 import Claims.RedundancyChecker (checkRedundancy)
 
 -- | Maximum allowed request body size (10 MB).
@@ -144,7 +143,7 @@ handleBatchEvaluate sem request respond = do
                     jsonResponse status400 $
                       object ["error" .= err]
                 Right engine -> do
-                  today <- utctDay <$> getCurrentTime
+                  today <- localToday
                   let claims = batchClaims req
                   results <- mapConcurrently
                     ( \(i, doc) ->

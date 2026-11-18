@@ -979,6 +979,76 @@ evaluatorSpec = do
             reportSummary report
               `shouldBe` "Evaluated 3 rules, 1 matched, 1 not checked (missing data). Overall risk: HighRisk"
 
+  describe "Field lookup through quantifier variables, LET and IS NULL" $ do
+    let doc = object
+          [ "provider" .= object ["npi" .= ("1234567893" :: String)]
+          , "financial" .= object ["claim_amount" .= (0.05 :: Double)]
+          , "service_lines" .=
+              [ object
+                  [ "procedure_code" .= (99213 :: Int)
+                  , "modifiers" .= [object ["code" .= ("25" :: String)]]
+                  ]
+              , object ["procedure_code" .= ("80053" :: String)]
+              ]
+          ]
+        run cond = runRule ("RULE t \"T\" WHEN " <> cond <> " THEN FLAG_FRAUD \"x\";")
+        runRule input = case parseRule input of
+          Left err -> error ("Parse failed: " ++ show err)
+          Right rule -> evaluateRuleSimple testDay doc rule
+        matches = resultMatched . run
+
+    it "an inner EXISTS looks inside the outer item" $
+      matches "EXISTS line IN service_lines WHERE EXISTS m IN line.modifiers WHERE m.code = \"25\""
+        `shouldBe` True
+    it "an inner FORALL looks inside the outer item" $
+      matches "EXISTS line IN service_lines WHERE FORALL m IN line.modifiers WHERE m.code = \"25\""
+        `shouldBe` True
+    it "COUNT counts inside the outer item" $ do
+      matches "EXISTS line IN service_lines WHERE COUNT(line.modifiers) = 1" `shouldBe` True
+      matches "FORALL line IN service_lines WHERE COUNT(line.modifiers) = 0" `shouldBe` False
+    it "an inner EXISTS over a missing list names it by the outer collection" $
+      resultDetails (run "FORALL line IN service_lines WHERE EXISTS m IN line.modifiers WHERE m.code = \"25\"")
+        `shouldBe` "Rule did not match: missing or unusable data (service_lines[].modifiers missing or empty)"
+
+    it "an object or a list is not null" $ do
+      matches "provider IS NULL" `shouldBe` False
+      matches "provider IS NOT NULL" `shouldBe` True
+      matches "service_lines IS NOT NULL" `shouldBe` True
+      matches "missing IS NULL" `shouldBe` True
+
+    it "LET of a missing field: IS NULL matches" $
+      resultMatched (runRule "RULE t \"T\" LET tax = provider.taxonomy WHEN tax IS NULL THEN FLAG_FRAUD \"x\";")
+        `shouldBe` True
+    it "LET of a missing field names the field, not the LET" $
+      resultDetails (runRule "RULE t \"T\" LET tax = provider.taxonomy WHEN tax = \"1\" THEN FLAG_FRAUD \"x\";")
+        `shouldBe` "Rule did not match: missing or unusable data (provider.taxonomy missing)"
+    it "LET can name a list, and a later LET can name an earlier one" $
+      resultMatched
+        (runRule "RULE t \"T\" LET lines = service_lines LET l2 = lines WHEN COUNT(l2) = 2 AND EXISTS x IN lines WHERE x.procedure_code = \"80053\" THEN FLAG_FRAUD \"x\";")
+        `shouldBe` True
+    it "LET inside an anonymous quantifier still means the whole claim" $
+      resultMatched
+        (runRule "RULE t \"T\" LET npi = provider.npi WHEN EXISTS service_lines WHERE npi = \"1234567893\" THEN FLAG_FRAUD \"x\";")
+        `shouldBe` True
+
+    it "has_procedure finds a code written as a JSON number" $
+      matches "claim.has_procedure \"99213\"" `shouldBe` True
+
+    it "a decimal below 0.1 compares as plain text" $
+      matches "financial.claim_amount = \"0.05\"" `shouldBe` True
+
+    it "NaN and Infinity are not numbers" $ do
+      let textAmount t = object ["financial" .= object ["claim_amount" .= (t :: String)]]
+          on d input = case parseRule input of
+            Left err -> error ("Parse failed: " ++ show err)
+            Right rule -> evaluateRuleSimple testDay d rule
+          r1 = on (textAmount "Infinity") "RULE t \"T\" WHEN financial.claim_amount > 1000 THEN FLAG_FRAUD \"x\";"
+          r2 = on (textAmount "NaN") "RULE t \"T\" WHEN financial.claim_amount != 5 THEN FLAG_FRAUD \"x\";"
+      resultMatched r1 `shouldBe` False
+      resultDetails r1 `shouldBe` "Rule did not match: missing or unusable data (financial.claim_amount is not a number)"
+      resultMatched r2 `shouldBe` False
+      resultUndecided r2 `shouldBe` True
+
   -- ----------------------------------------------------------------
   -- Default Rule DSL Texts — Parse Validation
   -- ----------------------------------------------------------------

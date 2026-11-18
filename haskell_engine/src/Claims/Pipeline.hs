@@ -15,6 +15,7 @@ module Claims.Pipeline
     -- * Evaluation
     processEvaluation,
     evaluateClaim,
+    localToday,
     EvaluationResponse (..),
     reportToJSON,
   )
@@ -28,7 +29,8 @@ import Data.Aeson.Types qualified as AesonTypes
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Time (Day)
-import Data.Time.Clock (getCurrentTime, utctDay)
+import Data.Time.Clock (getCurrentTime)
+import Data.Time.LocalTime (getZonedTime, localDay, zonedTimeToLocalTime)
 import Data.Time.Format (defaultTimeLocale, formatTime)
 import System.Environment (lookupEnv)
 import System.IO (hPutStrLn, stderr)
@@ -130,6 +132,11 @@ ensureNonEmpty fieldName value =
 evalTimeoutMicros :: Int
 evalTimeoutMicros = 30 * 1000000
 
+-- | Today's date where the engine runs (its local time zone, not UTC), so
+-- "today" in rules (future dates, ages) matches the analysts' calendar.
+localToday :: IO Day
+localToday = localDay . zonedTimeToLocalTime <$> getZonedTime
+
 -- | Evaluate a rule set against one claim, giving up after
 -- 'evalTimeoutMicros'. Forcing the match count runs every predicate here,
 -- inside the timeout; the rule list length alone does not.
@@ -148,7 +155,8 @@ processEvaluation req = do
     Left err -> return $ Left err
     Right engine -> do
       now <- getCurrentTime
-      mReport <- evaluateClaim engine (utctDay now) (evalDocument req)
+      today <- localToday
+      mReport <- evaluateClaim engine today (evalDocument req)
       case mReport of
         Nothing -> return $ Left "Evaluation timed out after 30 s"
         Just report -> do

@@ -3,7 +3,9 @@
 -- | Tests for "Claims.RedundancyChecker".
 module Claims.RedundancyCheckerSpec (redundancyCheckerSpec) where
 
+import Data.Text (Text)
 import Test.Hspec
+import Claims.Parser (parseRule)
 import Claims.RedundancyChecker
 import Claims.Syntax
 import Prelude hiding (EQ, GT, LT)
@@ -170,6 +172,78 @@ redundancyCheckerSpec = do
       length matches `shouldBe` 1
       matchLevel (head matches) `shouldBe` ExactDuplicate
 
+  describe "Names chosen by the rule's author do not matter" $ do
+    let levels a b = map matchLevel (checkRedundancy (rule a) [rule b])
+
+    it "the same LET name on different fields is not a duplicate" $
+      levels
+        "RULE a \"A\" LET x = financial.claim_amount WHEN x > 5000 THEN REJECT \"r\";"
+        "RULE b \"B\" LET x = patient.age WHEN x > 5000 THEN REJECT \"r\";"
+        `shouldBe` []
+    it "a LET is a duplicate of the path written out" $
+      levels
+        "RULE a \"A\" LET amt = financial.claim_amount WHEN amt > 5000 THEN REJECT \"r\";"
+        "RULE b \"B\" WHEN financial.claim_amount > 5000 THEN REJECT \"r\";"
+        `shouldBe` [ExactDuplicate]
+    it "a LET naming an earlier LET is its path too" $
+      levels
+        "RULE a \"A\" LET a1 = financial.claim_amount LET a2 = a1 WHEN a2 > 10000 THEN REJECT \"r\";"
+        "RULE b \"B\" WHEN financial.claim_amount > 5000 THEN REJECT \"r\";"
+        `shouldBe` [Subsumption]
+    it "inside an unnamed EXISTS a LET (the whole claim) differs from a plain path (the item)" $
+      levels
+        "RULE a \"A\" LET amt = charge_amount WHEN EXISTS service_lines WHERE amt > 5 THEN REJECT \"r\";"
+        "RULE b \"B\" WHEN EXISTS service_lines WHERE charge_amount > 5 THEN REJECT \"r\";"
+        `shouldBe` []
+    it "a loop variable in an inner collection path is renamed" $
+      levels
+        "RULE a \"A\" WHEN EXISTS l IN service_lines WHERE EXISTS m IN l.modifiers WHERE m.code = \"25\" THEN REJECT \"r\";"
+        "RULE b \"B\" WHEN EXISTS x IN service_lines WHERE EXISTS n IN x.modifiers WHERE n.code = \"25\" THEN REJECT \"r\";"
+        `shouldBe` [ExactDuplicate]
+    it "a loop variable in a helper argument and in COUNT is renamed" $
+      levels
+        "RULE a \"A\" WHEN EXISTS l IN service_lines WHERE is_weekend(l.date_of_service) AND COUNT(l.modifiers) > 1 THEN REJECT \"r\";"
+        "RULE b \"B\" WHEN EXISTS x IN service_lines WHERE is_weekend(x.date_of_service) AND COUNT(x.modifiers) > 1 THEN REJECT \"r\";"
+        `shouldBe` [ExactDuplicate]
+    it "a loop variable on the right of a comparison is renamed" $
+      levels
+        "RULE a \"A\" WHEN EXISTS l IN service_lines WHERE l.charge_amount > l.paid_amount THEN REJECT \"r\";"
+        "RULE b \"B\" WHEN EXISTS x IN service_lines WHERE x.charge_amount > x.paid_amount THEN REJECT \"r\";"
+        `shouldBe` [ExactDuplicate]
+    it "different loop variable names still overlap" $
+      levels
+        "RULE a \"A\" WHEN EXISTS l IN service_lines WHERE l.charge_amount > 500 THEN REJECT \"r\";"
+        "RULE b \"B\" WHEN EXISTS x IN service_lines WHERE x.charge_amount BETWEEN 100 AND 900 THEN REQUIRE_REVIEW \"r\";"
+        `shouldBe` [ConditionOverlap]
+
+  describe "Condition overlap needs a claim both rules could match" $ do
+    let levels a b = map matchLevel (checkRedundancy (rule a) [rule b])
+
+    it "a clash on another claim-level field rules the overlap out" $
+      levels
+        "RULE a \"A\" WHEN financial.claim_amount > 1000 AND provider.state = \"NY\" THEN REJECT \"r\";"
+        "RULE b \"B\" WHEN financial.claim_amount > 2000 AND provider.state = \"CA\" THEN REQUIRE_REVIEW \"r\";"
+        `shouldBe` []
+    it "a numeric clash on another field rules it out too" $
+      levels
+        "RULE a \"A\" WHEN financial.claim_amount > 1000 AND patient.age < 18 THEN REJECT \"r\";"
+        "RULE b \"B\" WHEN financial.claim_amount > 2000 AND patient.age > 65 THEN REQUIRE_REVIEW \"r\";"
+        `shouldBe` []
+    it "agreeing on the other field keeps the overlap" $
+      levels
+        "RULE a \"A\" WHEN financial.claim_amount > 1000 AND provider.state = \"NY\" THEN REJECT \"r\";"
+        "RULE b \"B\" WHEN financial.claim_amount < 2000 AND provider.state = \"NY\" THEN REQUIRE_REVIEW \"r\";"
+        `shouldBe` [ConditionOverlap]
+    it "a clash inside EXISTS does not rule it out (two lines could match)" $
+      levels
+        "RULE a \"A\" WHEN financial.claim_amount > 1000 AND EXISTS l IN service_lines WHERE l.procedure_code = \"99213\" THEN REJECT \"r\";"
+        "RULE b \"B\" WHEN financial.claim_amount > 2000 AND EXISTS l IN service_lines WHERE l.procedure_code = \"99214\" THEN REQUIRE_REVIEW \"r\";"
+        `shouldBe` [ConditionOverlap]
+
   -- ----------------------------------------------------------------
   -- New DSL Features
   -- ----------------------------------------------------------------
+
+-- | Parse one rule, failing the test on a parse error.
+rule :: Text -> Rule
+rule t = either (error . show) id (parseRule t)

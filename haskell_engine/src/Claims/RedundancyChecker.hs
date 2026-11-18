@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 -- |
@@ -11,10 +12,15 @@
 -- * __Exact duplicate__: same condition and action
 -- * __Subsumption__: one condition implies the other, same action (redundant)
 -- * __Shadowed__: one condition implies the other, different action (conflict)
+-- * __Condition overlap__: constraints on a shared field that can all hold
+--   at once, with no claim-level field on which the rules clash
 --
 -- Actions are compared by outcome: two @FLAG_FRAUD@ actions are the same
 -- action whatever their messages say, while risk scores must be equal.
--- * __Condition overlap__: constraints on a shared field that can all hold at once
+--
+-- Conditions are compared after 'canonicalCondition': LET names are
+-- replaced by their field paths and loop variables get canonical names, so
+-- rules that differ only in those names compare as equal.
 --
 -- Every check is conservative: it reports only what it can prove.
 module Claims.RedundancyChecker
@@ -26,6 +32,8 @@ where
 
 import Data.Aeson (ToJSON)
 import Data.List (nub, sort)
+import Data.Map.Strict (Map)
+import Data.Map.Strict qualified as Map
 import Data.Text (Text)
 import qualified Data.Text as T
 import GHC.Generics (Generic)
@@ -71,12 +79,12 @@ compareRules candidate existing
       [match Shadowed ("Same condition as " <> quote existing <> " but a different action — conflict")]
   | candidateNarrower || predicateImplies pe pc =
       [match (if sameAction then Subsumption else Shadowed) subsumption]
-  | hasConditionOverlap candidate existing =
+  | hasConditionOverlap pc pe =
       [match ConditionOverlap ("Shares overlapping field constraints with " <> quote existing)]
   | otherwise = []
   where
-    pc = normalizePredicate (ruleCondition candidate)
-    pe = normalizePredicate (ruleCondition existing)
+    pc = canonicalCondition candidate
+    pe = canonicalCondition existing
     sameAction = outcome (ruleAction candidate) == outcome (ruleAction existing)
     candidateNarrower = predicateImplies pc pe
     match level = RedundancyMatch level (ruleName existing)
@@ -103,19 +111,25 @@ outcome (CompositeAction as) = CompositeAction (nub (sort (map outcome as)))
 -- Condition overlap
 -- ----------------------------------------------------------------------------
 
--- | Two rules overlap if, on some field both constrain, their constraints
--- can all hold at once. Each rule's constraints on a field are combined
+-- | Two conditions overlap if, on some field both constrain, their
+-- constraints can all hold at once, and no claim-level field rules out a
+-- claim matching both. Each condition's constraints on a field are combined
 -- before comparing, so @BETWEEN 1 AND 5@ and @BETWEEN 7 AND 14@ do not
 -- overlap even though @>= 1@ and @>= 7@ would on their own.
-hasConditionOverlap :: Rule -> Rule -> Bool
+--
+-- Claim-level constraints (outside any quantifier) must all hold for a rule
+-- to fire, so a clash there proves no claim matches both. A clash inside
+-- @EXISTS@ proves nothing (two different items could match), so those
+-- fields only count towards an overlap.
+hasConditionOverlap :: Predicate -> Predicate -> Bool
 hasConditionOverlap a b =
-  let consA = filter usable (extractConstraints (ruleCondition a))
-      consB = filter usable (extractConstraints (ruleCondition b))
-      keys = nub (map key consA)
+  let consA = filter usable (extractConstraints a)
+      consB = filter usable (extractConstraints b)
+      shared = [k | k <- nub (map key consA), any ((== k) . key) consB]
       onKey k = filter ((== k) . key)
-   in any
-        (\k -> not (null (onKey k consB)) && satisfiable (onKey k consA ++ onKey k consB))
-        keys
+      compatible k = satisfiable (onKey k consA ++ onKey k consB)
+   in any compatible shared
+        && all compatible [k | k@(Nothing, _) <- shared]
   where
     key c = (fcScope c, fcField c)
 
@@ -155,14 +169,15 @@ extractConstraints = go Nothing
       Count _ _ _     -> []
       HelperCall _ _  -> []
 
--- | Constraints we can reason about: numeric comparisons and equality.
--- Anything else (e.g. @>@ on a string) is ignored. Conservative: an
--- ignored constraint never produces an overlap.
+-- | Constraints we can reason about: numeric comparisons and equality with
+-- a literal. Anything else (e.g. equality with another field) is ignored.
+-- Conservative: an ignored constraint never produces an overlap and never
+-- rules one out.
 usable :: FieldConstraint -> Bool
 usable c = case (fcOp c, fcValue c) of
-  (_, NumberValue _) -> True
-  (EQ, _)            -> True
-  _                  -> False
+  (_, NumberValue _)  -> True
+  (EQ, StringValue _) -> True
+  _                   -> False
 
 -- | Can every constraint in the list hold at once? All are on one field.
 -- Numbers must leave a non-empty interval; other values must all be
@@ -255,74 +270,105 @@ predicateImplies _ _ = False
 -- Predicate Normalization
 -- ----------------------------------------------------------------------------
 
--- | Normalize a predicate for structural comparison.
+-- | A rule's condition in canonical form, for comparing rules:
+-- 'canonicalNames', then 'normalizePredicate'.
+canonicalCondition :: Rule -> Predicate
+canonicalCondition r = normalizePredicate (canonicalNames (ruleBindings r) (ruleCondition r))
+
+-- | Rewrite every path in a condition so that names chosen by the rule's
+-- author do not matter:
+--
+-- * A loop variable (@EXISTS line IN …@) becomes @_v0@, @_v1@, … by
+--   nesting depth, wherever it starts a path: in fields, on the right of a
+--   comparison, in helper arguments, in an inner collection and in COUNT.
+-- * A LET name becomes its field path (a later LET may name an earlier
+--   one), as the evaluator reads it. Inside an unnamed quantifier a LET
+--   still means the whole claim, while a plain path means the item, so the
+--   LET's path is marked with @$claim@ there to keep the two apart.
+--
+-- A loop variable shadows a LET of the same name, as in the evaluator.
+canonicalNames :: [Binding] -> Predicate -> Predicate
+canonicalNames bindings = go (Scope Map.empty 0 False)
+  where
+    lets = foldl bind Map.empty bindings
+    bind acc (Binding name ref) = Map.insert name (expandLet acc ref) acc
+    expandLet acc ref@(Path [single]) = Map.findWithDefault ref single acc
+    expandLet _ ref = ref
+
+    go sc p = case p of
+      Compare op f v -> Compare op (path sc f) (value sc v)
+      Between f lo hi -> Between (path sc f) (value sc lo) (value sc hi)
+      Contains f v -> Contains (path sc f) v
+      Matches f t -> Matches (path sc f) t
+      IsNull f -> IsNull (path sc f)
+      IsNotNull f -> IsNotNull (path sc f)
+      HelperCall n args -> HelperCall n (map (value sc) args)
+      Count cp op n -> Count (path sc cp) op n
+      And a b -> And (go sc a) (go sc b)
+      Or a b -> Or (go sc a) (go sc b)
+      Not a -> Not (go sc a)
+      Exists mv cp body -> quantifier Exists sc mv cp body
+      ForAll mv cp body -> quantifier ForAll sc mv cp body
+      other -> other
+
+    -- The collection is read in the outer scope; the body in the new one.
+    quantifier mk sc mv cp body =
+      let inner = case mv of
+            Nothing -> sc {scDepth = scDepth sc + 1, scUnnamed = True}
+            Just v -> sc {scVars = Map.insert v (canonical sc) (scVars sc), scDepth = scDepth sc + 1}
+       in mk (canonical sc <$ mv) (path sc cp) (go inner body)
+
+    canonical sc = "_v" <> T.pack (show (scDepth sc))
+
+    path sc (Path (first : rest))
+      | Just c <- Map.lookup first (scVars sc) = Path (c : rest)
+    path sc (Path [single])
+      | Just (Path letParts) <- Map.lookup single lets =
+          Path (if scUnnamed sc then "$claim" : letParts else letParts)
+    path _ other = other
+
+    value sc (FieldValue f) = FieldValue (path sc f)
+    value sc (ListValue vs) = ListValue (map (value sc) vs)
+    value _ v = v
+
+-- | Where 'canonicalNames' is in a condition: loop variables in scope (with
+-- their canonical names), quantifier depth, and whether it is inside an
+-- unnamed quantifier.
+data Scope = Scope
+  { scVars :: Map Text Text,
+    scDepth :: Int,
+    scUnnamed :: Bool
+  }
+
+-- | Normalize a predicate for structural comparison (names are handled by
+-- 'canonicalNames').
 --
 -- * Flatten nested 'And' / 'Or' into sorted lists
 -- * Eliminate 'PTrue' from 'And', 'PFalse' from 'Or'
 -- * Remove double negation: @NOT (NOT p)@ → @p@
--- * Alpha-normalize bound variables in quantifiers
+-- * Write @BETWEEN@ as @>=@ and @<=@
 normalizePredicate :: Predicate -> Predicate
-normalizePredicate = go 0
-  where
-    go depth p = case p of
-      And a b ->
-        let conjuncts = sort $ flattenAnd (go depth a) ++ flattenAnd (go depth b)
-            filtered = filter (/= PTrue) conjuncts
-         in case filtered of
-              [] -> PTrue
-              [x] -> x
-              (x : xs) -> foldl And x xs
-      Or a b ->
-        let disjuncts = sort $ flattenOr (go depth a) ++ flattenOr (go depth b)
-            filtered = filter (/= PFalse) disjuncts
-         in case filtered of
-              [] -> PFalse
-              [x] -> x
-              (x : xs) -> foldl Or x xs
-      Not (Not inner) -> go depth inner
-      Not inner -> Not (go depth inner)
-      Between f v1 v2 ->
-        go depth (And (Compare GTE f v1) (Compare LTE f v2))
-      Exists mv sp inner ->
-        let (mv', inner') = alphaNormalize depth mv inner
-         in Exists mv' sp (go (depth + 1) inner')
-      ForAll mv sp inner ->
-        let (mv', inner') = alphaNormalize depth mv inner
-         in ForAll mv' sp (go (depth + 1) inner')
-      other -> other
-
--- | Rename a bound variable to a canonical name (@_v0@, @_v1@, …)
--- so that alpha-equivalent quantifiers compare as equal.
-alphaNormalize :: Int -> Maybe Text -> Predicate -> (Maybe Text, Predicate)
-alphaNormalize _ Nothing body = (Nothing, body)
-alphaNormalize depth (Just oldName) body =
-  let canonical = "_v" <> T.pack (show depth)
-   in (Just canonical, renameVar oldName canonical body)
-
--- | Rename a bound variable where it starts a field path (@var.field@).
--- Stops at nested quantifiers that shadow the same name.
-renameVar :: Text -> Text -> Predicate -> Predicate
-renameVar old new = go
-  where
-    renameField (Path (first : rest@(_ : _))) | first == old = Path (new : rest)
-    renameField other = other
-
-    go pred' = case pred' of
-      Compare op f v          -> Compare op (renameField f) v
-      Contains f v            -> Contains (renameField f) v
-      Matches f t             -> Matches (renameField f) t
-      IsNull f                -> IsNull (renameField f)
-      IsNotNull f             -> IsNotNull (renameField f)
-      Between f v1 v2         -> Between (renameField f) v1 v2
-      And a b                 -> And (go a) (go b)
-      Or a b                  -> Or (go a) (go b)
-      Not a                   -> Not (go a)
-      -- Stop if a nested quantifier shadows this variable name
-      Exists (Just v) sp body' | v == old -> Exists (Just v) sp body'
-      ForAll (Just v) sp body' | v == old -> ForAll (Just v) sp body'
-      Exists mv sp body'      -> Exists mv sp (go body')
-      ForAll mv sp body'      -> ForAll mv sp (go body')
-      other                   -> other
+normalizePredicate p = case p of
+  And a b ->
+    let conjuncts = sort $ flattenAnd (normalizePredicate a) ++ flattenAnd (normalizePredicate b)
+        filtered = filter (/= PTrue) conjuncts
+     in case filtered of
+          [] -> PTrue
+          [x] -> x
+          (x : xs) -> foldl And x xs
+  Or a b ->
+    let disjuncts = sort $ flattenOr (normalizePredicate a) ++ flattenOr (normalizePredicate b)
+        filtered = filter (/= PFalse) disjuncts
+     in case filtered of
+          [] -> PFalse
+          [x] -> x
+          (x : xs) -> foldl Or x xs
+  Not (Not inner) -> normalizePredicate inner
+  Not inner -> Not (normalizePredicate inner)
+  Between f v1 v2 -> normalizePredicate (And (Compare GTE f v1) (Compare LTE f v2))
+  Exists mv sp inner -> Exists mv sp (normalizePredicate inner)
+  ForAll mv sp inner -> ForAll mv sp (normalizePredicate inner)
+  other -> other
 
 -- | Flatten nested 'And' nodes into a list of conjuncts.
 flattenAnd :: Predicate -> [Predicate]

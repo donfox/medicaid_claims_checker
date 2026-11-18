@@ -81,7 +81,7 @@ test-suite medicaid-claims-dsl-test
                     , Claims.PipelineSpec
                     , Claims.RedundancyCheckerSpec
                     , BusinessRulesSpec
-                    , ListenConfigSpec
+                    , Claims.ListenConfigSpec
     build-depends:    base >=4.14 && <5
                     , medicaid-claims-dsl
                     , hspec >= 2.9.0 && < 2.12

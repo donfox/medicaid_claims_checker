@@ -7,12 +7,12 @@ module Main (main) where
 import Test.Hspec
 import BusinessRulesSpec (businessRulesSpec)
 import Claims.EvaluatorSpec (evaluatorSpec)
+import Claims.ListenConfigSpec (listenConfigSpec)
 import Claims.MLClientSpec (mlClientSpec)
 import Claims.ParserSpec (parserSpec)
 import Claims.PipelineSpec (pipelineSpec)
 import Claims.PolicyCombinerSpec (policyCombinerSpec)
 import Claims.RedundancyCheckerSpec (redundancyCheckerSpec)
-import ListenConfigSpec (listenConfigSpec)
 import ParserProps (parserProperties)
 
 main :: IO ()

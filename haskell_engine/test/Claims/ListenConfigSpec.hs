@@ -1,5 +1,5 @@
 -- | Startup rules for where the engine listens and whether it uses TLS.
-module ListenConfigSpec (listenConfigSpec) where
+module Claims.ListenConfigSpec (listenConfigSpec) where
 
 import Data.Either (isLeft)
 import Data.List (isInfixOf)
@@ -63,6 +63,9 @@ listenConfigSpec = describe "Claims.ListenConfig.resolveListen" $ do
       mapM_
         (\p -> failsWith "ENGINE_PORT must be a port number" (resolve Nothing (Just p) Nothing Nothing))
         ["abc", "0", "-1", "65536", "80.5", "8080x"]
+
+    it "refuses a huge number that would wrap around into range" $
+      failsWith "ENGINE_PORT must be a port number" (resolve Nothing (Just "18446744073709559696") Nothing Nothing)
 
     it "accepts the ends of the range" $ do
       resolve Nothing (Just "1") Nothing Nothing `shouldBe` Right (ListenConfig "127.0.0.1" 1 Nothing)

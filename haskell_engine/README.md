@@ -36,7 +36,7 @@ The server itself is in `app/`:
 | `Middleware` | Rate limit and shared-secret auth, applied to every request |
 | `Routes` | HTTP routing and the request handlers |
 
-Tests mirror this layout: `test/Claims/<Module>Spec.hs` tests `src/Claims/<Module>.hs`. The others in `test/`: `ParserProps.hs` (QuickCheck round-trip properties of the parser), `Claims/Pretty.hs` (the test-only printer they use), `BusinessRulesSpec.hs` (the business rules against sample claims), and `ListenConfigSpec.hs` (`Claims.ListenConfig`'s startup rules). `Spec.hs` runs them all.
+Tests mirror this layout: `test/Claims/<Module>Spec.hs` tests `src/Claims/<Module>.hs`. The others in `test/`: `ParserProps.hs` (QuickCheck round-trip properties of the parser), `Claims/Pretty.hs` (the test-only printer they use), and `BusinessRulesSpec.hs` (the business rules against sample claims). `Spec.hs` runs them all.
 
 ## Building
 

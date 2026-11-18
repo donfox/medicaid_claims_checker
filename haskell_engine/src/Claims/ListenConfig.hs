@@ -1,8 +1,12 @@
 -- Copyright (c) 2024-2026 Don Fox. All rights reserved.
 
--- | Where and how the engine server listens, resolved from its environment
--- variables (@ENGINE_HOST@, @ENGINE_PORT@, @RULE_ENGINE_TLS_CERT@,
--- @RULE_ENGINE_TLS_KEY@). Kept pure so the startup rules can be tested.
+-- |
+-- Module      : Claims.ListenConfig
+-- Description : Where and how the engine server listens
+--
+-- Resolved from the environment variables @ENGINE_HOST@, @ENGINE_PORT@,
+-- @RULE_ENGINE_TLS_CERT@ and @RULE_ENGINE_TLS_KEY@. Kept pure so the
+-- startup rules can be tested.
 module Claims.ListenConfig
   ( ListenConfig (..),
     resolveListen,
@@ -30,8 +34,9 @@ resolveListen mHost mPort mCert mKey = do
       host = fromMaybe "127.0.0.1" (set mHost)
   port <- case set mPort of
     Nothing -> Right 8080
-    Just p -> case readMaybe p of
-      Just n | n > 0 && n < 65536 -> Right n
+    -- Read as an Integer, so a huge number cannot wrap around into range.
+    Just p -> case readMaybe p :: Maybe Integer of
+      Just n | n > 0 && n < 65536 -> Right (fromInteger n)
       _ -> Left ("ENGINE_PORT must be a port number, got " ++ show p)
   tls <- case (set mCert, set mKey) of
     (Just c, Just k) -> Right (Just (c, k))

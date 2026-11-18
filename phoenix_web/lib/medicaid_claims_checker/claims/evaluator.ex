@@ -118,21 +118,10 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
           [results, edi_files, nppes_outcomes]
           |> Enum.zip()
           |> Enum.each(fn {result, edi_file, nppes_outcome} ->
-            report =
-              result
-              |> Map.get("report", %{})
-              |> merge_nppes_finding(nppes_outcome)
-              |> then(fn r ->
-                Map.put(r, "weightedScore", compute_weighted_score(r["results"] || []))
-              end)
-
-            # The report is a recommendation for an analyst; risk level never
-            # changes the file's status.
-            Claims.update_edi_file_evaluation(edi_file, %{
-              evaluation_report: report,
-              status: "evaluated",
-              processed_at: DateTime.utc_now()
-            })
+            Claims.update_edi_file_evaluation(
+              edi_file,
+              evaluation_attrs(result, nppes_outcome)
+            )
           end)
 
           Claims.update_batch(batch, %{status: "completed", completed_at: DateTime.utc_now()})
@@ -179,6 +168,60 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
     end
   end
 
+  # The engine returns a report for each claim, or an error when it could not
+  # check the claim (e.g. {"error": "evaluation timed out after 30 s",
+  # "reason": "timeout"}). A claim with an error is stored as "not_assessed",
+  # never as evaluated: its rules were not checked, so it must not look clean.
+  # A provider (NPPES) rejection is still a real finding and is kept.
+  # The report is a recommendation for an analyst; risk level never changes
+  # the file's status.
+  defp evaluation_attrs(%{"report" => report}, nppes_outcome) when is_map(report) do
+    report =
+      report
+      |> merge_nppes_finding(nppes_outcome)
+      |> put_weighted_score()
+
+    %{evaluation_report: report, status: "evaluated", processed_at: DateTime.utc_now()}
+  end
+
+  defp evaluation_attrs(result, nppes_outcome) do
+    message =
+      case result do
+        %{"error" => error} when is_binary(error) and error != "" -> error
+        _ -> "the rule engine returned no report for this claim"
+      end
+
+    reason =
+      case result do
+        %{"reason" => r} when is_binary(r) and r != "" -> r
+        _ -> "error"
+      end
+
+    report =
+      case nppes_outcome do
+        {:reject, _} ->
+          %{}
+          |> merge_nppes_finding(nppes_outcome)
+          |> put_weighted_score()
+          |> Map.put("summary", "Rules not checked: #{message}. Provider check failed.")
+
+        _ ->
+          nil
+      end
+
+    %{
+      evaluation_report: report,
+      status: "not_assessed",
+      error_message: message,
+      error_details: %{"reason" => reason},
+      processed_at: DateTime.utc_now()
+    }
+  end
+
+  defp put_weighted_score(report) do
+    Map.put(report, "weightedScore", compute_weighted_score(report["results"] || []))
+  end
+
   defp broadcast_completed(batch) do
     summary = Claims.batch_summary(batch.id)
     edi_files = Claims.list_files_for_batch(batch.id)
@@ -197,7 +240,10 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
         %{
           filename: f.filename,
           status: f.status,
-          risk: report["overallRisk"] || "LowRisk",
+          risk:
+            report["overallRisk"] ||
+              if(f.status == "not_assessed", do: "Not assessed", else: "LowRisk"),
+          error: f.error_message,
           matched_rules: report["matchedRules"] || 0,
           weighted_score: report["weightedScore"] || 0,
           matched_results: matched_results,

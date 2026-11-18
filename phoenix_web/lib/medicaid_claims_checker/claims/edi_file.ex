@@ -26,8 +26,16 @@ defmodule MedicaidClaimsChecker.Claims.EdiFile do
     |> cast(attrs, [:filename, :file_path, :json_output, :evaluation_report, :claim_fingerprint, :status, :error_message, :error_details, :processed_at, :batch_id])
     |> validate_required([:filename, :file_path, :status, :batch_id])
     # Processing state only. Whether a claim is fraudulent is an analyst's
-    # decision, never a file status set by the engine.
-    |> validate_inclusion(:status, ["pending", "translated", "evaluated", "syntax_error"])
+    # decision, never a file status set by the engine. "not_assessed": the
+    # engine returned an error for this claim (e.g. a timeout), so its rules
+    # were never checked; error_message says why.
+    |> validate_inclusion(:status, [
+      "pending",
+      "translated",
+      "evaluated",
+      "not_assessed",
+      "syntax_error"
+    ])
     |> foreign_key_constraint(:batch_id)
   end
 end

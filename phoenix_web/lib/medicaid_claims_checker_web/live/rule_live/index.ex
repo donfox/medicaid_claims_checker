@@ -40,7 +40,8 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
       batch_id: batch_id,
       total: summary.total,
       flagged: summary.flagged_for_review,
-      clean: summary.total - summary.flagged_for_review,
+      not_assessed: Map.get(summary, :not_assessed, 0),
+      clean: Map.get(summary, :clean, summary.total - summary.flagged_for_review),
       files: files,
       expanded: false
     }

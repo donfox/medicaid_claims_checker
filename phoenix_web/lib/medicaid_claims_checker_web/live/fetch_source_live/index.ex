@@ -77,16 +77,28 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     if MapSet.member?(socket.assigns.pending_upload_batch_ids, batch_id) do
       summary = Map.get(payload, :summary, %{})
       flagged = Map.get(summary, :flagged_for_review, 0)
+      not_assessed = Map.get(summary, :not_assessed, 0)
       total = Map.get(summary, :total, 0)
 
       msg =
         cond do
           flagged > 0 ->
             "#{flagged}/#{total} claim(s) flagged for analyst review — see results below."
+          not_assessed > 0 ->
+            "Evaluation complete — see results below."
           total > 0 ->
             "#{total} claim(s) evaluated clean — see results below."
           true ->
             "Evaluation complete — see results below."
+        end
+
+      # A claim the engine could not check is never clean: say so on its own.
+      msg =
+        if not_assessed > 0 do
+          msg <>
+            " #{not_assessed}/#{total} claim(s) not assessed (the rule engine could not check them) — an analyst must review them."
+        else
+          msg
         end
 
       {:noreply,
@@ -1017,7 +1029,9 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
           id: f.id,
           filename: normalize_filename(f.filename),
           status: f.status,
-          risk: report["overallRisk"] || "N/A",
+          not_assessed: f.status == "not_assessed",
+          error: f.error_message,
+          risk: report["overallRisk"] || if(f.status == "not_assessed", do: "Not assessed", else: "N/A"),
           matched_rules: report["matchedRules"] || 0,
           weighted_score: report["weightedScore"] || 0,
           matched_results: matched_results,

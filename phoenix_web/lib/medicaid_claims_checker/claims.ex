@@ -4,7 +4,10 @@ defmodule MedicaidClaimsChecker.Claims do
   catalogue, and NPPES provider validation.
 
   Batches group EDI files for a single ingestion run. Files progress through
-  processing statuses: `translated → evaluated | syntax_error`. Evaluation
+  processing statuses: `translated → evaluated | not_assessed | syntax_error`.
+  `not_assessed` means the engine returned an error for the claim (such as a
+  timeout), so its rules were never checked; it is never counted as clean.
+  Evaluation
   stores the engine's report in `evaluation_report` alongside the claim in
   `json_output`; HighRisk/CriticalRisk reports are counted as flagged for
   review. The engine recommends; it never marks a claim fraudulent.
@@ -410,7 +413,9 @@ defmodule MedicaidClaimsChecker.Claims do
 
   @doc """
   Returns a map of status counts for all edi_files in a batch, plus
-  `flagged_for_review`: evaluated files whose report is HighRisk or CriticalRisk.
+  `flagged_for_review` (files whose report is HighRisk or CriticalRisk) and
+  `clean` (evaluated files that are not flagged). `not_assessed` files were
+  never checked, so they are counted on their own and never as clean.
   """
   def batch_summary(batch_id) do
     counts =
@@ -426,9 +431,22 @@ defmodule MedicaidClaimsChecker.Claims do
       pending: Map.get(counts, "pending", 0),
       translated: Map.get(counts, "translated", 0),
       evaluated: Map.get(counts, "evaluated", 0),
+      not_assessed: Map.get(counts, "not_assessed", 0),
       syntax_error: Map.get(counts, "syntax_error", 0),
-      flagged_for_review: count_flagged_for_review(batch_id)
+      flagged_for_review: count_flagged_for_review(batch_id),
+      clean: count_clean(batch_id)
     }
+  end
+
+  defp count_clean(batch_id) do
+    EdiFile
+    |> where([f], f.batch_id == ^batch_id and f.status == "evaluated")
+    |> where(
+      [f],
+      is_nil(fragment("?->>'overallRisk'", f.evaluation_report)) or
+        fragment("?->>'overallRisk'", f.evaluation_report) not in @flag_for_review_risks
+    )
+    |> Repo.aggregate(:count)
   end
 
   defp count_flagged_for_review(batch_id) do

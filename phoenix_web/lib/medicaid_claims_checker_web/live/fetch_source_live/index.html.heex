@@ -595,7 +595,8 @@
             {"Clean",    "Clean",        "bg-blue-700 text-white border-blue-700",          "bg-white text-blue-700 border-blue-300 hover:bg-blue-50"},
             {"Low",      "LowRisk",      "bg-green-600 text-white border-green-600",        "bg-white text-green-700 border-green-300 hover:bg-green-50"},
             {"High",     "HighRisk",     "bg-orange-500 text-white border-orange-500",      "bg-white text-orange-700 border-orange-300 hover:bg-orange-50"},
-            {"Critical", "CriticalRisk", "bg-red-600 text-white border-red-600",            "bg-white text-red-700 border-red-300 hover:bg-red-50"}
+            {"Critical", "CriticalRisk", "bg-red-600 text-white border-red-600",            "bg-white text-red-700 border-red-300 hover:bg-red-50"},
+            {"Not assessed", "NotAssessed", "bg-amber-700 text-white border-amber-700",    "bg-white text-amber-800 border-amber-300 hover:bg-amber-50"}
           ] do %>
             <button
               type="button"
@@ -739,7 +740,8 @@
                 <div class="border-t border-gray-200 px-4 py-3 bg-gray-50">
                   <% visible_files = case @batch_risk_filter do
                     nil -> batch.files
-                    "Clean" -> Enum.filter(batch.files, &(&1.matched_rules == 0 and &1.not_checked == []))
+                    "Clean" -> Enum.filter(batch.files, &(&1.matched_rules == 0 and &1.not_checked == [] and not &1.not_assessed))
+                    "NotAssessed" -> Enum.filter(batch.files, & &1.not_assessed)
                     level -> Enum.filter(batch.files, &(&1.risk == level))
                   end %>
                   <%= if batch.duplicates != [] do %>
@@ -788,6 +790,9 @@
                           </td>
                           <td class="py-2 pr-4 font-medium text-gray-900 text-xs"><%= file.filename %></td>
                           <td class="py-2 pr-4">
+                            <%= if file.not_assessed do %>
+                              <span id={"not-assessed-#{file.id}"} class="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-100 text-amber-900">NOT ASSESSED</span>
+                            <% else %>
                             <%= if file.matched_rules > 0 do %>
                               <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800">FLAGGED</span>
                             <% else %>
@@ -797,6 +802,7 @@
                                 <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-900">CLEAN</span>
                               <% end %>
                             <% end %>
+                            <% end %>
                           </td>
                           <td class="py-2 pr-4">
                             <span class={[
@@ -805,6 +811,7 @@
                                 file.risk == "CriticalRisk" -> "text-red-700"
                                 file.risk == "HighRisk" -> "text-orange-700"
                                 file.risk == "MediumRisk" -> "text-yellow-700"
+                                file.risk == "Not assessed" -> "text-gray-700"
                                 true -> "text-green-700"
                               end
                             ]}>
@@ -826,11 +833,16 @@
                             </span>
                           </td>
                           <td class="py-2 text-xs text-gray-800">
+                            <%= if file.not_assessed do %>
+                              <div class="text-amber-800">Not assessed: <%= file.error %></div>
+                            <% end %>
                             <%= if file.matched_results != [] do %>
                               <%= (file.matched_results |> List.first()).rule %>
                               <%= if length(file.matched_results) > 1, do: "+ #{length(file.matched_results) - 1} more" %>
                             <% else %>
-                              <span class={if(file.not_checked != [], do: "text-gray-700", else: "text-green-700")}>No rules triggered</span>
+                              <%= unless file.not_assessed do %>
+                                <span class={if(file.not_checked != [], do: "text-gray-700", else: "text-green-700")}>No rules triggered</span>
+                              <% end %>
                             <% end %>
                             <%= if file.not_checked != [] do %>
                               <div class="text-amber-700"><%= length(file.not_checked) %> not checked (missing data)</div>
@@ -862,6 +874,7 @@
                                           file.risk == "CriticalRisk" -> "bg-red-500"
                                           file.risk == "HighRisk" -> "bg-orange-500"
                                           file.risk == "MediumRisk" -> "bg-yellow-500"
+                                          file.risk == "Not assessed" -> "bg-gray-400"
                                           true -> "bg-green-500"
                                         end
                                       ]} style={"width: #{min(file.matched_rules * 25, 100)}%"}></div>
@@ -906,7 +919,7 @@
                                           <span class="font-semibold text-yellow-700"><%= review_count %></span>
                                         </div>
                                       <% end %>
-                                      <%= if file.weighted_score == 0 do %>
+                                      <%= if file.weighted_score == 0 and not file.not_assessed do %>
                                         <%= if file.not_checked == [] do %>
                                           <div class="text-green-700">No weighted triggers — claim is clean</div>
                                         <% else %>
@@ -923,6 +936,7 @@
                                       file.risk == "CriticalRisk" -> "bg-red-50 border-red-200"
                                       file.risk == "HighRisk" -> "bg-orange-50 border-orange-200"
                                       file.risk == "MediumRisk" -> "bg-yellow-50 border-yellow-200"
+                                      file.risk == "Not assessed" -> "bg-gray-50 border-gray-200"
                                       true -> "bg-green-50 border-green-200"
                                     end
                                   ]}>
@@ -934,6 +948,7 @@
                                           file.risk == "CriticalRisk" -> "bg-red-100 text-red-800"
                                           file.risk == "HighRisk" -> "bg-orange-100 text-orange-800"
                                           file.risk == "MediumRisk" -> "bg-yellow-100 text-yellow-800"
+                                          file.risk == "Not assessed" -> "bg-gray-100 text-gray-800"
                                           true -> "bg-green-100 text-green-900"
                                         end
                                       ]}>
@@ -941,6 +956,14 @@
                                       </span>
                                     </div>
                                   </div>
+
+                                  <!-- The engine could not check this claim (e.g. a timeout) -->
+                                  <%= if file.not_assessed do %>
+                                    <div id={"not-assessed-detail-#{file.id}"} class="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                                      <p class="text-sm font-semibold text-amber-900">Not assessed — the rules were not checked</p>
+                                      <p class="text-xs text-amber-800 mt-1">Reason: <%= file.error %>. This claim is not clean: an analyst must review it. To try again, upload it with “Test upload: allow re-submission” ticked.</p>
+                                    </div>
+                                  <% end %>
 
                                   <!-- Triggered rules detail -->
                                   <%= if file.matched_results != [] do %>
@@ -976,6 +999,8 @@
                                       </div>
                                     </div>
                                   <% else %>
+                                    <%= if file.not_assessed do %>
+                                    <% else %>
                                     <%= if batch.status == "failed" and file.status == "translated" do %>
                                       <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
                                         <span class="text-sm font-medium text-gray-600">Evaluation did not run — rule engine was unavailable when this batch was processed.</span>
@@ -990,6 +1015,7 @@
                                           <span class="text-sm font-medium text-gray-800">No rules triggered</span>
                                         </div>
                                       <% end %>
+                                    <% end %>
                                     <% end %>
                                   <% end %>
 

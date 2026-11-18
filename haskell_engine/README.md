@@ -128,9 +128,9 @@ The app counts HighRisk and CriticalRisk claims as flagged for analyst review. `
 
 A rule whose condition depends on missing or unusable data does not match. Its result has `resultUndecided: true` and its `resultDetails` names the fields that were missing or unusable, the report's `undecidedRules` counts such rules, and the app lists them as not checked instead of calling the claim clean. See [Missing data](../docs/SYNTAX_GUIDE.md#missing-data) in the Syntax Guide.
 
-### Known limitation: a timed-out claim looks clean
+### A claim that times out is not assessed
 
-Each claim has a 30-second limit. When a claim exceeds it, `/api/batch-evaluate` returns `{"claimIndex": i, "error": ...}` for that claim, with no `report`. Phoenix reads the missing report as an empty one and stores the claim as evaluated, so it shows as `LowRisk` with no rules matched or not checked. No claim is known to have come near 30 seconds, so this is not fixed yet. Fix it before adding anything that makes claims slower (such as a call to a scoring service per claim): a timed-out claim should be shown as not assessed, never as clean.
+Each claim has a 30-second limit. When a claim exceeds it, `/api/batch-evaluate` returns `{"claimIndex": i, "error": "evaluation timed out after 30 s", "reason": "timeout"}` for that claim, with no `report`. The rest of the batch is unaffected. `reason` is a short code for programs; `error` is the message for people. Phoenix stores such a claim with status `not_assessed` and the message, and never as clean: Jobs History shows it as NOT ASSESSED with the reason, counts it separately, and says an analyst must review it. A provider (NPPES) rejection on the same claim is still shown. Any per-claim `error` is treated the same way, with or without a `reason`.
 
 ## How the Engine Checks a Batch of Claims
 
@@ -164,7 +164,7 @@ flowchart TD
         RK["Set the claim's risk level<br/><b>Critical</b>: any REJECT or FLAG_FRAUD<br/><b>High</b>: any REQUIRE_REVIEW or score ≥ 70<br/><b>Low</b>: anything else"]
     end
 
-    OUT(["Send back one report per claim<br/>each rule's result · counts ·<br/>risk level · summary line"])
+    OUT(["Send back one report per claim<br/>each rule's result · counts ·<br/>risk level · summary line<br/>or an error, e.g. timed out"])
 
     E429["429 Too Many Requests"]
     E401["401 Unauthorized"]

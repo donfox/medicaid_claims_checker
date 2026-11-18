@@ -211,6 +211,9 @@ have none.
   ingested and is never overwritten; `evaluation_report` is the engine's report
   from the latest evaluation. `claim_fingerprint` is the SHA-256 of the claim
   without its X12 envelope, used to spot the same claim in a different file.
+  `status` is `pending`, `translated`, `evaluated`, `not_assessed` (the engine
+  could not check the claim, e.g. a timeout; `error_message` says why and
+  `error_details.reason` holds the engine's code) or `syntax_error`.
 - **`submitted_files`**: every file a batch was built from, keyed by the
   SHA-256 of its bytes (unique), so a file already received is refused.
 - **`rule_catalogue`**: the registry of every rule entry (Default Rule, BA

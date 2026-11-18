@@ -649,6 +649,127 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
     end
   end
 
+  describe "evaluate_batch/1 when the engine could not check a claim" do
+    @timeout_result %{
+      "claimIndex" => 1,
+      "error" => "evaluation timed out after 30 s",
+      "reason" => "timeout"
+    }
+
+    defp respond_with(bypass, batch_results) do
+      Bypass.expect_once(bypass, "POST", "/api/batch-evaluate", fn conn ->
+        body =
+          Jason.encode!(%{
+            "totalClaims" => length(batch_results),
+            "batchResults" => batch_results
+          })
+
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(200, body)
+      end)
+    end
+
+    defp low_risk_result(index) do
+      %{
+        "claimIndex" => index,
+        "report" => %{
+          "overallRisk" => "LowRisk",
+          "matchedRules" => 0,
+          "totalRules" => 1,
+          "results" => []
+        }
+      }
+    end
+
+    test "a timed-out claim is not assessed, never clean; the rest of the batch is kept",
+         %{bypass: bypass} do
+      create_rule!(
+        "test_rule",
+        ~s|RULE test "Test" WHEN financial.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|
+      )
+
+      respond_with(bypass, [low_risk_result(0), @timeout_result])
+      Phoenix.PubSub.subscribe(MedicaidClaimsChecker.PubSub, Evaluator.topic())
+
+      batch = ingest_batch!([make_claim("ok.json", 100), make_claim("slow.json", 100)])
+      Evaluator.evaluate_batch(batch)
+
+      assert Claims.get_batch_by_batch_id(batch.batch_id).status == "completed"
+
+      [ok, slow] = Claims.list_files_for_batch(batch.id)
+      assert ok.status == "evaluated"
+      assert ok.evaluation_report["overallRisk"] == "LowRisk"
+
+      assert slow.status == "not_assessed"
+      assert slow.evaluation_report == nil
+      assert slow.error_message == "evaluation timed out after 30 s"
+      assert slow.error_details == %{"reason" => "timeout"}
+      refute Claims.flagged_for_review?(slow.evaluation_report)
+
+      summary = Claims.batch_summary(batch.id)
+      assert summary.total == 2
+      assert summary.evaluated == 1
+      assert summary.not_assessed == 1
+      assert summary.clean == 1
+      assert summary.flagged_for_review == 0
+
+      assert_receive {:batch_completed, %{summary: %{not_assessed: 1}, files: files}}
+      slow_entry = Enum.find(files, &(&1.filename == "slow.json"))
+      assert slow_entry.status == "not_assessed"
+      assert slow_entry.risk == "Not assessed"
+      assert slow_entry.error == "evaluation timed out after 30 s"
+    end
+
+    test "a provider (NPPES) rejection is kept on a claim that timed out", %{bypass: bypass} do
+      create_rule!(
+        "test_rule",
+        ~s|RULE test "Test" WHEN financial.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|
+      )
+
+      respond_with(bypass, [Map.put(@timeout_result, "claimIndex", 0)])
+
+      claim =
+        make_claim("unknown_npi.json", 150)
+        |> put_in(["claim", "provider", "npi"], "1999999999")
+
+      batch = ingest_batch!([claim])
+      Evaluator.evaluate_batch(batch)
+
+      [file] = Claims.list_files_for_batch(batch.id)
+      assert file.status == "not_assessed"
+      assert file.error_message == "evaluation timed out after 30 s"
+      assert file.evaluation_report["overallRisk"] == "CriticalRisk"
+      assert Claims.flagged_for_review?(file.evaluation_report)
+
+      assert [%{"resultRuleName" => "NPPESProviderLookup"}] = file.evaluation_report["results"]
+
+      assert file.evaluation_report["summary"] ==
+               "Rules not checked: evaluation timed out after 30 s. Provider check failed."
+
+      summary = Claims.batch_summary(batch.id)
+      assert summary.not_assessed == 1
+      assert summary.clean == 0
+    end
+
+    test "an error without a reason is still not assessed", %{bypass: bypass} do
+      create_rule!(
+        "test_rule",
+        ~s|RULE test "Test" WHEN financial.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|
+      )
+
+      respond_with(bypass, [%{"claimIndex" => 0, "error" => "something went wrong"}])
+
+      batch = ingest_batch!([make_claim("odd.json", 100)])
+      Evaluator.evaluate_batch(batch)
+
+      [file] = Claims.list_files_for_batch(batch.id)
+      assert file.status == "not_assessed"
+      assert file.error_message == "something went wrong"
+      assert file.error_details == %{"reason" => "error"}
+    end
+  end
+
   describe "PubSub broadcasts" do
     test "broadcasts :batch_completed on success", %{bypass: bypass} do
       create_rule!(

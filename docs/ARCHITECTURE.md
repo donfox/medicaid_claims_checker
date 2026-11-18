@@ -90,7 +90,7 @@ Syntax, MLClient, ListenConfig, Middleware → nothing in the engine
 3. An NPI that fails the check (not in the registry, deactivated, not yet issued, or dropped from the registry on the service date) generates an `NPPESProviderLookup` rejection finding. The claim is still sent to the engine.
 4. Claims are chunked into groups of `200` and sent to the Haskell `/api/batch-evaluate` endpoint sequentially with `Enum.reduce_while`.
 5. NPPES findings are merged into each Haskell result, and any NPI rejection forces `overallRisk` to `CriticalRisk`.
-6. Results are written back to `edi_files`, and the batch status is updated to `completed` or `failed`.
+6. Results are written back to `edi_files` with status `evaluated`. A claim the engine returned an error for instead of a report (such as a 30-second timeout) gets status `not_assessed` and the error message: its rules were not checked, so it is never shown or counted as clean. The batch status is updated to `completed` or `failed`.
 7. Phoenix PubSub broadcasts `batch_completed` or `batch_failed` to the LiveView UI.
 
 ### 4. NPPES Data Refresh

@@ -40,7 +40,7 @@
                 </p>
                 <p class="text-sm text-green-800 mt-1">
                   <%= @batch_notification.total %> claims processed
-                  — <%= @batch_notification.flagged %> flagged, <%= @batch_notification.clean %> clean
+                  — <%= @batch_notification.flagged %> flagged, <%= @batch_notification.clean %> clean<%= if Map.get(@batch_notification, :not_assessed, 0) > 0 do %>, <span id="notification-not-assessed"><%= @batch_notification.not_assessed %> not assessed</span><% end %>
                 </p>
                 <button
                   phx-click="toggle_notification_details"
@@ -87,11 +87,20 @@
                     <td class="py-2 pr-4 font-medium text-gray-900"><%= file.filename %></td>
                     <td class="py-2 pr-4">
                       <% flagged = file.risk in ["CriticalRisk", "HighRisk"] %>
+                      <% not_assessed = file.status == "not_assessed" %>
                       <span class={[
                         "px-2 py-0.5 text-xs font-medium rounded-full",
-                        if(flagged, do: "bg-red-100 text-red-800", else: "bg-green-100 text-green-900")
+                        cond do
+                          not_assessed -> "bg-amber-100 text-amber-900"
+                          flagged -> "bg-red-100 text-red-800"
+                          true -> "bg-green-100 text-green-900"
+                        end
                       ]}>
-                        <%= if flagged, do: "flagged for review", else: file.status %>
+                        <%= cond do
+                          not_assessed -> "not assessed"
+                          flagged -> "flagged for review"
+                          true -> file.status
+                        end %>
                       </span>
                     </td>
                     <td class="py-2 pr-4">
@@ -101,6 +110,7 @@
                           file.risk == "CriticalRisk" -> "text-red-700"
                           file.risk == "HighRisk" -> "text-orange-700"
                           file.risk == "MediumRisk" -> "text-yellow-700"
+                          file.risk == "Not assessed" -> "text-gray-700"
                           true -> "text-green-700"
                         end
                       ]}>
@@ -112,8 +122,12 @@
                       <%= for mr <- file.matched_results do %>
                         <div><span class="font-medium"><%= mr.rule %></span></div>
                       <% end %>
-                      <%= if file.matched_results == [] do %>
-                        <span class={if(file.not_checked_count > 0, do: "text-gray-700", else: "text-green-700")}>No rules triggered</span>
+                      <%= if file.status == "not_assessed" do %>
+                        <div class="text-amber-800">Not assessed: <%= Map.get(file, :error) %></div>
+                      <% else %>
+                        <%= if file.matched_results == [] do %>
+                          <span class={if(file.not_checked_count > 0, do: "text-gray-700", else: "text-green-700")}>No rules triggered</span>
+                        <% end %>
                       <% end %>
                       <%= if file.not_checked_count > 0 do %>
                         <div class="text-amber-700"><%= file.not_checked_count %> not checked (missing data)</div>

@@ -159,7 +159,8 @@ handleBatchEvaluate sem request respond = do
                             Nothing ->
                               object
                                 [ "claimIndex" .= (i :: Int),
-                                  "error" .= ("evaluation timed out after 30 s" :: String)
+                                  "error" .= ("evaluation timed out after 30 s" :: String),
+                                  "reason" .= ("timeout" :: String)
                                 ]
                     )
                     (zip [0 ..] claims)

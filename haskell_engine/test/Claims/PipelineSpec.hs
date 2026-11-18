@@ -5,11 +5,53 @@ module Claims.PipelineSpec (pipelineSpec) where
 
 import Data.Aeson (object, (.=))
 import Data.Aeson qualified as Aeson
+import Data.Either (isRight)
+import Data.Maybe (isJust, isNothing)
+import Data.Time (fromGregorian)
+import Network.HTTP.Types (status400, status503)
 import Test.Hspec
-import Claims.Pipeline (EvaluationRequest (..))
+import Claims.Parser (loadRules)
+import Claims.Pipeline
 
 pipelineSpec :: Spec
 pipelineSpec = do
+  describe "Single-claim evaluation errors" $ do
+    let request rules =
+          EvaluationRequest "1.0" "req_1" "claim_1" "payer_a" rules (object ["amount" .= (100 :: Int)]) Nothing
+        isRulesError (Left (RulesError _)) = True
+        isRulesError _ = False
+
+    it "rules that do not parse are a RulesError, answered with 400" $ do
+      result <- processEvaluation (request "RULE broken")
+      result `shouldSatisfy` isRulesError
+      fst (evaluationErrorJSON (RulesError "x")) `shouldBe` status400
+
+    it "a timeout is answered with 503 and reason \"timeout\", as the batch endpoint reports it" $
+      evaluationErrorJSON TimedOut
+        `shouldBe` ( status503,
+                     object
+                       [ "error" .= ("evaluation timed out after 30 s" :: String),
+                         "reason" .= ("timeout" :: String)
+                       ]
+                   )
+
+    it "valid rules give a report" $ do
+      result <- processEvaluation (request "RULE r \"d\" WHEN amount > 5 THEN REQUIRE_REVIEW \"x\";")
+      result `shouldSatisfy` isRight
+
+  describe "The per-claim time limit" $ do
+    let rules = either error id (loadRules "RULE f \"d\" WHEN FORALL l IN service_lines WHERE l.amount > 0 THEN REJECT \"x\";")
+        bigClaim = object ["service_lines" .= replicate 200000 (object [])]
+        today = fromGregorian 2026 2 28
+
+    it "gives up when the claim takes longer than the limit" $ do
+      result <- evaluateClaimWithin 1000 rules today bigClaim
+      result `shouldSatisfy` isNothing
+
+    it "returns the report when there is time" $ do
+      result <- evaluateClaimWithin 30000000 rules today (object ["service_lines" .= [object ["amount" .= (5 :: Int)]]])
+      result `shouldSatisfy` isJust
+
   describe "Evaluation request contract" $ do
     it "accepts valid evaluate request contract payload" $ do
       let payload =

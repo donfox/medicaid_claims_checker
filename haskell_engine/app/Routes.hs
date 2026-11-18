@@ -25,7 +25,7 @@ import Data.ByteString.Lazy qualified as BL
 import Network.HTTP.Types (Status, status200, status400)
 import Network.Wai
 import Claims.Parser (loadRules, parseRules)
-import Claims.Pipeline (evaluateClaim, localToday, processEvaluation, reportToJSON)
+import Claims.Pipeline (evaluateClaim, evaluationErrorJSON, localToday, processEvaluation, reportToJSON)
 import Claims.RedundancyChecker (checkRedundancy)
 
 -- | Maximum allowed request body size (10 MB).
@@ -97,11 +97,8 @@ handleEvaluate request respond = do
           result <- processEvaluation evalReq
           case result of
             Left err ->
-              respond $
-                responseLBS
-                  status400
-                  [("Content-Type", "application/json")]
-                  (encode $ object ["error" .= err])
+              let (status, body') = evaluationErrorJSON err
+               in respond $ jsonResponse status body'
             Right report ->
               respond $
                 responseLBS

@@ -34,7 +34,7 @@ import Data.Aeson.KeyMap qualified as KM
 import Data.Char (isDigit)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.List (nub)
+import Data.Containers.ListUtils (nubOrd)
 import Data.Maybe (isJust, isNothing)
 import Data.Int (Int64)
 import Data.Scientific (FPFormat (Fixed), Scientific, base10Exponent, formatScientific, fromFloatDigits, toBoundedInteger, toRealFloat)
@@ -241,7 +241,7 @@ evaluateRuleSimple today doc rule =
         No -> "Rule did not match"
         Unknown reasons ->
           "Rule did not match: missing or unusable data ("
-            <> T.intercalate "; " (nub reasons)
+            <> T.intercalate "; " (nubOrd reasons)
             <> ")"
    in RuleResult
         { resultRuleName = Syntax.ruleName rule,

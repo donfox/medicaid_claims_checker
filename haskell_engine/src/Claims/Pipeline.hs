@@ -1,4 +1,5 @@
 {-# LANGUAGE ImportQualifiedPost #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 -- |
@@ -14,7 +15,10 @@ module Claims.Pipeline
 
     -- * Evaluation
     processEvaluation,
+    EvaluationError (..),
+    evaluationErrorJSON,
     evaluateClaim,
+    evaluateClaimWithin,
     localToday,
     EvaluationResponse (..),
     reportToJSON,
@@ -36,6 +40,7 @@ import System.Environment (lookupEnv)
 import System.IO (hPutStrLn, stderr)
 import System.Timeout (timeout)
 import Claims.Evaluator (EvaluationReport (..), evaluateSimpleJson)
+import Claims.Syntax (RuleResult (..))
 import Claims.MLClient (MLResult, getMlClientConfig, mlErrorResult, mlStubResult, scoreClaimWithMl)
 import Claims.Parser (loadRules)
 import Claims.PolicyCombiner
@@ -47,15 +52,14 @@ import Claims.PolicyCombiner
     fallbackPolicy,
   )
 import Claims.Syntax (Rule)
+import Network.HTTP.Types (Status, status400, status503)
 
 -- ----------------------------------------------------------------------------
 -- Request
 -- ----------------------------------------------------------------------------
 
--- | Inbound request contract for the @\/api\/evaluate@ endpoint.
---
--- Defines the 'EvaluationRequest' type that is deserialised from incoming
--- JSON.  The 'FromJSON' instance enforces:
+-- | A validated request to the @\/api\/evaluate@ endpoint. The 'FromJSON'
+-- instance enforces:
 --
 --   * @contract_version@ must be @"1.0"@
 --   * @request_id@, @claim_id@, and @tenant_id@ must be non-empty strings
@@ -72,9 +76,6 @@ import Claims.Syntax (Rule)
 --   "context":     null
 -- }
 -- @
-
--- | A validated evaluation request.  All fields have passed contract and
--- non-empty checks by the time this value is constructed.
 data EvaluationRequest = EvaluationRequest
   { evalContractVersion :: Text,        -- ^ Must be @"1.0"@
     evalRequestId :: Text,              -- ^ Caller-supplied correlation ID
@@ -138,27 +139,68 @@ localToday :: IO Day
 localToday = localDay . zonedTimeToLocalTime <$> getZonedTime
 
 -- | Evaluate a rule set against one claim, giving up after
--- 'evalTimeoutMicros'. Forcing the match count runs every predicate here,
--- inside the timeout; the rule list length alone does not.
+-- 'evalTimeoutMicros' (30 s).
 evaluateClaim :: [Rule] -> Day -> Value -> IO (Maybe EvaluationReport)
-evaluateClaim rules today doc =
-  timeout evalTimeoutMicros $ do
+evaluateClaim = evaluateClaimWithin evalTimeoutMicros
+
+-- | Evaluate a rule set against one claim, giving up after the given number
+-- of microseconds. The whole report is worked out inside the limit: every
+-- result's match, details (including the "not checked" reasons), counts,
+-- risk and summary. Evaluation is lazy, so without forcing them this work
+-- would happen later, while the reply is written, with no limit.
+evaluateClaimWithin :: Int -> [Rule] -> Day -> Value -> IO (Maybe EvaluationReport)
+evaluateClaimWithin limit rules today doc =
+  timeout limit $ do
     let report = evaluateSimpleJson rules today doc
-    _ <- evaluate (reportMatchedRules report)
+    _ <- evaluate (forceReport report)
     pure report
+
+-- | A number that depends on every part of a report, so evaluating it
+-- evaluates the report. The rule names and actions come from the parsed
+-- rules and are already evaluated.
+forceReport :: EvaluationReport -> Int
+forceReport r =
+  sum [fromEnum (resultMatched x) + fromEnum (resultUndecided x) + T.length (resultDetails x) | x <- reportResults r]
+    + reportTotalRules r
+    + reportMatchedRules r
+    + reportUndecidedRules r
+    + fromEnum (reportOverallRisk r == reportOverallRisk r)
+    + T.length (reportSummary r)
+
+-- | Why a single-claim evaluation produced no report.
+data EvaluationError
+  = -- | The rules did not parse (the caller's mistake).
+    RulesError String
+  | -- | The claim took longer than 30 seconds (not the caller's mistake).
+    TimedOut
+  deriving (Show, Eq)
+
+-- | The HTTP status and JSON body for an 'EvaluationError'. A timeout is
+-- 503 with @"reason": "timeout"@, as the batch endpoint reports it per
+-- claim; a rule error is 400.
+evaluationErrorJSON :: EvaluationError -> (Status, Value)
+evaluationErrorJSON = \case
+  RulesError err -> (status400, object ["error" .= err])
+  TimedOut ->
+    ( status503,
+      object
+        [ "error" .= ("evaluation timed out after 30 s" :: Text),
+          "reason" .= ("timeout" :: Text)
+        ]
+    )
 
 -- | Evaluate one claim end to end: parse the rules, run them, score the
 -- claim with the ML service (or its stand-in), and combine the two.
-processEvaluation :: EvaluationRequest -> IO (Either String EvaluationResponse)
+processEvaluation :: EvaluationRequest -> IO (Either EvaluationError EvaluationResponse)
 processEvaluation req = do
   case loadRules (evalRulesText req) of
-    Left err -> return $ Left err
+    Left err -> return $ Left (RulesError err)
     Right engine -> do
       now <- getCurrentTime
       today <- localToday
       mReport <- evaluateClaim engine today (evalDocument req)
       case mReport of
-        Nothing -> return $ Left "Evaluation timed out after 30 s"
+        Nothing -> return $ Left TimedOut
         Just report -> do
           let evaluatedAt = T.pack (formatTime defaultTimeLocale "%Y-%m-%dT%H:%M:%SZ" now)
           mlResult <- selectMlResult req

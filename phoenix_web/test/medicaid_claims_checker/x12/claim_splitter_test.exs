@@ -67,6 +67,75 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
       assert {:error, "GE says 1 transaction sets but the group has 2"} =
                ClaimSplitter.split_transaction_sets(content)
     end
+
+    test "rejects an interchange that opens before the previous one is closed" do
+      clean = read("X_x12_files/X1_837p_professional/clean_office_visit.x12")
+      [without_iea, _] = String.split(clean, "IEA*", parts: 2)
+
+      assert {:error, "Incomplete transmission: interchange 000000101 has no IEA trailer"} =
+               ClaimSplitter.split_transaction_sets(without_iea <> clean)
+    end
+  end
+
+  describe "split_transaction_sets/1 with several interchanges" do
+    test "a file holding two interchanges gives one standalone piece per transaction set" do
+      clean = read("X_x12_files/X1_837p_professional/clean_office_visit.x12")
+      two_sets = read("X_x12_files/X5_several_transaction_sets/two_transaction_sets.x12")
+
+      {:ok, pieces} = ClaimSplitter.split_transaction_sets(clean <> two_sets)
+      assert length(pieces) == 3
+
+      # Each piece is a valid file on its own: one set, one group, one interchange.
+      for piece <- pieces do
+        assert {:ok, nil} = ClaimSplitter.split_transaction_sets(piece)
+      end
+
+      {:ok, from_clean} = claims(clean)
+      {:ok, from_two_sets} = claims(two_sets)
+      assert {:ok, from_clean ++ from_two_sets} == claims(clean <> two_sets)
+    end
+  end
+
+  describe "reading the file" do
+    test "ignores a byte-order mark and leading blank lines" do
+      clean = read("X_x12_files/X1_837p_professional/clean_office_visit.x12")
+      {:ok, [expected]} = claims(clean)
+
+      assert {:ok, [^expected]} = claims(<<0xEF, 0xBB, 0xBF>> <> clean)
+      assert {:ok, [^expected]} = claims("\r\n\n  " <> clean)
+    end
+
+    test "a one-line file missing only its final terminator still reads" do
+      clean = read("X_x12_files/X1_837p_professional/clean_office_visit.x12")
+      {:ok, [expected]} = claims(clean)
+
+      oneline = clean |> String.replace(~r/~\s*/, "~") |> String.trim_trailing("~")
+      assert {:ok, [^expected]} = claims(oneline)
+    end
+
+    test "a newline can be the segment terminator" do
+      clean = read("X_x12_files/X1_837p_professional/clean_office_visit.x12")
+      {:ok, [expected]} = claims(clean)
+
+      assert {:ok, [^expected]} = claims(String.replace(clean, ~r/~\r?\n?/, "\n"))
+    end
+
+    test "errors are plain sentences without a wrapper or quotes" do
+      assert {:error, "Not an X12 file: it must start with ISA, the interchange header"} =
+               ClaimSplitter.split_transaction_sets("HELLO")
+
+      assert {:error, "File too short to hold an ISA interchange header"} =
+               ClaimSplitter.split_transaction_sets("ISA*00*~")
+
+      assert {:error, "The ISA interchange header is not the standard fixed width" <> _} =
+               ClaimSplitter.split_transaction_sets(
+                 String.replace(
+                   read("X_x12_files/X1_837p_professional/clean_office_visit.x12"),
+                   "TESTSUBMIT01   ",
+                   "TESTSUBMIT01"
+                 )
+               )
+    end
   end
 
   describe "split_claims_to_x12/1" do
@@ -127,6 +196,21 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
                {"SAMESUB01", "1003001538", "TESTPATIENT"},
                {"SAMESUB02", "1003005000", "SECOND"}
              ]
+    end
+
+    test "split claims keep the file's own delimiters and a correct SE count" do
+      three = read("X_x12_files/X4_several_claims_one_transaction_set/three_claims.x12")
+      piped = String.replace(three, "*", "|")
+
+      {:ok, parts} = ClaimSplitter.split_claims_to_x12(piped)
+      assert length(parts) == 3
+
+      for %{x12_content: x12} <- parts do
+        refute x12 =~ "*"
+        assert {:ok, nil} = ClaimSplitter.split_transaction_sets(x12)
+      end
+
+      assert claims(piped) == claims(three)
     end
   end
 

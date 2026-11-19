@@ -1,17 +1,11 @@
 defmodule MedicaidClaimsChecker.X12.Converter do
   @moduledoc """
-  X12 to JSON Converter
+  X12 to flat JSON converter.
 
-  Converts X12 837 (Healthcare Claims) EDI files into semantic,
-  hierarchical JSON format.
-
-  Supports:
-  - 837P (Professional Claims) - uses SV1 segments
-  - 837I (Institutional Claims) - uses SV2 segments
-  - 837D (Dental Claims) - uses SV3 segments
-
-  The output structure organizes claims with nested service lines,
-  making the data easier to work with for developers.
+  Parses one X12 837 claim (usually a piece cut by `ClaimSplitter`) into a
+  JSON object holding the file's sub-element separator and the flat list of
+  segments. `SegmentMapper.map_from_json/1` then turns that list into the
+  claim layout the engine checks (837P, 837I and 837D).
   """
 
   alias MedicaidClaimsChecker.X12.Parser
@@ -35,8 +29,8 @@ defmodule MedicaidClaimsChecker.X12.Converter do
               {:ok, structured_data} = build_structure(segments, delimiters)
               Jason.encode(structured_data, pretty: true)
 
-            {:error, reason} ->
-              {:error, "Parsing failed: #{inspect(reason)}"}
+            {:error, _reason} = error ->
+              error
           end
         rescue
           e in ArgumentError ->

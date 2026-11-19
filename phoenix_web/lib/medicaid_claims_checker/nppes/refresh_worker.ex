@@ -18,6 +18,13 @@ defmodule MedicaidClaimsChecker.Nppes.RefreshWorker do
   # Give the app 10 seconds to fully start before first check
   @initial_delay_ms 10_000
 
+  # After a failed refresh, try again this soon (or at the next regular
+  # time, if that is sooner) instead of waiting a whole interval.
+  @retry_after_failure_seconds 6 * 3600
+
+  @interrupted_message "The app stopped during this refresh. The registry keeps the earlier data, " <>
+                         "plus any rows already updated before it stopped."
+
   # --- Public API ---
 
   def start_link(_opts) do
@@ -53,7 +60,10 @@ defmodule MedicaidClaimsChecker.Nppes.RefreshWorker do
     # Clear folders left by a refresh cancelled or cut off before the app
     # stopped. Not in tests, which share the machine's temp folder with a
     # dev server that may be downloading.
-    if scheduled?, do: Importer.remove_stale_tmp_dirs()
+    if scheduled? do
+      Importer.remove_stale_tmp_dirs()
+      recover_interrupted()
+    end
 
     timer_ref = if scheduled?, do: Process.send_after(self(), :tick, @initial_delay_ms)
 
@@ -205,6 +215,24 @@ defmodule MedicaidClaimsChecker.Nppes.RefreshWorker do
     {:noreply, state}
   end
 
+  @doc false
+  # A refresh still marked "running" when the worker starts was cut off by
+  # the app stopping: nothing else would ever clear the status, and the
+  # pages would show the registry as never refreshed. Records it as failed.
+  def recover_interrupted do
+    case RefreshConfig.get_or_create() do
+      %{last_status: "running"} = config ->
+        Logger.warning("NPPES: the last refresh did not finish (the app stopped during it)")
+
+        config
+        |> RefreshConfig.changeset(%{last_status: "failed", last_error: @interrupted_message})
+        |> Repo.update!()
+
+      config ->
+        config
+    end
+  end
+
   # --- Private helpers ---
 
   defp start_import(state) do
@@ -279,7 +307,7 @@ defmodule MedicaidClaimsChecker.Nppes.RefreshWorker do
     Logger.error("NPPES refresh failed: #{error_msg}")
     Nppes.broadcast({:nppes_status, %{status: :failed, error: error_msg}})
 
-    timer_ref = schedule_tick(config.interval_seconds)
+    timer_ref = schedule_tick(min(@retry_after_failure_seconds, config.interval_seconds))
 
     {:noreply,
      %{
@@ -291,6 +319,10 @@ defmodule MedicaidClaimsChecker.Nppes.RefreshWorker do
          started_at: nil
      }}
   end
+
+  # Due when the last good refresh is an interval old, or the last refresh
+  # failed (the retry after a failure).
+  defp should_refresh?(%{last_status: "failed"}), do: true
 
   defp should_refresh?(config) do
     case config.last_refresh_at do

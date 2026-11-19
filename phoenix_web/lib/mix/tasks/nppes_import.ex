@@ -6,9 +6,13 @@ defmodule Mix.Tasks.Nppes.Import do
 
       mix nppes.import /path/to/npidata_pfile.csv
 
-  The CSV is streamed in batches of 5,000 rows to avoid loading the full
-  ~4 GB file into memory. Uses upsert (`on_conflict: :replace_all`) so
-  running the task again with a newer monthly file is safe and idempotent.
+  The CSV (about 10 GB for the monthly full file) is streamed in batches of
+  5,000 rows. Rows are upserted by NPI, so running the task again with a
+  newer file is safe.
+
+  The app is started without the timed NPPES refresh and without the
+  scheduled-fetch poller, so neither runs inside this task (a timed refresh
+  would start its own full download alongside the import).
 
   A full replacement file (`npidata_pfile_20050523-*.csv`) also marks NPIs
   it no longer lists with `dropped_on`; they are kept so late claims for
@@ -26,6 +30,20 @@ defmodule Mix.Tasks.Nppes.Import do
 
   @impl Mix.Task
   def run([path]) do
+    Application.put_env(:medicaid_claims_checker, MedicaidClaimsChecker.Nppes.RefreshWorker,
+      scheduled: false
+    )
+
+    Application.put_env(
+      :medicaid_claims_checker,
+      :config_poller,
+      Keyword.put(
+        Application.get_env(:medicaid_claims_checker, :config_poller, []),
+        :enabled,
+        false
+      )
+    )
+
     Mix.Task.run("app.start")
 
     Mix.shell().info("Starting NPPES import from #{path} ...")

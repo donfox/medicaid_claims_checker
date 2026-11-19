@@ -52,7 +52,7 @@ Support* extension. What the rule engine does with the claims is charted in
 ```mermaid
 flowchart TD
     UP(["A user uploads files<br/>on the upload page<br/>.json · .x12 · .edi · .zip"])
-    SCH(["A fetch schedule fires<br/>files fetched from an SFTP,<br/>HTTP, local or Databricks source"])
+    SCH(["A fetch schedule fires<br/>files fetched from an SFTP,<br/>HTTP or local source"])
 
     subgraph S1["①&nbsp;Read&nbsp;the&nbsp;files&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"]
         KIND{"What kind of file?"}
@@ -128,7 +128,7 @@ rule results as well.
 
 ## Features
 
-- Scheduled X12 file ingestion from configured SFTP, HTTP, local or Databricks sources, with cron or interval-based schedules
+- Scheduled X12 file ingestion from configured SFTP, HTTP or local sources, with cron or interval-based schedules (managed by administrators)
 - Manual file upload with in-process X12/EDI-to-JSON translation (supports `.json`, `.x12`, `.edi`, `.zip`)
   - Every file holds one or more claims. A `.json` file holds one claim (an object with `claim_id`, or the X12 converter's output with a `claim` object) or a list of them (`[...]` or `{"claims": [...]}`); claims from a multi-claim file are listed as `<file>_<claim_id>.json`, as split X12 claims are. Files with no claim, and list entries that are not claims, are refused and named in the upload message
 - NPPES provider database with configurable auto-refresh (weekly by default)

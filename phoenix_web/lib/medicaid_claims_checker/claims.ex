@@ -100,6 +100,9 @@ defmodule MedicaidClaimsChecker.Claims do
     - "claims"    => list of %{"filename" => string, "claim" => map}, each
       optionally with "source_file" => %{"filename" => string, "sha256" => hex}
       naming the submitted file it came from (see `Claims.Fingerprint.file/1`)
+    - optionally "rejected_files" => list of %{"filename" => string, "reason" => string}:
+      files (or claims split from them) that could not be read, stored on the
+      batch so Jobs History shows them
 
   A claim is refused as a duplicate when its source file was submitted
   before, when the same claim (ignoring the X12 envelope) is in an earlier
@@ -108,8 +111,9 @@ defmodule MedicaidClaimsChecker.Claims do
   checked) doesn't count as an earlier submission: the file can simply be
   uploaded again. Each refusal
   is stored in `batch.duplicates` and names the earlier submission; the
-  other claims are evaluated as usual. When every claim is a duplicate the batch is
-  recorded as "failed" with no claims, so the refusal still shows in history.
+  other claims are evaluated as usual. When no claim is left to evaluate
+  (every claim a duplicate, or every file rejected) the batch is recorded as
+  "failed" with no claims, so the refusals still show in history.
 
   With "allow_resubmission" => true, and only where the
   `:allow_test_resubmission` setting is on (development), nothing is
@@ -124,6 +128,7 @@ defmodule MedicaidClaimsChecker.Claims do
     resubmit? = params["allow_resubmission"] == true and test_resubmission_allowed?()
     batch_name = Map.get(params, "batch_name") || default_batch_name(source)
     batch_name = if resubmit?, do: batch_name <> " (test re-submission)", else: batch_name
+    rejected = Map.get(params, "rejected_files") || []
 
     result =
       Repo.transaction(fn ->
@@ -168,7 +173,7 @@ defmodule MedicaidClaimsChecker.Claims do
         record_submitted_files(claims, known_files, batch)
 
         batch =
-          if duplicates == [] do
+          if duplicates == [] and rejected == [] do
             batch
           else
             refused_attrs =
@@ -178,7 +183,11 @@ defmodule MedicaidClaimsChecker.Claims do
 
             batch
             |> Batch.changeset(
-              Map.merge(refused_attrs, %{file_count: length(edi_files), duplicates: duplicates})
+              Map.merge(refused_attrs, %{
+                file_count: length(edi_files),
+                duplicates: duplicates,
+                rejected_files: rejected
+              })
             )
             |> Repo.update!()
           end
@@ -188,12 +197,13 @@ defmodule MedicaidClaimsChecker.Claims do
 
     case result do
       {:ok, %{batch: batch, edi_files: [], duplicates: duplicates}} ->
-        Logger.warning("Batch #{batch.batch_id} not evaluated — #{duplicates_notice(duplicates)}")
+        notice = refusals_notice(duplicates, rejected)
+        Logger.warning("Batch #{batch.batch_id} not evaluated — #{notice}")
 
         Phoenix.PubSub.broadcast(
           MedicaidClaimsChecker.PubSub,
           MedicaidClaimsChecker.Claims.Evaluator.topic(),
-          {:batch_failed, %{batch_id: batch.batch_id, reason: duplicates_notice(duplicates)}}
+          {:batch_failed, %{batch_id: batch.batch_id, reason: notice}}
         )
 
         result
@@ -368,6 +378,26 @@ defmodule MedicaidClaimsChecker.Claims do
     more = length(duplicates) - 3
     more_text = if more > 0, do: " (and #{more} more)", else: ""
     "Refused as already submitted: #{shown}#{more_text}"
+  end
+
+  @doc "One-line description of a file that could not be read."
+  def describe_rejected(%{"filename" => filename, "reason" => reason}),
+    do: "#{filename}: #{reason}"
+
+  @doc "Summary of rejected files for logs and messages."
+  def rejected_notice([]), do: ""
+
+  def rejected_notice(rejected) do
+    shown = rejected |> Enum.take(3) |> Enum.map_join(" | ", &describe_rejected/1)
+    more = length(rejected) - 3
+    more_text = if more > 0, do: " (and #{more} more)", else: ""
+    "Could not be read: #{shown}#{more_text}"
+  end
+
+  defp refusals_notice(duplicates, rejected) do
+    [duplicates_notice(duplicates), rejected_notice(rejected)]
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.join(". ")
   end
 
   defp claim_label(%{"claim_id" => id, "filename" => filename}) when is_binary(id) and id != "",

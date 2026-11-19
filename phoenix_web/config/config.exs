@@ -86,6 +86,8 @@ config :medicaid_claims_checker, :config_poller, poll_interval_ms: 60_000
 config :medicaid_claims_checker, :remote_fetcher,
   download_timeout_ms: 60_000,
   max_file_size_bytes: 100_000_000,
+  # A zip that would unpack to more than this is refused (Ingestion.ZipLimit).
+  max_unzipped_bytes: 100_000_000,
   allowed_extensions: [".x12", ".edi", ".txt"]
 
 # Import environment specific config. This must remain at the bottom

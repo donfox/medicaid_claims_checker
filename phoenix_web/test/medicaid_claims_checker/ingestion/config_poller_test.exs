@@ -38,4 +38,33 @@ defmodule MedicaidClaimsChecker.Ingestion.ConfigPollerTest do
     send(pid, :poll)
     assert %{last_config: []} = :sys.get_state(pid)
   end
+
+  test "a schedule the scheduler can't run is skipped and logged; the poller keeps running" do
+    alias MedicaidClaimsChecker.Ingestion
+    alias MedicaidClaimsChecker.Ingestion.FetchSchedule
+
+    {:ok, source} =
+      Ingestion.create_fetch_source(%{name: "bad-cron", uri: "/tmp/none/", source_type: "local"})
+
+    # Stored without the changeset, as an old or hand-edited row could be.
+    Repo.insert!(%FetchSchedule{fetch_source_id: source.id, cron_expression: "99 * * * *"})
+    good = Repo.insert!(%FetchSchedule{fetch_source_id: source.id, interval_seconds: 900})
+
+    {pid, _log} = with_log(&start_poller/0)
+    Ecto.Adapters.SQL.Sandbox.allow(Repo, self(), pid)
+
+    log =
+      capture_log(fn ->
+        send(pid, :poll)
+        :sys.get_state(pid)
+      end)
+
+    assert Process.alive?(pid)
+    assert log =~ "Skipped schedule"
+    assert log =~ "Can't parse 99 as minute"
+
+    job = MedicaidClaimsChecker.Scheduler.find_job(:"fetch_#{source.id}_#{good.id}")
+    assert job.overlap == false
+    assert job.schedule == Crontab.CronExpression.Parser.parse!("*/15 * * * *")
+  end
 end

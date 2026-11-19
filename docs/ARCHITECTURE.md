@@ -78,9 +78,9 @@ Syntax, MLClient, ListenConfig, Middleware → nothing in the engine
 ### 2. Scheduled X12 Ingestion Pipeline
 
 1. A Quantum scheduler triggers a `FetchRunner` job when a `fetch_schedules` entry is due.
-2. `RemoteFetcher` downloads files from the configured `fetch_sources` URI using SFTP, HTTP(S), a local directory or Databricks.
+2. `RemoteFetcher` downloads files from the configured `fetch_sources` URI using SFTP, HTTP(S) or a local directory. Zips are unpacked (refused if they would unpack to more than 100 MB).
 3. `ClaimSplitter` splits multi-claim X12 files, and `Converter` plus `SegmentMapper` translate each claim into semantic JSON.
-4. `Claims.ingest_batch/1` writes one `batches` row and one `edi_files` row per claim in a single transaction. A file or claim already submitted is refused and recorded in `batches.duplicates`; manual uploads take the same path.
+4. `Claims.ingest_batch/1` writes one `batches` row and one `edi_files` row per claim in a single transaction. A file or claim already submitted is refused and recorded in `batches.duplicates`; a fetched file that can't be read is recorded in `batches.rejected_files`. Manual uploads take the same path.
 5. After a successful ingest, an Oban job (`Workers.BatchEvaluationWorker`) runs `Evaluator.evaluate_batch/1`.
 
 ### 3. Batch Evaluation with NPPES Pre-validation

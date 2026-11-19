@@ -5,6 +5,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
   alias MedicaidClaimsChecker.Claims
   alias MedicaidClaimsChecker.Claims.{Evaluator, Fingerprint, JsonClaim}
   alias MedicaidClaimsChecker.Ingestion
+  alias MedicaidClaimsChecker.Ingestion.ZipLimit
   alias MedicaidClaimsChecker.Nppes
   alias MedicaidClaimsCheckerWeb.AdminLive.NppesPanel
   alias MedicaidClaimsChecker.X12.{ClaimSplitter, Converter, SegmentMapper}
@@ -141,8 +142,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     {:noreply, socket}
   end
 
-  @impl true
-  def handle_event("toggle_add_source_form", _params, socket) do
+  defp admin_event("toggle_add_source_form", _params, socket) do
     showing = !socket.assigns.show_source_form
 
     {:noreply,
@@ -153,7 +153,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
      |> reset_source_form()}
   end
 
-  def handle_event("edit_source", %{"id" => id}, socket) do
+  defp admin_event("edit_source", %{"id" => id}, socket) do
     source = Ingestion.get_fetch_source!(id)
 
     {:noreply,
@@ -168,7 +168,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
      |> assign(:form_error, nil)}
   end
 
-  def handle_event("save_source", %{"source" => params}, socket) do
+  defp admin_event("save_source", %{"source" => params}, socket) do
     password = String.trim(params["password"] || "")
     username = String.trim(params["username"] || "")
 
@@ -222,7 +222,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     end
   end
 
-  def handle_event("delete_source", %{"id" => id}, socket) do
+  defp admin_event("delete_source", %{"id" => id}, socket) do
     source = Ingestion.get_fetch_source!(id)
 
     case Ingestion.delete_fetch_source(source) do
@@ -237,13 +237,13 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     end
   end
 
-  def handle_event("toggle_source_enabled", %{"id" => id}, socket) do
+  defp admin_event("toggle_source_enabled", %{"id" => id}, socket) do
     source = Ingestion.get_fetch_source!(id)
     {:ok, _} = Ingestion.toggle_fetch_source_enabled(source)
     {:noreply, assign(socket, :sources, Ingestion.list_fetch_sources())}
   end
 
-  def handle_event("toggle_expand_source", %{"id" => id}, socket) do
+  defp admin_event("toggle_expand_source", %{"id" => id}, socket) do
     case Integer.parse(id) do
       {parsed_id, ""} ->
         expanded = socket.assigns.expanded_source_ids
@@ -262,7 +262,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
 
   # --- Schedule events ---
 
-  def handle_event("show_add_schedule", %{"source-id" => source_id}, socket) do
+  defp admin_event("show_add_schedule", %{"source-id" => source_id}, socket) do
     case Integer.parse(source_id) do
       {parsed_id, ""} ->
         {:noreply,
@@ -277,7 +277,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     end
   end
 
-  def handle_event("edit_schedule", %{"id" => id, "source-id" => source_id}, socket) do
+  defp admin_event("edit_schedule", %{"id" => id, "source-id" => source_id}, socket) do
     case Integer.parse(source_id) do
       {parsed_source_id, ""} ->
         schedule = Ingestion.get_fetch_schedule!(id)
@@ -297,21 +297,21 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     end
   end
 
-  def handle_event("cancel_add_schedule", _params, socket) do
+  defp admin_event("cancel_add_schedule", _params, socket) do
     {:noreply,
      socket
      |> assign(:adding_schedule_for, nil)
      |> assign(:editing_schedule, nil)}
   end
 
-  def handle_event("update_schedule_form", %{"schedule" => params}, socket) do
+  defp admin_event("update_schedule_form", %{"schedule" => params}, socket) do
     {:noreply,
      socket
      |> assign(:schedule_cron, params["cron"] || "")
      |> assign(:schedule_interval, params["interval"] || "")}
   end
 
-  def handle_event("save_schedule", %{"schedule" => params}, socket) do
+  defp admin_event("save_schedule", %{"schedule" => params}, socket) do
     source_id = socket.assigns.adding_schedule_for
 
     attrs =
@@ -360,19 +360,33 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     end
   end
 
-  def handle_event("delete_schedule", %{"id" => id}, socket) do
+  defp admin_event("delete_schedule", %{"id" => id}, socket) do
     schedule = Ingestion.get_fetch_schedule!(id)
     {:ok, _} = Ingestion.delete_fetch_schedule(schedule)
     {:noreply, assign(socket, :sources, Ingestion.list_fetch_sources())}
   end
 
-  def handle_event("toggle_schedule_enabled", %{"id" => id}, socket) do
+  defp admin_event("toggle_schedule_enabled", %{"id" => id}, socket) do
     schedule = Ingestion.get_fetch_schedule!(id)
     {:ok, _} = Ingestion.toggle_fetch_schedule_enabled(schedule)
     {:noreply, assign(socket, :sources, Ingestion.list_fetch_sources())}
   end
 
   # --- Manual Upload event handlers ---
+
+  # Fetch sources and schedules are managed by administrators only: a source
+  # can point at any directory on the server or any address on the network.
+  @admin_events ~w(toggle_add_source_form edit_source save_source delete_source
+                   toggle_source_enabled toggle_expand_source show_add_schedule
+                   edit_schedule cancel_add_schedule update_schedule_form
+                   save_schedule delete_schedule toggle_schedule_enabled)
+
+  @impl true
+  def handle_event(event, params, socket) when event in @admin_events do
+    if admin?(socket),
+      do: admin_event(event, params, socket),
+      else: {:noreply, put_flash(socket, :error, "Only an administrator can change fetch sources and schedules.")}
+  end
 
   # Choosing new files replaces the previous upload's result.
   def handle_event("validate_manual_uploads", _params, socket) do
@@ -418,9 +432,12 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
       {json_files, x12_files, zip_files} = classify_files(files)
 
       # Extract zip files and classify their contents
-      {zip_json, zip_x12} = extract_and_classify_zips(zip_files)
+      {zip_json, zip_x12, zip_refused} = extract_and_classify_zips(zip_files)
       json_files = json_files ++ zip_json
       x12_files = x12_files ++ zip_x12
+
+      zip_note =
+        if zip_refused == [], do: "", else: " Not unpacked: " <> Enum.join(zip_refused, " | ") <> "."
 
       if json_files == [] and x12_files == [] do
         {:noreply,
@@ -428,10 +445,10 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
          |> assign(:upload_status, :error)
          |> assign(
            :upload_message,
-           "No processable claims found. Supported file types: .json, .x12, .edi, .zip"
+           "No processable claims found. Supported file types: .json, .x12, .edi, .zip" <> zip_note
          )}
       else
-        socket = assign(socket, :upload_status, :processing)
+        socket = socket |> assign(:upload_status, :processing) |> add_upload_notes(zip_note)
 
         # Process JSON files directly through batch ingestion
         socket = process_json_files(socket, json_files)
@@ -439,7 +456,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
         # Translate X12/EDI files in-process and ingest them locally
         socket = process_x12_files(socket, x12_files)
 
-        {:noreply, socket}
+        {:noreply, update(socket, :upload_message, &((&1 || "") <> zip_note))}
       end
     end
   end
@@ -582,8 +599,27 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     end)
   end
 
+  # {json_files, x12_files, refused}: refused names each zip not unpacked
+  # because it would unpack too large (see Ingestion.ZipLimit).
   defp extract_and_classify_zips(zip_files) do
-    Enum.reduce(zip_files, {[], []}, fn {_zip_name, content}, {json_acc, x12_acc} ->
+    zip_files
+    |> Enum.reduce({[], [], []}, fn {zip_name, content}, {json_acc, x12_acc, refused} ->
+      case ZipLimit.check(content) do
+        :ok ->
+          {json, x12} = unzip_and_classify(content, {json_acc, x12_acc})
+          {json, x12, refused}
+
+        {:error, "it is not" <> _} ->
+          # A corrupt zip: nothing to unpack, as before.
+          {json_acc, x12_acc, refused}
+
+        {:error, reason} ->
+          {json_acc, x12_acc, refused ++ ["#{zip_name}: #{reason}"]}
+      end
+    end)
+  end
+
+  defp unzip_and_classify(content, {json_acc, x12_acc}) do
       case :zip.unzip(content, [:memory]) do
         {:ok, entries} ->
           Enum.reduce(entries, {json_acc, x12_acc}, fn {name, data}, {j, x} ->
@@ -610,7 +646,6 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
         {:error, _} ->
           {json_acc, x12_acc}
       end
-    end)
   end
 
   defp process_json_files(socket, []), do: socket
@@ -911,7 +946,6 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
   defp source_type_label("sftp"), do: "SFTP"
   defp source_type_label("local"), do: "Local"
   defp source_type_label("http"), do: "HTTP"
-  defp source_type_label("databricks"), do: "Databricks"
   defp source_type_label(other), do: other
 
   # --- Jobs History helpers ---
@@ -1007,6 +1041,8 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
 
   defp user_from_session(_session), do: nil
 
+  defp admin?(socket), do: match?(%{is_admin: true}, socket.assigns[:current_user])
+
   defp build_batch_entry(batch) do
     files = Claims.list_files_for_batch(batch.id)
 
@@ -1047,6 +1083,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
       status: batch.status,
       file_count: batch.file_count,
       duplicates: batch.duplicates || [],
+      rejected_files: batch.rejected_files || [],
       inserted_at: batch.inserted_at,
       completed_at: batch.completed_at,
       files: files_with_details

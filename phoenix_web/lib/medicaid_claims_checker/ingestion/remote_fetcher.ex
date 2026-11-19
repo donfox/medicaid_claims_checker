@@ -37,7 +37,6 @@ defmodule MedicaidClaimsChecker.Ingestion.RemoteFetcher do
     * Local ZIP files (e.g., "/path/to/batch.zip")
     * Local directories (e.g., "/path/to/x12_files/")
     * Local single X12 files (e.g., "/path/to/claim.x12")
-    * Databricks paths (e.g., "/mnt/data/x12/batch.zip") - requires Databricks config
 
   ## Options
 
@@ -61,7 +60,7 @@ defmodule MedicaidClaimsChecker.Ingestion.RemoteFetcher do
       * `:invalid_zip` - Not a valid ZIP file
       * `:no_x12_files` - No X12 files found
       * `:file_too_large` - File exceeds max_size limit
-      * `:databricks_not_configured` - Databricks API credentials not configured
+      * `{:zip_too_large, message}` - A zip would unpack to more than `Ingestion.ZipLimit` allows
 
   """
   def fetch_and_extract(source, opts \\ []) do
@@ -80,9 +79,6 @@ defmodule MedicaidClaimsChecker.Ingestion.RemoteFetcher do
 
       :local_x12_file ->
         fetch_from_local_x12(source, opts)
-
-      :databricks_path ->
-        fetch_from_databricks(source, opts)
 
       :invalid ->
         {:error, :invalid_url}
@@ -106,9 +102,6 @@ defmodule MedicaidClaimsChecker.Ingestion.RemoteFetcher do
       iex> MedicaidClaimsChecker.Ingestion.RemoteFetcher.detect_source_type("/Users/name/claim.x12")
       :local_x12_file
 
-      iex> MedicaidClaimsChecker.Ingestion.RemoteFetcher.detect_source_type("/mnt/data/x12/file.zip")
-      :databricks_path
-
   """
   def detect_source_type(source) when is_binary(source) do
     cond do
@@ -119,10 +112,6 @@ defmodule MedicaidClaimsChecker.Ingestion.RemoteFetcher do
       # SFTP URL
       String.starts_with?(source, "sftp://") ->
         :sftp_url
-
-      # Databricks mount path
-      String.starts_with?(source, "/mnt/") or String.starts_with?(source, "dbfs:/") ->
-        :databricks_path
 
       # Local path - determine if it's a directory, ZIP, or X12 file
       is_local_path?(source) ->
@@ -207,52 +196,51 @@ defmodule MedicaidClaimsChecker.Ingestion.RemoteFetcher do
          {:ok, sftp_config} <- get_sftp_config(sftp_url, opts),
          {:ok, temp_dir} <- create_temp_directory(),
          {:ok, files} <- download_sftp_files(sftp_config, temp_dir, config) do
-      # Check if we downloaded a ZIP or individual files
-      zip_files = Enum.filter(files, &String.ends_with?(String.downcase(&1), ".zip"))
-
-      if length(zip_files) == 1 do
-        # Extract the ZIP
-        zip_path = hd(zip_files)
-
-        with {:ok, zip_data} <- File.read(zip_path),
-             {:ok, extracted_files} <- extract_zip(zip_data, temp_dir),
-             {:ok, x12_files} <- validate_zip_contents(extracted_files, config.allowed_extensions),
-             {:ok, manifest} <- load_manifest(temp_dir) do
-          File.rm(zip_path)
-
-          {:ok,
-           %{
-             files: x12_files,
-             manifest: manifest,
-             temp_dir: temp_dir,
-             source_dir: nil
-           }}
-        end
-      else
-        # Filter for X12 files directly
-        x12_files =
-          files
-          |> Enum.filter(fn f ->
-            String.downcase(Path.extname(f)) in config.allowed_extensions
-          end)
-
-        if Enum.empty?(x12_files) do
-          cleanup_temp_files(temp_dir)
-          {:error, :no_x12_files}
-        else
-          {:ok, manifest} = load_manifest(temp_dir)
-
-          {:ok,
-           %{
-             files: x12_files,
-             manifest: manifest,
-             temp_dir: temp_dir,
-             source_dir: nil
-           }}
-        end
-      end
+      collect_downloaded(files, temp_dir, config)
     else
       {:error, _reason} = error ->
+        error
+    end
+  end
+
+  @doc false
+  # The X12 files among downloaded `files`: every zip is unpacked into its
+  # own folder, and the plain X12 files beside the zips are kept too.
+  def collect_downloaded(files, temp_dir, config) do
+    {zip_files, plain_files} =
+      Enum.split_with(files, &String.ends_with?(String.downcase(&1), ".zip"))
+
+    plain_x12 =
+      Enum.filter(plain_files, &(String.downcase(Path.extname(&1)) in config.allowed_extensions))
+
+    zip_x12 =
+      zip_files
+      |> Enum.with_index(1)
+      |> Enum.reduce_while({:ok, []}, fn {zip_path, n}, {:ok, acc} ->
+        dir = Path.join(temp_dir, "zip_#{n}")
+
+        with :ok <- File.mkdir_p(dir),
+             {:ok, zip_data} <- File.read(zip_path),
+             {:ok, extracted} <- extract_zip(zip_data, dir) do
+          File.rm(zip_path)
+          x12 = Enum.filter(extracted, &(String.downcase(Path.extname(&1)) in config.allowed_extensions))
+          {:cont, {:ok, acc ++ x12}}
+        else
+          {:error, _} = error -> {:halt, error}
+        end
+      end)
+
+    case zip_x12 do
+      {:ok, from_zips} when from_zips != [] or plain_x12 != [] ->
+        {:ok, manifest} = load_manifest(temp_dir)
+        {:ok, %{files: plain_x12 ++ from_zips, manifest: manifest, temp_dir: temp_dir, source_dir: nil}}
+
+      {:ok, []} ->
+        cleanup_temp_files(temp_dir)
+        {:error, :no_x12_files}
+
+      {:error, _} = error ->
+        cleanup_temp_files(temp_dir)
         error
     end
   end
@@ -554,99 +542,6 @@ defmodule MedicaidClaimsChecker.Ingestion.RemoteFetcher do
     end
   end
 
-  # Fetch from Databricks (placeholder - requires API integration)
-  defp fetch_from_databricks(databricks_path, opts) do
-    Logger.info("Attempting to fetch from Databricks: #{databricks_path}")
-
-    # Check if Databricks credentials are configured
-    databricks_config = Application.get_env(:medicaid_claims_checker, :databricks, [])
-    host = Keyword.get(databricks_config, :host)
-    token = Keyword.get(databricks_config, :token)
-
-    cond do
-      is_nil(host) or is_nil(token) ->
-        Logger.error("""
-        Databricks not configured. Please set in config/runtime.exs:
-
-        config :medicaid_claims_checker, :databricks,
-          host: System.get_env("DATABRICKS_HOST"),
-          token: System.get_env("DATABRICKS_TOKEN")
-        """)
-
-        {:error, :databricks_not_configured}
-
-      true ->
-        fetch_from_databricks_api(databricks_path, host, token, opts)
-    end
-  end
-
-  defp fetch_from_databricks_api(databricks_path, host, token, opts) do
-    # Convert /mnt/ path to DBFS path
-    dbfs_path =
-      if String.starts_with?(databricks_path, "/mnt/") do
-        String.replace_prefix(databricks_path, "/mnt/", "/dbfs/mnt/")
-      else
-        databricks_path
-      end
-
-    # Use Databricks REST API to read file
-    url = "https://#{host}/api/2.0/dbfs/read?path=#{URI.encode(dbfs_path)}"
-
-    Logger.info("Fetching from Databricks API: #{url}")
-
-    :inets.start()
-    :ssl.start()
-
-    config = opts[:config] || elem(get_config(opts), 1)
-
-    request = {
-      String.to_charlist(url),
-      [{~c"Authorization", String.to_charlist("Bearer #{token}")}]
-    }
-
-    http_options = [
-      timeout: config.timeout,
-      ssl: [verify: :verify_peer, cacerts: :public_key.cacerts_get(), depth: 3]
-    ]
-
-    case :httpc.request(:get, request, http_options, body_format: :binary) do
-      {:ok, {{_version, 200, _status}, _headers, body}} ->
-        # Databricks API returns base64-encoded data
-        case Jason.decode(body) do
-          {:ok, %{"data" => base64_data}} ->
-            zip_data = Base.decode64!(base64_data)
-            Logger.info("Downloaded #{byte_size(zip_data)} bytes from Databricks")
-
-            # Process the ZIP file
-            with {:ok, temp_dir} <- create_temp_directory(),
-                 {:ok, extracted_files} <- extract_zip(zip_data, temp_dir),
-                 {:ok, x12_files} <-
-                   validate_zip_contents(extracted_files, config.allowed_extensions),
-                 {:ok, manifest} <- load_manifest(temp_dir) do
-              {:ok,
-               %{
-                 files: x12_files,
-                 manifest: manifest,
-                 temp_dir: temp_dir,
-                 # No local source directory for Databricks (output not written back locally)
-                 source_dir: nil
-               }}
-            end
-
-          {:error, _reason} ->
-            {:error, :invalid_databricks_response}
-        end
-
-      {:ok, {{_version, status_code, _status}, _headers, _body}} ->
-        Logger.error("Databricks API error: #{status_code}")
-        {:error, {:databricks_error, status_code}}
-
-      {:error, reason} ->
-        Logger.error("Databricks fetch failed: #{inspect(reason)}")
-        {:error, :download_failed}
-    end
-  end
-
   defp validate_local_file(file_path, max_size) do
     cond do
       not File.exists?(file_path) ->
@@ -805,6 +700,14 @@ defmodule MedicaidClaimsChecker.Ingestion.RemoteFetcher do
   end
 
   defp extract_zip(zip_data, extract_dir) when is_binary(zip_data) do
+    case MedicaidClaimsChecker.Ingestion.ZipLimit.check(zip_data) do
+      :ok -> do_extract_zip(zip_data, extract_dir)
+      {:error, "it is not" <> _} -> {:error, :invalid_zip}
+      {:error, message} -> {:error, {:zip_too_large, message}}
+    end
+  end
+
+  defp do_extract_zip(zip_data, extract_dir) do
     # Write ZIP to temporary file (required by :zip.unzip)
     temp_zip = Path.join(extract_dir, "download.zip")
 

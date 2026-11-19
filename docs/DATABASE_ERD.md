@@ -20,6 +20,7 @@ erDiagram
         integer file_count "NOT NULL"
         string status "NOT NULL, default pending"
         jsonb_array duplicates "NOT NULL, default []"
+        jsonb_array rejected_files "NOT NULL, default []"
         utc_datetime started_at
         utc_datetime completed_at
         utc_datetime inserted_at
@@ -206,7 +207,9 @@ have none.
 
 - **`batches`**: one row per upload or scheduled fetch: source, claim count,
   status and timestamps. `duplicates` lists each claim or file refused as
-  already submitted, naming the earlier submission.
+  already submitted, naming the earlier submission. `rejected_files` lists
+  each fetched file (or claim split from it) that could not be read, with
+  the reason.
 - **`edi_files`**: one row per claim. `json_output` is the translated claim as
   ingested and is never overwritten; `evaluation_report` is the engine's report
   from the latest evaluation. `claim_fingerprint` is the SHA-256 of the claim
@@ -232,8 +235,8 @@ have none.
 
 ### Ingestion and provider data
 
-- **`fetch_sources`**: where claim files are fetched from (SFTP, HTTP, local
-  or Databricks). `credentials` is encrypted with the app's Cloak key.
+- **`fetch_sources`**: where claim files are fetched from (SFTP, HTTP or
+  local). `credentials` is encrypted with the app's Cloak key.
 - **`fetch_schedules`**: when each source is polled.
 - **`fetched_files`**: files a source has already picked up, unique by
   source, name and SHA-256, so a re-fetched unchanged file is skipped; the

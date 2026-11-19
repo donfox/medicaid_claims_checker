@@ -67,8 +67,8 @@ These are not environment variables; they live in `phoenix_web/config/`.
 |---|---|---|
 | `allow_test_resubmission: true` | `dev.exs` | Shows the "Test upload: allow re-submission" checkbox on Manual Upload. Development only. |
 | Cloak development key | `dev.exs`, `test.exs` | A fixed, all-zero key so development and tests work without `CLOAK_KEY`. Never use it in production. |
-| `:databricks` (`host`, `token`) | not set | Needed only for Databricks fetch sources; add it to a config file to use them. |
 | Oban `batch_evaluation` queue | `config.exs` | One concurrent batch evaluation per CPU core, matching the engine's worker pool. |
+| `:remote_fetcher` | `config.exs` | Scheduled fetches: download timeout (60 s), largest file (`max_file_size_bytes`, 100 MB), largest unpacked zip (`max_unzipped_bytes`, 100 MB; uploads too) and the file extensions read (`.x12`, `.edi`, `.txt`). |
 | `:config_poller` | `config.exs` | Re-reads the fetch sources and schedules every 60 seconds and updates the scheduled fetch jobs. |
 
 ## Scripts

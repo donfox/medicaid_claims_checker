@@ -14,7 +14,7 @@ defmodule MedicaidClaimsChecker.Ingestion.FetchSource do
     timestamps(type: :utc_datetime)
   end
 
-  @valid_source_types ~w(sftp local http databricks)
+  @valid_source_types ~w(sftp local http)
 
   def changeset(fetch_source, attrs) do
     fetch_source

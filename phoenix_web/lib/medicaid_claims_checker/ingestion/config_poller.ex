@@ -8,7 +8,7 @@ defmodule MedicaidClaimsChecker.Ingestion.ConfigPoller do
   require Logger
 
   alias MedicaidClaimsChecker.Ingestion
-  alias MedicaidClaimsChecker.Ingestion.FetchRunner
+  alias MedicaidClaimsChecker.Ingestion.{FetchRunner, FetchSchedule}
   alias MedicaidClaimsChecker.Scheduler
 
   @default_poll_interval_ms 60_000
@@ -52,7 +52,10 @@ defmodule MedicaidClaimsChecker.Ingestion.ConfigPoller do
     {:ok, Ingestion.list_enabled_config()}
   rescue
     e ->
-      Logger.warning("Ingestion config poll failed, keeping current jobs: #{Exception.message(e)}")
+      Logger.warning(
+        "Ingestion config poll failed, keeping current jobs: #{Exception.message(e)}"
+      )
+
       :error
   end
 
@@ -71,16 +74,19 @@ defmodule MedicaidClaimsChecker.Ingestion.ConfigPoller do
     |> Enum.each(fn {name, _job} -> Scheduler.delete_job(name) end)
 
     Enum.each(sources, fn source ->
-      Enum.each(source.fetch_schedules, fn schedule ->
-        job_name = String.to_atom("fetch_#{source.id}_#{schedule.id}")
+      Enum.each(source.fetch_schedules, &add_job(source, &1))
+    end)
+  end
 
-        quantum_schedule =
-          if schedule.cron_expression do
-            Crontab.CronExpression.Parser.parse!(schedule.cron_expression)
-          else
-            build_interval_schedule(schedule.interval_seconds)
-          end
+  # A schedule the scheduler can't run (saved before schedules were checked,
+  # or edited in the database) is skipped and logged. Raising here would
+  # crash the poller, which restarts and polls at once; three crashes in
+  # five seconds stop the whole application.
+  defp add_job(source, schedule) do
+    job_name = String.to_atom("fetch_#{source.id}_#{schedule.id}")
 
+    case quantum_schedule(schedule) do
+      {:ok, quantum_schedule} ->
         timezone =
           Application.get_env(:medicaid_claims_checker, MedicaidClaimsChecker.Scheduler, [])
           |> Keyword.get(:timezone, "Etc/UTC")
@@ -92,37 +98,34 @@ defmodule MedicaidClaimsChecker.Ingestion.ConfigPoller do
           source_type: source.source_type
         }
 
-        job =
-          Scheduler.new_job()
-          |> Quantum.Job.set_name(job_name)
-          |> Quantum.Job.set_schedule(quantum_schedule)
-          |> Quantum.Job.set_timezone(timezone)
-          |> Quantum.Job.set_task({FetchRunner, :run, [source_map]})
-
-        Scheduler.add_job(job)
+        # overlap: false — a slow fetch is not started again while running.
+        Scheduler.new_job()
+        |> Quantum.Job.set_name(job_name)
+        |> Quantum.Job.set_schedule(quantum_schedule)
+        |> Quantum.Job.set_timezone(timezone)
+        |> Quantum.Job.set_overlap(false)
+        |> Quantum.Job.set_task({FetchRunner, :run, [source_map]})
+        |> Scheduler.add_job()
 
         Logger.info(
           "Added scheduler job #{job_name} for #{source.name} (#{schedule.cron_expression || "interval #{schedule.interval_seconds}s"})"
         )
-      end)
-    end)
+
+      {:error, reason} ->
+        Logger.error("Skipped schedule #{schedule.id} for #{source.name}: #{reason}")
+    end
   end
 
-  defp build_interval_schedule(seconds) when is_integer(seconds) and seconds <= 60 do
-    Crontab.CronExpression.Parser.parse!("* * * * *")
+  defp quantum_schedule(%{cron_expression: cron}) when is_binary(cron) do
+    Crontab.CronExpression.Parser.parse(cron)
   end
 
-  defp build_interval_schedule(seconds) when is_integer(seconds) and seconds <= 3600 do
-    minutes = div(seconds, 60)
-    Crontab.CronExpression.Parser.parse!("*/#{minutes} * * * *")
+  defp quantum_schedule(%{interval_seconds: seconds}) do
+    case FetchSchedule.interval_cron(seconds) do
+      {:ok, cron} -> Crontab.CronExpression.Parser.parse(cron)
+      :error -> {:error, "interval of #{inspect(seconds)} seconds can't be run exactly"}
+    end
   end
-
-  defp build_interval_schedule(seconds) when is_integer(seconds) do
-    hours = max(div(seconds, 3600), 1)
-    Crontab.CronExpression.Parser.parse!("0 */#{hours} * * *")
-  end
-
-  defp build_interval_schedule(_), do: Crontab.CronExpression.Parser.parse!("0 * * * *")
 
   defp config_fingerprint(sources) when is_list(sources) do
     sources

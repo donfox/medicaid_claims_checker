@@ -7,8 +7,13 @@ defmodule MedicaidClaimsChecker.Ingestion.FetchRunner do
 
   A file the source has fetched before (same name, same bytes) is skipped,
   so files left in place aren't refused as duplicates on every run. A file
-  is recorded as fetched once its batch is ingested, or when it holds no
-  claims; if ingestion fails it is tried again on the next run.
+  is recorded as fetched once its batch is ingested; if ingestion fails it
+  is tried again on the next run.
+
+  A file that can't be read (truncated, not X12, ...) and a split claim that
+  can't be converted are stored on the batch as `rejected_files`, so Jobs
+  History shows them. When nothing in the run can be read, the batch is
+  recorded as failed with only those rejections.
   """
 
   require Logger
@@ -29,6 +34,7 @@ defmodule MedicaidClaimsChecker.Ingestion.FetchRunner do
     # Decrypt credentials at execution time — the Quantum job closure stores
     # only the source ID, keeping plaintext out of the scheduler's job table.
     source_id = source_config[:id] || source_config["id"]
+
     credentials =
       case source_id && Ingestion.get_fetch_source(source_id) do
         %{credentials: creds} -> creds || %{}
@@ -70,10 +76,12 @@ defmodule MedicaidClaimsChecker.Ingestion.FetchRunner do
       {:ok, :nothing_new}
     else
       result = ingest_files(source_name, new)
-      handled? = match?({:ok, _}, result) or result == {:error, :no_claims_produced}
 
-      if source_id && handled? do
-        Ingestion.record_fetched(source_id, Enum.map(new, fn {name, _content, sha} -> {name, sha} end))
+      if source_id && match?({:ok, _}, result) do
+        Ingestion.record_fetched(
+          source_id,
+          Enum.map(new, fn {name, _content, sha} -> {name, sha} end)
+        )
       end
 
       result
@@ -92,9 +100,14 @@ defmodule MedicaidClaimsChecker.Ingestion.FetchRunner do
   end
 
   defp ingest_files(source_name, files) do
-    claims = Enum.flat_map(files, &claims_for_file/1)
+    {claims, rejected} =
+      files
+      |> Enum.map(&claims_for_file/1)
+      |> Enum.reduce({[], []}, fn {c, r}, {ca, ra} -> {ca ++ c, ra ++ r} end)
 
-    if claims == [] do
+    Enum.each(rejected, &Logger.warning("Rejected #{&1["filename"]}: #{&1["reason"]}"))
+
+    if claims == [] and rejected == [] do
       Logger.error("No claims produced from fetched files")
       {:error, :no_claims_produced}
     else
@@ -104,25 +117,30 @@ defmodule MedicaidClaimsChecker.Ingestion.FetchRunner do
         "batch_id" => batch_id,
         "source" => "scheduled:#{source_name}",
         "batch_name" => "Scheduled: #{source_name}",
-        "claims" => claims
+        "claims" => claims,
+        "rejected_files" => rejected
       }
 
       Claims.ingest_batch(payload)
     end
   end
 
+  # {claims, rejected} for one fetched file.
   defp claims_for_file({filename, content, sha}) do
-    with {:ok, tx_sets} <- ClaimSplitter.split_transaction_sets(content) do
-      parts = if is_list(tx_sets), do: tx_sets, else: [content]
-      source = %{"filename" => filename, "sha256" => sha}
+    case ClaimSplitter.split_transaction_sets(content) do
+      {:ok, tx_sets} ->
+        parts = if is_list(tx_sets), do: tx_sets, else: [content]
+        source = %{"filename" => filename, "sha256" => sha}
 
-      parts
-      |> Enum.flat_map(&claims_for_transaction_set(filename, &1))
-      |> Enum.map(&Map.put(&1, "source_file", source))
-    else
+        {claims, rejected} =
+          parts
+          |> Enum.map(&claims_for_transaction_set(filename, &1))
+          |> Enum.reduce({[], []}, fn {c, r}, {ca, ra} -> {ca ++ c, ra ++ r} end)
+
+        {Enum.map(claims, &Map.put(&1, "source_file", source)), rejected}
+
       {:error, reason} ->
-        Logger.warning("Failed to process #{filename}: #{inspect(reason)}")
-        []
+        {[], [rejection(filename, reason)]}
     end
   end
 
@@ -130,33 +148,33 @@ defmodule MedicaidClaimsChecker.Ingestion.FetchRunner do
     case ClaimSplitter.split_claims_to_x12(content) do
       {:ok, nil} ->
         case translate_x12(content) do
-          {:ok, claim} ->
-            [%{"filename" => to_json_filename(filename), "claim" => claim}]
-
-          {:error, reason} ->
-            Logger.warning("Translation failed for #{filename}: #{inspect(reason)}")
-            []
+          {:ok, claim} -> {[%{"filename" => to_json_filename(filename), "claim" => claim}], []}
+          {:error, reason} -> {[], [rejection(filename, reason)]}
         end
 
       {:ok, claims} when is_list(claims) ->
-        Enum.flat_map(claims, fn %{claim_id: claim_id, x12_content: claim_x12} ->
+        claims
+        |> Enum.map(fn %{claim_id: claim_id, x12_content: claim_x12} ->
           case translate_x12(claim_x12) do
             {:ok, claim} ->
-              [%{"filename" => to_split_filename(filename, claim_id), "claim" => claim}]
+              {[%{"filename" => to_split_filename(filename, claim_id), "claim" => claim}], []}
 
             {:error, reason} ->
-              Logger.warning(
-                "Translation failed for split claim #{claim_id} in #{filename}: #{inspect(reason)}"
-              )
-
-              []
+              {[], [rejection("#{filename} (claim #{claim_id})", reason)]}
           end
         end)
+        |> Enum.reduce({[], []}, fn {c, r}, {ca, ra} -> {ca ++ c, ra ++ r} end)
 
       {:error, reason} ->
-        Logger.warning("Failed to split claims for #{filename}: #{inspect(reason)}")
-        []
+        {[], [rejection(filename, reason)]}
     end
+  end
+
+  defp rejection(filename, reason) do
+    %{
+      "filename" => filename,
+      "reason" => if(is_binary(reason), do: reason, else: inspect(reason))
+    }
   end
 
   defp translate_x12(x12_content) do

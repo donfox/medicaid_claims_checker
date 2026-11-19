@@ -39,7 +39,7 @@ test/medicaid_claims_checker/x12/claim_splitter_test.exs
 
 Two folders under `test/` have no match in `lib/`:
 
-- `test/use_cases/`: the end-to-end tests of the 59 use cases, one file per group. They need the engine, so a plain `mix test` skips them; `./test.sh` from the repository root runs them.
+- `test/use_cases/`: the end-to-end tests of the 59 use cases, one file per group. They need the engine, so a plain `mix test` skips them; `scripts/test.sh` from the repository root runs them.
 - `test/support/`: setup shared by the tests: `conn_case.ex` (tests of pages), `data_case.ex` (tests that use the database), `use_case_case.ex` (the use-case tests), `mock_data.ex` (paths into `../mock_data/`), and `fixtures/`, which despite the name is code that creates test users, not data.
 
 ## How a Batch of Claims Is Processed
@@ -193,8 +193,8 @@ Seed data loads 26 catalogue entries (15 Default Rules, 8 BA Rules, 3 ML Models)
 From the repository root:
 
 ```bash
-./start.sh --frontend       # port 4000, background
-./start.sh --frontend -f    # port 4000, foreground
+scripts/start.sh --frontend       # port 4000, background
+scripts/start.sh --frontend -f    # port 4000, foreground
 ```
 
 Or directly:

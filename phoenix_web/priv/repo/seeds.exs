@@ -3,7 +3,7 @@
 #
 # How it runs
 #   `mix ecto.setup` (and `mix ecto.reset`) runs this file, and so does
-#   ../setup.sh. To run it by hand: `mix run priv/repo/seeds.exs`.
+#   ../scripts/setup.sh. To run it by hand: `mix run priv/repo/seeds.exs`.
 #
 # Two tables, joined by `name`
 #   rule_catalogue  - one row per rule the app knows about: its type

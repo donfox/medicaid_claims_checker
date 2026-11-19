@@ -2,13 +2,13 @@
 
 Every setting the app reads, where it is read, and its default. Settings are
 environment variables unless noted. For local development none of them need
-setting: `./start.sh` and the development config supply working defaults.
+setting: `scripts/start.sh` and the development config supply working defaults.
 
 ## Shared by both services
 
 | Variable | Default | What it does |
 |---|---|---|
-| `RULE_ENGINE_SECRET` | `dev-secret-change-in-production` in development (set by `start.sh` and `config/runtime.exs`) | The shared secret Phoenix sends to the engine as a Bearer token. Both services must have the same value. The engine refuses every request except `/api/health` when it is unset; a production Phoenix will not start without it. |
+| `RULE_ENGINE_SECRET` | `dev-secret-change-in-production` in development (set by `scripts/start.sh` and `config/runtime.exs`) | The shared secret Phoenix sends to the engine as a Bearer token. Both services must have the same value. The engine refuses every request except `/api/health` when it is unset; a production Phoenix will not start without it. |
 
 ## Haskell engine
 
@@ -21,7 +21,7 @@ startup, except the ML settings, which `src/Claims/MLClient.hs` and
 | `ENGINE_HOST` | `127.0.0.1` | Address to listen on. Without TLS only a loopback address is allowed. |
 | `ENGINE_PORT` | `8080` | Port to listen on. |
 | `RULE_ENGINE_TLS_CERT`, `RULE_ENGINE_TLS_KEY` | unset | Certificate and key files. With both set the engine serves HTTPS and may listen on any address. See [haskell_engine/README.md](../haskell_engine/README.md#listening-and-tls); `haskell_engine/gen-dev-tls.sh` makes a development certificate. |
-| `ENGINE_RATE_LIMIT` | `1000` | Most requests one client IP may make per 60 seconds; `/api/health` is not counted. `./test.sh` raises it for its own engine. |
+| `ENGINE_RATE_LIMIT` | `1000` | Most requests one client IP may make per 60 seconds; `/api/health` is not counted. `scripts/test.sh` raises it for its own engine. |
 | `ML_SCORER_URL` | unset | The ML scoring service `/api/evaluate` calls. Unset, a fixed stand-in score is used. Must be `https://`; private and cloud-metadata addresses are refused. |
 | `ML_TIMEOUT_MS` | `120` | How long to wait for the scorer, in milliseconds. Too short for a real model service; raise it when one is added. |
 | `ALLOW_ML_TEST_OVERRIDE` | unset | When `true`, a claim containing `"_mlStatus": "error"` skips the scorer as if it had failed. For tests only. |
@@ -75,6 +75,6 @@ These are not environment variables; they live in `phoenix_web/config/`.
 
 | Script | Options | Notes |
 |---|---|---|
-| `./setup.sh` | none | Builds the engine, installs Phoenix dependencies, creates, migrates and seeds the database. Safe to run again. |
-| `./start.sh` | `--install`, `--backend`, `--frontend`, `--foreground` (`-f`) | Starts both services, or one. Frees ports 4000 and 8080 first. Logs go to `logs/`. |
-| `./test.sh` | use-case IDs, such as `R5 N7` | Starts its own engine on `TEST_ENGINE_PORT` (default `8092`) and runs the frontend use-case tests. |
+| `scripts/setup.sh` | none | Builds the engine, installs Phoenix dependencies, creates, migrates and seeds the database. Safe to run again. |
+| `scripts/start.sh` | `--install`, `--backend`, `--frontend`, `--foreground` (`-f`) | Starts both services, or one. Frees ports 4000 and 8080 first. Logs go to `logs/`. |
+| `scripts/test.sh` | use-case IDs, such as `R5 N7` | Starts its own engine on `TEST_ENGINE_PORT` (default `8092`) and runs the frontend use-case tests. |

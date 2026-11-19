@@ -26,10 +26,10 @@ Each edition is a Git tag; `main` always holds the latest edition. To look at Ed
 
   ```bash
   git switch --detach edition-1
-  ./setup.sh
+  scripts/setup.sh
   ```
 
-  Return to the current version with `git switch main` and run `./setup.sh` again.
+  Return to the current version with `git switch main` and run `scripts/setup.sh` again.
 
 ## Roadmap
 
@@ -42,10 +42,10 @@ Planned for Edition 2:
 
 You need [Haskell Stack](https://docs.haskellstack.org/), [Elixir](https://elixir-lang.org/install.html) 1.15 or later, and PostgreSQL running locally.
 
-1. `./setup.sh` builds the engine, installs the web app's dependencies, and creates, migrates and seeds the database. It is safe to run again.
-2. `./start.sh` starts both services: the web app on port 4000 and the engine on port 8080. Logs go to `logs/`.
+1. `scripts/setup.sh` builds the engine, installs the web app's dependencies, and creates, migrates and seeds the database. It is safe to run again.
+2. `scripts/start.sh` starts both services: the web app on port 4000 and the engine on port 8080. Logs go to `logs/`.
 3. Open `http://localhost:4000` and log in as the seeded admin, `admin` with password `AdminPassword123!` in development (see [the first admin](docs/ADMIN_GUIDE.md#the-first-admin)).
-4. `./test.sh` runs the use-case tests through the app; see [docs/TEST_PROCEDURE.md](docs/TEST_PROCEDURE.md) for the rest.
+4. `scripts/test.sh` runs the use-case tests through the app; see [docs/TEST_PROCEDURE.md](docs/TEST_PROCEDURE.md) for the rest.
 
 More on each part:
 

@@ -14,7 +14,7 @@
 -- * With both set it serves HTTPS on any host.
 --
 -- @ENGINE_RATE_LIMIT@ (default 1000) is the most requests one IP address may make
--- per 60 s; the use-case tests (../test.sh) raise it for their own engine.
+-- per 60 s; the use-case tests (../scripts/test.sh) raise it for their own engine.
 --
 -- Requests pass through "Middleware" (rate limit, then auth) to "Routes".
 module Main where

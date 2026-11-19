@@ -11,11 +11,11 @@
 > Fetch Source page (`http://localhost:4000/`, Manual Upload and Jobs History) and the Rules page (`/rules`). Each use
 > case names its test files and what the app should show. Engine-only checks are out of scope.
 
-**59** use cases · **59** with test data · **59** checked automatically by `./test.sh`
+**59** use cases · **59** with test data · **59** checked automatically by `scripts/test.sh`
 
 ## Before you start
 
-- The engine and Phoenix are running (`./start.sh`); the dev database has the 21 seeded active rules and the October 2026
+- The engine and Phoenix are running (`scripts/start.sh`); the dev database has the 21 seeded active rules and the October 2026
   NPPES import.
 - Leave **Test upload: allow re-submission** ticked on the upload page so files can be uploaded again (see
   [Uploading the same files again](#uploading-the-same-files-again)). Untick it only for U4–U6.
@@ -23,7 +23,7 @@
   the folder and the files in it. The exact expected result of every generated file is in `mock_data/manifest.json`.
 - Use cases with no folder of their own (N1, R8, U1–U8) use files from other folders.
 - A claim “matches” a rule when the rule fires on it; “Clean” means no rule matches and the NPPES check passes.
-- `./test.sh` runs all 59 through the real pages; `./test.sh R5 N7` runs only those.
+- `scripts/test.sh` runs all 59 through the real pages; `scripts/test.sh R5 N7` runs only those.
 
 ## J — JSON uploads
 
@@ -142,10 +142,10 @@ Rules page) and the claims in `P_rules_page/P2_redundancy_levels/claims/`, which
 | Situation | What to do |
 |---|---|
 | A file is refused as already submitted | The checkbox was unticked. Tick it and upload again. |
-| The checkbox isn't there | The app isn't running in development. Start it with `./start.sh`; after a change to `config/dev.exs`, restart Phoenix. |
+| The checkbox isn't there | The app isn't running in development. Start it with `scripts/start.sh`; after a change to `config/dev.exs`, restart Phoenix. |
 | X12 error files (X7, E3) or zips with nothing usable (Z4, Z6) | They hold no claims, so they are never recorded and are refused only for what is wrong with them. |
 | A new-provider rule doesn't fire on an X12 file | Provider tenure comes only from JSON claims; use the JSON files for R8. |
 | Copies with new claim IDs are wanted anyway | `elixir mock_data/retag.exs --tag 3 --out ~/upload_round3 mock_data` writes copies whose claim IDs end in `-3`, with a matching `manifest.json`; check them with `verify.exs --suite ~/upload_round3/mock_data`. Not needed while the checkbox is ticked. |
 
-To check every file without clicking, use `./test.sh` or `mock_data/verify.exs`; see
+To check every file without clicking, use `scripts/test.sh` or `mock_data/verify.exs`; see
 [TEST_PROCEDURE.md](TEST_PROCEDURE.md#4-run-the-use-case-tests).

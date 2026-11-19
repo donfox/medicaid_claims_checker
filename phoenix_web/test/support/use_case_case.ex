@@ -9,10 +9,10 @@ defmodule MedicaidClaimsCheckerWeb.UseCaseCase do
 
   Every test is tagged with its use-case ID (`use_case: "R5"`) and the whole
   set is excluded from a plain `mix test`, because it needs the engine
-  running. `./test.sh` at the repo root starts one and runs them:
+  running. `scripts/test.sh` at the repo root starts one and runs them:
 
-      ./test.sh          # every use case
-      ./test.sh R5       # one use case
+      scripts/test.sh          # every use case
+      scripts/test.sh R5       # one use case
 
   Setup per test (all inside the test's database sandbox):
 

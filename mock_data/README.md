@@ -188,7 +188,7 @@ Each file goes through the same steps as an upload, then the NPPES check and
 the rules, and the outcome is compared with `manifest.json`. Hand-written
 files aren't in the manifest; the Phoenix tests (`mix test`) check those.
 
-`./test.sh` at the repo root checks the same files through the app itself:
+`scripts/test.sh` at the repo root checks the same files through the app itself:
 each is uploaded on the home page (or entered on the Rules page) and
 evaluated by an engine the script starts. It also covers the hand-written
 files and the use cases with no file of their own (U1–U8, N1, R8). The tests
@@ -197,7 +197,7 @@ are in `phoenix_web/test/use_cases/`; see [docs/TEST_PROCEDURE.md](../docs/TEST_
 ### `nppes_extract.json`
 
 The NPPES registry rows for every NPI in the mock data, copied from the dev
-database, which `./test.sh` loads into the empty test database. Rewrite it
+database, which `scripts/test.sh` loads into the empty test database. Rewrite it
 after an NPPES re-import or after adding a provider to the mock data:
 
 ```bash

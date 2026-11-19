@@ -4,6 +4,10 @@
 
 set -e
 
+# Work from the repository root (this script lives in scripts/).
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
 echo "=== Medicaid Claims Checker Setup ==="
 echo
 
@@ -25,14 +29,14 @@ echo
 
 # Build Haskell engine
 echo "Building Haskell DSL engine..."
-cd haskell_engine
+cd "$ROOT_DIR/haskell_engine"
 stack build
 echo "✓ Haskell engine built successfully"
 echo
 
 # Install Phoenix dependencies
 echo "Installing Phoenix dependencies..."
-cd ../phoenix_web
+cd "$ROOT_DIR/phoenix_web"
 mix deps.get
 mix assets.setup
 echo "✓ Phoenix dependencies installed"
@@ -46,15 +50,14 @@ mix run priv/repo/seeds.exs
 echo "✓ Database created, migrated, and seeded"
 echo
 
-# Return to project root
-cd ..
+cd "$ROOT_DIR"
 
 echo
 echo "=== Setup Complete! ==="
 echo
 echo "To start the application:"
 echo
-echo "   ./start.sh"
+echo "   scripts/start.sh"
 echo
 echo "Then open your browser to: http://localhost:4000"
 echo

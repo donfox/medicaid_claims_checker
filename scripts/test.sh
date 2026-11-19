@@ -5,16 +5,16 @@
 # mock_data file uploaded through the real Upload and Rules pages and
 # evaluated by the real rule engine.
 #
-#   ./test.sh            every use case
-#   ./test.sh R5 N7      only these use cases
+#   scripts/test.sh            every use case
+#   scripts/test.sh R5 N7      only these use cases
 #
 # Starts its own engine on a spare port and stops it afterwards, so an
-# engine or app you already have running (./start.sh) is left alone. Needs
+# engine or app you already have running (scripts/start.sh) is left alone. Needs
 # Postgres, like `mix test`.
 #
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG_DIR="$ROOT_DIR/logs"
 ENGINE_LOG="$LOG_DIR/test_engine.log"
 ENGINE_PORT="${TEST_ENGINE_PORT:-8092}"
@@ -34,7 +34,7 @@ stop_engine() {
 trap stop_engine EXIT
 
 if nc -z 127.0.0.1 "$ENGINE_PORT" 2>/dev/null; then
-  echo "Port $ENGINE_PORT is in use. Choose another: TEST_ENGINE_PORT=8093 ./test.sh" >&2
+  echo "Port $ENGINE_PORT is in use. Choose another: TEST_ENGINE_PORT=8093 scripts/test.sh" >&2
   exit 1
 fi
 

@@ -7,7 +7,7 @@
 #
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG_DIR="$ROOT_DIR/logs"
 BACKEND_LOG="$LOG_DIR/backend.log"
 FRONTEND_LOG="$LOG_DIR/frontend.log"
@@ -39,7 +39,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     -h|--help)
       cat <<EOF
-Usage: ./start.sh [OPTIONS]
+Usage: scripts/start.sh [OPTIONS]
 
 Start the Medicaid Claims Checker system (both services)
 
@@ -57,11 +57,11 @@ OPTIONS:
 Any ports in use will be freed automatically before starting.
 
 EXAMPLES:
-  ./start.sh                    # Start both services
-  ./start.sh --install          # Install deps and start all
-  ./start.sh --backend          # Start only backend
-  ./start.sh --frontend         # Start only frontend
-  ./start.sh --frontend -f      # Start only frontend in foreground
+  scripts/start.sh                    # Start both services
+  scripts/start.sh --install          # Install deps and start all
+  scripts/start.sh --backend          # Start only backend
+  scripts/start.sh --frontend         # Start only frontend
+  scripts/start.sh --frontend -f      # Start only frontend in foreground
 
 LOGS:
   Backend:        $BACKEND_LOG
@@ -71,7 +71,7 @@ EOF
       ;;
     *)
       echo "Unknown option: $1" >&2
-      echo "Run './start.sh --help' for usage information"
+      echo "Run 'scripts/start.sh --help' for usage information"
       exit 1
       ;;
   esac

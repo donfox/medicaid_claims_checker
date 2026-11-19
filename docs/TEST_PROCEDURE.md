@@ -52,7 +52,7 @@ mix test
 From the project root:
 
 ```bash
-./start.sh -f
+scripts/start.sh -f
 ```
 
 Or run each service separately:
@@ -81,16 +81,16 @@ curl -s http://localhost:4000/api/health
 From the repo root:
 
 ```bash
-./test.sh            # every use case
-./test.sh R5 N7      # only these use cases
+scripts/test.sh            # every use case
+scripts/test.sh R5 N7      # only these use cases
 ```
 
 Each test uploads a `mock_data` file through the home page's Manual Upload form (or
 enters a rule on the Rules page), the real engine evaluates it against the seeded
 business rules, and the result is checked against `mock_data/manifest.json`. The
 tests live in `phoenix_web/test/use_cases/`, one file per group, each test tagged
-with its use-case ID. `test.sh` starts its own engine on port 8092 (another with
-`TEST_ENGINE_PORT=...`) and stops it afterwards, so a running `./start.sh` is left
+with its use-case ID. `scripts/test.sh` starts its own engine on port 8092 (another with
+`TEST_ENGINE_PORT=...`) and stops it afterwards, so a running `scripts/start.sh` is left
 alone. The tests use the test database, with the registry rows for the mock data's
 NPIs loaded from `mock_data/nppes_extract.json`, so the dev database is untouched.
 
@@ -155,6 +155,6 @@ Use this list as the final go/no-go check:
 
 - Unit tests pass: `stack test` and `mix test`
 - Both services report healthy
-- `./test.sh` reports `0 failures`, and `verify.exs` reports no `FAIL` lines
+- `scripts/test.sh` reports `0 failures`, and `verify.exs` reports no `FAIL` lines
 - Core API endpoints behave correctly
 - UI rule workflows work end to end

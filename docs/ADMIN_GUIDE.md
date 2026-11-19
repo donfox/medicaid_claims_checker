@@ -7,7 +7,7 @@ The app sends no email; every step is done on this page.
 
 ## The first admin
 
-`./setup.sh` runs the database seeds. When the database has **no admin at
+`scripts/setup.sh` runs the database seeds. When the database has **no admin at
 all**, they create one and print its email and password:
 
 - Email `admin@example.com` and username `admin`, unless `SEED_ADMIN_EMAIL`

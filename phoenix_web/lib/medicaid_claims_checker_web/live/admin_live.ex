@@ -8,12 +8,17 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive do
 
   # The router's live_session runs UserAuth's :require_admin on every mount.
 
+  # The LiveDashboard (system monitor) exists only where dev routes are
+  # compiled (development), so its link is shown only there.
+  @dev_dashboard? Application.compile_env(:medicaid_claims_checker, :dev_routes, false)
+
   def mount(_params, _session, socket) do
     {:ok,
      socket
      |> assign(:registration_open, Accounts.registration_open?())
      |> assign(:users, Accounts.list_users())
      |> assign(:password_link, nil)
+     |> assign(:dev_dashboard?, @dev_dashboard?)
      |> NppesPanel.assign_defaults()}
   end
 
@@ -160,6 +165,22 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive do
             >
               {if @registration_open, do: "Open — click to close", else: "Closed — click to open"}
             </button>
+          </div>
+          <div
+            :if={@dev_dashboard?}
+            id="system-monitor"
+            class="mt-3 flex items-center justify-between rounded border p-4"
+          >
+            <div>
+              <p class="font-semibold">System monitor</p>
+              <p class="text-sm text-gray-600">
+                Phoenix LiveDashboard: memory, processes, request and database timings, logs.
+                Development only.
+              </p>
+            </div>
+            <a href="/dev/dashboard" target="_blank" rel="noopener" class="btn btn-soft">
+              Open system monitor
+            </a>
           </div>
         </div>
 

@@ -131,4 +131,9 @@ defmodule MedicaidClaimsCheckerWeb.AdminLiveTest do
       refute Repo.reload!(bystander).is_admin
     end
   end
+
+  test "in development the System section links to the system monitor", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/admin")
+    assert view |> element("#system-monitor a[href='/dev/dashboard']") |> has_element?()
+  end
 end

@@ -32,6 +32,10 @@ can create accounts at `/users/register`.
 
 New accounts are ordinary users. Only an admin can make another admin.
 
+In development, **System** also has **Open system monitor**: Phoenix
+LiveDashboard at `/dev/dashboard` (memory, processes, request and database
+timings, logs), for admins only. It does not exist in a production release.
+
 ## The Users table
 
 Every account, oldest first, with its name, email, the date it joined, and

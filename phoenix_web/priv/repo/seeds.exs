@@ -25,8 +25,8 @@
 #   alone. The other catalogue flags (editable, removable, redundant,
 #   db_access) are written only when a row is first inserted.
 #
-# What gets seeded (23 catalogue entries, 18 DSL rules)
-#   Default Rules  12  always on; can't be edited or removed in the UI
+# What gets seeded (25 catalogue entries, 20 DSL rules)
+#   Default Rules  14  always on; can't be edited or removed in the UI
 #   BA Rules        8  written by business analysts; editable
 #   ML Models       3  "Not connected": no scoring service exists yet
 #
@@ -272,6 +272,30 @@ new_default_rules = [
     db_access: false,
     inserted_at: now,
     updated_at: now
+  },
+  %{
+    name: "ServiceEndBeforeStart",
+    description: "Rejects claims where a service line's end date is before its start date",
+    entry_type: "Default Rule",
+    status: "Active",
+    editable: false,
+    removable: false,
+    redundant: false,
+    db_access: false,
+    inserted_at: now,
+    updated_at: now
+  },
+  %{
+    name: "StatementEndBeforeStart",
+    description: "Rejects institutional claims whose statement period ends before it starts",
+    entry_type: "Default Rule",
+    status: "Active",
+    editable: false,
+    removable: false,
+    redundant: false,
+    db_access: false,
+    inserted_at: now,
+    updated_at: now
   }
 ]
 
@@ -283,7 +307,7 @@ Repo.insert_all(
 )
 
 # --- Default Rules: DSL text (business_rules) ---
-# The logic for 10 of the 12 Default Rules; the other two are covered in the
+# The logic for 12 of the 14 Default Rules; the other two are covered in the
 # note on default_catalogue_entries. The engine gets this text together with
 # the BA Rules' text (Evaluator.gather_rules_text/0).
 
@@ -433,6 +457,43 @@ default_business_rules = [
       WHEN EXISTS line IN service_lines
            WHERE line.charge_amount < 0 OR (line.units IS NOT NULL AND line.units <= 0)
       THEN REQUIRE_REVIEW "Service line charge or units are invalid"
+      END
+      """
+      |> String.trim(),
+    active: true,
+    inserted_at: now,
+    updated_at: now
+  },
+  %{
+    # A single-day line has no end date; the IS NOT NULL keeps such a line
+    # from leaving the rule "not checked".
+    name: "ServiceEndBeforeStart",
+    rule_text:
+      """
+      RULE service_end_before_start
+      DESCRIPTION "Service line ends before it starts"
+      WHEN EXISTS line IN service_lines
+           WHERE line.date_of_service_end IS NOT NULL
+             AND is_date_before(line.date_of_service_end, line.date_of_service)
+      THEN REJECT "Service line end date is before its start date"
+      END
+      """
+      |> String.trim(),
+    active: true,
+    inserted_at: now,
+    updated_at: now
+  },
+  %{
+    # Only 837I claims carry a statement period; on others the IS NOT NULL
+    # is false and the rule doesn't match.
+    name: "StatementEndBeforeStart",
+    rule_text:
+      """
+      RULE statement_end_before_start
+      DESCRIPTION "Statement period ends before it starts (837I)"
+      WHEN claim_details.statement_to_date IS NOT NULL
+           AND is_date_before(claim_details.statement_to_date, claim_details.statement_from_date)
+      THEN REJECT "Statement end date is before the start date"
       END
       """
       |> String.trim(),

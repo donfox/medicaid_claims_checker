@@ -4,7 +4,7 @@ defmodule MedicaidClaimsCheckerWeb.UseCaseCase do
 
   Each test uses the app as a person would: it uploads mock data files on
   the home page (or enters rules on the Rules page), and the real Haskell
-  engine evaluates them against the 18 seeded business rules. Expected
+  engine evaluates them against the 20 seeded business rules. Expected
   results come from `mock_data/manifest.json`.
 
   Every test is tagged with its use-case ID (`use_case: "R5"`) and the whole
@@ -120,6 +120,9 @@ defmodule MedicaidClaimsCheckerWeb.UseCaseCase do
 
   # --- manifest.json ---
 
+  # Read when this file compiles; @external_resource makes Mix recompile it
+  # (and the tests built from it) whenever generate.exs rewrites the manifest.
+  @external_resource MockData.path("manifest.json")
   @manifest MockData.read!("manifest.json") |> Jason.decode!() |> Map.fetch!("cases")
 
   @doc "The manifest cases whose use-case ID (from the folder name) is in `ids`."

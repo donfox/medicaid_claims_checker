@@ -15,7 +15,7 @@
 
 ## Before you start
 
-- The engine and Phoenix are running (`./start.sh`); the dev database has the 18 seeded active rules and the October 2026
+- The engine and Phoenix are running (`./start.sh`); the dev database has the 20 seeded active rules and the October 2026
   NPPES import.
 - Leave **Test upload: allow re-submission** ticked on the upload page so files can be uploaded again (see
   [Uploading the same files again](#uploading-the-same-files-again)). Untick it only for U4–U6.
@@ -83,7 +83,7 @@
 | **U7** | Void / replacement (frequency 8 / 7) | `R_business_rules/R11_replacement_or_void_claim/` | Accepted: a void or replacement is not a duplicate of the original. |
 | **U8** | Re-uploading test data | Any file, with **Test upload: allow re-submission** ticked | The same file is evaluated again; the batch name ends in “(test re-submission)”. |
 
-## R — Business rules (18 active rules)
+## R — Business rules (20 active rules)
 
 | ID | Use case | Test files | What the app should show |
 |---|---|---|---|

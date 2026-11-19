@@ -103,10 +103,11 @@ defmodule Samples do
 
   opts: :type ("837P", "837I" or "837D"), :pos, :facility, :frequency, :tenure,
   :taxonomy (false = missing), :auth (nil = none), :dx, :lines, :patient
-  (index into @patients), :dob (false = missing), :notes.
+  (index into @patients), :dob (false = missing), :statement ({from, to}
+  dates, 837I statement period), :notes.
   Each line is {date, procedure_code, amount} or {date, procedure_code,
   amount, line_opts} with :units, :pos, :revenue, :tooth, :qualifier (default
-  HC; AD for dental codes).
+  HC; AD for dental codes), :end (the line's end date).
   """
   def claim(id, provider_key, opts) do
     {npi, name, taxonomy, street, city, state, zip} = provider!(provider_key)
@@ -148,7 +149,13 @@ defmodule Samples do
         "place_of_service" => claim_pos,
         "facility_type_code" => if(type == "837I", do: Keyword.get(opts, :facility, "11")),
         "frequency_code" => Keyword.get(opts, :frequency, "1")
-      },
+      }
+      |> Map.merge(
+        case Keyword.get(opts, :statement) do
+          nil -> %{}
+          {from, to} -> %{"statement_from_date" => Date.to_iso8601(from), "statement_to_date" => Date.to_iso8601(to)}
+        end
+      ),
       "patient" => %{
         "date_of_birth" => dob,
         "gender" => gender,
@@ -199,6 +206,7 @@ defmodule Samples do
           {tooth, surface} -> %{"tooth_code_qualifier" => "JP", "tooth_number" => tooth, "tooth_surface" => surface}
         end
     }
+    |> Map.merge(if o[:end], do: %{"date_of_service_end" => Date.to_iso8601(o[:end])}, else: %{})
   end
 
   # Synthetic EIN, stable per NPI.
@@ -390,6 +398,23 @@ samples = [
      lines: [{fri, "99214", 230}, {fri, "87804", -70}],
      notes: "Rapid flu test line billed at -$70.00 (a credit sent as a charge): InvalidServiceLine."),
    {["InvalidServiceLine"], "ok"}},
+  {"R_business_rules/R2_each_rule_alone", "ServiceEndBeforeStart", "Service line dated Sep 18 to Sep 16",
+   Samples.claim("MOCK-RULE-ENDBEFORE", :citydoc,
+     patient: 2,
+     dx: ["J069"],
+     lines: [{fri, "99213", 150, end: Date.add(fri, -2)}],
+     notes: "Line runs from 2026-09-18 to 2026-09-16, end before start: ServiceEndBeforeStart."),
+   {["ServiceEndBeforeStart"], "ok"}},
+  {"R_business_rules/R2_each_rule_alone", "StatementEndBeforeStart", "837I statement period Sep 18 to Sep 14",
+   Samples.claim("MOCK-RULE-STMTBEFORE", :windham,
+     type: "837I",
+     facility: "13",
+     patient: 4,
+     dx: ["R109"],
+     statement: {fri, mon},
+     lines: [{fri, nil, 640, revenue: "0450"}],
+     notes: "Outpatient claim whose statement period runs from 2026-09-18 back to 2026-09-14: StatementEndBeforeStart."),
+   {["StatementEndBeforeStart"], "ok"}},
   {"R_business_rules/R2_each_rule_alone", "MissingProviderTaxonomy", "No taxonomy, claim over $1,000",
    Samples.claim("MOCK-RULE-NOTAXONOMY", :horizon,
      taxonomy: false,

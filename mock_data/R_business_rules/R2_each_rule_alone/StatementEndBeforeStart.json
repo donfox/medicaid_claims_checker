@@ -1,0 +1,87 @@
+{
+  "authorization": { "authorization_number": null },
+  "billing_provider": {
+    "address": {
+      "city": "WILLIMANTIC",
+      "state": "CT",
+      "street": "123 QUARRY ST",
+      "zip": "062261247"
+    },
+    "name": "WINDHAM COMMUNITY MEMORIAL HOSPITAL",
+    "npi": "1003023482",
+    "tax_id": "902028240",
+    "taxonomy": "282N00000X"
+  },
+  "claim_details": {
+    "facility_type_code": "13",
+    "frequency_code": "1",
+    "place_of_service": null,
+    "statement_from_date": "2026-09-18",
+    "statement_to_date": "2026-09-14"
+  },
+  "claim_id": "MOCK-RULE-STMTBEFORE",
+  "claim_totals": { "total_charges": 640.0 },
+  "diagnosis_codes": [
+    {
+      "code": "R109",
+      "qualifier": "ABK"
+    }
+  ],
+  "financial": { "claim_amount": 640.0 },
+  "patient": {
+    "date_of_birth": "1946-12-22",
+    "gender": "F",
+    "name": {
+      "first": "RUTH",
+      "last": "OKAFOR",
+      "middle": "E"
+    }
+  },
+  "payer": {
+    "name": "STATE MEDICAID PROGRAM",
+    "payer_id": "STMED01"
+  },
+  "provider": {
+    "name": "WINDHAM COMMUNITY MEMORIAL HOSPITAL",
+    "npi": "1003023482",
+    "tax_id": "902028240",
+    "taxonomy": "282N00000X",
+    "tenure_days": 2400
+  },
+  "rendering_provider": null,
+  "sample_notes": "Outpatient claim whose statement period runs from 2026-09-18 back to 2026-09-14: StatementEndBeforeStart.",
+  "service_lines": [
+    {
+      "charge_amount": 640.0,
+      "date_of_service": "2026-09-18",
+      "diagnosis_pointer": "1",
+      "line_number": 1,
+      "place_of_service": null,
+      "procedure_code": null,
+      "procedure_qualifier": null,
+      "revenue_code": "0450",
+      "tooth_info": null,
+      "unit_type": "DA",
+      "units": 1
+    }
+  ],
+  "subscriber": {
+    "address": {
+      "city": "WILLIMANTIC",
+      "state": "CT",
+      "street": "100 MAIN ST",
+      "zip": "06226"
+    },
+    "date_of_birth": "1946-12-22",
+    "first_name": "RUTH",
+    "gender": "F",
+    "group_number": null,
+    "last_name": "OKAFOR",
+    "member_id": "MCD115290743",
+    "middle_name": "E",
+    "payer_responsibility": "P",
+    "relationship_code": "18"
+  },
+  "transaction_type": "837I"
+}
+

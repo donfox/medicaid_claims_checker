@@ -1257,6 +1257,67 @@
       "expect": {
         "claims": [
           {
+            "claim_id": "MOCK-RULE-ENDBEFORE",
+            "matched": [
+              "ServiceEndBeforeStart"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "R_business_rules/R2_each_rule_alone/ServiceEndBeforeStart.json",
+      "purpose": "Service line dated Sep 18 to Sep 16"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "ENDBEFORE01",
+            "matched": [
+              "ServiceEndBeforeStart"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "R_business_rules/R2_each_rule_alone/ServiceEndBeforeStart.x12",
+      "purpose": "Line dated RD8 2026-09-05 to 2026-09-03, end before start → ServiceEndBeforeStart"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "MOCK-RULE-STMTBEFORE",
+            "matched": [
+              "StatementEndBeforeStart"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "R_business_rules/R2_each_rule_alone/StatementEndBeforeStart.json",
+      "purpose": "837I statement period Sep 18 to Sep 14"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "STMTBEFORE01",
+            "matched": [
+              "StatementEndBeforeStart",
+              "ServiceEndBeforeStart"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "R_business_rules/R2_each_rule_alone/StatementEndBeforeStart.x12",
+      "purpose": "837I statement period (DTP*434) 2026-09-12 to 2026-09-10 → StatementEndBeforeStart; the line has no date of its own, so it takes that period and ServiceEndBeforeStart matches too"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
             "claim_id": "MOCK-RULE-LOWCHARGE",
             "matched": [
               "SuspiciouslyLowCharge"

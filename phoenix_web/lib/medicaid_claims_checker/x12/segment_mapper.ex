@@ -303,6 +303,7 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
         payer: extract_payer(segments),
         dates: dates,
         diagnosis_codes: extract_diagnosis_codes(claim_segs, sub),
+        other_codes: extract_other_codes(claim_segs, sub),
         rendering_provider: extract_rendering_provider(claim_segs),
         service_lines: extract_service_lines(segments, transaction_type, sub, dates)
       }
@@ -405,7 +406,23 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
     end
   end
 
+  # HI qualifiers that carry a diagnosis: principal, admitting, other,
+  # external cause and patient's reason for visit, ICD-10 (AB*/APR) and the
+  # retired ICD-9 forms (B*/PR). Everything else an HI segment can hold on
+  # an 837I (condition BG, occurrence BH/BI, value BE, procedure BBR/BBQ/BR/BQ,
+  # DRG DR, treatment TC) goes to `other_codes`, so it isn't counted as a
+  # diagnosis.
+  @diagnosis_qualifiers ~w(ABK ABJ ABF ABN APR BK BJ BF BN PR)
+
   defp extract_diagnosis_codes(claim_segs, sub) do
+    Enum.filter(extract_hi_codes(claim_segs, sub), &(&1.qualifier in @diagnosis_qualifiers))
+  end
+
+  defp extract_other_codes(claim_segs, sub) do
+    Enum.reject(extract_hi_codes(claim_segs, sub), &(&1.qualifier in @diagnosis_qualifiers))
+  end
+
+  defp extract_hi_codes(claim_segs, sub) do
     claim_segs
     |> find_segs("HI")
     |> Enum.flat_map(fn hi ->
@@ -576,7 +593,8 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
           procedure_code: Enum.at(proc_parts, 1, ""),
           charge_amount: get_el(sv3, 2),
           unit_type: nil,
-          units: get_el(sv3, 5),
+          # SV3-06 is the procedure count; SV3-05 is the prosthesis code
+          units: get_el(sv3, 6),
           diagnosis_pointer: nil,
           revenue_code: nil,
           tooth_info: extract_tooth_info(line_segs, sub)
@@ -685,6 +703,9 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
         "claim_amount" => total_charge
       },
       "diagnosis_codes" => nf(claim, "diagnosis_codes") || [],
+      # The non-diagnosis HI codes (837I condition, occurrence, value and
+      # procedure codes), each with its qualifier.
+      "other_codes" => nf(claim, "other_codes") || [],
       "service_lines" => service_lines,
       "claim_totals" => %{
         "total_charges" => total_charge

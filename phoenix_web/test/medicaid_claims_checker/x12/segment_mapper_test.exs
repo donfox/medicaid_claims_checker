@@ -397,4 +397,79 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapperTest do
       assert claim["claim_details"]["facility_type_code"] == nil
     end
   end
+
+  describe "837D service lines" do
+    test "units come from SV3-06, the procedure count" do
+      # SV3*AD:D1110*95.00****1 — SV3-05 (prosthesis code) is blank
+      [line] = convert("X_x12_files/X3_837d_dental/dental.x12")["service_lines"]
+      assert line["units"] == "1"
+      assert line["charge_amount"] == "95.00"
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # HI segments: diagnoses vs the other 837I codes
+  # ---------------------------------------------------------------------------
+
+  describe "HI codes" do
+    defp hi_claim(his) do
+      seg = fn id, els -> %{"segment_id" => id, "elements" => [id | els]} end
+
+      segments =
+        [
+          seg.("GS", ["HC", "S", "R", "20260101", "1200", "1", "X", "005010X223A2"]),
+          seg.("NM1", ["85", "2", "HOSP", "", "", "", "", "XX", "1234567893"]),
+          seg.("NM1", ["IL", "1", "DOE", "JANE", "", "", "", "MI", "M1"]),
+          seg.("CLM", ["C1", "1000", "", "", "11:A:1"])
+        ] ++
+          Enum.map(his, &seg.("HI", &1)) ++
+          [
+            seg.("LX", ["1"]),
+            seg.("SV2", ["0450", "HC:99285", "1000", "UN", "1"]),
+            seg.("SE", ["9", "0001"])
+          ]
+
+      {:ok, claim} = SegmentMapper.map_segments(segments)
+      claim |> Jason.encode!() |> Jason.decode!()
+    end
+
+    test "only diagnosis qualifiers are diagnosis codes; the rest are other_codes" do
+      claim =
+        hi_claim([
+          ["ABK:I10", "ABF:E119"],
+          ["ABJ:R079"],
+          ["BG:01", "BG:39"],
+          ["BH:11:D8:20260101"],
+          ["BE:80:::5"],
+          ["BBR:0DTJ0ZZ:D8:20260101"]
+        ])
+
+      assert claim["diagnosis_codes"] == [
+               %{"qualifier" => "ABK", "code" => "I10"},
+               %{"qualifier" => "ABF", "code" => "E119"},
+               %{"qualifier" => "ABJ", "code" => "R079"}
+             ]
+
+      assert claim["other_codes"] == [
+               %{"qualifier" => "BG", "code" => "01"},
+               %{"qualifier" => "BG", "code" => "39"},
+               %{"qualifier" => "BH", "code" => "11"},
+               %{"qualifier" => "BE", "code" => "80"},
+               %{"qualifier" => "BBR", "code" => "0DTJ0ZZ"}
+             ]
+    end
+
+    test "a claim with condition codes but no diagnosis has no diagnosis codes" do
+      claim = hi_claim([["BG:01"]])
+      assert claim["diagnosis_codes"] == []
+      assert claim["other_codes"] == [%{"qualifier" => "BG", "code" => "01"}]
+    end
+
+    test "retired ICD-9 qualifiers still count as diagnoses" do
+      assert hi_claim([["BK:4019", "BF:25000"]])["diagnosis_codes"] == [
+               %{"qualifier" => "BK", "code" => "4019"},
+               %{"qualifier" => "BF", "code" => "25000"}
+             ]
+    end
+  end
 end

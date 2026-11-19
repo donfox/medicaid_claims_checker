@@ -289,7 +289,8 @@ Main sections:
 - `subscriber` — `member_id`, `date_of_birth`, `relationship_code`, `group_number`
 - `payer` — `name`, `payer_id`
 - `authorization.authorization_number`
-- `diagnosis_codes` — list; each has `code` and `qualifier`
+- `diagnosis_codes` — list; each has `code` and `qualifier` (`ABK` principal, `ABF` other, `ABJ` admitting, `ABN` external cause, `APR` reason for visit; `BK`, `BF`, ... are the retired ICD-9 forms). Only diagnoses are listed here
+- `other_codes` — list, 837I only: the other codes in the claim's HI segments, each with `code` and `qualifier` (`BG` condition, `BH` occurrence, `BI` occurrence span, `BE` value, `BBR`/`BBQ` inpatient procedure)
 - `service_lines` — list; each has `procedure_code`, `charge_amount`, `units`, `date_of_service`, `place_of_service`, `line_number`, `diagnosis_pointer`, `revenue_code`
 
 A line dated as a range has its start in `date_of_service` and its end in `date_of_service_end` (empty for a single date). A line with no date of its own, common on 837I claims, takes the claim's statement period. An element left blank in the file is empty, so `IS NULL` finds it.

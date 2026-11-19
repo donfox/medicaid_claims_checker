@@ -27,7 +27,7 @@ the limit).
 | `X_x12_files/` | X1–X7 | Uploading `.x12` files: 837P/I/D, several claims or transaction sets, line endings, broken files |
 | `E_edi_files/` | E1–E3 | Uploading `.edi` files: alternate delimiters, a file that isn't X12 |
 | `Z_zip_files/` | Z1–Z7 | Uploading `.zip` files: mixed contents, path traversal, the 15,000-claim limit |
-| `R_business_rules/` | R1–R11 | What the 17 business rules match |
+| `R_business_rules/` | R1–R11 | What the 18 business rules match |
 | `N_nppes_provider_checks/` | N1–N11 | The NPPES provider check: malformed, unissued, deactivated, reactivated, dropped NPIs |
 | `P_rules_page/` | P1–P4 | Rule files for the Rules page |
 | `pipeline/` | none | Inputs for one internal processing step (see below); never uploaded |
@@ -158,7 +158,7 @@ they belong to no use case.
 
 `manifest.json` holds the expected result of every generated file:
 
-- `matched` is exactly the set of rules that should match: the 17 active
+- `matched` is exactly the set of rules that should match: the 18 active
   rules seeded by `phoenix_web/priv/repo/seeds.exs`, or the rules file named
   in `rules` (the P2 claims use `redundancy_levels.dsl`).
 - `not_checked` is exactly the set of rules that must come back "not

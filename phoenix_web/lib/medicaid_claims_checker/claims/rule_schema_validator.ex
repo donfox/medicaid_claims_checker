@@ -65,6 +65,8 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidator do
     "payer.payer_id",
     "diagnosis_codes.*.code",
     "diagnosis_codes.*.qualifier",
+    "other_codes.*.code",
+    "other_codes.*.qualifier",
     "service_lines.*.line_number",
     "service_lines.*.date_of_service",
     "service_lines.*.date_of_service_end",
@@ -346,7 +348,8 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidator do
     |> String.split(".")
     |> case do
       [root | rest]
-      when root in ["diagnosis_codes", "procedure_codes", "service_lines"] and rest != [] ->
+      when root in ["diagnosis_codes", "other_codes", "procedure_codes", "service_lines"] and
+             rest != [] ->
         candidate = Enum.join([root, "*" | rest], ".")
 
         if Enum.any?(@valid_patterns, &path_matches?(candidate, &1)), do: candidate, else: nil

@@ -25,8 +25,8 @@
 #   alone. The other catalogue flags (editable, removable, redundant,
 #   db_access) are written only when a row is first inserted.
 #
-# What gets seeded (22 catalogue entries, 17 DSL rules)
-#   Default Rules  11  always on; can't be edited or removed in the UI
+# What gets seeded (23 catalogue entries, 18 DSL rules)
+#   Default Rules  12  always on; can't be edited or removed in the UI
 #   BA Rules        8  written by business analysts; editable
 #   ML Models       3  "Not connected": no scoring service exists yet
 #
@@ -259,6 +259,19 @@ new_default_rules = [
     db_access: false,
     inserted_at: now,
     updated_at: now
+  },
+  %{
+    name: "InvalidServiceLine",
+    description:
+      "Sends a claim for review when a service line has a negative charge or no positive units",
+    entry_type: "Default Rule",
+    status: "Active",
+    editable: false,
+    removable: false,
+    redundant: false,
+    db_access: false,
+    inserted_at: now,
+    updated_at: now
   }
 ]
 
@@ -270,7 +283,7 @@ Repo.insert_all(
 )
 
 # --- Default Rules: DSL text (business_rules) ---
-# The logic for 9 of the 11 Default Rules; the other two are covered in the
+# The logic for 10 of the 12 Default Rules; the other two are covered in the
 # note on default_catalogue_entries. The engine gets this text together with
 # the BA Rules' text (Evaluator.gather_rules_text/0).
 
@@ -401,6 +414,26 @@ default_business_rules = [
       WHEN patient.date_of_birth IS NOT NULL
         AND NOT is_age_valid(patient.date_of_birth, 0, 130)
       THEN REJECT "Patient age is out of valid range (0-130)";
+      """
+      |> String.trim(),
+    active: true,
+    inserted_at: now,
+    updated_at: now
+  },
+  %{
+    # Units may be left out (an 837D sends SV3-06 only for a count over 1),
+    # so they are checked only when present. A charge that is missing or
+    # isn't a number, or units that aren't a number, leave this rule "not
+    # checked", so such a claim is never called clean either.
+    name: "InvalidServiceLine",
+    rule_text:
+      """
+      RULE invalid_service_line
+      DESCRIPTION "Service line with a negative charge or no positive units"
+      WHEN EXISTS line IN service_lines
+           WHERE line.charge_amount < 0 OR (line.units IS NOT NULL AND line.units <= 0)
+      THEN REQUIRE_REVIEW "Service line charge or units are invalid"
+      END
       """
       |> String.trim(),
     active: true,

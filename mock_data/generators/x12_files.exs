@@ -50,8 +50,10 @@ defmodule X12Suite.Builder do
     Map.merge(Map.get(@practice_addresses, b.npi, @synthetic_address), b)
   end
 
-  # A claim spec. `lines` is a list of {procedure, charge, date}; the claim
-  # total is their sum unless `amount` overrides it. A line date may be nil
+  # A claim spec. `lines` is a list of {procedure, charge, date}, or
+  # {procedure, charge, date, units} (units default "1"); the claim total is
+  # their sum unless `amount` overrides it. `other_hi` lists non-diagnosis
+  # HI codes as {qualifier, code}, sent in their own HI segment. A line date may be nil
   # (no line DTP) or a range "CCYYMMDD-CCYYMMDD" (RD8). `statement` is a
   # {from, to} claim-level statement period (DTP*434), `admission` a D8 or
   # DT (CCYYMMDDHHMM) admission date (DTP*435), and `patient` a dependant
@@ -61,7 +63,7 @@ defmodule X12Suite.Builder do
 
     amount =
       Keyword.get_lazy(opts, :amount, fn ->
-        lines |> Enum.map(fn {_, c, _} -> String.to_float(c) end) |> Enum.sum() |> money()
+        lines |> Enum.map(&String.to_float(elem(&1, 1))) |> Enum.sum() |> money()
       end)
 
     patient =
@@ -75,6 +77,7 @@ defmodule X12Suite.Builder do
       amount: amount,
       pos: Keyword.get(opts, :pos, "11"),
       dx: Keyword.get(opts, :dx, ["Z0000"]),
+      other_hi: Keyword.get(opts, :other_hi, []),
       lines: lines,
       member: Map.merge(@default_member, Map.new(Keyword.get(opts, :member, []))),
       rendering: Keyword.get(opts, :rendering),
@@ -236,6 +239,12 @@ defmodule X12Suite.Builder do
         [first | rest] -> [["HI", comp.(["ABK", first]) | Enum.map(rest, &comp.(["ABF", &1]))]]
       end
 
+    other_hi =
+      case c.other_hi do
+        [] -> []
+        codes -> [["HI" | Enum.map(codes, fn {q, code} -> comp.([q, code]) end)]]
+      end
+
     rendering =
       case c.rendering do
         nil -> []
@@ -245,12 +254,18 @@ defmodule X12Suite.Builder do
     lines =
       c.lines
       |> Enum.with_index(1)
-      |> Enum.flat_map(fn {{proc, charge, date}, n} ->
+      |> Enum.flat_map(fn {line, n} ->
+        {proc, charge, date, units} =
+          case line do
+            {proc, charge, date} -> {proc, charge, date, "1"}
+            {_, _, _, _} = full -> full
+          end
+
         service =
           case kind do
-            :p -> [["SV1", comp.(["HC", proc]), charge, "UN", "1", "", "", "1"]]
-            :i -> [["SV2", "0450", comp.(["HC", proc]), charge, "UN", "1"]]
-            :d -> [["SV3", comp.(["AD", proc]), charge, "", "", "", "1"], ["TOO", "JP", "19"]]
+            :p -> [["SV1", comp.(["HC", proc]), charge, "UN", units, "", "", "1"]]
+            :i -> [["SV2", "0450", comp.(["HC", proc]), charge, "UN", units]]
+            :d -> [["SV3", comp.(["AD", proc]), charge, "", "", "", units], ["TOO", "JP", "19"]]
           end
 
         dtp =
@@ -264,7 +279,7 @@ defmodule X12Suite.Builder do
       end)
 
     # Claim-level order per the 837: CLM, DTP, CL1 (837I), REF, HI, NM1.
-    clm ++ statement ++ admission ++ cl1 ++ auth ++ hi ++ rendering ++ lines
+    clm ++ statement ++ admission ++ cl1 ++ auth ++ hi ++ other_hi ++ rendering ++ lines
   end
 
   defp pad(s, n), do: String.pad_trailing(s, n)
@@ -339,6 +354,10 @@ defmodule X12Suite.Cases do
         ok("OLDDATE01", ["ImpossibleDates"], nppes: "was not issued until")),
       single("R_business_rules/R2_each_rule_alone/MissingDiagnosisCodes.x12", "No HI segment → MissingDiagnosisCodes",
         claim("NODX01", dx: []), ok("NODX01", ["MissingDiagnosisCodes"])),
+      single("R_business_rules/R2_each_rule_alone/InvalidServiceLine.x12",
+        "Second line billed with 0 units (SV1-04) → InvalidServiceLine review",
+        claim("ZEROUNIT01", lines: [{"99213", "150.00", "20260901"}, {"36415", "18.00", "20260901", "0"}]),
+        ok("ZEROUNIT01", ["InvalidServiceLine"])),
       single("R_business_rules/R10_age_out_of_range_or_missing_dob/missing_dob.x12", "No DMG segment (no date of birth) → MissingRequiredFields",
         claim("NODOB01", member: [dob: nil]), ok("NODOB01", ["MissingRequiredFields"])),
       single("R_business_rules/R10_age_out_of_range_or_missing_dob/born_1880.x12", "Born 1880 → PatientAgeOutOfRange",
@@ -448,6 +467,13 @@ defmodule X12Suite.Cases do
         claim("INST03", pos: "13", statement: {"20260910", "20260912"}, admission: "202609101200",
           lines: [{"99223", "900.00", nil}]),
         ok("INST03", []),
+        kind: :i, billing: [name: "THE ROSS ORTHOPAEDIC WELLNESS CENTER", npi: "1003005000", taxonomy: "207X00000X"]),
+      single("X_x12_files/X2_837i_institutional/condition_codes_no_diagnosis.x12",
+        "837I with condition (BG) and value (BE) codes but no diagnosis: they are not diagnoses " <>
+          "(other_codes), so MissingDiagnosisCodes matches",
+        claim("INST04", pos: "13", dx: [], other_hi: [{"BG", "01"}, {"BE", "80"}],
+          lines: [{"99284", "900.00", "20260911"}]),
+        ok("INST04", ["MissingDiagnosisCodes"]),
         kind: :i, billing: [name: "THE ROSS ORTHOPAEDIC WELLNESS CENTER", npi: "1003005000", taxonomy: "207X00000X"]),
       single("X_x12_files/X1_837p_professional/line_date_range.x12",
         "Service line dated as a range (RD8 2026-09-01 to 09-03); rules read the start date, clean",
@@ -623,7 +649,15 @@ defmodule X12Suite.Cases do
       "claim_totals" => %{"total_charges" => 220.0},
       "authorization" => %{"authorization_number" => "PA20260002"},
       "diagnosis_codes" => [%{"qualifier" => "ABK", "code" => "Z0000"}],
-      "service_lines" => [%{"line_number" => 1, "date_of_service" => "20260910", "procedure_code" => "99213"}]
+      "service_lines" => [
+        %{
+          "line_number" => 1,
+          "date_of_service" => "20260910",
+          "procedure_code" => "99213",
+          "charge_amount" => 220.0,
+          "units" => 1
+        }
+      ]
     }
   end
 

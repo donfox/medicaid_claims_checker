@@ -15,7 +15,7 @@
 
 ## Before you start
 
-- The engine and Phoenix are running (`./start.sh`); the dev database has the 17 seeded active rules and the October 2026
+- The engine and Phoenix are running (`./start.sh`); the dev database has the 18 seeded active rules and the October 2026
   NPPES import.
 - Leave **Test upload: allow re-submission** ticked on the upload page so files can be uploaded again (see
   [Uploading the same files again](#uploading-the-same-files-again)). Untick it only for U4–U6.
@@ -43,7 +43,7 @@
 | ID | Use case | Test files | What the app should show |
 |---|---|---|---|
 | **X1** | 837P professional claim | `X_x12_files/X1_837p_professional/` clean_office_visit.x12, clean_multi_line.x12, line_date_range.x12, patient_not_subscriber.x12 | “1 X12/EDI claim(s) translated”; Clean. A line dated as a range is read by its start date; a dependant's own patient loop gives the patient fields. |
-| **X2** | 837I institutional claim | `X_x12_files/X2_837i_institutional/` institutional.x12, institutional_claim_dates.x12 | Translated and evaluated; Clean. With the dates on the claim only, the line takes the statement start date and the NPPES check passes. |
+| **X2** | 837I institutional claim | `X_x12_files/X2_837i_institutional/` institutional.x12, institutional_claim_dates.x12, condition_codes_no_diagnosis.x12 | Translated and evaluated; Clean. With the dates on the claim only, the line takes the statement start date and the NPPES check passes. Condition and value codes are not diagnoses, so a claim with only those matches MissingDiagnosisCodes. |
 | **X3** | 837D dental claim | `X_x12_files/X3_837d_dental/` dental.x12 | Translated and evaluated; Clean. |
 | **X4** | Several claims in one transaction set | `X_x12_files/X4_several_claims_one_transaction_set/` three_claims.x12, two_claims_same_subscriber.x12 | Each claim is its own result row. three_claims: MULTI01 Clean; MULTI02 HighValueClaim + HighComplexityERVisit + UnauthorizedProcedure; MULTI03 MissingDiagnosisCodes. Same subscriber: SAMESUB01 Clean, SAMESUB02 SuspiciouslyLowCharge. |
 | **X5** | Several transaction sets in one file | `X_x12_files/X5_several_transaction_sets/` two_transaction_sets.x12 | All four claims from both sets are evaluated; TXA02 SuspiciouslyLowCharge, TXB02 PatientAgeOutOfRange. |
@@ -83,7 +83,7 @@
 | **U7** | Void / replacement (frequency 8 / 7) | `R_business_rules/R11_replacement_or_void_claim/` | Accepted: a void or replacement is not a duplicate of the original. |
 | **U8** | Re-uploading test data | Any file, with **Test upload: allow re-submission** ticked | The same file is evaluated again; the batch name ends in “(test re-submission)”. |
 
-## R — Business rules (17 active rules)
+## R — Business rules (18 active rules)
 
 | ID | Use case | Test files | What the app should show |
 |---|---|---|---|

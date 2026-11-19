@@ -568,6 +568,48 @@ defmodule MedicaidClaimsChecker.Claims do
   def get_business_rule_by_name(name), do: Repo.get_by(BusinessRule, name: name)
 
   @doc """
+  The name written after `RULE` in a rule's text (`high_value_claim` in
+  `RULE high_value_claim ...`), or nil. Results and Jobs History are labelled
+  with this name, not the stored one. Blank lines and `--` comments before
+  the rule are skipped, as the engine does.
+  """
+  def rule_name_in_text(text) when is_binary(text) do
+    body =
+      text
+      |> String.split("\n")
+      |> Enum.drop_while(fn line ->
+        trimmed = String.trim(line)
+        trimmed == "" or String.starts_with?(trimmed, "--")
+      end)
+      |> Enum.join("\n")
+
+    case Regex.run(~r/\A\s*RULE\s+([[:alnum:]_]+)/u, body) do
+      [_, name] -> name
+      _ -> nil
+    end
+  end
+
+  def rule_name_in_text(_), do: nil
+
+  @doc """
+  The stored name of another rule whose text uses `inner_name` after `RULE`
+  (compared ignoring case), or nil. `except` is the stored name of the rule
+  being edited, which is left out. Inactive and draft rules count too, since
+  they can be switched on.
+  """
+  def rule_using_inner_name(inner_name, except \\ nil) when is_binary(inner_name) do
+    wanted = String.downcase(inner_name)
+
+    BusinessRule
+    |> select([r], {r.name, r.rule_text})
+    |> Repo.all()
+    |> Enum.find_value(fn {stored, text} ->
+      if stored != except and String.downcase(rule_name_in_text(text) || "") == wanted,
+        do: stored
+    end)
+  end
+
+  @doc """
   Creates a BA Rule: its `business_rules` row and its catalogue entry, in
   one transaction, so neither exists without the other. A name another
   catalogue entry already uses fails with that changeset's error.

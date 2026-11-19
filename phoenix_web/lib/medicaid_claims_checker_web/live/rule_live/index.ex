@@ -112,71 +112,31 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
     name = String.trim(Map.get(params, "name", ""))
     socket = assign(socket, :overlap_note, [])
 
-    {_parsed, parse_error} = parse_single_rule_text(normalized_rule_text)
+    {parsed, parse_error} = parse_single_rule_text(normalized_rule_text)
 
-    if parse_error != nil do
-      {:noreply, assign(socket, :catalog_error, "Could not save rule: #{parse_error}")}
-    else
-      schema_validation = RuleSchemaValidator.validate(normalized_rule_text)
-
-      # Exclude the rule being edited by its original DB name (not the
-      # possibly-renamed form value) so it doesn't match against itself.
-      exclude_name =
-        if selected_entry_id do
-          case Claims.get_catalogue_entry(selected_entry_id) do
-            %{name: original_name} -> original_name
-            _ -> name
-          end
-        else
-          nil
+    # Exclude the rule being edited by its original DB name (not the
+    # possibly-renamed form value) so it doesn't match against itself.
+    exclude_name =
+      if selected_entry_id do
+        case Claims.get_catalogue_entry(selected_entry_id) do
+          %{name: original_name} -> original_name
+          _ -> name
         end
-
-      case check_redundancy(normalized_rule_text, exclude_name) do
-        # Overlaps alone are informational: save at once, then list them.
-        # The rule is not marked redundant.
-        {:ok, [_ | _] = matches} ->
-          if Enum.all?(matches, &(redundancy_tier(&1["matchLevel"]) == :overlap)) do
-            {:noreply, saved_socket} =
-              do_save_catalog_rule(
-                socket,
-                name,
-                normalized_rule_text,
-                selected_entry_id,
-                false,
-                schema_validation
-              )
-
-            if saved_socket.assigns.catalog_error do
-              {:noreply, saved_socket}
-            else
-              {:noreply, assign(saved_socket, :overlap_note, matches)}
-            end
-          else
-            ask_before_saving(socket, matches, name, normalized_rule_text, selected_entry_id)
-          end
-
-        result ->
-          # No redundancy, or the check could not run: save, and say so.
-          notice =
-            case result do
-              {:unavailable, reason} ->
-                "The redundancy check could not run (#{reason}), so this rule was not " <>
-                  "compared with the other rules."
-
-              _ ->
-                nil
-            end
-
-          do_save_catalog_rule(
-            socket,
-            name,
-            normalized_rule_text,
-            selected_entry_id,
-            false,
-            schema_validation,
-            notice
-          )
+      else
+        nil
       end
+
+    name_clash = parse_error == nil && inner_name_clash(parsed, normalized_rule_text, exclude_name)
+
+    cond do
+      parse_error != nil ->
+        {:noreply, assign(socket, :catalog_error, "Could not save rule: #{parse_error}")}
+
+      name_clash ->
+        {:noreply, assign(socket, :catalog_error, "Could not save rule: #{name_clash}")}
+
+      true ->
+        save_checked_catalog_rule(socket, name, normalized_rule_text, selected_entry_id, exclude_name)
     end
   end
 
@@ -559,6 +519,75 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
 
   defp normalize_error(error) when is_binary(error), do: error
   defp normalize_error(error), do: inspect(error)
+
+  # Results and Jobs History are labelled with the name after RULE, so two
+  # rules sharing it could not be told apart there.
+  defp inner_name_clash(parsed, rule_text, exclude_name) do
+    inner =
+      case parsed do
+        %{"rule" => [%{"ruleName" => n} | _]} when is_binary(n) -> n
+        _ -> Claims.rule_name_in_text(rule_text)
+      end
+
+    with true <- is_binary(inner),
+         other when is_binary(other) <- Claims.rule_using_inner_name(inner, exclude_name) do
+      "Another rule (#{other}) already uses the name #{inner}. " <>
+        "Give this rule a different name after RULE."
+    else
+      _ -> nil
+    end
+  end
+
+  defp save_checked_catalog_rule(socket, name, normalized_rule_text, selected_entry_id, exclude_name) do
+    schema_validation = RuleSchemaValidator.validate(normalized_rule_text)
+
+    case check_redundancy(normalized_rule_text, exclude_name) do
+      # Overlaps alone are informational: save at once, then list them.
+      # The rule is not marked redundant.
+      {:ok, [_ | _] = matches} ->
+        if Enum.all?(matches, &(redundancy_tier(&1["matchLevel"]) == :overlap)) do
+          {:noreply, saved_socket} =
+            do_save_catalog_rule(
+              socket,
+              name,
+              normalized_rule_text,
+              selected_entry_id,
+              false,
+              schema_validation
+            )
+
+          if saved_socket.assigns.catalog_error do
+            {:noreply, saved_socket}
+          else
+            {:noreply, assign(saved_socket, :overlap_note, matches)}
+          end
+        else
+          ask_before_saving(socket, matches, name, normalized_rule_text, selected_entry_id)
+        end
+
+      result ->
+        # No redundancy, or the check could not run: save, and say so.
+        notice =
+          case result do
+            {:unavailable, reason} ->
+              "The redundancy check could not run (#{reason}), so this rule was not " <>
+                "compared with the other rules."
+
+            _ ->
+              nil
+          end
+
+        do_save_catalog_rule(
+          socket,
+          name,
+          normalized_rule_text,
+          selected_entry_id,
+          false,
+          schema_validation,
+          notice
+        )
+    end
+  end
 
   defp parse_single_rule_text(text) do
     normalized_text = normalize_dsl_text(text)

@@ -137,6 +137,67 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.SaveRuleTest do
     assert Claims.get_business_rule_by_name("Pair") == nil
   end
 
+  describe "the name after RULE" do
+    test "a name another rule's text already uses is refused, and nothing is saved", %{conn: conn} do
+      text = ~s|RULE existing_rule "Other logic" WHEN financial.claim_amount > 5 THEN REJECT "y";|
+
+      {_view, html} = submit(conn, "Clash", text)
+
+      assert html =~
+               "Could not save rule: Another rule (existing_rule) already uses the name existing_rule."
+
+      assert html =~ "Give this rule a different name after RULE."
+      assert Claims.get_business_rule_by_name("Clash") == nil
+      assert entry("Clash") == nil
+    end
+
+    test "the comparison ignores case", %{conn: conn} do
+      text = ~s|RULE Existing_Rule "E" WHEN financial.claim_amount > 5 THEN REJECT "y";|
+
+      {_view, html} = submit(conn, "CaseClash", text)
+
+      assert html =~ "Another rule (existing_rule) already uses the name Existing_Rule."
+      assert Claims.get_business_rule_by_name("CaseClash") == nil
+    end
+
+    test "the name the engine reports is the one checked", %{conn: conn, bypass: bypass} do
+      Bypass.stub(bypass, "POST", "/api/parse-rule", fn conn ->
+        body = Jason.encode!(%{"success" => true, "rule" => [%{"ruleName" => "existing_rule"}]})
+        conn |> Plug.Conn.put_resp_content_type("application/json") |> Plug.Conn.resp(200, body)
+      end)
+
+      {_view, html} = submit(conn, "EngineName")
+
+      assert html =~ "Another rule (existing_rule) already uses the name existing_rule."
+    end
+
+    test "an inactive rule's name counts too", %{conn: conn} do
+      Repo.update_all(BusinessRule, set: [active: false])
+      text = ~s|RULE existing_rule "E" WHEN financial.claim_amount > 5 THEN REJECT "y";|
+
+      {_view, html} = submit(conn, "InactiveClash", text)
+
+      assert html =~ "Another rule (existing_rule) already uses the name existing_rule."
+    end
+
+    test "saving a rule again under its own name is allowed", %{conn: conn} do
+      {_view, _html} = submit(conn, "MyRule")
+      my_entry = entry("MyRule")
+      changed = String.replace(@text, "> 2000", "> 3000")
+
+      {:ok, view, _html} = live(conn, ~p"/rules")
+      render_click(view, "select_catalog_rule", %{"id" => to_string(my_entry.id)})
+
+      html =
+        view
+        |> form("#catalog-rule-form", %{"catalog" => %{"name" => "MyRule", "text" => changed}})
+        |> render_submit()
+
+      refute html =~ "already uses the name"
+      assert Claims.get_business_rule_by_name("MyRule").rule_text =~ "> 3000"
+    end
+  end
+
   test "opening a rule leaves WHEN and THEN inside its messages alone", %{conn: conn} do
     text =
       ~s|RULE q "Paid WHEN closed" WHEN financial.claim_amount > 1 THEN REJECT "Stop THEN review";|

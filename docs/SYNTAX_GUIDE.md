@@ -304,6 +304,8 @@ The Rules page checks every field a rule uses against that list, reading the rul
 
 Each rule is saved on its own: the Rules page refuses a text that holds more than one rule.
 
+The name after `RULE` must differ from every other rule's (capitals ignored, inactive rules included), because results and Jobs History are labelled with it. The Rules page refuses a rule whose name another rule already uses and names that rule. This is separate from the name the Rules page lists, which you type in its own box.
+
 ### X12 loop-style paths are not fields
 
 Older examples used X12 loop and segment labels, such as `2300.CLM.claim_amount` (loop 2300, segment CLM). Those name where a value sits in the raw file. Converted claims have no such keys, so these rules never fire. Use the converted field instead:

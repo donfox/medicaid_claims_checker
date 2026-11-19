@@ -396,4 +396,43 @@ defmodule MedicaidClaimsChecker.ClaimsTest do
       assert :ok = Claims.validate_claim_providers(claim)
     end
   end
+
+  describe "rule_name_in_text/1" do
+    test "reads the name after RULE, skipping blank lines and comments" do
+      assert Claims.rule_name_in_text(~s|RULE high_value "d" WHEN TRUE THEN RISK_SCORE 1;|) ==
+               "high_value"
+
+      assert Claims.rule_name_in_text("\n-- note\n  -- another\n\nRULE   r_2\nDESCRIPTION \"d\"") == "r_2"
+    end
+
+    test "nil when the text does not start with a rule" do
+      assert Claims.rule_name_in_text("") == nil
+      assert Claims.rule_name_in_text("-- RULE commented_out") == nil
+      assert Claims.rule_name_in_text(~s|WHEN TRUE THEN RISK_SCORE 1; RULE late|) == nil
+      assert Claims.rule_name_in_text(nil) == nil
+    end
+  end
+
+  describe "rule_using_inner_name/2" do
+    setup do
+      {:ok, _} =
+        Claims.create_business_rule(%{
+          name: "StoredName",
+          rule_text: ~s|RULE inner_name "d" WHEN TRUE THEN RISK_SCORE 1;|,
+          active: false
+        })
+
+      :ok
+    end
+
+    test "finds another rule using the name, ignoring case and whether it is active" do
+      assert Claims.rule_using_inner_name("inner_name") == "StoredName"
+      assert Claims.rule_using_inner_name("INNER_NAME") == "StoredName"
+      assert Claims.rule_using_inner_name("unused_name") == nil
+    end
+
+    test "leaves out the rule being edited" do
+      assert Claims.rule_using_inner_name("inner_name", "StoredName") == nil
+    end
+  end
 end

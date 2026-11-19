@@ -2,7 +2,7 @@ defmodule MedicaidClaimsChecker.ClaimsTest do
   use MedicaidClaimsChecker.DataCase
 
   alias MedicaidClaimsChecker.Claims
-  alias MedicaidClaimsChecker.Claims.NppesProvider
+  alias MedicaidClaimsChecker.Claims.{NppesProvider, SubmittedFile}
   alias MedicaidClaimsChecker.Repo
 
   @valid_batch_params %{
@@ -175,6 +175,36 @@ defmodule MedicaidClaimsChecker.ClaimsTest do
       assert Claims.describe_duplicate(dup) =~ "daily.x12 was already submitted in"
     end
 
+    test "a claim whose earlier batch failed can be submitted again" do
+      {:ok, %{batch: failed}} = ingest("fail-1", [claim_entry("a.json", x12_claim("CLM-9"))])
+      {:ok, _} = Claims.update_batch(failed, %{status: "failed"})
+
+      assert {:ok, %{edi_files: [_], duplicates: []}} =
+               ingest("fail-2", [claim_entry("a.json", x12_claim("CLM-9"))])
+
+      # Once a batch holding it hasn't failed, the claim is protected again.
+      assert {:ok, %{edi_files: [], duplicates: [%{"previous_batch_id" => "fail-2"}]}} =
+               ingest("fail-3", [claim_entry("a.json", x12_claim("CLM-9"))])
+    end
+
+    test "a file whose earlier batch failed can be submitted again, and moves to the new batch" do
+      source = %{"filename" => "daily.x12", "sha256" => String.duplicate("cd", 32)}
+
+      {:ok, %{batch: failed}} =
+        ingest("ffail-1", [claim_entry("daily_C1.json", x12_claim("C1"), source)])
+
+      {:ok, _} = Claims.update_batch(failed, %{status: "failed"})
+
+      assert {:ok, %{batch: retry, edi_files: [_], duplicates: []}} =
+               ingest("ffail-2", [claim_entry("daily_C1.json", x12_claim("C1"), source)])
+
+      submitted = Repo.get_by!(SubmittedFile, sha256: source["sha256"])
+      assert submitted.batch_id == retry.id
+
+      assert {:ok, %{edi_files: [], duplicates: [%{"kind" => "file", "previous_batch_id" => "ffail-2"}]}} =
+               ingest("ffail-3", [claim_entry("daily_C1.json", x12_claim("C1"), source)])
+    end
+
     test "evaluates the new claims and refuses only the duplicates" do
       {:ok, _} = ingest("part-1", [claim_entry("old.json", x12_claim("OLD"))])
 
@@ -209,8 +239,7 @@ defmodule MedicaidClaimsChecker.ClaimsTest do
 
       summary = Claims.batch_summary(batch.id)
       assert summary.total == 2
-      assert summary.translated == 2
-      assert summary.pending == 0
+      assert summary.evaluated == 0
       assert summary.flagged_for_review == 0
     end
 
@@ -221,7 +250,7 @@ defmodule MedicaidClaimsChecker.ClaimsTest do
 
       summary = Claims.batch_summary(batch.id)
       assert summary.evaluated == 1
-      assert summary.translated == 1
+      assert summary.total == 2
     end
 
     test "counts HighRisk and CriticalRisk reports as flagged for review" do
@@ -259,28 +288,6 @@ defmodule MedicaidClaimsChecker.ClaimsTest do
       files = Claims.list_files_for_batch(batch.id)
       assert length(files) == 2
       assert Enum.map(files, & &1.filename) == ["claim_clean.json", "claim_high_value.json"]
-    end
-  end
-
-  describe "list_errors_for_batch/1" do
-    test "returns only files with syntax errors" do
-      {:ok, %{batch: batch, edi_files: [f1, f2]}} = Claims.ingest_batch(@valid_batch_params)
-
-      Claims.update_edi_file_evaluation(f1, %{status: "syntax_error"})
-
-      Claims.update_edi_file_evaluation(f2, %{
-        status: "evaluated",
-        evaluation_report: %{"overallRisk" => "CriticalRisk"}
-      })
-
-      errors = Claims.list_errors_for_batch(batch.id)
-      assert length(errors) == 1
-      assert hd(errors).filename == "claim_clean.json"
-    end
-
-    test "returns empty list when no errors" do
-      {:ok, %{batch: batch}} = Claims.ingest_batch(@valid_batch_params)
-      assert Claims.list_errors_for_batch(batch.id) == []
     end
   end
 

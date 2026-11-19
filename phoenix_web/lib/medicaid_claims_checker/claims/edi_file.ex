@@ -11,7 +11,7 @@ defmodule MedicaidClaimsChecker.Claims.EdiFile do
     field :evaluation_report, :map
     # SHA-256 of the claim without its X12 envelope (Claims.Fingerprint).
     field :claim_fingerprint, :string
-    field :status, :string, default: "pending"
+    field :status, :string
     field :error_message, :string
     field :error_details, :map
     field :processed_at, :utc_datetime
@@ -29,13 +29,7 @@ defmodule MedicaidClaimsChecker.Claims.EdiFile do
     # decision, never a file status set by the engine. "not_assessed": the
     # engine returned an error for this claim (e.g. a timeout), so its rules
     # were never checked; error_message says why.
-    |> validate_inclusion(:status, [
-      "pending",
-      "translated",
-      "evaluated",
-      "not_assessed",
-      "syntax_error"
-    ])
+    |> validate_inclusion(:status, ["translated", "evaluated", "not_assessed"])
     |> foreign_key_constraint(:batch_id)
   end
 end

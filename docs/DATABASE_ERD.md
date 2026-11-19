@@ -211,11 +211,15 @@ have none.
   ingested and is never overwritten; `evaluation_report` is the engine's report
   from the latest evaluation. `claim_fingerprint` is the SHA-256 of the claim
   without its X12 envelope, used to spot the same claim in a different file.
-  `status` is `pending`, `translated`, `evaluated`, `not_assessed` (the engine
-  could not check the claim, e.g. a timeout; `error_message` says why and
-  `error_details.reason` holds the engine's code) or `syntax_error`.
+  `status` is `translated` (stored, not yet checked; stays so when the
+  batch's evaluation failed), `evaluated` or `not_assessed` (the engine could
+  not check the claim, e.g. a timeout; `error_message` says why and
+  `error_details.reason` holds the engine's code). The column's database
+  default, `pending`, is never used.
 - **`submitted_files`**: every file a batch was built from, keyed by the
   SHA-256 of its bytes (unique), so a file already received is refused.
+  Files and claims in a failed batch don't count: such a file can be
+  uploaded again, and its row moves to the new batch.
 - **`rule_catalogue`**: the registry of every rule entry (Default Rule, BA
   Rule, ML Model) with its description, status (Active, Inactive, Retired, or
   Not connected for an ML Model with no scoring service yet) and what may be

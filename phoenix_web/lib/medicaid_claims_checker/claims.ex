@@ -4,10 +4,10 @@ defmodule MedicaidClaimsChecker.Claims do
   catalogue, and NPPES provider validation.
 
   Batches group EDI files for a single ingestion run. Files progress through
-  processing statuses: `translated → evaluated | not_assessed | syntax_error`.
+  processing statuses: `translated → evaluated | not_assessed`.
   `not_assessed` means the engine returned an error for the claim (such as a
   timeout), so its rules were never checked; it is never counted as clean.
-  Evaluation
+  Files in a batch whose evaluation failed stay `translated`. Evaluation
   stores the engine's report in `evaluation_report` alongside the claim in
   `json_output`; HighRisk/CriticalRisk reports are counted as flagged for
   review. The engine recommends; it never marks a claim fraudulent.
@@ -103,7 +103,10 @@ defmodule MedicaidClaimsChecker.Claims do
 
   A claim is refused as a duplicate when its source file was submitted
   before, when the same claim (ignoring the X12 envelope) is in an earlier
-  batch, or when it repeats an earlier claim in this submission. Each refusal
+  batch, or when it repeats an earlier claim in this submission. A batch
+  that failed (the engine was unreachable, say, so its claims were never
+  checked) doesn't count as an earlier submission: the file can simply be
+  uploaded again. Each refusal
   is stored in `batch.duplicates` and names the earlier submission; the
   other claims are evaluated as usual. When every claim is a duplicate the batch is
   recorded as "failed" with no claims, so the refusal still shows in history.
@@ -278,25 +281,27 @@ defmodule MedicaidClaimsChecker.Claims do
 
     SubmittedFile
     |> join(:inner, [s], b in assoc(s, :batch))
-    |> where([s], s.sha256 in ^shas)
+    |> where([s, b], s.sha256 in ^shas and b.status != "failed")
     |> select([s, b], {s.sha256, %{filename: s.filename, batch: b}})
     |> Repo.all()
     |> Map.new()
   end
 
-  # The earliest stored copy of each claim fingerprint.
+  # The earliest stored copy of each claim fingerprint outside failed batches.
   defp previous_claims(entries) do
     fingerprints = Enum.map(entries, fn {_, fp} -> fp end)
 
     EdiFile
     |> join(:inner, [f], b in assoc(f, :batch))
-    |> where([f], f.claim_fingerprint in ^fingerprints)
+    |> where([f, b], f.claim_fingerprint in ^fingerprints and b.status != "failed")
     |> order_by([f], desc: f.inserted_at, desc: f.id)
     |> select([f, b], {f.claim_fingerprint, %{filename: f.filename, batch: b}})
     |> Repo.all()
     |> Map.new()
   end
 
+  # A file last submitted in a failed batch already has a row (sha256 is
+  # unique); it moves to this batch.
   defp record_submitted_files(claims, known_files, batch) do
     claims
     |> Enum.map(& &1["source_file"])
@@ -305,7 +310,10 @@ defmodule MedicaidClaimsChecker.Claims do
     |> Enum.each(fn %{"filename" => filename, "sha256" => sha} ->
       %SubmittedFile{}
       |> SubmittedFile.changeset(%{sha256: sha, filename: filename, batch_id: batch.id})
-      |> Repo.insert!()
+      |> Repo.insert!(
+        on_conflict: {:replace, [:filename, :batch_id, :updated_at]},
+        conflict_target: :sha256
+      )
     end)
   end
 
@@ -398,13 +406,6 @@ defmodule MedicaidClaimsChecker.Claims do
     |> Repo.all()
   end
 
-  def list_errors_for_batch(batch_id) do
-    EdiFile
-    |> where([f], f.batch_id == ^batch_id and f.status == "syntax_error")
-    |> order_by(asc: :inserted_at, asc: :id)
-    |> Repo.all()
-  end
-
   @flag_for_review_risks ["HighRisk", "CriticalRisk"]
 
   @doc "Returns true when an evaluation report warrants analyst review."
@@ -428,11 +429,8 @@ defmodule MedicaidClaimsChecker.Claims do
 
     %{
       total: Map.values(counts) |> Enum.sum(),
-      pending: Map.get(counts, "pending", 0),
-      translated: Map.get(counts, "translated", 0),
       evaluated: Map.get(counts, "evaluated", 0),
       not_assessed: Map.get(counts, "not_assessed", 0),
-      syntax_error: Map.get(counts, "syntax_error", 0),
       flagged_for_review: count_flagged_for_review(batch_id),
       clean: count_clean(batch_id)
     }

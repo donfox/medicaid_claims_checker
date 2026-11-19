@@ -175,7 +175,7 @@ The app calls the Haskell engine with Req, through `lib/medicaid_claims_checker/
 | `/api/batch-evaluate` | POST | Evaluate claims against active rules (chunked at 200 claims/request) |
 | `/api/check-redundancy` | POST | Detect overlap between a candidate rule and existing rules |
 
-Batch-evaluation requests are built by `Claims.PayloadBuilder` (`lib/medicaid_claims_checker/claims/payload_builder.ex`).
+Batch-evaluation requests (the rule text and the claims) are built by `Claims.PayloadBuilder` (`lib/medicaid_claims_checker/claims/payload_builder.ex`).
 
 ## Setup
 

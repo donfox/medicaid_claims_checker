@@ -20,14 +20,20 @@ defmodule MedicaidClaimsCheckerWeb.Router do
   scope "/", MedicaidClaimsCheckerWeb do
     pipe_through([:browser, :require_authenticated_user])
 
-    live("/", FetchSourceLive.Index, :index)
-    live("/rules", RuleLive.Index, :index)
+    live_session :require_authenticated,
+      on_mount: [{MedicaidClaimsCheckerWeb.UserAuth, :require_authenticated}] do
+      live("/", FetchSourceLive.Index, :index)
+      live("/rules", RuleLive.Index, :index)
+    end
   end
 
   scope "/admin", MedicaidClaimsCheckerWeb do
     pipe_through([:browser, :require_authenticated_user, :require_admin])
 
-    live("/", AdminLive, :index)
+    live_session :require_admin,
+      on_mount: [{MedicaidClaimsCheckerWeb.UserAuth, :require_admin}] do
+      live("/", AdminLive, :index)
+    end
   end
 
   # API routes

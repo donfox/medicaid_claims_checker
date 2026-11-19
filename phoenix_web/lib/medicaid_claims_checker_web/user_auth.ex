@@ -163,9 +163,34 @@ defmodule MedicaidClaimsCheckerWeb.UserAuth do
     |> put_resp_cookie(@remember_me_cookie, token, @remember_me_options)
   end
 
+  # The live_socket_id names this login session's LiveView connections, so
+  # they can be disconnected when the session ends (log out, password
+  # change, deactivation) or the user's rights change.
   defp put_token_in_session(conn, token) do
-    put_session(conn, :user_token, token)
+    conn
+    |> put_session(:user_token, token)
+    |> put_session(:live_socket_id, user_session_topic(token))
   end
+
+  @doc "The PubSub topic of one login session's LiveView connections."
+  def user_session_topic(token), do: "users_sessions:#{Base.url_encode64(token)}"
+
+  @doc """
+  Disconnects the open LiveView pages of the given login sessions (raw
+  session tokens or `UserToken` structs; other token kinds are ignored).
+  A disconnected page reconnects, and its mount checks run again, so an
+  ended session lands on the log-in page and changed rights apply at once.
+  """
+  def disconnect_sessions(tokens) do
+    Enum.each(tokens, fn
+      %{token: token, context: "session"} -> broadcast_disconnect(token)
+      %{} -> :ok
+      token when is_binary(token) -> broadcast_disconnect(token)
+    end)
+  end
+
+  defp broadcast_disconnect(token),
+    do: MedicaidClaimsCheckerWeb.Endpoint.broadcast(user_session_topic(token), "disconnect", %{})
 
   @doc """
   Plug for routes that require sudo mode.
@@ -269,14 +294,35 @@ defmodule MedicaidClaimsCheckerWeb.UserAuth do
   end
 
   @doc """
-  `on_mount` hook that halts LiveView connections when the current user is not
-  an admin. Intended for admin-only LiveView modules.
+  `on_mount` hooks, run on every LiveView mount, including the reconnect of
+  a page that is already open (where the router's plugs don't run):
+
+    * `:require_authenticated` - a valid login session of an active user;
+      otherwise to the log-in page.
+    * `:require_admin` - the same, and the user is an admin.
   """
+  def on_mount(:require_authenticated, _params, session, socket) do
+    socket = mount_current_user(session, socket)
+
+    case socket.assigns[:current_user] do
+      %{active: true} ->
+        {:cont, socket}
+
+      _ ->
+        socket =
+          socket
+          |> Phoenix.LiveView.put_flash(:error, "You must log in to access this page.")
+          |> Phoenix.LiveView.redirect(to: ~p"/users/log-in")
+
+        {:halt, socket}
+    end
+  end
+
   def on_mount(:require_admin, _params, session, socket) do
     socket = mount_current_user(session, socket)
     user = socket.assigns[:current_user]
 
-    if user && user.is_admin do
+    if user && user.active && user.is_admin do
       {:cont, socket}
     else
       socket =

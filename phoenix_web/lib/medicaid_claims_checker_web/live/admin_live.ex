@@ -4,7 +4,9 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive do
   alias MedicaidClaimsChecker.Accounts
   alias MedicaidClaimsCheckerWeb.AdminLive.NppesPanel
 
-  on_mount {MedicaidClaimsCheckerWeb.UserAuth, :require_admin}
+  alias MedicaidClaimsCheckerWeb.UserAuth
+
+  # The router's live_session runs UserAuth's :require_admin on every mount.
 
   def mount(_params, _session, socket) do
     {:ok,
@@ -48,7 +50,10 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive do
         {:noreply, put_flash(socket, :error, "You cannot deactivate your own account.")}
       else
         new_state = !user.active
+        tokens = Accounts.session_tokens(user)
         {:ok, _} = Accounts.set_user_active(user, new_state)
+        # A deactivated user's open pages close; their sessions are gone.
+        if not new_state, do: UserAuth.disconnect_sessions(tokens)
         {:noreply, assign(socket, :users, Accounts.list_users())}
       end
     else
@@ -67,6 +72,8 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive do
       else
         new_state = !user.is_admin
         {:ok, _} = Accounts.set_user_admin(user, new_state)
+        # Their open pages reconnect and mount again with the new rights.
+        UserAuth.disconnect_sessions(Accounts.session_tokens(user))
         {:noreply, assign(socket, :users, Accounts.list_users())}
       end
     else
@@ -89,9 +96,13 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive do
     end
   end
 
+  # Checked against the database, not the user as loaded when the page
+  # opened: rights removed since then apply to the next click.
   defp assert_admin(socket) do
-    user = socket.assigns[:current_user]
-    if user && user.is_admin, do: :ok, else: :error
+    case socket.assigns[:current_user] && Accounts.get_user(socket.assigns.current_user.id) do
+      %{active: true, is_admin: true} -> :ok
+      _ -> :error
+    end
   end
 
   def render(assigns) do

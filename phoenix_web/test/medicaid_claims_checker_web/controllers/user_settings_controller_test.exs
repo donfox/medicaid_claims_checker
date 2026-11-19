@@ -4,6 +4,8 @@ defmodule MedicaidClaimsCheckerWeb.UserSettingsControllerTest do
   alias MedicaidClaimsChecker.Accounts
   import MedicaidClaimsChecker.AccountsFixtures
 
+  alias MedicaidClaimsCheckerWeb.UserAuth
+
   setup :register_and_log_in_user
 
   describe "GET /users/settings" do
@@ -145,10 +147,14 @@ defmodule MedicaidClaimsCheckerWeb.UserSettingsControllerTest do
       other_token = Accounts.generate_user_session_token(user)
       this_token = get_session(conn, :user_token)
 
+      MedicaidClaimsCheckerWeb.Endpoint.subscribe(UserAuth.user_session_topic(other_token))
+
       conn = put(conn, ~p"/users/settings", %{"action" => "log_out_other_sessions"})
 
       assert redirected_to(conn) == ~p"/users/settings"
       assert Phoenix.Flash.get(conn.assigns.flash, :info) == "Logged out of 1 other session."
+      # The other session's open pages are told to disconnect.
+      assert_receive %Phoenix.Socket.Broadcast{event: "disconnect"}
       refute Accounts.get_user_by_session_token(other_token)
       assert Accounts.get_user_by_session_token(this_token)
     end

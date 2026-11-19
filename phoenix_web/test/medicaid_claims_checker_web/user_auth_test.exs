@@ -290,4 +290,68 @@ defmodule MedicaidClaimsCheckerWeb.UserAuthTest do
       refute conn.status
     end
   end
+
+  describe "live_socket_id" do
+    test "logging in names the session's LiveView connections", %{conn: conn, user: user} do
+      conn = UserAuth.log_in_user(conn, user)
+      token = get_session(conn, :user_token)
+      assert get_session(conn, :live_socket_id) == UserAuth.user_session_topic(token)
+    end
+
+    test "logging out disconnects that session's open pages", %{conn: conn, user: user} do
+      token = Accounts.generate_user_session_token(user)
+      topic = UserAuth.user_session_topic(token)
+      MedicaidClaimsCheckerWeb.Endpoint.subscribe(topic)
+
+      conn
+      |> put_session(:user_token, token)
+      |> put_session(:live_socket_id, topic)
+      |> fetch_cookies()
+      |> UserAuth.log_out_user()
+
+      assert_receive %Phoenix.Socket.Broadcast{event: "disconnect"}
+    end
+  end
+
+  describe "on_mount :require_authenticated (also on reconnect)" do
+    defp mount_socket,
+      do: %Phoenix.LiveView.Socket{
+        endpoint: MedicaidClaimsCheckerWeb.Endpoint,
+        assigns: %{__changed__: %{}, flash: %{}}
+      }
+
+    test "lets an active user's session through", %{user: user} do
+      token = Accounts.generate_user_session_token(user)
+
+      assert {:cont, socket} =
+               UserAuth.on_mount(:require_authenticated, %{}, %{"user_token" => token}, mount_socket())
+
+      assert socket.assigns.current_user.id == user.id
+    end
+
+    test "halts a deactivated user's page", %{user: user} do
+      token = Accounts.generate_user_session_token(user)
+      # As if the session survived: deactivation normally deletes it too.
+      user |> Ecto.Changeset.change(active: false) |> MedicaidClaimsChecker.Repo.update!()
+
+      assert {:halt, _} =
+               UserAuth.on_mount(:require_authenticated, %{}, %{"user_token" => token}, mount_socket())
+    end
+
+    test "halts a page whose session has ended" do
+      assert {:halt, _} =
+               UserAuth.on_mount(:require_authenticated, %{}, %{"user_token" => "gone"}, mount_socket())
+
+      assert {:halt, _} = UserAuth.on_mount(:require_authenticated, %{}, %{}, mount_socket())
+    end
+
+    test ":require_admin halts a deactivated admin", %{user: user} do
+      {:ok, admin} = Accounts.set_user_admin(user, true)
+      token = Accounts.generate_user_session_token(admin)
+      admin |> Ecto.Changeset.change(active: false) |> MedicaidClaimsChecker.Repo.update!()
+
+      assert {:halt, _} =
+               UserAuth.on_mount(:require_admin, %{}, %{"user_token" => token}, mount_socket())
+    end
+  end
 end

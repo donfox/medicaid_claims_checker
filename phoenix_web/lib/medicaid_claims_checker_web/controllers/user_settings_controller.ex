@@ -30,10 +30,11 @@ defmodule MedicaidClaimsCheckerWeb.UserSettingsController do
 
   def update(conn, %{"action" => "log_out_other_sessions"}) do
     user = conn.assigns.current_scope.user
-    count = Accounts.delete_other_user_session_tokens(user, get_session(conn, :user_token))
+    tokens = Accounts.delete_other_user_session_tokens(user, get_session(conn, :user_token))
+    UserAuth.disconnect_sessions(tokens)
 
     message =
-      case count do
+      case length(tokens) do
         0 -> "You were not logged in anywhere else."
         1 -> "Logged out of 1 other session."
         n -> "Logged out of #{n} other sessions."
@@ -64,7 +65,9 @@ defmodule MedicaidClaimsCheckerWeb.UserSettingsController do
     user = conn.assigns.current_scope.user
 
     case Accounts.update_user_password(user, user_params) do
-      {:ok, {user, _}} ->
+      {:ok, {user, expired_tokens}} ->
+        UserAuth.disconnect_sessions(expired_tokens)
+
         conn
         |> put_flash(:info, "Password updated successfully.")
         |> put_session(:user_return_to, ~p"/users/settings")

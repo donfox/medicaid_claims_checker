@@ -72,14 +72,40 @@ defmodule MedicaidClaimsChecker.Accounts do
   """
   def get_user!(id), do: Repo.get!(User, id)
 
+  @doc "Gets a single user, or nil."
+  def get_user(id), do: Repo.get(User, id)
+
   def list_users do
     Repo.all(from(u in User, order_by: [asc: u.inserted_at]))
   end
 
+  @doc """
+  Activates or deactivates a user. Deactivating also ends every login
+  session of the user (callers disconnect their open pages with the tokens
+  from `session_tokens/1`, read before).
+  """
   def set_user_active(user, active) when is_boolean(active) do
-    user
-    |> Ecto.Changeset.change(active: active)
-    |> Repo.update()
+    Repo.transact(fn ->
+      with {:ok, user} <- user |> Ecto.Changeset.change(active: active) |> Repo.update() do
+        if not active,
+          do:
+            Repo.delete_all(
+              from(t in UserToken, where: t.user_id == ^user.id and t.context == "session")
+            )
+
+        {:ok, user}
+      end
+    end)
+  end
+
+  @doc "The raw tokens of every login session of `user`."
+  def session_tokens(%User{id: user_id}) do
+    Repo.all(
+      from(t in UserToken,
+        where: t.user_id == ^user_id and t.context == "session",
+        select: t.token
+      )
+    )
   end
 
   def set_user_admin(user, is_admin) when is_boolean(is_admin) do
@@ -211,18 +237,20 @@ defmodule MedicaidClaimsChecker.Accounts do
   @doc """
   Deletes every session token of `user` except `current_token`, which logs
   the user out on every other browser and device (their remember-me cookies
-  hold those tokens too). Returns the number of sessions ended.
+  hold those tokens too). Returns the ended sessions' tokens, so their open
+  pages can be disconnected.
   """
   def delete_other_user_session_tokens(%User{id: user_id}, current_token)
       when is_binary(current_token) do
-    {count, _} =
+    {_count, tokens} =
       Repo.delete_all(
         from(t in UserToken,
-          where: t.user_id == ^user_id and t.context == "session" and t.token != ^current_token
+          where: t.user_id == ^user_id and t.context == "session" and t.token != ^current_token,
+          select: t.token
         )
       )
 
-    count
+    tokens
   end
 
   @doc """

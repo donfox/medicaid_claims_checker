@@ -11,7 +11,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
   alias MedicaidClaimsChecker.X12.{ClaimSplitter, Converter, SegmentMapper}
 
   @impl true
-  def mount(_params, session, socket) do
+  def mount(_params, _session, socket) do
     if connected?(socket) do
       Phoenix.PubSub.subscribe(MedicaidClaimsChecker.PubSub, Nppes.topic())
       Phoenix.PubSub.subscribe(MedicaidClaimsChecker.PubSub, Evaluator.topic())
@@ -34,7 +34,6 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
      |> assign(:source_password, "")
      |> assign(:source_username, "")
      |> assign(:nppes_summary, NppesPanel.summary())
-     |> assign(:current_user, user_from_session(session))
      |> assign(:show_all_history, false)
      |> assign(:history_page, 1)
      |> assign(:history_from, "")
@@ -42,6 +41,8 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
      |> load_batch_history()
      |> assign(:show_batch_history, false)
      |> assign(:expanded_batch_ids, MapSet.new())
+     # Claims of expanded batches only: batch id => %{files: [...], total: n}
+     |> assign(:batch_files, %{})
      |> assign(:expanded_batch_file_ids, MapSet.new())
      |> assign(:batch_risk_filter, nil)
      |> assign(:upload_status, :idle)
@@ -472,12 +473,17 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
       {parsed_id, ""} ->
         expanded = socket.assigns.expanded_batch_ids
 
-        updated =
-          if MapSet.member?(expanded, parsed_id),
-            do: MapSet.delete(expanded, parsed_id),
-            else: MapSet.put(expanded, parsed_id)
-
-        {:noreply, assign(socket, :expanded_batch_ids, updated)}
+        if MapSet.member?(expanded, parsed_id) do
+          {:noreply,
+           socket
+           |> assign(:expanded_batch_ids, MapSet.delete(expanded, parsed_id))
+           |> assign(:batch_files, Map.delete(socket.assigns.batch_files, parsed_id))}
+        else
+          {:noreply,
+           socket
+           |> assign(:expanded_batch_ids, MapSet.put(expanded, parsed_id))
+           |> load_batch_files(parsed_id)}
+        end
 
       _ ->
         {:noreply, put_flash(socket, :error, "Invalid request.")}
@@ -504,7 +510,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
   def handle_event("filter_batch_risk", %{"level" => level}, socket) do
     current = socket.assigns.batch_risk_filter
     new_filter = if current == level, do: nil, else: level
-    {:noreply, assign(socket, :batch_risk_filter, new_filter)}
+    {:noreply, socket |> assign(:batch_risk_filter, new_filter) |> reload_expanded_batch_files()}
   end
 
   def handle_event("refresh_batch_history", _params, socket) do
@@ -530,6 +536,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
          |> assign(:show_all_history, false)
          |> assign(:history_page, 1)
          |> assign(:expanded_batch_ids, MapSet.new())
+         |> assign(:batch_files, %{})
          |> load_batch_history()
          |> dismiss_upload_result()
          |> put_flash(:info, "Display cleared. All records are kept — use \"Show all\" to see them.")}
@@ -578,7 +585,8 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
         {:noreply,
          socket
          |> assign(:batch_history, Enum.reject(socket.assigns.batch_history, &(&1.id == batch_id)))
-         |> assign(:expanded_batch_ids, MapSet.delete(socket.assigns.expanded_batch_ids, batch_id))}
+         |> assign(:expanded_batch_ids, MapSet.delete(socket.assigns.expanded_batch_ids, batch_id))
+         |> assign(:batch_files, Map.delete(socket.assigns.batch_files, batch_id))}
 
       _ ->
         {:noreply, put_flash(socket, :error, "Invalid request.")}
@@ -984,6 +992,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
       |> assign(:history_total, total)
       |> assign(:history_total_pages, total_pages)
       |> assign(:history_hidden_count, hidden)
+      |> reload_expanded_batch_files()
     end
   end
 
@@ -1032,49 +1041,18 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     |> load_batch_history()
   end
 
-  defp user_from_session(%{"user_token" => token}) when is_binary(token) do
-    case Accounts.get_user_by_session_token(token) do
-      {user, _inserted_at} -> user
-      _ -> nil
-    end
+  # Checked against the database, not the user as loaded when the page opened.
+  defp admin?(socket) do
+    match?(
+      %{active: true, is_admin: true},
+      socket.assigns[:current_user] && Accounts.get_user(socket.assigns.current_user.id)
+    )
   end
 
-  defp user_from_session(_session), do: nil
-
-  defp admin?(socket), do: match?(%{is_admin: true}, socket.assigns[:current_user])
-
+  # A batch row in Jobs History. Its claims are loaded only while the batch
+  # is expanded (load_batch_files/2): a page of large batches would
+  # otherwise hold every claim of every batch in this page's process.
   defp build_batch_entry(batch) do
-    files = Claims.list_files_for_batch(batch.id)
-
-    files_with_details =
-      Enum.map(files, fn f ->
-        report = f.evaluation_report || %{}
-
-        matched_results =
-          (report["results"] || [])
-          |> Enum.filter(& &1["resultMatched"])
-          |> Enum.map(fn r ->
-            %{
-              rule: r["resultRuleName"],
-              detail: r["resultDetails"],
-              action: action_label(r["resultAction"])
-            }
-          end)
-
-        %{
-          id: f.id,
-          filename: normalize_filename(f.filename),
-          status: f.status,
-          not_assessed: f.status == "not_assessed",
-          error: f.error_message,
-          risk: report["overallRisk"] || if(f.status == "not_assessed", do: "Not assessed", else: "N/A"),
-          matched_rules: report["matchedRules"] || 0,
-          weighted_score: report["weightedScore"] || 0,
-          matched_results: matched_results,
-          not_checked: not_checked_rules(report)
-        }
-      end)
-
     %{
       id: batch.id,
       batch_id: batch.batch_id,
@@ -1085,8 +1063,57 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
       duplicates: batch.duplicates || [],
       rejected_files: batch.rejected_files || [],
       inserted_at: batch.inserted_at,
-      completed_at: batch.completed_at,
-      files: files_with_details
+      completed_at: batch.completed_at
+    }
+  end
+
+  @batch_files_limit 500
+
+  # The expanded batch's claims under the current risk filter: at most
+  # @batch_files_limit, flagged first, with the number that match.
+  defp load_batch_files(socket, batch_id) do
+    {files, total} =
+      Claims.list_batch_claims(batch_id, socket.assigns.batch_risk_filter, @batch_files_limit)
+
+    entry = %{files: Enum.map(files, &file_entry/1), total: total}
+    assign(socket, :batch_files, Map.put(socket.assigns.batch_files, batch_id, entry))
+  end
+
+  defp reload_expanded_batch_files(socket) do
+    on_page = MapSet.new(socket.assigns.batch_history, & &1.id)
+
+    # Mount loads the history before any batch is expanded.
+    socket.assigns
+    |> Map.get(:expanded_batch_ids, MapSet.new())
+    |> Enum.filter(&MapSet.member?(on_page, &1))
+    |> Enum.reduce(assign(socket, :batch_files, %{}), &load_batch_files(&2, &1))
+  end
+
+  defp file_entry(f) do
+    report = f.evaluation_report || %{}
+
+    matched_results =
+      (report["results"] || [])
+      |> Enum.filter(& &1["resultMatched"])
+      |> Enum.map(fn r ->
+        %{
+          rule: r["resultRuleName"],
+          detail: r["resultDetails"],
+          action: action_label(r["resultAction"])
+        }
+      end)
+
+    %{
+      id: f.id,
+      filename: normalize_filename(f.filename),
+      status: f.status,
+      not_assessed: f.status == "not_assessed",
+      error: f.error_message,
+      risk: report["overallRisk"] || if(f.status == "not_assessed", do: "Not assessed", else: "N/A"),
+      matched_rules: report["matchedRules"] || 0,
+      weighted_score: report["weightedScore"] || 0,
+      matched_results: matched_results,
+      not_checked: not_checked_rules(report)
     }
   end
 
@@ -1101,7 +1128,11 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
 
         if Enum.any?(history, &(&1.batch_id == batch_id)) do
           new_history = Enum.map(history, fn b -> if b.batch_id == batch_id, do: updated, else: b end)
-          assign(socket, :batch_history, new_history)
+          socket = assign(socket, :batch_history, new_history)
+
+          if MapSet.member?(socket.assigns.expanded_batch_ids, batch.id),
+            do: load_batch_files(socket, batch.id),
+            else: socket
         else
           # A batch not on screen yet: reload so paging, filters and counts stay right.
           load_batch_history(socket)

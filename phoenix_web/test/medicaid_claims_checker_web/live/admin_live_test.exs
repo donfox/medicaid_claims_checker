@@ -94,4 +94,41 @@ defmodule MedicaidClaimsCheckerWeb.AdminLiveTest do
       assert has_element?(view, "#create-password-link-#{user.id}[disabled]")
     end
   end
+
+  describe "rights changed on the Admin page apply to the user's open pages" do
+    alias MedicaidClaimsChecker.Repo
+    alias MedicaidClaimsCheckerWeb.UserAuth
+
+    test "deactivating ends the user's sessions and disconnects their pages", %{conn: conn} do
+      user = AccountsFixtures.user_fixture()
+      token = Accounts.generate_user_session_token(user)
+      MedicaidClaimsCheckerWeb.Endpoint.subscribe(UserAuth.user_session_topic(token))
+
+      {:ok, view, _html} = live(conn, ~p"/admin")
+      render_click(view, "toggle_active", %{"id" => "#{user.id}"})
+
+      assert_receive %Phoenix.Socket.Broadcast{event: "disconnect"}
+      refute Accounts.get_user_by_session_token(token)
+      refute Repo.reload!(user).active
+    end
+
+    test "removing admin rights disconnects their pages; their open page can't act", %{conn: conn} do
+      {:ok, other} = AccountsFixtures.user_fixture() |> Accounts.set_user_admin(true)
+      bystander = AccountsFixtures.user_fixture()
+      other_conn = log_in_user(build_conn(), other)
+      {:ok, other_view, _} = live(other_conn, ~p"/admin")
+
+      token = Accounts.session_tokens(other) |> hd()
+      MedicaidClaimsCheckerWeb.Endpoint.subscribe(UserAuth.user_session_topic(token))
+
+      {:ok, view, _html} = live(conn, ~p"/admin")
+      render_click(view, "toggle_admin", %{"id" => "#{other.id}"})
+      assert_receive %Phoenix.Socket.Broadcast{event: "disconnect"}
+
+      # Even before the page reconnects, its clicks are checked afresh.
+      html = render_click(other_view, "toggle_admin", %{"id" => "#{bystander.id}"})
+      assert html =~ "Invalid request."
+      refute Repo.reload!(bystander).is_admin
+    end
+  end
 end

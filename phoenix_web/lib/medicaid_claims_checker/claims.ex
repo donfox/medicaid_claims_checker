@@ -438,6 +438,61 @@ defmodule MedicaidClaimsChecker.Claims do
 
   @flag_for_review_risks ["HighRisk", "CriticalRisk"]
 
+  @doc """
+  One batch's claims for the Jobs History display: `{files, total}`, where
+  `files` holds at most `limit` claims (flagged ones first) and `total` is
+  how many match. Only the columns the display shows are read; the stored
+  claim (`json_output`) is not.
+
+  `filter` is nil (all), "Clean" (evaluated, nothing matched, nothing left
+  unchecked), "NotAssessed", or an `overallRisk` such as "HighRisk".
+  """
+  def list_batch_claims(batch_id, filter \\ nil, limit \\ 500) do
+    query =
+      EdiFile
+      |> where([f], f.batch_id == ^batch_id)
+      |> filter_batch_claims(filter)
+
+    files =
+      query
+      |> order_by([f],
+        asc:
+          fragment(
+            "CASE ?->>'overallRisk' WHEN 'CriticalRisk' THEN 0 WHEN 'HighRisk' THEN 1 WHEN 'MediumRisk' THEN 2 ELSE 3 END",
+            f.evaluation_report
+          ),
+        asc: f.id
+      )
+      |> limit(^limit)
+      |> select([f], %{
+        id: f.id,
+        filename: f.filename,
+        status: f.status,
+        error_message: f.error_message,
+        evaluation_report: f.evaluation_report
+      })
+      |> Repo.all()
+
+    {files, Repo.aggregate(query, :count)}
+  end
+
+  defp filter_batch_claims(query, nil), do: query
+
+  defp filter_batch_claims(query, "Clean") do
+    where(
+      query,
+      [f],
+      f.status == "evaluated" and
+        coalesce(fragment("(?->>'matchedRules')::int", f.evaluation_report), 0) == 0 and
+        not coalesce(fragment("? -> 'results' @> '[{\"resultUndecided\": true}]'", f.evaluation_report), false)
+    )
+  end
+
+  defp filter_batch_claims(query, "NotAssessed"), do: where(query, [f], f.status == "not_assessed")
+
+  defp filter_batch_claims(query, risk) when is_binary(risk),
+    do: where(query, [f], fragment("?->>'overallRisk'", f.evaluation_report) == ^risk)
+
   @doc "Returns true when an evaluation report warrants analyst review."
   def flagged_for_review?(%{"overallRisk" => risk}), do: risk in @flag_for_review_risks
   def flagged_for_review?(_report), do: false

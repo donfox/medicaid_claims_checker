@@ -21,7 +21,9 @@ defmodule MedicaidClaimsCheckerWeb.UserPasswordSetupController do
 
   def update(conn, %{"token" => token, "user" => user_params}) do
     case Accounts.set_password_with_setup_token(token, user_params) do
-      {:ok, {user, _expired_tokens}} ->
+      {:ok, {user, expired_tokens}} ->
+        UserAuth.disconnect_sessions(expired_tokens)
+
         conn
         |> put_flash(:info, "Password set. Welcome, #{User.full_name(user)}!")
         |> UserAuth.log_in_user(user, user_params)

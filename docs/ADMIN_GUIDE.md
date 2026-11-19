@@ -45,8 +45,8 @@ The buttons on each row:
 
 | Button | What it does |
 |---|---|
-| **Deactivate** / **Activate** | An inactive user cannot use the app. Someone already logged in is logged out the next time they open a page, with "Your account has been deactivated. Please contact an administrator." The account is kept; **Activate** restores access. |
-| **Make admin** / **Remove admin** | Gives or takes away access to this page. |
+| **Deactivate** / **Activate** | An inactive user cannot use the app. Deactivating ends all their log-in sessions at once: pages they have open are disconnected and they land on the log-in page. The account is kept; **Activate** restores access (they log in again). |
+| **Make admin** / **Remove admin** | Gives or takes away access to this page and to managing fetch sources. The change applies at once, including on pages the user already has open. |
 | **Create password link** | A one-time link for the user to set a new password. See below. |
 
 You cannot deactivate your own account or change your own admin role, so the

@@ -175,7 +175,7 @@ erDiagram
 
     app_settings {
         string key PK "NOT NULL"
-        boolean registration_open "NOT NULL, default true"
+        boolean registration_open "NOT NULL, default false"
         utc_datetime inserted_at
         utc_datetime updated_at
     }
@@ -260,7 +260,7 @@ have none.
   `sent_to` records the user's email when the token was made, so a token stops
   working if the email changes.
 - **`app_settings`**: app-wide switches, today only whether registration is
-  open.
+  open. A new database starts closed (migration 20261119120000).
 
 ## Notes
 

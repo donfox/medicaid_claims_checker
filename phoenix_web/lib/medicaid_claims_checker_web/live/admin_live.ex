@@ -151,25 +151,12 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive do
           />
         </div>
 
-        <%!-- Registration toggle --%>
-        <div>
+        <%!-- System: development tools only --%>
+        <div :if={@dev_dashboard?}>
           <h2 class="text-lg font-semibold mb-3">System</h2>
-          <div class="flex items-center justify-between rounded border p-4">
-            <div>
-              <p class="font-semibold">User Registration</p>
-              <p class="text-sm text-gray-600">Allow new users to create accounts</p>
-            </div>
-            <button
-              phx-click="toggle_registration"
-              class={"btn #{if @registration_open, do: "btn-success", else: "btn-error"}"}
-            >
-              {if @registration_open, do: "Open — click to close", else: "Closed — click to open"}
-            </button>
-          </div>
           <div
-            :if={@dev_dashboard?}
             id="system-monitor"
-            class="mt-3 flex items-center justify-between rounded border p-4"
+            class="flex items-center justify-between rounded border p-4"
           >
             <div>
               <p class="font-semibold">System monitor</p>
@@ -193,9 +180,32 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive do
           nppes_elapsed_display={@nppes_elapsed_display}
         />
 
-        <%!-- User management table --%>
+        <%!-- Users: who may join (registration), then every account --%>
         <div>
           <h2 class="text-lg font-semibold mb-3">Users</h2>
+          <div
+            id="registration"
+            class="mb-3 flex items-center justify-between gap-4 rounded border p-4"
+          >
+            <div>
+              <p class="font-semibold">User Registration</p>
+              <p :if={@registration_open} class="text-sm text-gray-600">
+                <span class="font-semibold text-red-700">Open:</span>
+                anyone who can reach the app can create an account right now.
+              </p>
+              <p :if={!@registration_open} class="text-sm text-gray-600">
+                <span class="font-semibold">Closed:</span>
+                nobody can create an account. To add people, open it, let them
+                register, then close it again.
+              </p>
+            </div>
+            <button
+              phx-click="toggle_registration"
+              class={"btn shrink-0 #{if @registration_open, do: "btn-success", else: "btn-error"}"}
+            >
+              {if @registration_open, do: "Open — click to close", else: "Closed — click to open"}
+            </button>
+          </div>
           <div class="overflow-x-auto rounded border">
             <table class="table w-full">
               <thead>

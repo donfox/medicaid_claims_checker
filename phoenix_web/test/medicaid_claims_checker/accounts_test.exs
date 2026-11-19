@@ -6,6 +6,20 @@ defmodule MedicaidClaimsChecker.AccountsTest do
   import MedicaidClaimsChecker.AccountsFixtures
   alias MedicaidClaimsChecker.Accounts.{User, UserToken}
 
+  describe "registration switch" do
+    test "a new database starts with registration closed" do
+      # The test database is migrated with no users, like a fresh install.
+      refute Accounts.registration_open?()
+    end
+
+    test "an admin can open and close it" do
+      assert {:ok, _} = Accounts.set_registration_open(true)
+      assert Accounts.registration_open?()
+      assert {:ok, _} = Accounts.set_registration_open(false)
+      refute Accounts.registration_open?()
+    end
+  end
+
   describe "get_user_by_email/1" do
     test "does not return the user if the email does not exist" do
       refute Accounts.get_user_by_email("unknown@example.com")

@@ -136,4 +136,31 @@ defmodule MedicaidClaimsCheckerWeb.AdminLiveTest do
     {:ok, view, _html} = live(conn, ~p"/admin")
     assert view |> element("#system-monitor a[href='/dev/dashboard']") |> has_element?()
   end
+
+  describe "User Registration" do
+    test "sits in the Users section, above the accounts table", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/admin")
+      [_, users_section] = String.split(html, ">Users</h2>", parts: 2)
+      [before_table, _] = String.split(users_section, "<table", parts: 2)
+
+      assert before_table =~ ~s(id="registration")
+      refute html |> String.split(">Users</h2>") |> hd() =~ ~s(id="registration")
+    end
+
+    test "says what each state means, and the switch changes it", %{conn: conn} do
+      # A new database starts closed.
+      {:ok, view, _html} = live(conn, ~p"/admin")
+      assert has_element?(view, "#registration", "nobody can create an account")
+      assert has_element?(view, "#registration button", "Closed — click to open")
+
+      render_click(view, "toggle_registration", %{})
+      assert Accounts.registration_open?()
+      assert has_element?(view, "#registration", "anyone who can reach the app can create an account")
+      assert has_element?(view, "#registration button", "Open — click to close")
+
+      render_click(view, "toggle_registration", %{})
+      refute Accounts.registration_open?()
+      assert has_element?(view, "#registration", "nobody can create an account")
+    end
+  end
 end

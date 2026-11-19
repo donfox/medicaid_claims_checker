@@ -18,21 +18,31 @@ all**, they create one and print its email and password:
 
 Once any admin exists the seeds create nothing, so removing the seeded
 account's admin role or deactivating it is permanent. A good first step is to
-make your own account an admin (below), then do that to the seeded account.
+register your own account (open registration for it, see below), make it an
+admin, then remove the seeded account's admin role or deactivate it.
 
 ## Registration
 
-The **User Registration** switch under **System** decides whether new people
-can create accounts at `/users/register`.
+The **User Registration** switch, at the top of **Users** just above the
+table of accounts, decides whether new people can create accounts at
+`/users/register`. The text beside it says what the current setting means.
 
 - **Open**: anyone who can reach the app can register. They choose their own
   password and are logged in straight away.
 - **Closed**: the registration page sends visitors to the log-in page with
   "Registration is currently closed."
 
+A new database starts **closed**. Registering is the only way to get an
+account (this page cannot create one), so to add people: open registration,
+let them register, then close it again. While it is open, anyone who can reach
+the app can make an account.
+
+Changing the default did not touch databases already in use: they keep the
+setting their admins chose.
+
 New accounts are ordinary users. Only an admin can make another admin.
 
-In development, **System** also has **Open system monitor**: Phoenix
+In development, a **System** section has **Open system monitor**: Phoenix
 LiveDashboard at `/dev/dashboard` (memory, processes, request and database
 timings, logs), for admins only. It does not exist in a production release.
 

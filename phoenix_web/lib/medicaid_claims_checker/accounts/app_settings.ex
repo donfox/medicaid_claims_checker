@@ -4,7 +4,7 @@ defmodule MedicaidClaimsChecker.Accounts.AppSettings do
 
   @primary_key {:key, :string, autogenerate: false}
   schema "app_settings" do
-    field :registration_open, :boolean, default: true
+    field :registration_open, :boolean, default: false
     timestamps(type: :utc_datetime)
   end
 

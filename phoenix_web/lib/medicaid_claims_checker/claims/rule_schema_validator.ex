@@ -124,17 +124,22 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidator do
   @doc "The converted-claim field paths rules may reference (`*` matches any list index)."
   def valid_patterns, do: @valid_patterns
 
-  @helper_calls MapSet.new(["claim.has_diagnosis", "claim.has_procedure"])
+  @doc """
+  Extracts the field paths a DSL rule text reads, as the engine resolves
+  them, with `*` for each list item.
 
-  @doc "Extracts all field path references from a DSL rule string, with quantifier bindings expanded."
+  Strings and `--` comments are skipped. A named quantifier variable
+  (`EXISTS line IN service_lines WHERE line.x`) becomes its collection
+  (`service_lines.*.x`); inside an unnamed one (`EXISTS service_lines WHERE
+  x`) a path is looked up in each item (`service_lines.*.x`). A `WHERE`
+  runs to the end of the condition or to the parenthesis closing around
+  its quantifier. A single name bound by `LET` stands for its path, and a
+  name followed by `(` is a function, not a field. The rule name and the
+  action after `THEN` hold no fields.
+  """
   @spec field_references(String.t()) :: [String.t()]
   def field_references(rule_text) when is_binary(rule_text) do
-    sanitized_text = strip_string_literals(rule_text)
-    bindings = extract_quantifier_bindings(sanitized_text)
-
-    sanitized_text
-    |> extract_references(bindings)
-    |> Enum.uniq()
+    rule_text |> scan_references() |> Enum.map(& &1.path) |> Enum.uniq()
   end
 
   @doc """
@@ -146,27 +151,27 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidator do
   """
   @spec validate(String.t()) :: {:ok, map()} | {:error, map()}
   def validate(rule_text) when is_binary(rule_text) do
-    references = field_references(rule_text)
+    scanned = rule_text |> scan_references() |> Enum.uniq_by(& &1.path)
 
     issues =
-      references
-      |> Enum.flat_map(fn reference ->
-        case classify_reference(reference) do
-          {:ok, _pattern} ->
-            []
+      Enum.flat_map(scanned, fn %{path: reference} = ref ->
+        if known?(reference) do
+          []
+        else
+          suggested = if ref.in_item, do: nil, else: suggest_path(reference)
 
-          {:error, suggested} ->
-            [
-              %{
-                reference: reference,
-                suggested: suggested,
-                message: drift_message(reference, suggested)
-              }
-            ]
+          [
+            %{
+              reference: reference,
+              suggested: suggested,
+              hint: in_item_hint(ref),
+              message: drift_message(ref, suggested)
+            }
+          ]
         end
       end)
 
-    details = %{references: references, issues: issues}
+    details = %{references: Enum.map(scanned, & &1.path), issues: issues}
 
     case issues do
       [] -> {:ok, details}
@@ -180,16 +185,137 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidator do
   def format_issues(issues) when is_list(issues) do
     issues
     |> Enum.map(fn
+      %{reference: reference, hint: hint} when is_binary(hint) -> "#{reference} (#{hint})"
       %{reference: reference, suggested: nil} -> reference
       %{reference: reference, suggested: suggested} -> "#{reference} -> #{suggested}"
     end)
     |> Enum.join("; ")
   end
 
-  defp classify_reference(reference) do
-    case Enum.find(@valid_patterns, &path_matches?(reference, &1)) do
-      nil -> {:error, suggest_path(reference)}
-      pattern -> {:ok, pattern}
+  # A field, or a section or list that holds fields (`patient`, the
+  # collection in `COUNT(service_lines)`).
+  defp known?(reference) do
+    Enum.any?(@valid_patterns, fn pattern ->
+      path_matches?(reference, pattern) or section_of?(reference, pattern)
+    end)
+  end
+
+  defp section_of?(reference, pattern) do
+    ref_parts = String.split(reference, ".")
+    pat_parts = String.split(pattern, ".")
+
+    length(ref_parts) < length(pat_parts) and
+      path_matches?(reference, pat_parts |> Enum.take(length(ref_parts)) |> Enum.join("."))
+  end
+
+  # --- Scanning a rule ---------------------------------------------------
+
+  @keywords ~w(RULE DESCRIPTION WHEN THEN END TRUE FALSE AND OR NOT WHERE EXISTS
+               FORALL COUNT LET IS NULL BETWEEN IN CONTAINS MATCHES
+               REJECT FLAG_FRAUD REQUIRE_REVIEW APPROVE RISK_SCORE)
+
+  # `claim.has_diagnosis "code"` and `claim.has_procedure "code"`.
+  @helper_calls ~w(claim.has_diagnosis claim.has_procedure)
+
+  # Tokens: :lparen, :rparen, :semicolon, {:name, "a.b.c"}. Strings, comments,
+  # numbers and operators are dropped.
+  defp tokenize(text) do
+    ~r/"[^"]*"|--[^\n]*|[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*|[();]/
+    |> Regex.scan(text)
+    |> Enum.flat_map(fn
+      ["\"" <> _] -> []
+      ["--" <> _] -> []
+      ["("] -> [:lparen]
+      [")"] -> [:rparen]
+      [";"] -> [:semicolon]
+      [word] -> if Regex.match?(~r/^[0-9.]+$/, word), do: [], else: [{:name, word}]
+    end)
+  end
+
+  defp scan_references(text) do
+    text |> tokenize() |> scan(new_rule_state(), []) |> Enum.reverse()
+  end
+
+  defp new_rule_state, do: %{depth: 0, scopes: [], lets: %{}, in_action: false}
+
+  defp scan([], _st, acc), do: acc
+
+  # A new rule: skip its name; its LET names and scopes are its own.
+  defp scan([{:name, "RULE"}, {:name, _name} | rest], _st, acc),
+    do: scan(rest, new_rule_state(), acc)
+
+  defp scan([{:name, "RULE"} | rest], _st, acc), do: scan(rest, new_rule_state(), acc)
+
+  # The action holds no field paths.
+  defp scan([_ | rest], %{in_action: true} = st, acc), do: scan(rest, st, acc)
+
+  defp scan([{:name, "THEN"} | rest], st, acc),
+    do: scan(rest, %{st | in_action: true, scopes: []}, acc)
+
+  defp scan([{:name, "LET"}, {:name, name}, {:name, path} | rest], st, acc) do
+    ref = resolve(path, st)
+    scan(rest, %{st | lets: Map.put(st.lets, name, ref.path)}, [ref | acc])
+  end
+
+  # EXISTS var IN collection WHERE ... / EXISTS collection WHERE ...
+  defp scan(
+         [{:name, q}, {:name, var}, {:name, "IN"}, {:name, coll}, {:name, "WHERE"} | rest],
+         st,
+         acc
+       )
+       when q in ["EXISTS", "FORALL"] do
+    ref = resolve(coll, st)
+    scope = %{depth: st.depth, var: var, prefix: ref.path <> ".*"}
+    scan(rest, %{st | scopes: [scope | st.scopes]}, [ref | acc])
+  end
+
+  defp scan([{:name, q}, {:name, coll}, {:name, "WHERE"} | rest], st, acc)
+       when q in ["EXISTS", "FORALL"] do
+    ref = resolve(coll, st)
+    scope = %{depth: st.depth, var: nil, prefix: ref.path <> ".*"}
+    scan(rest, %{st | scopes: [scope | st.scopes]}, [ref | acc])
+  end
+
+  defp scan([:lparen | rest], st, acc), do: scan(rest, %{st | depth: st.depth + 1}, acc)
+
+  # A closing parenthesis ends every quantifier opened inside it.
+  defp scan([:rparen | rest], st, acc) do
+    depth = st.depth - 1
+    scan(rest, %{st | depth: depth, scopes: Enum.reject(st.scopes, &(&1.depth > depth))}, acc)
+  end
+
+  defp scan([:semicolon | rest], st, acc), do: scan(rest, %{st | in_action: false}, acc)
+
+  defp scan([{:name, word} | rest], st, acc) when word in @keywords or word in @helper_calls,
+    do: scan(rest, st, acc)
+
+  # name(...) is a helper function, such as is_weekend or claim.has_diagnosis.
+  defp scan([{:name, _function}, :lparen | rest], st, acc),
+    do: scan([:lparen | rest], st, acc)
+
+  defp scan([{:name, path} | rest], st, acc), do: scan(rest, st, [resolve(path, st) | acc])
+
+  # Resolves a path the way the engine does: a quantifier variable first,
+  # then a single LET name, then the current document (the item of the
+  # innermost unnamed quantifier, or the claim).
+  defp resolve(path, st) do
+    [first | rest] = parts = String.split(path, ".")
+
+    case Enum.find(st.scopes, &(&1.var == first)) do
+      %{prefix: prefix} ->
+        %{path: Enum.join([prefix | rest], "."), in_item: false}
+
+      nil ->
+        case {parts, Map.fetch(st.lets, first)} do
+          {[_single], {:ok, let_path}} ->
+            %{path: let_path, in_item: false}
+
+          _ ->
+            case Enum.find(st.scopes, &is_nil(&1.var)) do
+              %{prefix: prefix} -> %{path: prefix <> "." <> path, in_item: path}
+              nil -> %{path: path, in_item: false}
+            end
+        end
     end
   end
 
@@ -230,47 +356,24 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidator do
     end
   end
 
-  defp drift_message(reference, nil), do: "Unknown field reference: #{reference}"
-
-  defp drift_message(reference, suggested),
-    do: "Unknown field reference: #{reference} (did you mean #{suggested}?)"
-
-  defp strip_string_literals(text) do
-    Regex.replace(~r/"(?:\\.|[^"])*"/s, text, "")
+  # A claim-level path written inside an unnamed quantifier is looked up in
+  # each item, where it isn't (SYNTAX_GUIDE "How far a WHERE reaches").
+  defp in_item_hint(%{in_item: written}) when is_binary(written) do
+    if known?(written),
+      do: "#{written} is read inside each item here; put parentheses around the EXISTS/FORALL"
   end
 
-  defp extract_quantifier_bindings(text) do
-    Regex.scan(
-      ~r/\b(?:EXISTS|FORALL)\s+([A-Za-z_][A-Za-z0-9_]*)\s+IN\s+([A-Za-z0-9_\.]+)\s+WHERE\b/i,
-      text,
-      capture: :all_but_first
-    )
-    |> Enum.reduce(%{}, fn [var_name, path], acc -> Map.put(acc, var_name, path) end)
-  end
+  defp in_item_hint(_ref), do: nil
 
-  defp extract_references(text, bindings) do
-    # Paths may start with digits so loop-style paths (2300.CLM...) are caught
-    # and flagged, but a decimal literal such as 50000.0 is not a path.
-    Regex.scan(~r/\b(?:[A-Za-z_][A-Za-z0-9_]*|\d+)(?:\.[A-Za-z0-9_]+)+\b/u, text)
-    |> List.flatten()
-    |> Enum.reject(&Regex.match?(~r/^\d+(\.\d+)*$/, &1))
-    |> Enum.reject(&MapSet.member?(@helper_calls, &1))
-    |> Enum.map(&expand_quantifier_reference(&1, bindings))
-  end
-
-  defp expand_quantifier_reference(reference, bindings) do
-    case String.split(reference, ".", parts: 2) do
-      [var_name, remainder] ->
-        if Map.has_key?(bindings, var_name) do
-          bindings[var_name] <> ".*." <> remainder
-        else
-          reference
-        end
-
-      _ ->
-        reference
+  defp drift_message(%{path: reference} = ref, nil) do
+    case in_item_hint(ref) do
+      nil -> "Unknown field reference: #{reference}"
+      hint -> "Unknown field reference: #{reference} (#{hint})"
     end
   end
+
+  defp drift_message(%{path: reference}, suggested),
+    do: "Unknown field reference: #{reference} (did you mean #{suggested}?)"
 
   defp path_matches?(reference, pattern) do
     ref_parts = String.split(reference, ".")

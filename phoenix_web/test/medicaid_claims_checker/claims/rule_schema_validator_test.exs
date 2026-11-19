@@ -51,6 +51,74 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidatorTest do
     assert "service_lines.*.procedure_code" in references
   end
 
+  describe "how a rule is read" do
+    defp issues(text) do
+      case RuleSchemaValidator.validate(text) do
+        {:ok, _} -> []
+        {:error, %{issues: issues}} -> Enum.map(issues, & &1.reference)
+      end
+    end
+
+    test "a field without a dot is checked too" do
+      assert issues(~S[RULE a "d" WHEN claim_amount > 5 THEN REJECT "x";]) == ["claim_amount"]
+      assert issues(~S[RULE a "d" WHEN claimid IS NULL THEN REJECT "x";]) == ["claimid"]
+      assert issues(~S[RULE a "d" WHEN claim_id IS NULL THEN REJECT "x";]) == []
+    end
+
+    test "a LET name stands for its path, which is checked" do
+      assert issues(~S[RULE a "d" LET amt = total WHEN amt > 5 THEN REJECT "x";]) == ["total"]
+
+      assert issues(~S[RULE a "d" LET amt = financial.claim_amount WHEN amt > 5 THEN REJECT "x";]) ==
+               []
+    end
+
+    test "strings, comments, function names, the rule name and the action are not fields" do
+      text = """
+      RULE some_name "mentions financial.claim_amont"
+      -- old: financial.claim_amont
+      WHEN is_weekend(service_lines.0.date_of_service)
+        AND claim.has_procedure "99213"
+        AND COUNT(service_lines) > 3
+      THEN REJECT "x" AND RISK_SCORE 40;
+      """
+
+      assert issues(text) == []
+    end
+
+    test "a reused variable name follows the innermost quantifier" do
+      text = ~S"""
+      RULE a "d"
+      WHEN EXISTS x IN service_lines WHERE x.procedure_code = "99213"
+        AND EXISTS x IN diagnosis_codes WHERE x.code = "Z00"
+      THEN REJECT "x";
+      """
+
+      assert issues(text) == []
+    end
+
+    test "inside an unnamed quantifier a path is read in each item" do
+      item =
+        ~S[RULE a "d" WHEN EXISTS service_lines WHERE tooth_info.tooth_number = "19" THEN REJECT "x";]
+
+      assert issues(item) == []
+
+      claim_level =
+        ~S[RULE a "d" WHEN EXISTS service_lines WHERE procedure_code = "99285" AND financial.claim_amount > 10000 THEN REJECT "x";]
+
+      assert {:error, %{issues: [issue]}} = RuleSchemaValidator.validate(claim_level)
+      assert issue.reference == "service_lines.*.financial.claim_amount"
+
+      assert RuleSchemaValidator.format_issues([issue]) =~
+               "put parentheses around the EXISTS/FORALL"
+
+      # Parentheses end the quantifier, so the claim-level field is found.
+      fixed =
+        ~S[RULE a "d" WHEN (EXISTS service_lines WHERE procedure_code = "99285") AND financial.claim_amount > 10000 THEN REJECT "x";]
+
+      assert issues(fixed) == []
+    end
+  end
+
   test "a decimal literal is a number, not a field reference" do
     rule_text = """
     RULE decimals "Decimal thresholds"
@@ -60,7 +128,12 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidatorTest do
     """
 
     assert {:ok, %{references: references}} = RuleSchemaValidator.validate(rule_text)
-    assert Enum.sort(references) == ["financial.claim_amount", "service_lines.*.charge_amount"]
+
+    assert Enum.sort(references) == [
+             "financial.claim_amount",
+             "service_lines",
+             "service_lines.*.charge_amount"
+           ]
   end
 
   test "flags X12 loop-style paths and names the converted-claim field" do

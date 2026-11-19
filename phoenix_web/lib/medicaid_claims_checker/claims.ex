@@ -482,6 +482,34 @@ defmodule MedicaidClaimsChecker.Claims do
 
   def get_business_rule_by_name(name), do: Repo.get_by(BusinessRule, name: name)
 
+  @doc """
+  Creates a BA Rule: its `business_rules` row and its catalogue entry, in
+  one transaction, so neither exists without the other. A name another
+  catalogue entry already uses fails with that changeset's error.
+  """
+  def create_rule_with_entry(rule_attrs, entry_attrs) do
+    Repo.transaction(fn ->
+      with {:ok, rule} <- create_business_rule(rule_attrs),
+           {:ok, entry} <- create_catalogue_entry(entry_attrs) do
+        {rule, entry}
+      else
+        {:error, changeset} -> Repo.rollback(changeset)
+      end
+    end)
+  end
+
+  @doc "Updates a BA Rule and its catalogue entry together (see `create_rule_with_entry/2`)."
+  def update_rule_with_entry(%BusinessRule{} = rule, rule_attrs, %RuleCatalogue{} = entry, entry_attrs) do
+    Repo.transaction(fn ->
+      with {:ok, rule} <- update_business_rule(rule, rule_attrs),
+           {:ok, entry} <- update_catalogue_entry(entry, entry_attrs) do
+        {rule, entry}
+      else
+        {:error, changeset} -> Repo.rollback(changeset)
+      end
+    end)
+  end
+
   # --- Rule Catalogue operations ---
 
   def list_catalogue_entries do

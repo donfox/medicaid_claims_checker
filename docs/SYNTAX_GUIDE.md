@@ -296,7 +296,9 @@ A line dated as a range has its start in `date_of_service` and its end in `date_
 
 The list above covers the fields rules usually need. The full list, including middle names, the subscriber's address, dental `tooth_info` and the envelope sections (`submitter`, `receiver`, `interchange`, `functional_group`), is in `phoenix_web/lib/medicaid_claims_checker/claims/rule_schema_validator.ex`.
 
-The Rules page checks every field a rule uses against that list. A rule naming a field that no converted claim has is saved as a draft and cannot be activated; the message suggests the field to use where there is one.
+The Rules page checks every field a rule uses against that list, reading the rule the way the engine does: a quantifier variable stands for its list's items, a `LET` name for its path, and inside an unnamed `EXISTS`/`FORALL` a field is looked up in each item (so a claim-level field there is flagged, with a reminder to close the quantifier with parentheses). Strings and `--` comments are ignored. A rule naming a field that no converted claim has is saved as a draft and cannot be activated; the message suggests the field to use where there is one.
+
+Each rule is saved on its own: the Rules page refuses a text that holds more than one rule.
 
 ### X12 loop-style paths are not fields
 

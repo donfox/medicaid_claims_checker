@@ -155,15 +155,26 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
             ask_before_saving(socket, matches, name, normalized_rule_text, selected_entry_id)
           end
 
-        _ ->
-          # No redundancy (or check failed) — proceed with save
+        result ->
+          # No redundancy, or the check could not run: save, and say so.
+          notice =
+            case result do
+              {:unavailable, reason} ->
+                "The redundancy check could not run (#{reason}), so this rule was not " <>
+                  "compared with the other rules."
+
+              _ ->
+                nil
+            end
+
           do_save_catalog_rule(
             socket,
             name,
             normalized_rule_text,
             selected_entry_id,
             false,
-            schema_validation
+            schema_validation,
+            notice
           )
       end
     end
@@ -371,7 +382,8 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
          normalized_rule_text,
          selected_entry_id,
          mark_redundant,
-         schema_validation
+         schema_validation,
+         notice \\ nil
        ) do
     schema_issues =
       case schema_validation do
@@ -393,26 +405,20 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
             %{} = rule ->
               saved_active = if schema_drift?, do: false, else: rule.active
 
-              case Claims.update_business_rule(rule, %{
-                     name: name,
-                     rule_text: String.trim(normalized_rule_text),
-                     active: saved_active
-                   }) do
+              rule_attrs = %{
+                name: name,
+                rule_text: String.trim(normalized_rule_text),
+                active: saved_active
+              }
+
+              entry_attrs = %{
+                name: name,
+                redundant: mark_redundant,
+                status: if(saved_active, do: "Active", else: "Inactive")
+              }
+
+              case Claims.update_rule_with_entry(rule, rule_attrs, catalogue_entry, entry_attrs) do
                 {:ok, _updated} ->
-                  updates =
-                    if name != catalogue_entry.name,
-                      do: %{
-                        name: name,
-                        redundant: mark_redundant,
-                        status: if(saved_active, do: "Active", else: "Inactive")
-                      },
-                      else: %{
-                        redundant: mark_redundant,
-                        status: if(saved_active, do: "Active", else: "Inactive")
-                      }
-
-                  Claims.update_catalogue_entry(catalogue_entry, updates)
-
                   message =
                     if schema_drift? do
                       "Business rule saved as draft. Fix schema drift before activation: " <>
@@ -420,6 +426,7 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
                     else
                       "Business rule updated."
                     end
+                    |> with_notice(notice)
 
                   {:noreply,
                    socket
@@ -459,19 +466,19 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
         active: saved_active
       }
 
-      case Claims.create_business_rule(attrs) do
-        {:ok, _rule} ->
-          Claims.create_catalogue_entry(%{
-            name: name,
-            description: "",
-            entry_type: "BA Rule",
-            status: if(saved_active, do: "Active", else: "Inactive"),
-            editable: true,
-            removable: true,
-            redundant: mark_redundant,
-            db_access: false
-          })
+      entry_attrs = %{
+        name: name,
+        description: "",
+        entry_type: "BA Rule",
+        status: if(saved_active, do: "Active", else: "Inactive"),
+        editable: true,
+        removable: true,
+        redundant: mark_redundant,
+        db_access: false
+      }
 
+      case Claims.create_rule_with_entry(attrs, entry_attrs) do
+        {:ok, _created} ->
           message =
             if schema_drift? do
               "Business rule saved as draft. Fix schema drift before activation: " <>
@@ -479,6 +486,7 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
             else
               "Business rule saved to catalogue."
             end
+            |> with_notice(notice)
 
           {:noreply,
            socket
@@ -500,6 +508,9 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
       end
     end
   end
+
+  defp with_notice(message, nil), do: message
+  defp with_notice(message, notice), do: message <> " " <> notice
 
   defp validate_before_activation(%{entry_type: entry_type, status: "Inactive", name: name})
        when entry_type in ["BA Rule", "Default Rule"] do
@@ -555,11 +566,14 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
     case parse_rule(normalized_text) do
       {:ok, %{"rule" => rules} = parsed} when is_list(rules) ->
         case length(rules) do
-          n when n > 0 ->
+          1 ->
             {parsed, nil}
 
           0 ->
-            {nil, "No rules found. Enter at least one RULE...END block."}
+            {nil, "No rules found. Enter one RULE ... END block."}
+
+          n ->
+            {nil, "This text holds #{n} rules. Enter one rule at a time; each is saved under its own name."}
         end
 
       {:ok, parsed} ->
@@ -614,13 +628,17 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
         {:ok, %{status: 200, body: resp_body}} ->
           case Jason.decode(resp_body) do
             {:ok, %{"success" => true, "matches" => matches}} -> {:ok, matches}
-            {:ok, %{"success" => false, "error" => err}} -> {:error, err}
-            _ -> {:ok, []}
+            {:ok, %{"success" => false, "error" => err}} -> {:unavailable, to_string(err)}
+            _ -> {:unavailable, "unexpected reply from the rule engine"}
           end
 
+        # Any other reply (rate limit, wrong secret, engine error) or no
+        # reply: the check couldn't run. It never blocks a save.
+        {:ok, %{status: status}} ->
+          {:unavailable, "the rule engine answered HTTP #{status}"}
+
         {:error, _err} ->
-          # If redundancy check fails, don't block the save
-          {:ok, []}
+          {:unavailable, "the rule engine could not be reached"}
       end
     end
   end
@@ -677,11 +695,7 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
     Enum.any?(matches, &(redundancy_tier(&1["matchLevel"]) == :conflict))
   end
 
-  defp normalize_dsl_text(text) when is_binary(text) do
-    text
-    |> String.replace("\r\n", "\n")
-    |> String.replace("ENDRULE", "END RULE")
-  end
+  defp normalize_dsl_text(text) when is_binary(text), do: String.replace(text, "\r\n", "\n")
 
   @doc false
   # Format DSL text with consistent indentation and line breaks.
@@ -700,13 +714,25 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
   end
 
   # Split single-line rules into multi-line by inserting newlines before
-  # WHEN, THEN, and before the trailing semicolon. Avoids splitting inside
-  # quoted strings by working outside of them.
+  # WHEN, THEN, and before the trailing semicolon. Quoted strings and --
+  # comments are left as they are.
   defp split_keywords_onto_lines(text) do
-    text
-    |> String.replace(~r/\s+WHEN\s+/, "\nWHEN\n  ")
-    |> String.replace(~r/\s+THEN\s+/, "\nTHEN\n  ")
-    |> String.replace(~r/;\s*$/, "\nEND", global: false)
+    parts = Regex.split(~r/"[^"]*"|--[^\n]*/, text, include_captures: true)
+    last = length(parts) - 1
+
+    parts
+    |> Enum.with_index()
+    |> Enum.map_join(fn
+      {"\"" <> _ = quoted, _} ->
+        quoted
+
+      {"--" <> _ = comment, _} ->
+        comment
+
+      {code, i} ->
+        code = code |> String.replace(~r/\s+WHEN\s+/, "\nWHEN\n  ") |> String.replace(~r/\s+THEN\s+/, "\nTHEN\n  ")
+        if i == last, do: String.replace(code, ~r/;\s*$/, "\nEND"), else: code
+    end)
   end
 
   defp format_dsl_line(line) do

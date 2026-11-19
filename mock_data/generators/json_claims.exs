@@ -104,7 +104,8 @@ defmodule Samples do
   opts: :type ("837P", "837I" or "837D"), :pos, :facility, :frequency, :tenure,
   :taxonomy (false = missing), :auth (nil = none), :dx, :lines, :patient
   (index into @patients), :dob (false = missing), :statement ({from, to}
-  dates, 837I statement period), :notes.
+  dates, 837I statement period), :amount (claim total; default the sum of
+  the lines), :notes.
   Each line is {date, procedure_code, amount} or {date, procedure_code,
   amount, line_opts} with :units, :pos, :revenue, :tooth, :qualifier (default
   HC; AD for dental codes), :end (the line's end date).
@@ -124,7 +125,10 @@ defmodule Samples do
       |> Enum.with_index(1)
       |> Enum.map(fn {line, n} -> service_line(line, n, claim_pos) end)
 
-    total = lines |> Enum.map(& &1["charge_amount"]) |> Enum.sum() |> Float.round(2)
+    total =
+      Keyword.get_lazy(opts, :amount, fn ->
+        lines |> Enum.map(& &1["charge_amount"]) |> Enum.sum() |> Float.round(2)
+      end)
 
     %{
       "claim_id" => id,
@@ -398,6 +402,14 @@ samples = [
      lines: [{fri, "99214", 230}, {fri, "87804", -70}],
      notes: "Rapid flu test line billed at -$70.00 (a credit sent as a charge): InvalidServiceLine."),
    {["InvalidServiceLine"], "ok"}},
+  {"R_business_rules/R2_each_rule_alone", "ClaimTotalMismatch", "Claim total $500 but the lines add up to $445",
+   Samples.claim("MOCK-RULE-TOTALMISMATCH", :citydoc,
+     patient: 3,
+     dx: ["M5450"],
+     amount: 500.0,
+     lines: [{mon, "99244", 350}, {mon, "72100", 95}],
+     notes: "Claim amount $500.00, line charges $350 + $95 = $445.00: ClaimTotalMismatch."),
+   {["ClaimTotalMismatch"], "ok"}},
   {"R_business_rules/R2_each_rule_alone", "ServiceEndBeforeStart", "Service line dated Sep 18 to Sep 16",
    Samples.claim("MOCK-RULE-ENDBEFORE", :citydoc,
      patient: 2,

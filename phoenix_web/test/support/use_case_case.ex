@@ -4,7 +4,7 @@ defmodule MedicaidClaimsCheckerWeb.UseCaseCase do
 
   Each test uses the app as a person would: it uploads mock data files on
   the home page (or enters rules on the Rules page), and the real Haskell
-  engine evaluates them against the 20 seeded business rules. Expected
+  engine evaluates them against the 21 seeded business rules. Expected
   results come from `mock_data/manifest.json`.
 
   Every test is tagged with its use-case ID (`use_case: "R5"`) and the whole

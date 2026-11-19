@@ -25,8 +25,8 @@
 #   alone. The other catalogue flags (editable, removable, redundant,
 #   db_access) are written only when a row is first inserted.
 #
-# What gets seeded (25 catalogue entries, 20 DSL rules)
-#   Default Rules  14  always on; can't be edited or removed in the UI
+# What gets seeded (26 catalogue entries, 21 DSL rules)
+#   Default Rules  15  always on; can't be edited or removed in the UI
 #   BA Rules        8  written by business analysts; editable
 #   ML Models       3  "Not connected": no scoring service exists yet
 #
@@ -296,6 +296,18 @@ new_default_rules = [
     db_access: false,
     inserted_at: now,
     updated_at: now
+  },
+  %{
+    name: "ClaimTotalMismatch",
+    description: "Rejects claims whose total charge does not equal the sum of their service line charges",
+    entry_type: "Default Rule",
+    status: "Active",
+    editable: false,
+    removable: false,
+    redundant: false,
+    db_access: false,
+    inserted_at: now,
+    updated_at: now
   }
 ]
 
@@ -307,7 +319,7 @@ Repo.insert_all(
 )
 
 # --- Default Rules: DSL text (business_rules) ---
-# The logic for 12 of the 14 Default Rules; the other two are covered in the
+# The logic for 13 of the 15 Default Rules; the other two are covered in the
 # note on default_catalogue_entries. The engine gets this text together with
 # the BA Rules' text (Evaluator.gather_rules_text/0).
 
@@ -494,6 +506,27 @@ default_business_rules = [
       WHEN claim_details.statement_to_date IS NOT NULL
            AND is_date_before(claim_details.statement_to_date, claim_details.statement_from_date)
       THEN REJECT "Statement end date is before the start date"
+      END
+      """
+      |> String.trim(),
+    active: true,
+    inserted_at: now,
+    updated_at: now
+  },
+  %{
+    # claim_totals.service_line_total is added to every claim just before
+    # evaluation (Claims.PayloadBuilder), adding the line charges in exact
+    # decimal. It is empty when a line's charge is missing or not a number,
+    # which leaves this rule "not checked". > and < compare numbers; = and
+    # != between two fields would compare their text ("220" vs "220.00").
+    name: "ClaimTotalMismatch",
+    rule_text:
+      """
+      RULE claim_total_mismatch
+      DESCRIPTION "Claim total does not equal the sum of its line charges"
+      WHEN financial.claim_amount > claim_totals.service_line_total
+        OR financial.claim_amount < claim_totals.service_line_total
+      THEN REJECT "Claim total does not equal the sum of its service line charges"
       END
       """
       |> String.trim(),

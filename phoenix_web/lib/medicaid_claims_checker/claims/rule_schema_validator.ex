@@ -123,8 +123,18 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidator do
     "billing_provider.address.postal_code" => "billing_provider.address.zip"
   }
 
-  @doc "The converted-claim field paths rules may reference (`*` matches any list index)."
-  def valid_patterns, do: @valid_patterns
+  # Fields worked out from the claim and added to every claim, X12 or JSON,
+  # just before it goes to the engine (Claims.PayloadBuilder). They are not
+  # in the converter's output.
+  @derived_patterns [
+    "claim_totals.service_line_total"
+  ]
+
+  @doc "The field paths rules may reference (`*` matches any list index)."
+  def valid_patterns, do: @valid_patterns ++ @derived_patterns
+
+  @doc "The fields added at evaluation time rather than by the converter."
+  def derived_patterns, do: @derived_patterns
 
   @doc """
   Extracts the field paths a DSL rule text reads, as the engine resolves
@@ -197,7 +207,7 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidator do
   # A field, or a section or list that holds fields (`patient`, the
   # collection in `COUNT(service_lines)`).
   defp known?(reference) do
-    Enum.any?(@valid_patterns, fn pattern ->
+    Enum.any?(valid_patterns(), fn pattern ->
       path_matches?(reference, pattern) or section_of?(reference, pattern)
     end)
   end
@@ -333,7 +343,7 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidator do
         stripped = String.replace_prefix(reference, "claim.", "")
 
         cond do
-          Enum.any?(@valid_patterns, &path_matches?(stripped, &1)) -> stripped
+          Enum.any?(valid_patterns(), &path_matches?(stripped, &1)) -> stripped
           candidate = wildcard_variant(stripped) -> candidate
           true -> nil
         end
@@ -352,7 +362,7 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidator do
              rest != [] ->
         candidate = Enum.join([root, "*" | rest], ".")
 
-        if Enum.any?(@valid_patterns, &path_matches?(candidate, &1)), do: candidate, else: nil
+        if Enum.any?(valid_patterns(), &path_matches?(candidate, &1)), do: candidate, else: nil
 
       _ ->
         nil

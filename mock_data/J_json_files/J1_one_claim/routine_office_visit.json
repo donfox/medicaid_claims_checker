@@ -126,7 +126,7 @@
             "description": "Office visit — established patient, low complexity",
             "units": 1,
             "unit_rate": 150.00,
-            "line_amount": 150.00,
+            "charge_amount": 150.00,
             "date_of_service": "2026-02-19",
             "place_of_service": "11",
             "diagnosis_pointers": ["1"]

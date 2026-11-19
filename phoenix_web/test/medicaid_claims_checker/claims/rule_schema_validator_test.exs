@@ -22,6 +22,20 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidatorTest do
     refute Enum.any?(references, &String.contains?(&1, "claim.has_diagnosis"))
   end
 
+  test "accepts a field added at evaluation time (claim_totals.service_line_total)" do
+    rule_text = """
+    RULE claim_total_mismatch
+    DESCRIPTION "d"
+    WHEN financial.claim_amount > claim_totals.service_line_total
+      OR financial.claim_amount < claim_totals.service_line_total
+    THEN REJECT "r"
+    END
+    """
+
+    assert {:ok, %{references: references}} = RuleSchemaValidator.validate(rule_text)
+    assert "claim_totals.service_line_total" in references
+  end
+
   test "flags schema drift for paths that do not exist in the current contract" do
     rule_text = """
     RULE drift_rule
@@ -200,7 +214,8 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidatorTest do
       end)
 
     assert MapSet.size(produced) > 50
-    listed = MapSet.new(RuleSchemaValidator.valid_patterns())
+    listed =
+      MapSet.new(RuleSchemaValidator.valid_patterns() -- RuleSchemaValidator.derived_patterns())
 
     refused = MapSet.difference(produced, listed) |> Enum.sort()
 

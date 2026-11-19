@@ -73,6 +73,8 @@ Meaning:
 - `>=` greater than or equal
 - `<=` less than or equal
 
+`>`, `<`, `>=` and `<=` always compare numbers. `=` and `!=` compare numbers only when the value on the right is a number written in the rule (`financial.claim_amount = 500`); against a string or another field they compare the text, so `220` and `220.00` are different. To compare two amount fields, use `<` and `>` (see [Field-to-field comparisons](#field-to-field-comparisons)).
+
 ### Null checks
 
 ```text
@@ -281,6 +283,7 @@ Main sections:
 
 - `claim_id` — claim identifier
 - `financial.claim_amount`, `claim_totals.total_charges` — amounts
+- `claim_totals.service_line_total` — the sum of the service lines' `charge_amount`, worked out by the app just before evaluation (for X12 and JSON claims alike) and added in exact cents. Empty when the claim has no lines or any line's charge is missing or not a number
 - `claim_details` — `place_of_service`, `facility_type_code`, `frequency_code` (1 original, 7 replacement, 8 void); on 837I claims also `statement_from_date`, `statement_to_date` (the statement period) and `admission_date`
 - `provider`, `billing_provider` — `npi`, `name`, `taxonomy`, `tax_id`; `billing_provider.address` has `street`, `city`, `state`, `zip`
 - `provider.tenure_days` — how many days the provider has been credentialed (the two new-provider rules use it). Only JSON claims carry it; X12 conversion leaves it empty, so on an X12 claim a rule using it is not checked
@@ -379,6 +382,13 @@ The right-hand side of a comparison can be another field reference instead of a 
 ```text
 financial.claim_amount > claim_totals.total_charges
 EXISTS line IN service_lines WHERE line.charge_amount > financial.claim_amount
+```
+
+Between two fields, `=` and `!=` compare text. To find two amounts that differ, write it as a number comparison:
+
+```text
+financial.claim_amount > claim_totals.service_line_total
+  OR financial.claim_amount < claim_totals.service_line_total
 ```
 
 ## Actions

@@ -128,7 +128,7 @@
           "description": "Complete CBC with automated differential",
           "units": 1,
           "unit_rate": 85.0,
-          "line_amount": 85.0,
+          "charge_amount": 85.0,
           "date_of_service": "2026-02-23",
           "place_of_service": "81",
           "diagnosis_pointers": [
@@ -297,7 +297,7 @@
           "description": "Annual wellness visit \u2014 initial visit",
           "units": 1,
           "unit_rate": 200.0,
-          "line_amount": 200.0,
+          "charge_amount": 200.0,
           "date_of_service": "2026-02-21",
           "place_of_service": "11",
           "diagnosis_pointers": [
@@ -466,7 +466,7 @@
           "description": "Office visit \u2014 established patient, low complexity",
           "units": 1,
           "unit_rate": 150.0,
-          "line_amount": 150.0,
+          "charge_amount": 150.0,
           "date_of_service": "2026-02-19",
           "place_of_service": "11",
           "diagnosis_pointers": [
@@ -641,7 +641,7 @@
           "description": "Office consultation \u2014 moderate complexity",
           "units": 1,
           "unit_rate": 350.0,
-          "line_amount": 350.0,
+          "charge_amount": 350.0,
           "date_of_service": "2026-02-20",
           "place_of_service": "11",
           "diagnosis_pointers": [
@@ -817,7 +817,7 @@
           "description": "Coronary artery bypass \u2014 arterial graft, single",
           "units": 1,
           "unit_rate": 850000.0,
-          "line_amount": 850000.0,
+          "charge_amount": 850000.0,
           "date_of_service": "2026-02-11",
           "place_of_service": "21",
           "diagnosis_pointers": [
@@ -987,7 +987,7 @@
           "description": "Office visit \u2014 established patient, low complexity",
           "units": 1,
           "unit_rate": 250.0,
-          "line_amount": 250.0,
+          "charge_amount": 250.0,
           "date_of_service": "2099-08-15",
           "place_of_service": "11",
           "diagnosis_pointers": [
@@ -1156,7 +1156,7 @@
           "description": "Office visit \u2014 established patient, low complexity",
           "units": 1,
           "unit_rate": 200.0,
-          "line_amount": 200.0,
+          "charge_amount": 200.0,
           "date_of_service": "2026-02-25",
           "place_of_service": "11",
           "diagnosis_pointers": [
@@ -1318,7 +1318,7 @@
           "description": "Office visit \u2014 established patient, low complexity",
           "units": 1,
           "unit_rate": 300.0,
-          "line_amount": 300.0,
+          "charge_amount": 300.0,
           "date_of_service": "2026-02-25",
           "place_of_service": "20",
           "diagnosis_pointers": []

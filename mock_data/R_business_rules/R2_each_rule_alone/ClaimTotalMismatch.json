@@ -1,0 +1,98 @@
+{
+  "authorization": { "authorization_number": null },
+  "billing_provider": {
+    "address": {
+      "city": "DALLAS",
+      "state": "TX",
+      "street": "5301 LOVERS LANE",
+      "zip": "75209"
+    },
+    "name": "CITYDOC URGENT CARE CENTER 2, PLLC",
+    "npi": "1003044942",
+    "tax_id": "964346883",
+    "taxonomy": "261QU0200X"
+  },
+  "claim_details": {
+    "facility_type_code": null,
+    "frequency_code": "1",
+    "place_of_service": "11"
+  },
+  "claim_id": "MOCK-RULE-TOTALMISMATCH",
+  "claim_totals": { "total_charges": 500.0 },
+  "diagnosis_codes": [
+    {
+      "code": "M5450",
+      "qualifier": "ABK"
+    }
+  ],
+  "financial": { "claim_amount": 500.0 },
+  "patient": {
+    "date_of_birth": "2004-06-05",
+    "gender": "M",
+    "name": {
+      "first": "JAMAL",
+      "last": "WHITAKER",
+      "middle": "T"
+    }
+  },
+  "payer": {
+    "name": "STATE MEDICAID PROGRAM",
+    "payer_id": "STMED01"
+  },
+  "provider": {
+    "name": "CITYDOC URGENT CARE CENTER 2, PLLC",
+    "npi": "1003044942",
+    "tax_id": "964346883",
+    "taxonomy": "261QU0200X",
+    "tenure_days": 2400
+  },
+  "rendering_provider": null,
+  "sample_notes": "Claim amount $500.00, line charges $350 + $95 = $445.00: ClaimTotalMismatch.",
+  "service_lines": [
+    {
+      "charge_amount": 350.0,
+      "date_of_service": "2026-09-14",
+      "diagnosis_pointer": "1",
+      "line_number": 1,
+      "place_of_service": "11",
+      "procedure_code": "99244",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    },
+    {
+      "charge_amount": 95.0,
+      "date_of_service": "2026-09-14",
+      "diagnosis_pointer": "1",
+      "line_number": 2,
+      "place_of_service": "11",
+      "procedure_code": "72100",
+      "procedure_qualifier": "HC",
+      "revenue_code": null,
+      "tooth_info": null,
+      "unit_type": "UN",
+      "units": 1
+    }
+  ],
+  "subscriber": {
+    "address": {
+      "city": "DALLAS",
+      "state": "TX",
+      "street": "100 MAIN ST",
+      "zip": "75209"
+    },
+    "date_of_birth": "2004-06-05",
+    "first_name": "JAMAL",
+    "gender": "M",
+    "group_number": null,
+    "last_name": "WHITAKER",
+    "member_id": "MCD808626178",
+    "middle_name": "T",
+    "payer_responsibility": "P",
+    "relationship_code": "18"
+  },
+  "transaction_type": "837P"
+}
+

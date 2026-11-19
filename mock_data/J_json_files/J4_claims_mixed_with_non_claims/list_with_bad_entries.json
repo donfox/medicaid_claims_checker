@@ -127,7 +127,7 @@
         "description": "Office visit \u2014 established patient, low complexity",
         "units": 1,
         "unit_rate": 150.0,
-        "line_amount": 150.0,
+        "charge_amount": 150.0,
         "date_of_service": "2026-02-19",
         "place_of_service": "11",
         "diagnosis_pointers": [
@@ -306,7 +306,7 @@
         "description": "Total knee arthroplasty",
         "units": 1,
         "unit_rate": 65000.0,
-        "line_amount": 65000.0,
+        "charge_amount": 65000.0,
         "date_of_service": "2026-02-19",
         "place_of_service": "21",
         "diagnosis_pointers": [

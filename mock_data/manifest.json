@@ -889,6 +889,36 @@
       "expect": {
         "claims": [
           {
+            "claim_id": "MOCK-RULE-TOTALMISMATCH",
+            "matched": [
+              "ClaimTotalMismatch"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "R_business_rules/R2_each_rule_alone/ClaimTotalMismatch.json",
+      "purpose": "Claim total $500 but the lines add up to $445"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "MISMATCH01",
+            "matched": [
+              "ClaimTotalMismatch"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "R_business_rules/R2_each_rule_alone/ClaimTotalMismatch.x12",
+      "purpose": "CLM02 says $200.00 but the lines add up to $168.00 → ClaimTotalMismatch"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
             "claim_id": "MOCK-RULE-EXCESSIVE",
             "matched": [
               "ExcessiveTotalCharges",
@@ -1715,6 +1745,19 @@
       },
       "file": "R_business_rules/R9_rule_not_decidable/missing_taxonomy_new_provider.x12",
       "purpose": "No taxonomy, $8,000 → MissingProviderTaxonomy, UnauthorizedProcedure; TaxonomyMismatchNewProvider not checked (no tenure)"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "CENTS01",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "X_x12_files/X1_837p_professional/cents_add_up.x12",
+      "purpose": "Three lines of $33.33 and a $99.99 total: added in exact cents they balance, so ClaimTotalMismatch must not match; clean"
     },
     {
       "expect": {

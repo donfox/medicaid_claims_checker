@@ -152,7 +152,7 @@ Every page needs a log-in except log-in, registration and set-password.
 | `/users/settings` | `UserSettingsController` | Change your own name, username, email or password, and log out your other sessions |
 | `/users/set-password/:token` | `UserPasswordSetupController` | The one-time password link an admin gives a user (see [docs/ADMIN_GUIDE.md](../docs/ADMIN_GUIDE.md)) |
 
-Development-only route: `/dev/dashboard` (Phoenix LiveDashboard). The app sends no email.
+Development-only route: `/dev/dashboard` (Phoenix LiveDashboard, the system monitor), for logged-in admins only. The app sends no email.
 
 ## API Endpoints
 

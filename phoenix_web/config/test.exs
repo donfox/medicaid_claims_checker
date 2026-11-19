@@ -46,3 +46,7 @@ config :medicaid_claims_checker, Oban, testing: :inline
 # Enable helpful, but potentially expensive runtime checks
 config :phoenix_live_view,
   enable_expensive_runtime_checks: true
+
+# Compile the development-only routes (the LiveDashboard) so tests can
+# check they are for admins only.
+config :medicaid_claims_checker, dev_routes: true

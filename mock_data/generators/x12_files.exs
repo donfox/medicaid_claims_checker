@@ -51,7 +51,11 @@ defmodule X12Suite.Builder do
   end
 
   # A claim spec. `lines` is a list of {procedure, charge, date}; the claim
-  # total is their sum unless `amount` overrides it.
+  # total is their sum unless `amount` overrides it. A line date may be nil
+  # (no line DTP) or a range "CCYYMMDD-CCYYMMDD" (RD8). `statement` is a
+  # {from, to} claim-level statement period (DTP*434), `admission` a D8 or
+  # DT (CCYYMMDDHHMM) admission date (DTP*435), and `patient` a dependant
+  # sent in its own patient loop (HL 23, NM1*QC).
   def claim(id, opts \\ []) do
     lines = Keyword.get(opts, :lines, [{"99213", "150.00", "20260901"}])
 
@@ -59,6 +63,12 @@ defmodule X12Suite.Builder do
       Keyword.get_lazy(opts, :amount, fn ->
         lines |> Enum.map(fn {_, c, _} -> String.to_float(c) end) |> Enum.sum() |> money()
       end)
+
+    patient =
+      case Keyword.get(opts, :patient) do
+        nil -> nil
+        p -> Map.new(p)
+      end
 
     %{
       id: id,
@@ -70,7 +80,10 @@ defmodule X12Suite.Builder do
       rendering: Keyword.get(opts, :rendering),
       prior_auth: Keyword.get(opts, :prior_auth),
       # CLM05-3: 1 original, 7 replacement, 8 void.
-      frequency: Keyword.get(opts, :frequency, "1")
+      frequency: Keyword.get(opts, :frequency, "1"),
+      statement: Keyword.get(opts, :statement),
+      admission: Keyword.get(opts, :admission),
+      patient: patient
     }
   end
 
@@ -158,7 +171,7 @@ defmodule X12Suite.Builder do
         subscriber =
           if tx.same_subscriber and acc != [], do: [], else: subscriber_segments(c, hl)
 
-        next_hl = if subscriber == [], do: hl, else: hl + 1
+        next_hl = hl + Enum.count(subscriber, &(hd(&1) == "HL"))
         {acc ++ subscriber ++ claim_segments(c, tx.kind, comp), next_hl}
       end)
 
@@ -169,13 +182,30 @@ defmodule X12Suite.Builder do
     m = c.member
     dmg = if m.dob, do: [["DMG", "D8", m.dob, m.gender]], else: []
 
+    # SBR02 is 18 (self) only when the subscriber is the patient.
+    {child_code, relationship} = if c.patient, do: {"1", ""}, else: {"0", "18"}
+
+    patient =
+      case c.patient do
+        nil ->
+          []
+
+        p ->
+          [
+            ["HL", Integer.to_string(hl + 1), Integer.to_string(hl), "23", "0"],
+            ["PAT", "19"],
+            ["NM1", "QC", "1", p.last, p.first],
+            ["DMG", "D8", p.dob, p.gender]
+          ]
+      end
+
     [
-      ["HL", Integer.to_string(hl), "1", "22", "0"],
-      ["SBR", "P", "18", "", "", "", "", "", "", "MC"],
+      ["HL", Integer.to_string(hl), "1", "22", child_code],
+      ["SBR", "P", relationship, "", "", "", "", "", "", "MC"],
       ["NM1", "IL", "1", m.last, m.first, "", "", "", "MI", m.member_id],
       ["N3", "200 MEMBER ST"],
       ["N4", "CHICAGO", "IL", "60602"]
-    ] ++ dmg ++ [["NM1", "PR", "2", "STATE MEDICAID PROGRAM", "", "", "", "", "PI", "STMED01"]]
+    ] ++ dmg ++ [["NM1", "PR", "2", "STATE MEDICAID PROGRAM", "", "", "", "", "PI", "STMED01"]] ++ patient
   end
 
   defp claim_segments(c, kind, comp) do
@@ -187,6 +217,18 @@ defmodule X12Suite.Builder do
 
     clm = [["CLM", c.id, c.amount, "", "", comp.([c.pos, facility_code, c.frequency]), "Y", "A", "Y", "Y"]]
     auth = if c.prior_auth, do: [["REF", "G1", c.prior_auth]], else: []
+
+    statement =
+      case c.statement do
+        nil -> []
+        {from, to} -> [["DTP", "434", "RD8", from <> "-" <> to]]
+      end
+
+    admission =
+      case c.admission do
+        nil -> []
+        date -> [["DTP", "435", if(byte_size(date) == 12, do: "DT", else: "D8"), date]]
+      end
 
     hi =
       case c.dx do
@@ -211,10 +253,18 @@ defmodule X12Suite.Builder do
             :d -> [["SV3", comp.(["AD", proc]), charge, "", "", "", "1"], ["TOO", "JP", "19"]]
           end
 
-        [["LX", Integer.to_string(n)]] ++ service ++ [["DTP", "472", "D8", date]]
+        dtp =
+          cond do
+            date == nil -> []
+            String.contains?(date, "-") -> [["DTP", "472", "RD8", date]]
+            true -> [["DTP", "472", "D8", date]]
+          end
+
+        [["LX", Integer.to_string(n)]] ++ service ++ dtp
       end)
 
-    clm ++ cl1 ++ auth ++ hi ++ rendering ++ lines
+    # Claim-level order per the 837: CLM, DTP, CL1 (837I), REF, HI, NM1.
+    clm ++ statement ++ admission ++ cl1 ++ auth ++ hi ++ rendering ++ lines
   end
 
   defp pad(s, n), do: String.pad_trailing(s, n)
@@ -392,6 +442,20 @@ defmodule X12Suite.Cases do
       single("X_x12_files/X2_837i_institutional/institutional.x12", "837I institutional claim (SV2, CL1), clean",
         claim("INST01", pos: "13", lines: [{"99284", "900.00", "20260911"}]), ok("INST01", []),
         kind: :i, billing: [name: "THE ROSS ORTHOPAEDIC WELLNESS CENTER", npi: "1003005000", taxonomy: "207X00000X"]),
+      single("X_x12_files/X2_837i_institutional/institutional_claim_dates.x12",
+        "837I with the dates on the claim (statement period 2026-09-10 to 09-12, admission) " <>
+          "and none on the line; the line takes the statement start date, clean",
+        claim("INST03", pos: "13", statement: {"20260910", "20260912"}, admission: "202609101200",
+          lines: [{"99223", "900.00", nil}]),
+        ok("INST03", []),
+        kind: :i, billing: [name: "THE ROSS ORTHOPAEDIC WELLNESS CENTER", npi: "1003005000", taxonomy: "207X00000X"]),
+      single("X_x12_files/X1_837p_professional/line_date_range.x12",
+        "Service line dated as a range (RD8 2026-09-01 to 09-03); rules read the start date, clean",
+        claim("RANGE01", lines: [{"99213", "150.00", "20260901-20260903"}]), ok("RANGE01", [])),
+      single("X_x12_files/X1_837p_professional/patient_not_subscriber.x12",
+        "Patient is a dependant in their own patient loop (HL 23); patient fields are the child's, clean",
+        claim("DEPEND01", patient: [last: "CHILD", first: "KID", dob: "20200101", gender: "M"]),
+        ok("DEPEND01", [])),
       single("X_x12_files/X3_837d_dental/dental.x12", "837D dental claim (SV3, TOO), clean",
         claim("DENT01", lines: [{"D1110", "95.00", "20260912"}]), ok("DENT01", []), kind: :d),
       single("E_edi_files/E1_plain_edi/clean_claim.edi", "Ordinary clean 837P claim in a file named .edi",

@@ -1655,6 +1655,32 @@
       "expect": {
         "claims": [
           {
+            "claim_id": "RANGE01",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "X_x12_files/X1_837p_professional/line_date_range.x12",
+      "purpose": "Service line dated as a range (RD8 2026-09-01 to 09-03); rules read the start date, clean"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "DEPEND01",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "X_x12_files/X1_837p_professional/patient_not_subscriber.x12",
+      "purpose": "Patient is a dependant in their own patient loop (HL 23); patient fields are the child's, clean"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
             "claim_id": "INST01",
             "matched": [],
             "nppes": "ok"
@@ -1663,6 +1689,19 @@
       },
       "file": "X_x12_files/X2_837i_institutional/institutional.x12",
       "purpose": "837I institutional claim (SV2, CL1), clean"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "INST03",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "X_x12_files/X2_837i_institutional/institutional_claim_dates.x12",
+      "purpose": "837I with the dates on the claim (statement period 2026-09-10 to 09-12, admission) and none on the line; the line takes the statement start date, clean"
     },
     {
       "expect": {

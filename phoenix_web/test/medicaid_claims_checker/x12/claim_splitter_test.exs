@@ -250,6 +250,62 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
       assert [%{"place_of_service" => "11"}] = claim["service_lines"]
     end
 
+    test "837I claim-level dates are kept and a line without a date takes the statement period" do
+      assert {:ok, [claim]} =
+               claims(read("X_x12_files/X2_837i_institutional/institutional_claim_dates.x12"))
+
+      assert %{
+               "statement_from_date" => "20260910",
+               "statement_to_date" => "20260912",
+               "admission_date" => "20260910"
+             } = claim["claim_details"]
+
+      assert [%{"date_of_service" => "20260910", "date_of_service_end" => "20260912"}] =
+               claim["service_lines"]
+    end
+
+    test "a line date range gives its start as date_of_service and its end separately" do
+      assert {:ok, [claim]} = claims(read("X_x12_files/X1_837p_professional/line_date_range.x12"))
+
+      assert [%{"date_of_service" => "20260901", "date_of_service_end" => "20260903"}] =
+               claim["service_lines"]
+
+      # A single date has no end.
+      assert {:ok, [plain]} =
+               claims(read("X_x12_files/X1_837p_professional/clean_office_visit.x12"))
+
+      assert [%{"date_of_service" => "20260901", "date_of_service_end" => nil}] =
+               plain["service_lines"]
+    end
+
+    test "a dependant's own patient loop fills the patient fields" do
+      assert {:ok, [claim]} =
+               claims(read("X_x12_files/X1_837p_professional/patient_not_subscriber.x12"))
+
+      assert claim["patient"] == %{
+               "date_of_birth" => "20200101",
+               "gender" => "M",
+               "name" => %{"first" => "KID", "last" => "CHILD", "middle" => nil}
+             }
+
+      assert claim["subscriber"][:first_name] == "ALEX"
+    end
+
+    test "blank elements become nil everywhere, so IS NULL rules see them" do
+      clean = read("X_x12_files/X2_837i_institutional/institutional.x12")
+
+      blanked =
+        clean
+        |> String.replace("DMG*D8*19850315*F", "DMG*D8**F")
+        |> String.replace("SV2*0450*HC:99284*900.00*UN*1", "SV2*0450**900.00*UN*1")
+
+      assert {:ok, [claim]} = claims(blanked)
+      assert claim["patient"]["date_of_birth"] == nil
+      assert claim["subscriber"][:date_of_birth] == nil
+      assert [%{"procedure_code" => nil, "procedure_qualifier" => nil}] = claim["service_lines"]
+      assert claim["patient"]["name"]["middle"] == nil
+    end
+
     test "an absent billing NPI becomes nil, not an empty string" do
       assert {:ok, [claim]} =
                claims(read("N_nppes_provider_checks/N10_no_billing_npi/missing_billing_npi.x12"))

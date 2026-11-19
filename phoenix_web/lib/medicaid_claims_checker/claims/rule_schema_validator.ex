@@ -19,6 +19,9 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidator do
     "claim_details.place_of_service",
     "claim_details.facility_type_code",
     "claim_details.frequency_code",
+    "claim_details.statement_from_date",
+    "claim_details.statement_to_date",
+    "claim_details.admission_date",
     "financial.claim_amount",
     "claim_totals.total_charges",
     "authorization.authorization_number",
@@ -64,6 +67,7 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidator do
     "diagnosis_codes.*.qualifier",
     "service_lines.*.line_number",
     "service_lines.*.date_of_service",
+    "service_lines.*.date_of_service_end",
     "service_lines.*.place_of_service",
     "service_lines.*.procedure_code",
     "service_lines.*.procedure_qualifier",
@@ -190,10 +194,12 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidator do
   end
 
   defp suggest_path(reference) do
-    renamed = Enum.find_value(@renamed, fn {old, new} -> if path_matches?(reference, old), do: new end)
+    renamed =
+      Enum.find_value(@renamed, fn {old, new} -> if path_matches?(reference, old), do: new end)
 
     cond do
-      renamed -> renamed
+      renamed ->
+        renamed
 
       String.starts_with?(reference, "claim.") ->
         stripped = String.replace_prefix(reference, "claim.", "")

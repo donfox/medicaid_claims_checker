@@ -281,16 +281,18 @@ Main sections:
 
 - `claim_id` — claim identifier
 - `financial.claim_amount`, `claim_totals.total_charges` — amounts
-- `claim_details` — `place_of_service`, `facility_type_code`, `frequency_code` (1 original, 7 replacement, 8 void)
+- `claim_details` — `place_of_service`, `facility_type_code`, `frequency_code` (1 original, 7 replacement, 8 void); on 837I claims also `statement_from_date`, `statement_to_date` (the statement period) and `admission_date`
 - `provider`, `billing_provider` — `npi`, `name`, `taxonomy`, `tax_id`; `billing_provider.address` has `street`, `city`, `state`, `zip`
 - `provider.tenure_days` — how many days the provider has been credentialed (the two new-provider rules use it). Only JSON claims carry it; X12 conversion leaves it empty, so on an X12 claim a rule using it is not checked
 - `rendering_provider` — `npi`, `taxonomy_code`, `last_name`, `first_name`
-- `patient` — `date_of_birth`, `gender`, `name.first`, `name.last`
+- `patient` — `date_of_birth`, `gender`, `name.first`, `name.last`; the subscriber's details unless the file has a separate patient loop (a dependant)
 - `subscriber` — `member_id`, `date_of_birth`, `relationship_code`, `group_number`
 - `payer` — `name`, `payer_id`
 - `authorization.authorization_number`
 - `diagnosis_codes` — list; each has `code` and `qualifier`
 - `service_lines` — list; each has `procedure_code`, `charge_amount`, `units`, `date_of_service`, `place_of_service`, `line_number`, `diagnosis_pointer`, `revenue_code`
+
+A line dated as a range has its start in `date_of_service` and its end in `date_of_service_end` (empty for a single date). A line with no date of its own, common on 837I claims, takes the claim's statement period. An element left blank in the file is empty, so `IS NULL` finds it.
 
 The list above covers the fields rules usually need. The full list, including middle names, the subscriber's address, dental `tooth_info` and the envelope sections (`submitter`, `receiver`, `interchange`, `functional_group`), is in `phoenix_web/lib/medicaid_claims_checker/claims/rule_schema_validator.ex`.
 

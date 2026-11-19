@@ -57,8 +57,8 @@ different results; `manifest.json` has each one's.
 | `J_json_files/J6_engine_request/` | An engine request (`rulesText` + claims), which must be refused as an upload |
 | `J_json_files/J7_invalid_json/` | A claim file cut off part-way: not valid JSON, refused |
 | `J_json_files/J8_837i_or_837d_style_json/` | JSON claims in the 837D (dental) and 837I (institutional) layouts |
-| `X_x12_files/X1_837p_professional/` | Clean 837P claims |
-| `X_x12_files/X2_837i_institutional/` | An 837I claim |
+| `X_x12_files/X1_837p_professional/` | Clean 837P claims, incl. a line dated as a range and a dependant patient |
+| `X_x12_files/X2_837i_institutional/` | 837I claims: dated on the line, or on the claim only |
 | `X_x12_files/X3_837d_dental/` | An 837D claim |
 | `X_x12_files/X4_several_claims_one_transaction_set/` | Three claims in one transaction set; two claims for one subscriber |
 | `X_x12_files/X5_several_transaction_sets/` | Two transaction sets in one file |

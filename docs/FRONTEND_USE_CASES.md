@@ -42,8 +42,8 @@
 
 | ID | Use case | Test files | What the app should show |
 |---|---|---|---|
-| **X1** | 837P professional claim | `X_x12_files/X1_837p_professional/` clean_office_visit.x12, clean_multi_line.x12 | “1 X12/EDI claim(s) translated”; Clean. |
-| **X2** | 837I institutional claim | `X_x12_files/X2_837i_institutional/` institutional.x12 | Translated and evaluated; Clean. |
+| **X1** | 837P professional claim | `X_x12_files/X1_837p_professional/` clean_office_visit.x12, clean_multi_line.x12, line_date_range.x12, patient_not_subscriber.x12 | “1 X12/EDI claim(s) translated”; Clean. A line dated as a range is read by its start date; a dependant's own patient loop gives the patient fields. |
+| **X2** | 837I institutional claim | `X_x12_files/X2_837i_institutional/` institutional.x12, institutional_claim_dates.x12 | Translated and evaluated; Clean. With the dates on the claim only, the line takes the statement start date and the NPPES check passes. |
 | **X3** | 837D dental claim | `X_x12_files/X3_837d_dental/` dental.x12 | Translated and evaluated; Clean. |
 | **X4** | Several claims in one transaction set | `X_x12_files/X4_several_claims_one_transaction_set/` three_claims.x12, two_claims_same_subscriber.x12 | Each claim is its own result row. three_claims: MULTI01 Clean; MULTI02 HighValueClaim + HighComplexityERVisit + UnauthorizedProcedure; MULTI03 MissingDiagnosisCodes. Same subscriber: SAMESUB01 Clean, SAMESUB02 SuspiciouslyLowCharge. |
 | **X5** | Several transaction sets in one file | `X_x12_files/X5_several_transaction_sets/` two_transaction_sets.x12 | All four claims from both sets are evaluated; TXA02 SuspiciouslyLowCharge, TXB02 PatientAgeOutOfRange. |

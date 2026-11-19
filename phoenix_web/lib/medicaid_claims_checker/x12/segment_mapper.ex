@@ -3,11 +3,12 @@
 
 defmodule MedicaidClaimsChecker.X12.SegmentMapper do
   @moduledoc """
-  Maps flat all_segments JSON into semantic claim structure for 837 transactions.
+  Maps one claim's flat segment list into the claim layout rules read.
 
-  Takes the list of segment maps produced by `Converter.build_structure/2`
-  (each with segment_id, elements, raw, line_number) and produces a
-  hierarchical claim map suitable for POSTing to external systems.
+  `map_from_json/1` takes the JSON from `Converter.convert_content/1` (each
+  segment with segment_id, elements, raw, line_number), `map_segments/2`
+  builds an X12-shaped map, and `normalize/1` flattens that into the claim
+  contract listed in `Claims.RuleSchemaValidator`.
 
   Supports 837P (Professional), 837I (Institutional), 837D (Dental).
 
@@ -287,6 +288,7 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
       # Claim-level segments (between CLM and first LX)
       claim_segs = claim_level_segments(segments)
       prior_auth = find_qualified(claim_segs, "REF", 1, "G1")
+      dates = extract_dates(claim_segs)
 
       %{
         claim_id: get_el(clm, 1),
@@ -296,25 +298,16 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
         facility_code_qualifier: clm05.facility_code_qualifier,
         frequency_code: clm05.frequency_code,
         prior_authorization: if(prior_auth, do: get_el(prior_auth, 2), else: nil),
-        claim_filing_indicator: extract_claim_filing_indicator(segments),
         subscriber: extract_subscriber(segments),
+        patient: extract_patient(segments),
         payer: extract_payer(segments),
-        dates: extract_dates(claim_segs),
+        dates: dates,
         diagnosis_codes: extract_diagnosis_codes(claim_segs, sub),
         rendering_provider: extract_rendering_provider(claim_segs),
-        attending_provider: extract_attending_provider(claim_segs),
-        institutional_claim: extract_institutional_claim(claim_segs),
-        service_lines: extract_service_lines(segments, transaction_type, sub)
+        service_lines: extract_service_lines(segments, transaction_type, sub, dates)
       }
     else
       nil
-    end
-  end
-
-  defp extract_claim_filing_indicator(segments) do
-    case find_seg(segments, "SBR") do
-      nil -> nil
-      sbr -> get_el(sbr, 9)
     end
   end
 
@@ -345,6 +338,28 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
     end
   end
 
+  # The patient loop (HL 23, NM1*QC) is only sent when the patient is not
+  # the subscriber, a dependant for example. Without it the patient is the
+  # subscriber, and `normalize/1` uses the subscriber's details.
+  defp extract_patient(segments) do
+    case find_qualified(segments, "NM1", 1, "QC") do
+      nil ->
+        nil
+
+      nm1 ->
+        trailing = segments_after(segments, nm1, ["CLM", "NM1", "HL"])
+        dmg = Enum.find(trailing, fn seg -> seg_id(seg) == "DMG" end)
+
+        %{
+          last_name: get_el(nm1, 3),
+          first_name: get_el(nm1, 4),
+          middle_name: get_el(nm1, 5),
+          date_of_birth: if(dmg, do: get_el(dmg, 2), else: nil),
+          gender: if(dmg, do: get_el(dmg, 3), else: nil)
+        }
+    end
+  end
+
   defp extract_payer(segments) do
     case find_qualified(segments, "NM1", 1, "PR") do
       nil ->
@@ -358,26 +373,37 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
     end
   end
 
+  # Claim-level dates. The statement period (DTP*434, 837I) is where an
+  # institutional claim carries its dates; a service line without its own
+  # DTP*472 falls under it. Admission (DTP*435) is D8 on 837P and DT
+  # (date and time) on 837I; only the date is kept.
   defp extract_dates(claim_segs) do
-    claim_segs
-    |> find_segs("DTP")
-    |> Enum.reduce(%{}, fn dtp, acc ->
-      key = date_qualifier_to_key(get_el(dtp, 1))
-      value = get_el(dtp, 3)
-      Map.put(acc, key, value)
-    end)
-    |> case do
-      map when map == %{} -> nil
-      map -> map
-    end
+    {statement_from, statement_to} =
+      case find_qualified(claim_segs, "DTP", 1, "434") do
+        nil -> {nil, nil}
+        dtp -> date_period(dtp)
+      end
+
+    admission =
+      case find_qualified(claim_segs, "DTP", 1, "435") do
+        nil -> nil
+        dtp -> dtp |> get_el(3) |> String.slice(0, 8)
+      end
+
+    %{statement_from: statement_from, statement_to: statement_to, admission_date: admission}
   end
 
-  defp date_qualifier_to_key("431"), do: :onset_date
-  defp date_qualifier_to_key("435"), do: :admission_date
-  defp date_qualifier_to_key("096"), do: :discharge_date
-  defp date_qualifier_to_key("472"), do: :service_date
-  defp date_qualifier_to_key("439"), do: :accident_date
-  defp date_qualifier_to_key(code), do: String.to_atom("date_#{code}")
+  # A DTP date as {from, to}: D8 is one date (to is nil), RD8 a range
+  # written CCYYMMDD-CCYYMMDD. A one-day range has no separate end.
+  defp date_period(dtp) do
+    value = get_el(dtp, 3)
+
+    case {get_el(dtp, 2), String.split(value, "-", parts: 2)} do
+      {"RD8", [from, to]} when from == to -> {from, nil}
+      {"RD8", [from, to]} -> {from, to}
+      _ -> {value, nil}
+    end
+  end
 
   defp extract_diagnosis_codes(claim_segs, sub) do
     claim_segs
@@ -414,24 +440,6 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
     end
   end
 
-  defp extract_attending_provider(claim_segs) do
-    nm1 = find_qualified(claim_segs, "NM1", 1, "71")
-
-    if nm1 do
-      prv = find_qualified(claim_segs, "PRV", 1, "AT")
-
-      %{
-        last_name: get_el(nm1, 3),
-        first_name: get_el(nm1, 4),
-        middle_name: get_el(nm1, 5),
-        npi: get_el(nm1, 9),
-        taxonomy_code: if(prv, do: get_el(prv, 3), else: nil)
-      }
-    else
-      nil
-    end
-  end
-
   # CLM05 is a composite whose first part depends on the claim type. On 837P
   # and 837D it is the place of service (qualifier "B"); on 837I it is the
   # facility type code, the first two digits of the type of bill (qualifier
@@ -452,34 +460,27 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
     }
   end
 
-  defp extract_institutional_claim(claim_segs) do
-    case find_seg(claim_segs, "CL1") do
-      nil ->
-        nil
-
-      cl1 ->
-        %{
-          admission_type: get_el(cl1, 1),
-          admission_source: get_el(cl1, 2),
-          patient_status: get_el(cl1, 3)
-        }
-    end
-  end
-
   # ---------------------------------------------------------------------------
   # Service line extraction
   # ---------------------------------------------------------------------------
 
-  defp extract_service_lines(segments, transaction_type, sub) do
+  defp extract_service_lines(segments, transaction_type, sub, claim_dates) do
     segments
     |> service_line_groups()
     |> Enum.map(fn line_segs ->
       lx = find_seg(line_segs, "LX")
-      dtp = find_qualified(line_segs, "DTP", 1, "472")
+
+      # A line without its own date takes the claim's statement period.
+      {from, to} =
+        case find_qualified(line_segs, "DTP", 1, "472") do
+          nil -> {claim_dates.statement_from, claim_dates.statement_to}
+          dtp -> date_period(dtp)
+        end
 
       base = %{
         line_number: if(lx, do: parse_int(get_el(lx, 1)), else: nil),
-        service_date: if(dtp, do: get_el(dtp, 3), else: nil)
+        service_date: from,
+        service_date_end: to
       }
 
       case transaction_type do
@@ -617,10 +618,12 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
   # ---------------------------------------------------------------------------
 
   @doc """
-  Maps X12Translator output to the flat business schema expected by the rules engine.
+  Flattens the map from `map_segments/2` (or an uploaded JSON claim in that
+  X12 shape) into the claim contract rules read.
 
-  Claims already in business schema (top-level `claim_id` key) pass through unchanged,
-  making this function idempotent.
+  Claims already in that contract (top-level `claim_id` key) pass through
+  unchanged, making this function idempotent. Absent X12 elements arrive as
+  "", which a rule would treat as present, so blank values become nil.
   """
   @spec normalize(map()) :: map()
   def normalize(%{"claim_id" => _} = claim), do: claim
@@ -630,6 +633,8 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
     claim = nf(x12_map, "claim") || %{}
     billing = nf(x12_map, "billing_provider") || %{}
     subscriber = nf(claim, "subscriber") || %{}
+    patient = nf(claim, "patient") || subscriber
+    dates = nf(claim, "dates") || %{}
     total_charge_raw = nf(claim, "total_charge_amount")
     total_charge = parse_money(total_charge_raw)
     place_of_service = blank_to_nil(nf(claim, "place_of_service"))
@@ -661,15 +666,19 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
         "facility_type_code" => blank_to_nil(nf(claim, "facility_type_code")),
         # CLM05-3: 1 original, 7 replacement, 8 void. Also keeps a void or
         # replacement from matching the original as a duplicate submission.
-        "frequency_code" => blank_to_nil(nf(claim, "frequency_code"))
+        "frequency_code" => blank_to_nil(nf(claim, "frequency_code")),
+        # DTP*434 statement period and DTP*435 admission date (837I).
+        "statement_from_date" => blank_to_nil(nf(dates, "statement_from")),
+        "statement_to_date" => blank_to_nil(nf(dates, "statement_to")),
+        "admission_date" => blank_to_nil(nf(dates, "admission_date"))
       },
       "patient" => %{
-        "date_of_birth" => nf(subscriber, "date_of_birth"),
-        "gender" => nf(subscriber, "gender"),
+        "date_of_birth" => blank_to_nil(nf(patient, "date_of_birth")),
+        "gender" => blank_to_nil(nf(patient, "gender")),
         "name" => %{
-          "first" => nf(subscriber, "first_name"),
-          "last" => nf(subscriber, "last_name"),
-          "middle" => nf(subscriber, "middle_name")
+          "first" => blank_to_nil(nf(patient, "first_name")),
+          "last" => blank_to_nil(nf(patient, "last_name")),
+          "middle" => blank_to_nil(nf(patient, "middle_name"))
         }
       },
       "financial" => %{
@@ -698,6 +707,7 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
       "payer" => nf(claim, "payer"),
       "rendering_provider" => nf(claim, "rendering_provider")
     }
+    |> blank_values_to_nil()
   end
 
   def normalize(other), do: other
@@ -705,18 +715,20 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
   defp normalize_service_line(line, claim_place_of_service) when is_map(line) do
     # date_of_service may already be renamed, or still be service_date (X12 schema)
     date = nf(line, "service_date") || nf(line, "date_of_service")
+    date_end = nf(line, "service_date_end") || nf(line, "date_of_service_end")
 
     %{
       "place_of_service" => blank_to_nil(nf(line, "place_of_service")) || claim_place_of_service,
       "line_number" => nf(line, "line_number"),
-      "date_of_service" => date,
-      "procedure_code" => nf(line, "procedure_code"),
-      "procedure_qualifier" => nf(line, "procedure_qualifier"),
-      "charge_amount" => nf(line, "charge_amount"),
-      "unit_type" => nf(line, "unit_type"),
-      "units" => nf(line, "units"),
-      "diagnosis_pointer" => nf(line, "diagnosis_pointer"),
-      "revenue_code" => nf(line, "revenue_code"),
+      "date_of_service" => blank_to_nil(date),
+      "date_of_service_end" => blank_to_nil(date_end),
+      "procedure_code" => blank_to_nil(nf(line, "procedure_code")),
+      "procedure_qualifier" => blank_to_nil(nf(line, "procedure_qualifier")),
+      "charge_amount" => blank_to_nil(nf(line, "charge_amount")),
+      "unit_type" => blank_to_nil(nf(line, "unit_type")),
+      "units" => blank_to_nil(nf(line, "units")),
+      "diagnosis_pointer" => blank_to_nil(nf(line, "diagnosis_pointer")),
+      "revenue_code" => blank_to_nil(nf(line, "revenue_code")),
       "tooth_info" => nf(line, "tooth_info")
     }
   end
@@ -728,6 +740,13 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
   end
 
   defp blank_to_nil(value), do: value
+
+  # Applies blank_to_nil to every value in the claim, keys left as they are.
+  defp blank_values_to_nil(map) when is_map(map),
+    do: Map.new(map, fn {k, v} -> {k, blank_values_to_nil(v)} end)
+
+  defp blank_values_to_nil(list) when is_list(list), do: Enum.map(list, &blank_values_to_nil/1)
+  defp blank_values_to_nil(value), do: blank_to_nil(value)
 
   # Access a field by string key, falling back to atom key.
   defp nf(map, str_key) when is_map(map) do

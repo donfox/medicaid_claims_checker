@@ -18,8 +18,8 @@ defmodule MedicaidClaimsChecker.Claims.RuleCatalogue do
 
   Some Default Rules have no DSL text: `NPPESProviderLookup` is done in
   Elixir (`Claims.validate_claim_providers/1`), and `DuplicateClaims` plus
-  six rules that need data not loaded yet (CMS tables, the LEIE, member
-  claim history) are seeded as "Not connected": listed, never run.
+  nine rules that need data not loaded yet (CMS tables, the LEIE, member
+  claim history, a state setting) are seeded as "Not connected": listed, never run.
 
   No ML scoring service exists yet, so ML Model entries are seeded as
   "Not connected" too. Claims are checked by Default and BA Rules only.

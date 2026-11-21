@@ -25,9 +25,9 @@
 #   alone. The other catalogue flags (editable, removable, redundant,
 #   db_access) are written only when a row is first inserted.
 #
-# What gets seeded (38 catalogue entries, 20 DSL rules)
-#   Default Rules  20  can't be edited or removed in the UI. 13 always on;
-#                      7 "Not connected": they need data not loaded yet
+# What gets seeded (41 catalogue entries, 20 DSL rules)
+#   Default Rules  23  can't be edited or removed in the UI. 13 always on;
+#                      10 "Not connected": they need data not loaded yet
 #                      (see docs/ML_PLAN.md, Default Rule candidates)
 #   BA Rules        8  written by business analysts; editable
 #   ML Models      10  "Not connected": no scoring service exists yet
@@ -324,8 +324,8 @@ new_default_rules = [
     inserted_at: now,
     updated_at: now
   },
-  # Not connected until their data is loaded: CMS tables, the LEIE, or
-  # member claim history. They have no DSL text yet.
+  # Not connected until their data is loaded: CMS tables, the LEIE, member
+  # claim history, a query over a provider's claims, or a state setting. They have no DSL text yet.
   %{
     name: "UnitsOfServiceLimit",
     description:
@@ -403,6 +403,45 @@ new_default_rules = [
     db_access: true,
     inserted_at: now,
     updated_at: now
+  },
+  %{
+    name: "AgeSexProcedureMismatch",
+    description:
+      "Flags procedure or diagnosis codes that don't fit the patient's age or sex, such as a pregnancy code for a male patient; needs the CMS age and sex edit tables",
+    entry_type: "Default Rule",
+    status: "Not connected",
+    editable: false,
+    removable: false,
+    redundant: false,
+    db_access: true,
+    inserted_at: now,
+    updated_at: now
+  },
+  %{
+    name: "ImpossibleDay",
+    description:
+      "Flags a provider billing more than 24 hours of time-based services on one day, across all their claims; needs a query over the provider's claims",
+    entry_type: "Default Rule",
+    status: "Not connected",
+    editable: false,
+    removable: false,
+    redundant: false,
+    db_access: true,
+    inserted_at: now,
+    updated_at: now
+  },
+  %{
+    name: "TimelyFiling",
+    description:
+      "Flags claims received after the state's filing deadline counted from the date of service; needs the state's deadline as a setting",
+    entry_type: "Default Rule",
+    status: "Not connected",
+    editable: false,
+    removable: false,
+    redundant: false,
+    db_access: false,
+    inserted_at: now,
+    updated_at: now
   }
 ]
 
@@ -414,9 +453,9 @@ Repo.insert_all(
 )
 
 # --- Default Rules: DSL text (business_rules) ---
-# The logic for 12 of the 20 Default Rules; NPPESProviderLookup and
+# The logic for 12 of the 23 Default Rules; NPPESProviderLookup and
 # DuplicateClaims are covered in the note on default_catalogue_entries, and
-# the six Not connected rules in new_default_rules have no DSL text yet. The engine gets this text together with
+# the nine Not connected rules in new_default_rules have no DSL text yet. The engine gets this text together with
 # the BA Rules' text (Evaluator.gather_rules_text/0).
 
 default_business_rules = [

@@ -41,7 +41,7 @@ Ten ML Models make a fairly complete set (agreed 2026-11-20). Checks that follow
 
 ### Default Rule candidates
 
-These came up as ML ideas but follow fixed published tables or simple thresholds, so they need no training. Since 2026-11-20 they are in the catalogue as Default Rules with status *Not connected*: listed, never run, until their data is loaded and their logic written. Near-duplicates widened `DuplicateClaims` instead of adding a rule.
+These came up as ML ideas but follow fixed published tables or simple thresholds, so they need no training. Since 2026-11-20 they are in the catalogue as Default Rules with status *Not connected*: listed, never run, until their data is loaded and their logic written. Near-duplicates widened `DuplicateClaims` instead of adding a rule. The last three rows were added the same day, from a review of what the rules and models together would miss (see [Limits of the whole system](#limits-of-the-whole-system)).
 
 | Check | As a Default Rule | Catalogue entry |
 |---|---|---|
@@ -52,6 +52,9 @@ These came up as ML ideas but follow fixed published tables or simple thresholds
 | Excluded provider | Billing or servicing NPI on the LEIE table | `ExcludedProvider` |
 | Doctor shopping | At least N prescribers in 90 days (needs patient data) | `DoctorShopping` |
 | Card sharing | One member ID served in distant places on the same day (needs patient data) | `CardSharing` |
+| Age and sex vs. procedure | CMS age and sex edits, e.g. a pregnancy code for a male patient | `AgeSexProcedureMismatch` |
+| Impossible day | More than 24 hours of time-based services by one provider on one day, across claims | `ImpossibleDay` |
+| Timely filing | Received after the state's deadline, counted from the date of service | `TimelyFiling` |
 
 ## Why Python
 
@@ -106,6 +109,16 @@ All the libraries above are open source, in line with the decision to avoid comm
 - LEIE exclusions arrive years late and include non-fraud reasons, such as licensing problems. Older entries often have no NPI.
 - The files run to several GB. Each file and its size is confirmed before it is downloaded, and none of them goes into git.
 
+**Future data sources** (not in this plan; each would close a gap the rules and models cannot):
+
+| Source | What it would catch |
+|---|---|
+| Member eligibility (enrolled on the date of service?) | Services billed for members not covered at the time |
+| Death records | Services billed after a member or provider died |
+| State Medicaid provider enrollment and license status | Providers not enrolled, or with a suspended license (the LEIE covers federal exclusions only) |
+| Pharmacy claims | Most prescription-drug schemes |
+| Patient-level claim history | Doctor shopping, card sharing, shared-patient networks (needs the patient-data decision) |
+
 ## Storage and database
 
 Each source is stored where it is used. Phoenix owns every database table, through Ecto migrations, as with `nppes_providers`; Python reads and writes rows but never changes the schema. No existing table changes.
@@ -120,7 +133,7 @@ The raw HHS Medicaid Provider Spending data (several GB, exact size confirmed be
 | `ml_model_versions` | 2 | Python training | Scoring service; Phoenix | One row per trained version: model name (the catalogue name), version, data years, test results, model card link, status `candidate`, `active` or `retired` |
 | `ml_provider_scores` | 3 | Python training | Scoring service | One row per provider per model version (~1 million per version): NPI, score, top reasons, peer group, or *not assessed* with the reason |
 | `claim_ml_results` | 3–4 | Phoenix, from the engine's reply | Claim page; Python (labels) | One row per claim per model: model and version, score, band, reasons, or *not assessed* |
-| `analyst_decisions` | 4 (or earlier, see decisions below) | Phoenix, when an analyst decides | Claim page; Python (labels for models 9–10) | Claim, analyst, decision (for example *problem confirmed* or *legitimate*), note, time, and a snapshot of the rule findings and ML scores shown when deciding. Rows are added, never changed. |
+| `analyst_decisions` | 4 (or earlier, see decisions below) | Phoenix, when an analyst decides | Claim page; Python (labels for models 9–10) | Claim, analyst, decision (for example *problem confirmed* or *legitimate*), note, time, why the claim was reviewed (*flagged*, or *random audit*), and a snapshot of the rule findings and ML scores shown when deciding. Rows are added, never changed. |
 
 Python reads `nppes_providers` straight from Postgres for peer groups, so nothing is copied.
 
@@ -196,6 +209,7 @@ Python reads `nppes_providers` straight from Postgres for peer groups, so nothin
 
 - On each claim, the ML finding appears as a recommendation: band, score, top reasons, model version. A claim the model could not assess is shown as such.
 - The analyst's decision on a claim is stored in `analyst_decisions` with the model version that scored it, unless that table was built earlier. These decisions become training labels for future retraining.
+- The random audit sample starts (see [Limits of the whole system](#limits-of-the-whole-system)).
 - BillingPatternAnomalyModel moves from *Not connected* to *Active* in the catalogue.
 
 **Done when:** you have tried it in the app with mock data.
@@ -215,6 +229,15 @@ Python reads `nppes_providers` straight from Postgres for peer groups, so nothin
 - **Same input, same output.** Seeds are fixed and dependency versions pinned.
 - **No patient data.** The models use provider-level public data. The engine already strips patient and provider personal fields before calling the scorer.
 - **Wording:** "unusual billing pattern", "worth review". Never "fraud" about a named provider.
+- **Measure what is missed.** A small random share of unflagged claims is reviewed too, so misses can be estimated and labels are not limited to what the rules already catch.
+
+## Limits of the whole system
+
+The Default Rules, BA Rules and ML Models together do not catch every anomalous claim, and are not meant to: their job is to catch the common patterns and send analysts to the riskiest claims first (reviewed 2026-11-20).
+
+- **Beyond claims data.** Services never provided but billed at normal codes and volumes, medical necessity, kickbacks, and stolen provider identities can look normal on a claim. They need investigators, member contact or medical-records audits (see [Out of scope](#out-of-scope)).
+- **Data the app lacks.** Eligibility, death records, state enrollment, pharmacy claims and patient-level history; see *Future data sources* under [Data](#data).
+- **Misses can't be seen directly.** Every label from analyst decisions comes from claims that were already flagged, so models trained only on them learn to catch what the rules already catch. A **random audit sample** fixes this: analysts also review a small random share (for example 1%) of claims nothing flagged. That estimates the miss rate and gives unbiased labels, which matters most for AnalystOutcomeModel and RuleEffectivenessModel. Each such review is recorded in `analyst_decisions` as *random audit*.
 
 ## Where things live
 
@@ -272,3 +295,5 @@ Open. Each has a recommendation.
 - The full, claim-level T-MSIS files and any data-use agreement.
 - The LLM scorer (it follows this plan).
 - Automatic retraining.
+- Schemes claims data cannot show (services never provided, medical necessity, kickbacks, stolen provider identities). They belong to investigation, member verification and records audits.
+- The future data sources listed under [Data](#data).

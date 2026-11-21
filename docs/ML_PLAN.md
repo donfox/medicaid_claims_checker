@@ -196,7 +196,7 @@ Python reads `nppes_providers` straight from Postgres for peer groups, so nothin
 
 ## Decisions needed before Phase 1
 
-1. Is the HHS Medicaid Provider Spending data acceptable as the training data?
+1. ~~Is the HHS Medicaid Provider Spending data acceptable as the training data?~~ **Yes** (decided 2026-11-20).
 2. Is the `ml/` folder layout above acceptable?
 3. Is the order acceptable: anomaly model first, supervised model fifth, the LLM afterwards?
 

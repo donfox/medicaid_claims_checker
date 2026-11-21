@@ -53,6 +53,30 @@ These came up as ML ideas but follow fixed published tables or simple thresholds
 | Doctor shopping | At least N prescribers in 90 days (needs patient data) | `DoctorShopping` |
 | Card sharing | One member ID served in distant places on the same day (needs patient data) | `CardSharing` |
 
+## Why Python
+
+Decided 2026-11-20. Training and the scoring service are written in Python; the Haskell engine calls the service through `ML_SCORER_URL` as it does now, and Phoenix stays as it is.
+
+Python was compared with the two languages already in the app, against what these ten models need:
+
+| Need | Python | Elixir (Nx, Scholar, Explorer, EXGBoost) | Haskell |
+|---|---|---|---|
+| Isolation Forest (model 1) | scikit-learn, mature | Not available; would be written by hand | Written by hand |
+| Gradient boosting and calibration (models 4, 9, 10) | LightGBM or XGBoost, calibration built in | EXGBoost, younger; calibration by hand | Not available |
+| Change-point detection (model 3) | `ruptures` and others | Written by hand | Written by hand |
+| Graph analysis (model 5) | NetworkX | `libgraph`, basic | `fgl`, basic |
+| Per-claim reasons, the `top_factors` an analyst sees | SHAP, the standard method | No equivalent | No equivalent |
+| Data files of several GB | Polars, DuckDB | Explorer (built on Polars) | Weak |
+| ML principles shown in a familiar form | scikit-learn, as in most courses and texts | Less familiar | Unfamiliar |
+| No new language or service | Adds both | Yes | Yes |
+| The later LLM step | Every SDK and local-model tool | Plain HTTP works | Plain HTTP works |
+
+**The deciding reasons:** the algorithms the plan names exist in Python and are mature, and SHAP gives the per-claim reasons that Edition 2 depends on (an analyst has to see why a claim scored high). Neither Elixir nor Haskell has an equivalent today. Haskell would mean writing the algorithms from scratch; Elixir was the credible alternative, keeping the app to two languages at the cost of simpler models and hand-written explanations.
+
+**The cost** is a third service to start, test and run (`scripts/start.sh` and the test scripts start it too). It is accepted because the same service will host the later LLM step, and because Python is the language the developer knows best.
+
+All the libraries above are open source, in line with the decision to avoid commercial services for now.
+
 ## Terms used
 
 - **Feature**: one measured fact about a provider, such as services per patient.

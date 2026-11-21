@@ -113,7 +113,7 @@ Each source is stored where it is used. Phoenix owns every database table, throu
 | Data | Size (approx.) | Where | Why |
 |---|---|---|---|
 | OIG LEIE | ~80,000 rows, ~15 MB | New table `leie_exclusions` | Small, and the app can use it directly: an exclusion check is a standard, deterministic Medicaid rule. It also supplies the Phase 5 labels. OIG updates it monthly. |
-| HHS Medicaid Provider Spending (raw) | Several GB (exact size confirmed before download) | Files in `ml/data/`, converted once to Parquet | Only training reads these rows, all at once. DuckDB or Polars does that faster than Postgres, and the app's database stays small. |
+| HHS Medicaid Provider Spending (raw) | Several GB (exact size confirmed before download) | Files in `python_ml/data/`, converted once to Parquet | Only training reads these rows, all at once. DuckDB or Polars does that faster than Postgres, and the app's database stays small. |
 | Training results | ~1 million rows, one per provider | New table `ml_provider_scores` (Phase 3) | Features, score, top reasons and model version for each provider: what the scoring service and the claim page read. |
 
 Python reads `nppes_providers` straight from Postgres for peer groups, so nothing is copied.
@@ -122,7 +122,7 @@ Python reads `nppes_providers` straight from Postgres for peer groups, so nothin
 
 ### Phase 1: data in place
 
-- A download script for the HHS Medicaid spending file and the LEIE, saving into `ml/data/`, outside git.
+- A download script for the HHS Medicaid spending file and the LEIE, saving into `python_ml/data/`, outside git.
 - A script that joins them to `nppes_providers` by NPI and reports coverage: how many billing providers in the spending data match NPPES, and how many LEIE entries have a usable NPI.
 
 **Done when:** you have reviewed the coverage report.
@@ -189,15 +189,46 @@ Python reads `nppes_providers` straight from Postgres for peer groups, so nothin
 - **No patient data.** The models use provider-level public data. The engine already strips patient and provider personal fields before calling the scorer.
 - **Wording:** "unusual billing pattern", "worth review". Never "fraud" about a named provider.
 
-## Where things live (proposed)
+## Where things live
 
-- `ml/`: Python project (managed with `uv`), with download, feature, training and evaluation scripts, the scoring service, and tests.
-- `ml/data/` and `ml/models/`: kept out of git (`.gitignore`). Model cards are kept in git under `docs/models/`.
+Decided 2026-11-20. The Python service sits at the top level beside the other two, named in the same *language_role* pattern, so the tree shows three services in three languages. Each is built and tested on its own, and they talk only over HTTP.
+
+```
+medicaid_claims_checker/
+├── phoenix_web/        Elixir: the web app (UI, database, uploads)
+├── haskell_engine/     Haskell: the rule engine
+├── python_ml/          Python: ML training and the scoring service
+├── mock_data/          shared test files
+├── docs/               shared docs; model cards in docs/models/
+└── scripts/            start, set up and test all services
+```
+
+Inside `python_ml/`, one `uv` project with two parts that share the feature code, so training and scoring always compute features the same way:
+
+```
+python_ml/
+├── pyproject.toml      dependencies, pinned (uv.lock beside it)
+├── README.md           how to train, run the service and test
+├── src/claims_ml/
+│   ├── data/           download the HHS and LEIE files; read NPPES from Postgres
+│   ├── features/       per-provider and per-claim features (shared)
+│   ├── models/         one module per catalogue ML Model
+│   ├── training/       train, evaluate, write model cards and ml_provider_scores
+│   └── service/        FastAPI scorer implementing the engine's v1.0 contract
+├── tests/
+├── data/               downloaded files (out of git)
+└── artifacts/          trained model files, by version (out of git)
+```
+
+- Only `service/` runs alongside the app. Training runs on the development Mac when a model is retrained.
+- `artifacts/` holds trained model files; the name keeps them apart from the model code in `src/claims_ml/models/`.
+- `.gitignore` gains `python_ml/data/` and `python_ml/artifacts/`. Model cards stay in git under `docs/models/`.
+- When the service is added, `scripts/start.sh` and `scripts/test.sh` start it too, and ARCHITECTURE and the README describe three services ([ML_INTEGRATION_NOTES.md](ML_INTEGRATION_NOTES.md), item 10).
 
 ## Decisions needed before Phase 1
 
 1. ~~Is the HHS Medicaid Provider Spending data acceptable as the training data?~~ **Yes** (decided 2026-11-20).
-2. Is the `ml/` folder layout above acceptable?
+2. ~~Is the folder layout above acceptable?~~ **Yes**, as `python_ml/` (decided 2026-11-20).
 3. Is the order acceptable: anomaly model first, supervised model fifth, the LLM afterwards?
 
 ## Out of scope

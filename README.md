@@ -71,6 +71,11 @@ Testing:
 - [Test procedure](docs/TEST_PROCEDURE.md): running the tests and checking a local setup
 - [Frontend use cases](docs/FRONTEND_USE_CASES.md): the 59 things to test in the running app, with each one's test files and expected result, and how to upload the same files round after round
 
+Planning:
+
+- [ML plan](docs/ML_PLAN.md): the proposed plan for the trained ML Models on the Business Rules page (data, training, scoring service), ahead of any LLM step
+- [ML integration notes](docs/ML_INTEGRATION_NOTES.md): how the engine talks to an ML scorer today, and the open issues for the planned Python scoring service
+
 Formal statement:
 
 - [Module capability statement](docs/MODULE_CAPABILITY_STATEMENT.md): the capability statement EMRTS submitted for review, kept unchanged as a May 2026 record of Edition 1

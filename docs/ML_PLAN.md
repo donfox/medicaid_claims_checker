@@ -290,6 +290,35 @@ Open. Each has a recommendation.
 3. **What can Python access?** Recommended: its own Postgres login that can read `nppes_providers`, `leie_exclusions` and `analyst_decisions`, and write only the `ml_*` tables. No access to `edi_files` until models 6–8; those rows hold patient data, so that access is a separate decision made then.
 4. **When is `analyst_decisions` built?** It is the missing piece of Edition 2's "the system recommends, an analyst decides": the app has nowhere to record a decision today. It needs a page for analysts as well as the table, and could be built before or alongside the ML work rather than in Phase 4.
 
+## Logging and audit
+
+App-wide work, not specific to ML, recorded here because it should be in place before the ML results and analyst decisions are (reviewed 2026-11-20). Open; to be scheduled.
+
+**Today:**
+
+- **Phoenix** uses Elixir's standard logger: plain-text lines with a timestamp and request ID; debug level in development, info in production. About 75 log calls, mostly file fetching, the NPPES import and batch-evaluation failures. Passwords and CSRF tokens are masked.
+- **The engine** logs only its startup lines and two ML warnings: no line per request, and no errors, timeouts, refused requests or rate-limit hits.
+- **`scripts/start.sh`** writes `logs/backend.log` and `logs/frontend.log` (out of git) and overwrites them on every start.
+- **The database** already keeps a durable record of processing: `batches` (status, duplicates refused, files rejected), each claim's status and error in `edi_files`, the NPPES refresh's last status, and the background-job table.
+
+**Gaps, most important first:**
+
+1. **No audit trail.** Nothing records who logged in, who viewed which claim, who edited or switched off a rule, or what an admin changed. HIPAA's Security Rule requires audit controls that record access to systems holding patient data.
+2. **The engine is silent,** and no request ID links a Phoenix log line to the engine call it made.
+3. **The development log holds sensitive values.** At debug level Phoenix logs each LiveView session, including the login session token, and duplicate notices name claim IDs and files. Production's info level leaves out the session lines.
+4. **No history or search.** Logs are overwritten on restart and are plain text.
+5. **Coming work needs more.** The scoring service and the LLM step must record what they produced: ML scores carry model versions in `claim_ml_results`; LLM prompts and outputs need the same treatment.
+
+**Planned:**
+
+| # | Change | Where |
+|---|---|---|
+| 1 | An `audit_events` table: one row per action (user, action, target, time), rows only ever added. It covers logins, claim views, rule edits and switches, admin changes, and later analyst decisions and random-audit reviews. It is built with or before `analyst_decisions`. | Phoenix, new table |
+| 2 | One log line per engine request: path, status, duration and claim count, never claim contents. Phoenix sends its request ID with each call, and the engine logs it. | Engine and Phoenix |
+| 3 | Keep log history: append on start and rotate old files, instead of overwriting. | `scripts/start.sh` |
+| 4 | Keep the development debug level, and note in the README that `logs/` holds session tokens and claim IDs and must not be shared. | README |
+| 5 | The Python service logs one line per scoring request (model versions used, duration, no claim contents); the LLM step records each prompt, model and output with the claim or rule it concerned. | `python_ml/`, later the LLM step |
+
 ## Out of scope
 
 - The full, claim-level T-MSIS files and any data-use agreement.

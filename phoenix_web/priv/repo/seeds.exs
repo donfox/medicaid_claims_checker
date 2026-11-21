@@ -25,10 +25,11 @@
 #   alone. The other catalogue flags (editable, removable, redundant,
 #   db_access) are written only when a row is first inserted.
 #
-# What gets seeded (26 catalogue entries, 21 DSL rules)
+# What gets seeded (33 catalogue entries, 21 DSL rules)
 #   Default Rules  15  always on; can't be edited or removed in the UI
 #   BA Rules        8  written by business analysts; editable
-#   ML Models       3  "Not connected": no scoring service exists yet
+#   ML Models      10  "Not connected": no scoring service exists yet
+#                      (the list and build order are in docs/ML_PLAN.md)
 #
 # To add a rule: give it a catalogue entry, plus a business_rules row with
 # the same `name` if its logic is in the DSL.
@@ -577,13 +578,104 @@ ml_model_entries = [
   %{
     name: "DiagnosisProcedureConsistencyModel",
     description:
-      "AI model that verifies alignment of diagnosis codes with billed procedure codes",
+      "Flags diagnosis and procedure code pairs that rarely occur together in the claims this app has checked",
     entry_type: "ML Model",
     status: "Not connected",
     editable: false,
     removable: false,
     redundant: false,
     db_access: false,
+    inserted_at: now,
+    updated_at: now
+  },
+  %{
+    name: "UpcodingModel",
+    description:
+      "Compares a provider's mix of office-visit levels (E/M codes) with peers of the same specialty and state",
+    entry_type: "ML Model",
+    status: "Not connected",
+    editable: false,
+    removable: false,
+    redundant: false,
+    db_access: true,
+    inserted_at: now,
+    updated_at: now
+  },
+  %{
+    name: "BillingSurgeModel",
+    description:
+      "Detects sudden jumps in a provider's billing, including new providers that bill heavily soon after enrolling",
+    entry_type: "ML Model",
+    status: "Not connected",
+    editable: false,
+    removable: false,
+    redundant: false,
+    db_access: true,
+    inserted_at: now,
+    updated_at: now
+  },
+  %{
+    name: "ProviderNetworkModel",
+    description:
+      "Finds clusters of linked providers (billing and servicing pairs, shared addresses or officials) and their closeness to excluded providers",
+    entry_type: "ML Model",
+    status: "Not connected",
+    editable: false,
+    removable: false,
+    redundant: false,
+    db_access: true,
+    inserted_at: now,
+    updated_at: now
+  },
+  %{
+    name: "ClaimAmountAnomalyModel",
+    description:
+      "Flags claims whose amounts are far from similar claims for the same procedure, specialty and state",
+    entry_type: "ML Model",
+    status: "Not connected",
+    editable: false,
+    removable: false,
+    redundant: false,
+    db_access: true,
+    inserted_at: now,
+    updated_at: now
+  },
+  %{
+    name: "ModifierUsageModel",
+    description:
+      "Compares a provider's use of billing modifiers such as 25 and 59 with peers",
+    entry_type: "ML Model",
+    status: "Not connected",
+    editable: false,
+    removable: false,
+    redundant: false,
+    db_access: true,
+    inserted_at: now,
+    updated_at: now
+  },
+  %{
+    name: "AnalystOutcomeModel",
+    description:
+      "Learns from analyst decisions which flagged claims are usually confirmed, to order the review queue",
+    entry_type: "ML Model",
+    status: "Not connected",
+    editable: false,
+    removable: false,
+    redundant: false,
+    db_access: true,
+    inserted_at: now,
+    updated_at: now
+  },
+  %{
+    name: "RuleEffectivenessModel",
+    description:
+      "Learns from analyst decisions which Default and BA Rules lead to confirmed findings, and suggests better limits",
+    entry_type: "ML Model",
+    status: "Not connected",
+    editable: false,
+    removable: false,
+    redundant: false,
+    db_access: true,
     inserted_at: now,
     updated_at: now
   }

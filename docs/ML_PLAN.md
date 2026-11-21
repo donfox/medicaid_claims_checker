@@ -6,13 +6,52 @@ Edition 2's rule applies throughout: **a model score is evidence for an analyst,
 Medicare is not involved at this point
 ## Why trained models first
 
-The catalogue lists three ML Models, all marked *Not connected* because no scoring service exists. Two of them describe classic machine learning: patterns measured across many providers. A large language model (LLM) can't do that, because it sees one claim at a time and has never seen our data. So the plan is to build trained models first and add the LLM afterwards for the work it suits, which is judging a single claim's coding.
+The catalogue lists ten ML Models (see [The ML Models](#the-ml-models) below), all marked *Not connected* because no scoring service exists. They describe classic machine learning: functions whose limits and weights are learned from data, then frozen and versioned. A large language model (LLM) can't do that, because it sees one claim at a time and has never seen our data. So the plan is to build trained models first and add the LLM afterwards for the work it suits, which is judging a single claim's coding.
 
 | Catalogue entry | Approach | In this plan |
 |---|---|---|
 | BillingPatternAnomalyModel | Unsupervised: compare each provider with peers of the same specialty and state | **Phase 2**, the first model |
 | ProviderBehaviorRiskModel | Supervised: learn which billing patterns came before a provider's exclusion | **Phase 5** |
-| DiagnosisProcedureConsistencyModel | Not a trained model: no public data pairs diagnoses with procedures on real claims together with outcomes | Later: CMS coverage tables as rules, or the LLM |
+| DiagnosisProcedureConsistencyModel | Association statistics on the claims this app has checked: no public data pairs diagnoses with procedures | Later, once real claims accumulate. CMS coverage tables become a Default Rule instead. |
+
+## The ML Models
+
+Ten ML Models make a fairly complete set (agreed 2026-11-20). Checks that follow fixed published tables or simple thresholds are Default Rules instead (see [Default Rule candidates](#default-rule-candidates)). Several smaller ideas are merged into one model as its features.
+
+**Data:** *Public* = HHS spending, LEIE and NPPES, available now. *Claims* = claims this app has checked, once enough real ones accumulate. *Decisions* = analyst decisions stored in the app.
+
+| # | ML Model | ML technique | Data | Covers |
+|---|---|---|---|---|
+| 1 | BillingPatternAnomalyModel | Unsupervised anomaly detection (Isolation Forest) | Public | Unusual on many measures at once; procedure mix, code concentration and payment outliers are its features |
+| 2 | UpcodingModel | Peer-distribution comparison | Public | Share of the highest office-visit (E/M) levels |
+| 3 | BillingSurgeModel | Time series, change-point detection | Public | Sudden jumps, new providers billing heavily soon after enrolling ("bust-out"), forecast vs. actual |
+| 4 | ProviderBehaviorRiskModel | Supervised classification (gradient-boosted trees) | Public, LEIE as labels | Patterns that came before an exclusion |
+| 5 | ProviderNetworkModel | Graph analysis | Public | Billing and servicing links, shared addresses or officials, closeness to excluded providers |
+| 6 | ClaimAmountAnomalyModel | Unsupervised, claim level | Claims | A claim far from similar claims (procedure, specialty, state) |
+| 7 | DiagnosisProcedureConsistencyModel | Association statistics | Claims | Diagnosis and procedure pairs that rarely occur together |
+| 8 | ModifierUsageModel | Peer-distribution comparison | Claims | Use of modifiers such as 25 and 59 compared with peers |
+| 9 | AnalystOutcomeModel | Supervised, learns from feedback | Claims, Decisions | Which flagged claims analysts usually confirm; orders the review queue |
+| 10 | RuleEffectivenessModel | Supervised, threshold tuning | Claims, Decisions | Which Default and BA Rules lead to confirmed findings; suggests better limits |
+
+**Build order:** models 1–5 use public data and can be built first (1 in Phase 2, 4 in Phase 5; 2, 3 and 5 follow the same steps as Phase 2). Models 6–8 wait for real claims, and 9–10 for enough analyst decisions.
+
+**Possible only with a decision to use patient data (PHI):** SharedPatientNetworkModel (providers with unusual patient overlap) and MemberUtilizationModel (a member's use far above members with similar diagnoses). They are not in the catalogue.
+
+**Related rules, not duplicates:** `HighComplexityERVisit` (UpcodingModel), `NewProviderLargeSubmission` (BillingSurgeModel) and `ExtremeAmounts` / `HighValueClaim` (ClaimAmountAnomalyModel) use a fixed limit someone chose; the ML Model learns its limit per peer group. Both are kept.
+
+### Default Rule candidates
+
+These came up as ML ideas but follow fixed published tables or simple thresholds, so they need no training. Add them as Default Rules later, checking first that no existing rule already covers them.
+
+| Check | As a Default Rule | Existing rule |
+|---|---|---|
+| Units of service | CMS MUE limits per procedure code | — |
+| Unbundling | CMS NCCI code-pair edits | — |
+| Place of service | CMS place-of-service validity per code | — |
+| Near-duplicate claims | Same provider, member, date and code, with a different amount | Extend `DuplicateClaims` |
+| Excluded provider | Billing or servicing NPI on the LEIE table | — |
+| Doctor shopping | At least N prescribers in 90 days (needs patient data) | — |
+| Card sharing | One member ID served in distant places on the same day (needs patient data) | — |
 
 ## Terms used
 

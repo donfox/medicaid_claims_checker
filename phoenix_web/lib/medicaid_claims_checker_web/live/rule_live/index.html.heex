@@ -390,7 +390,7 @@
       </div>
 
       <%= for {type_key, label, color, badge_class, count} <- [
-        {"BA Rule", "BA Created Rules", "blue", "bg-blue-100 text-blue-800", counts.ba},
+        {"BA Rule", "BA Rules", "blue", "bg-blue-100 text-blue-800", counts.ba},
         {"Default Rule", "Default Rules", "indigo", "bg-indigo-100 text-indigo-800", counts.default},
         {"ML Model", "ML Models", "purple", "bg-purple-100 text-purple-800", counts.ml}
       ] do %>
@@ -401,8 +401,7 @@
             <svg aria-hidden="true" class={"w-4 h-4 text-#{color}-500 transition-transform group-open:rotate-90"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
             </svg>
-            <span class={badge_class <> " px-1.5 py-0.5 text-[10px] rounded font-medium"}><%= type_key %></span>
-            <%= label %>
+            <span class={badge_class <> " px-2 py-0.5 text-xs rounded font-semibold"}><%= label %></span>
             <span class="text-xs font-normal text-gray-800">
               — <%= count %> total<%= cond do %>
                 <% type_key == "Default Rule" -> %><%= case Enum.count(type_rules, &(&1.status == "Not connected")) do %><% 0 -> %><% n -> %>, <%= n %> not connected<% end %>
@@ -415,7 +414,7 @@
           <div class="mt-2 border border-gray-300 rounded-md overflow-hidden">
             <%= if type_rules == [] do %>
               <div class="p-4 text-center text-sm text-gray-800">
-                No <%= String.downcase(label) %> found.
+                No <%= label %> found.
               </div>
             <% else %>
               <div class="divide-y divide-gray-200">

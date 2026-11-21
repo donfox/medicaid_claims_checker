@@ -229,7 +229,7 @@ python_ml/
 
 1. ~~Is the HHS Medicaid Provider Spending data acceptable as the training data?~~ **Yes** (decided 2026-11-20).
 2. ~~Is the folder layout above acceptable?~~ **Yes**, as `python_ml/` (decided 2026-11-20).
-3. Is the order acceptable: anomaly model first, supervised model fifth, the LLM afterwards?
+3. ~~Is the order acceptable: anomaly model first, supervised model fifth, the LLM afterwards?~~ **Yes** (decided 2026-11-20), as in [The ML Models](#the-ml-models): models 1–5 on public data, 6–8 once real claims accumulate, 9–10 once analysts have made enough decisions, the LLM step last.
 
 ## Out of scope
 

@@ -57,6 +57,36 @@ defmodule MedicaidClaimsCheckerWeb.AdminLiveTest do
     assert render(view) =~ "1 total, not connected"
   end
 
+  test "a Default Rule that isn't implemented shows Not connected, not Always On",
+       %{conn: conn} do
+    {:ok, waiting} =
+      MedicaidClaimsChecker.Claims.create_catalogue_entry(%{
+        name: "SomeTableRule",
+        description: "Needs a table not loaded yet",
+        entry_type: "Default Rule",
+        status: "Not connected",
+        db_access: true
+      })
+
+    {:ok, running} =
+      MedicaidClaimsChecker.Claims.create_catalogue_entry(%{
+        name: "SomeRunningRule",
+        description: "",
+        entry_type: "Default Rule",
+        status: "Active"
+      })
+
+    {:ok, view, _html} = live(conn, ~p"/rules")
+
+    assert has_element?(view, "#not-connected-#{waiting.id}", "Not connected")
+    refute has_element?(view, "#catalog-entry-#{waiting.id}", "Always On")
+    assert has_element?(view, "#catalog-entry-#{running.id}", "Always On")
+    assert render(view) =~ "2 total, 1 not connected"
+
+    render_click(view, "select_catalog_rule", %{"id" => "#{waiting.id}"})
+    assert render(view) =~ "Not connected: not implemented yet, so it is not run on claims."
+  end
+
   describe "Create password link" do
     test "is offered for every user, with or without a password", %{conn: conn} do
       passwordless = AccountsFixtures.unconfirmed_user_fixture()

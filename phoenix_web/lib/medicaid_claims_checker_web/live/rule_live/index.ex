@@ -251,8 +251,13 @@ defmodule MedicaidClaimsCheckerWeb.RuleLive.Index do
               nil ->
                 description = catalogue_entry.description || ""
 
+                last_line =
+                  if catalogue_entry.status == "Not connected",
+                    do: "-- Not connected: not implemented yet, so it is not run on claims.",
+                    else: "-- No DSL implementation (requires database access)."
+
                 display_text =
-                  "-- Default Rule: #{catalogue_entry.name}\n-- #{description}\n-- No DSL implementation (requires database access)."
+                  "-- Default Rule: #{catalogue_entry.name}\n-- #{description}\n#{last_line}"
 
                 {catalogue_entry.name, display_text, nil, nil}
             end

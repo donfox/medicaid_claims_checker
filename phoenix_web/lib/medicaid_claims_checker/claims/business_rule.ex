@@ -19,7 +19,8 @@ defmodule MedicaidClaimsChecker.Claims.BusinessRule do
   Catalogue entries with no row here: the ML Models (no scoring service
   exists yet), and two Default Rules whose logic isn't DSL —
   `NPPESProviderLookup`, done in Elixir (`Claims.validate_claim_providers/1`),
-  and `DuplicateClaims`, listed but not implemented.
+  and the Not connected ones (`DuplicateClaims` and six that need data not
+  loaded yet), listed but not implemented.
   """
 
   use Ecto.Schema

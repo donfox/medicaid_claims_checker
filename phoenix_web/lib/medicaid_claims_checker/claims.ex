@@ -673,7 +673,8 @@ defmodule MedicaidClaimsChecker.Claims do
   `business_rules` row's `active` flag to match the new status, in one
   transaction. Setting `active` from the status (rather than flipping it)
   means the two can't drift apart. Entries with no `business_rules` row
-  (ML Models, NPPESProviderLookup, DuplicateClaims) change status only.
+  (ML Models, NPPESProviderLookup) change status only; Not connected
+  entries can't be toggled at all.
   """
   def toggle_catalogue_status(%RuleCatalogue{} = entry) do
     new_status = if entry.status == "Active", do: "Inactive", else: "Active"

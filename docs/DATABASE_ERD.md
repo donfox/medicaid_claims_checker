@@ -195,11 +195,11 @@ All foreign keys delete in cascade: removing the parent row removes its children
 
 `rule_catalogue` and `business_rules` are linked by matching `name`, with **no
 foreign key**. A catalogue entry written in the DSL has a `business_rules` row
-of the same name holding its text: every BA Rule, and 13 of the 15 Default
-Rules. The other two Default Rules have none: `NPPESProviderLookup` is done in
-Elixir before the engine is called, and `DuplicateClaims` is listed but not
-implemented (ingestion refuses duplicate submissions separately). ML Models
-have none.
+of the same name holding its text: every BA Rule, and 13 of the 21 Default
+Rules. The other eight Default Rules have none: `NPPESProviderLookup` is done
+in Elixir before the engine is called; `DuplicateClaims` (ingestion refuses
+duplicate submissions separately) and six rules that need data not loaded yet
+are listed with status `Not connected` and never run. ML Models have none.
 
 ## What each table holds
 

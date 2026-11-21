@@ -41,17 +41,17 @@ Ten ML Models make a fairly complete set (agreed 2026-11-20). Checks that follow
 
 ### Default Rule candidates
 
-These came up as ML ideas but follow fixed published tables or simple thresholds, so they need no training. Add them as Default Rules later, checking first that no existing rule already covers them.
+These came up as ML ideas but follow fixed published tables or simple thresholds, so they need no training. Since 2026-11-20 they are in the catalogue as Default Rules with status *Not connected*: listed, never run, until their data is loaded and their logic written. Near-duplicates widened `DuplicateClaims` instead of adding a rule.
 
-| Check | As a Default Rule | Existing rule |
+| Check | As a Default Rule | Catalogue entry |
 |---|---|---|
-| Units of service | CMS MUE limits per procedure code | — |
-| Unbundling | CMS NCCI code-pair edits | — |
-| Place of service | CMS place-of-service validity per code | — |
-| Near-duplicate claims | Same provider, member, date and code, with a different amount | Extend `DuplicateClaims` |
-| Excluded provider | Billing or servicing NPI on the LEIE table | — |
-| Doctor shopping | At least N prescribers in 90 days (needs patient data) | — |
-| Card sharing | One member ID served in distant places on the same day (needs patient data) | — |
+| Units of service | CMS MUE limits per procedure code | `UnitsOfServiceLimit` |
+| Unbundling | CMS NCCI code-pair edits | `UnbundledProcedurePair` |
+| Place of service | CMS place-of-service validity per code | `PlaceOfServiceMismatch` |
+| Near-duplicate claims | Same provider, member, date and code, with a different amount | `DuplicateClaims` (widened) |
+| Excluded provider | Billing or servicing NPI on the LEIE table | `ExcludedProvider` |
+| Doctor shopping | At least N prescribers in 90 days (needs patient data) | `DoctorShopping` |
+| Card sharing | One member ID served in distant places on the same day (needs patient data) | `CardSharing` |
 
 ## Terms used
 

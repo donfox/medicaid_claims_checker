@@ -16,12 +16,13 @@ defmodule MedicaidClaimsChecker.Claims.RuleCatalogue do
   | "BA Rule"      | `business_rules` table                | true     | true      |
   | "ML Model"     | external ML service (none exists yet) | false    | false     |
 
-  Two Default Rules have no DSL text: `NPPESProviderLookup` is done in
-  Elixir (`Claims.validate_claim_providers/1`), and `DuplicateClaims` is
-  listed but not implemented.
+  Some Default Rules have no DSL text: `NPPESProviderLookup` is done in
+  Elixir (`Claims.validate_claim_providers/1`), and `DuplicateClaims` plus
+  six rules that need data not loaded yet (CMS tables, the LEIE, member
+  claim history) are seeded as "Not connected": listed, never run.
 
   No ML scoring service exists yet, so ML Model entries are seeded as
-  "Not connected". Claims are checked by Default and BA Rules only.
+  "Not connected" too. Claims are checked by Default and BA Rules only.
   """
 
   use Ecto.Schema
@@ -30,7 +31,8 @@ defmodule MedicaidClaimsChecker.Claims.RuleCatalogue do
   # All permitted values for `entry_type` and `status`. A "Retired" entry is
   # kept for the record only: it can't be activated or edited. "Not connected"
   # marks an ML Model whose scoring service doesn't exist yet: nothing runs
-  # it, so it can't be activated either.
+  # it, so it can't be activated either. Default Rules that aren't
+  # implemented yet use it as well.
   @valid_types ["Default Rule", "BA Rule", "ML Model"]
   @valid_statuses ["Active", "Inactive", "Retired", "Not connected"]
 

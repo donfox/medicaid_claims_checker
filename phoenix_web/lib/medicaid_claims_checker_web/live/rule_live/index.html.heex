@@ -405,7 +405,7 @@
             <%= label %>
             <span class="text-xs font-normal text-gray-800">
               — <%= count %> total<%= cond do %>
-                <% type_key == "Default Rule" -> %>
+                <% type_key == "Default Rule" -> %><%= case Enum.count(type_rules, &(&1.status == "Not connected")) do %><% 0 -> %><% n -> %>, <%= n %> not connected<% end %>
                 <% type_rules != [] and Enum.all?(type_rules, &(&1.status == "Not connected")) -> %>, not connected
                 <% true -> %>, <%= type_active %> active
               <% end %>
@@ -428,7 +428,7 @@
                       <div class="flex items-center gap-1.5 flex-wrap">
                         <p class="text-sm font-semibold text-gray-900"><%= entry.name %></p>
                         <!-- Status -->
-                        <%= if entry.entry_type == "Default Rule" do %>
+                        <%= if entry.entry_type == "Default Rule" and entry.status != "Not connected" do %>
                           <span class="px-1.5 py-0.5 text-[10px] bg-green-100 text-green-900 rounded font-medium">Always On</span>
                         <% else %>
                           <%= case entry.status do %>
@@ -440,7 +440,7 @@
                               <span
                                 id={"not-connected-#{entry.id}"}
                                 class="px-1.5 py-0.5 text-[10px] bg-amber-100 text-amber-900 rounded font-medium"
-                                title="No ML scoring service is connected yet; this model is not run on claims."
+                                title={if entry.entry_type == "ML Model", do: "No ML scoring service is connected yet; this model is not run on claims.", else: "Not implemented yet: the data it needs is not loaded, so this rule is not run on claims."}
                               >Not connected</span>
                             <% _ -> %>
                               <span class="px-1.5 py-0.5 text-[10px] bg-gray-200 text-gray-800 rounded font-medium">Inactive</span>

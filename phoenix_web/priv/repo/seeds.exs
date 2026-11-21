@@ -25,8 +25,10 @@
 #   alone. The other catalogue flags (editable, removable, redundant,
 #   db_access) are written only when a row is first inserted.
 #
-# What gets seeded (33 catalogue entries, 21 DSL rules)
-#   Default Rules  15  always on; can't be edited or removed in the UI
+# What gets seeded (39 catalogue entries, 21 DSL rules)
+#   Default Rules  21  can't be edited or removed in the UI. 14 always on;
+#                      7 "Not connected": they need data not loaded yet
+#                      (see docs/ML_PLAN.md, Default Rule candidates)
 #   BA Rules        8  written by business analysts; editable
 #   ML Models      10  "Not connected": no scoring service exists yet
 #                      (the list and build order are in docs/ML_PLAN.md)
@@ -78,11 +80,12 @@ Repo.insert_all(
 )
 
 # --- Default Rules: catalogue entries (rule_catalogue) ---
-# Always on, and the UI can't edit or remove them. The DSL text for most of
-# them is in default_business_rules further down. Two have no DSL text:
-#   DuplicateClaims      not implemented yet. It would need a database query
-#                        (db_access: true), which the DSL can't do, so it
-#                        is listed but never checks a claim.
+# The UI can't edit or remove them. The DSL text for most of them is in
+# default_business_rules further down. Two have no DSL text:
+#   DuplicateClaims      not implemented yet, so "Not connected". It would
+#                        need a database query (db_access: true), which the
+#                        DSL can't do, so it is listed but never checks a
+#                        claim.
 #   NPPESProviderLookup  done in Elixir before the engine is called
 #                        (Claims.validate_claim_providers, run from
 #                        Evaluator), because it reads the NPPES table.
@@ -115,9 +118,9 @@ default_catalogue_entries = [
   %{
     name: "DuplicateClaims",
     description:
-      "Detects duplicate claim submissions within 30 days for the same member and provider",
+      "Detects duplicate claim submissions within 30 days for the same member and provider, including near-duplicates (same date and procedure, different amount)",
     entry_type: "Default Rule",
-    status: "Active",
+    status: "Not connected",
     editable: false,
     removable: false,
     redundant: false,
@@ -309,6 +312,86 @@ new_default_rules = [
     db_access: false,
     inserted_at: now,
     updated_at: now
+  },
+  # Not connected until their data is loaded: CMS tables, the LEIE, or
+  # member claim history. They have no DSL text yet.
+  %{
+    name: "UnitsOfServiceLimit",
+    description:
+      "Flags service lines whose units exceed the CMS limit for the procedure code (MUE); needs the CMS MUE table",
+    entry_type: "Default Rule",
+    status: "Not connected",
+    editable: false,
+    removable: false,
+    redundant: false,
+    db_access: true,
+    inserted_at: now,
+    updated_at: now
+  },
+  %{
+    name: "UnbundledProcedurePair",
+    description:
+      "Flags procedure code pairs on one claim that CMS says must not be billed separately (NCCI edits); needs the CMS NCCI table",
+    entry_type: "Default Rule",
+    status: "Not connected",
+    editable: false,
+    removable: false,
+    redundant: false,
+    db_access: true,
+    inserted_at: now,
+    updated_at: now
+  },
+  %{
+    name: "PlaceOfServiceMismatch",
+    description:
+      "Flags procedure codes billed at a place of service not valid for them; needs a CMS place-of-service table",
+    entry_type: "Default Rule",
+    status: "Not connected",
+    editable: false,
+    removable: false,
+    redundant: false,
+    db_access: true,
+    inserted_at: now,
+    updated_at: now
+  },
+  %{
+    name: "ExcludedProvider",
+    description:
+      "Flags claims whose billing or servicing provider is on the OIG exclusion list (LEIE); needs the LEIE table",
+    entry_type: "Default Rule",
+    status: "Not connected",
+    editable: false,
+    removable: false,
+    redundant: false,
+    db_access: true,
+    inserted_at: now,
+    updated_at: now
+  },
+  %{
+    name: "DoctorShopping",
+    description:
+      "Flags a member with prescriptions from many prescribers within 90 days; needs member claim history (patient data)",
+    entry_type: "Default Rule",
+    status: "Not connected",
+    editable: false,
+    removable: false,
+    redundant: false,
+    db_access: true,
+    inserted_at: now,
+    updated_at: now
+  },
+  %{
+    name: "CardSharing",
+    description:
+      "Flags one member ID served in distant places on the same day; needs member claim history (patient data)",
+    entry_type: "Default Rule",
+    status: "Not connected",
+    editable: false,
+    removable: false,
+    redundant: false,
+    db_access: true,
+    inserted_at: now,
+    updated_at: now
   }
 ]
 
@@ -320,8 +403,9 @@ Repo.insert_all(
 )
 
 # --- Default Rules: DSL text (business_rules) ---
-# The logic for 13 of the 15 Default Rules; the other two are covered in the
-# note on default_catalogue_entries. The engine gets this text together with
+# The logic for 13 of the 21 Default Rules; NPPESProviderLookup and
+# DuplicateClaims are covered in the note on default_catalogue_entries, and
+# the six Not connected rules in new_default_rules have no DSL text yet. The engine gets this text together with
 # the BA Rules' text (Evaluator.gather_rules_text/0).
 
 default_business_rules = [

@@ -106,23 +106,49 @@ All the libraries above are open source, in line with the decision to avoid comm
 - LEIE exclusions arrive years late and include non-fraud reasons, such as licensing problems. Older entries often have no NPI.
 - The files run to several GB. Each file and its size is confirmed before it is downloaded, and none of them goes into git.
 
-## Storage
+## Storage and database
 
-Each source is stored where it is used. Phoenix owns every database table, through Ecto migrations, as with `nppes_providers`.
+Each source is stored where it is used. Phoenix owns every database table, through Ecto migrations, as with `nppes_providers`; Python reads and writes rows but never changes the schema. No existing table changes.
 
-| Data | Size (approx.) | Where | Why |
-|---|---|---|---|
-| OIG LEIE | ~80,000 rows, ~15 MB | New table `leie_exclusions` | Small, and the app can use it directly: an exclusion check is a standard, deterministic Medicaid rule. It also supplies the Phase 5 labels. OIG updates it monthly. |
-| HHS Medicaid Provider Spending (raw) | Several GB (exact size confirmed before download) | Files in `python_ml/data/`, converted once to Parquet | Only training reads these rows, all at once. DuckDB or Polars does that faster than Postgres, and the app's database stays small. |
-| Training results | ~1 million rows, one per provider | New table `ml_provider_scores` (Phase 3) | Features, score, top reasons and model version for each provider: what the scoring service and the claim page read. |
+The raw HHS Medicaid Provider Spending data (several GB, exact size confirmed before download) stays out of the database: files in `python_ml/data/`, converted once to Parquet. Only training reads these rows, all at once, and DuckDB or Polars does that faster than Postgres, which keeps the app's database small.
+
+### New tables
+
+| Table | Phase | Written by | Read by | Holds |
+|---|---|---|---|---|
+| `leie_exclusions` | 1 | A monthly importer, like the NPPES refresh (~80,000 rows, ~15 MB; OIG updates it monthly) | ExcludedProvider rule; Python training | One row per excluded provider: NPI, name, exclusion type, exclusion date, reinstatement date |
+| `ml_model_versions` | 2 | Python training | Scoring service; Phoenix | One row per trained version: model name (the catalogue name), version, data years, test results, model card link, status `candidate`, `active` or `retired` |
+| `ml_provider_scores` | 3 | Python training | Scoring service | One row per provider per model version (~1 million per version): NPI, score, top reasons, peer group, or *not assessed* with the reason |
+| `claim_ml_results` | 3–4 | Phoenix, from the engine's reply | Claim page; Python (labels) | One row per claim per model: model and version, score, band, reasons, or *not assessed* |
+| `analyst_decisions` | 4 (or earlier, see decisions below) | Phoenix, when an analyst decides | Claim page; Python (labels for models 9–10) | Claim, analyst, decision (for example *problem confirmed* or *legitimate*), note, time, and a snapshot of the rule findings and ML scores shown when deciding. Rows are added, never changed. |
 
 Python reads `nppes_providers` straight from Postgres for peer groups, so nothing is copied.
+
+### How the models use the database
+
+**Training** (on the development Mac, occasionally):
+
+1. Read the HHS Parquet files, `nppes_providers` (specialty, state, tenure) and `leie_exclusions` (labels).
+2. Train and evaluate; save the model file in `python_ml/artifacts/`.
+3. Write a `candidate` row to `ml_model_versions` and that version's rows to `ml_provider_scores`.
+4. After the model card is reviewed, mark the version `active`. Only then does scoring use it, and the catalogue entry can move from *Not connected* to *Active*.
+
+**Scoring** (each claim):
+
+1. Phoenix sends the claims to the engine; the engine calls the Python service.
+2. The service looks up the billing provider in `ml_provider_scores` for each active version (models 1–5), and computes claim-level models (6–8) from the claim itself.
+3. The result returns through the engine to Phoenix, which stores it in `claim_ml_results`. A provider not in the data is stored as *not assessed*, never as low risk.
+
+**Retraining** reads `analyst_decisions` together with `claim_ml_results` as labels. That is how the models learn from use: as a new, reviewed version, never automatically.
+
+[DATABASE_ERD.md](DATABASE_ERD.md) gains each table when it is added.
 
 ## Phases
 
 ### Phase 1: data in place
 
 - A download script for the HHS Medicaid spending file and the LEIE, saving into `python_ml/data/`, outside git.
+- The `leie_exclusions` table and its monthly importer (see [Decisions on the database](#decisions-on-the-database)).
 - A script that joins them to `nppes_providers` by NPI and reports coverage: how many billing providers in the spending data match NPPES, and how many LEIE entries have a usable NPI.
 
 **Done when:** you have reviewed the coverage report.
@@ -146,7 +172,7 @@ Python reads `nppes_providers` straight from Postgres for peer groups, so nothin
    - **Stability:** train on the earlier year and score the later one; repeat outliers matter most.
    - **Baseline vs model:** keep the Isolation Forest only if it finds something the percentiles miss.
 5. **Iterate** on the features: expect a few rounds.
-6. **Save version 1:** the model file, its version, the data years used, and a model card.
+6. **Save version 1:** the model file, its version, the data years used, and a model card; its `ml_model_versions` row starts as `candidate`.
 
 **Done when:** you accept the model card and the top-25 review.
 
@@ -161,6 +187,7 @@ Python reads `nppes_providers` straight from Postgres for peer groups, so nothin
   - #9: report a timed-out claim as not assessed, never as clean.
   - #5: stricter contract checks.
 - **Calibration:** the engine's bands (0.35 / 0.80 / 0.93) assume probabilities. An anomaly score isn't a probability, so either the service maps it to those bands deliberately, or the bands become per-model settings. This is decided in this phase.
+- **Database:** the `ml_provider_scores` and `claim_ml_results` tables, and Python's own database login.
 - **Docs:** update ARCHITECTURE (three services) per item #10.
 
 **Done when:** an uploaded batch shows ML results end to end, and all test suites pass.
@@ -168,7 +195,7 @@ Python reads `nppes_providers` straight from Postgres for peer groups, so nothin
 ### Phase 4: show it in the app
 
 - On each claim, the ML finding appears as a recommendation: band, score, top reasons, model version. A claim the model could not assess is shown as such.
-- The analyst's decision on a claim is stored with the model version that scored it. These decisions become training labels for future retraining.
+- The analyst's decision on a claim is stored in `analyst_decisions` with the model version that scored it, unless that table was built earlier. These decisions become training labels for future retraining.
 - BillingPatternAnomalyModel moves from *Not connected* to *Active* in the catalogue.
 
 **Done when:** you have tried it in the app with mock data.
@@ -230,6 +257,15 @@ python_ml/
 1. ~~Is the HHS Medicaid Provider Spending data acceptable as the training data?~~ **Yes** (decided 2026-11-20).
 2. ~~Is the folder layout above acceptable?~~ **Yes**, as `python_ml/` (decided 2026-11-20).
 3. ~~Is the order acceptable: anomaly model first, supervised model fifth, the LLM afterwards?~~ **Yes** (decided 2026-11-20), as in [The ML Models](#the-ml-models): models 1–5 on public data, 6–8 once real claims accumulate, 9–10 once analysts have made enough decisions, the LLM step last.
+
+## Decisions on the database
+
+Open. Each has a recommendation.
+
+1. **Who loads the exclusion list?** Recommended: an Elixir importer built like the NPPES refresh, with a monthly schedule and a status panel in Settings. The ExcludedProvider rule needs the table whether or not ML runs; Python only reads it.
+2. **Where do ML results go?** Recommended: the separate `claim_ml_results` table, not the engine's `evaluation_report` on `edi_files`, so each model's version stays queryable for training labels and audits.
+3. **What can Python access?** Recommended: its own Postgres login that can read `nppes_providers`, `leie_exclusions` and `analyst_decisions`, and write only the `ml_*` tables. No access to `edi_files` until models 6–8; those rows hold patient data, so that access is a separate decision made then.
+4. **When is `analyst_decisions` built?** It is the missing piece of Edition 2's "the system recommends, an analyst decides": the app has nowhere to record a decision today. It needs a page for analysts as well as the table, and could be built before or alongside the ML work rather than in Phase 4.
 
 ## Out of scope
 

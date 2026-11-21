@@ -25,8 +25,8 @@
 #   alone. The other catalogue flags (editable, removable, redundant,
 #   db_access) are written only when a row is first inserted.
 #
-# What gets seeded (39 catalogue entries, 21 DSL rules)
-#   Default Rules  21  can't be edited or removed in the UI. 14 always on;
+# What gets seeded (38 catalogue entries, 20 DSL rules)
+#   Default Rules  20  can't be edited or removed in the UI. 13 always on;
 #                      7 "Not connected": they need data not loaded yet
 #                      (see docs/ML_PLAN.md, Default Rule candidates)
 #   BA Rules        8  written by business analysts; editable
@@ -42,6 +42,29 @@ alias MedicaidClaimsChecker.Claims.RuleCatalogue
 alias MedicaidClaimsChecker.Nppes.RefreshConfig
 
 now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+# --- Rules removed or renamed ---
+# Upserts never delete, so rows under these old names are removed here.
+#   ExtremeAmounts (2026-11-20): redundant. Any claim over $1,000,000 also
+#     matches ExcessiveTotalCharges (over $750,000), with the same verdict.
+#   TaxonomyMismatchNewProvider (2026-11-20): renamed
+#     MissingTaxonomyNewProvider; it checks for a missing taxonomy, not a
+#     mismatch. A database with the old name has its rows renamed first, so
+#     they keep their ids; the upserts below then set the text and status
+#     as for every seeded rule.
+import Ecto.Query, only: [from: 2]
+
+for {old, new} <- [{"TaxonomyMismatchNewProvider", "MissingTaxonomyNewProvider"}],
+    schema <- [RuleCatalogue, BusinessRule] do
+  unless Repo.exists?(from r in schema, where: r.name == ^new) do
+    Repo.update_all(from(r in schema, where: r.name == ^old), set: [name: new])
+  end
+end
+
+for name <- ["ExtremeAmounts", "TaxonomyMismatchNewProvider"],
+    schema <- [RuleCatalogue, BusinessRule] do
+  Repo.delete_all(from r in schema, where: r.name == ^name)
+end
 
 # NPPES providers are not seeded: test claims use real NPIs from the NPPES
 # registry the app imports (Nppes.Importer / Settings → NPPES refresh).
@@ -94,18 +117,6 @@ default_catalogue_entries = [
   %{
     name: "ImpossibleDates",
     description: "Rejects claims where any service line is dated before 1900",
-    entry_type: "Default Rule",
-    status: "Active",
-    editable: false,
-    removable: false,
-    redundant: false,
-    db_access: false,
-    inserted_at: now,
-    updated_at: now
-  },
-  %{
-    name: "ExtremeAmounts",
-    description: "Flags claims with total charges exceeding $1,000,000",
     entry_type: "Default Rule",
     status: "Active",
     editable: false,
@@ -403,7 +414,7 @@ Repo.insert_all(
 )
 
 # --- Default Rules: DSL text (business_rules) ---
-# The logic for 13 of the 21 Default Rules; NPPESProviderLookup and
+# The logic for 12 of the 20 Default Rules; NPPESProviderLookup and
 # DuplicateClaims are covered in the note on default_catalogue_entries, and
 # the six Not connected rules in new_default_rules have no DSL text yet. The engine gets this text together with
 # the BA Rules' text (Evaluator.gather_rules_text/0).
@@ -417,20 +428,6 @@ default_business_rules = [
       "Rejects claims where any service line is dated before 1900 (future dates are FutureServiceDate)"
       WHEN EXISTS line IN service_lines WHERE is_date_before(line.date_of_service, "1900-01-01")
       THEN REJECT "Impossible service date detected";
-      """
-      |> String.trim(),
-    active: true,
-    inserted_at: now,
-    updated_at: now
-  },
-  %{
-    name: "ExtremeAmounts",
-    rule_text:
-      """
-      RULE extreme_amounts
-      "Flags claims with total charges exceeding $1,000,000"
-      WHEN claim_totals.total_charges > 1000000
-      THEN FLAG_FRAUD "Extreme billing amount exceeds $1M";
       """
       |> String.trim(),
     active: true,
@@ -675,7 +672,7 @@ ml_model_entries = [
   %{
     name: "UpcodingModel",
     description:
-      "Compares a provider's mix of office-visit levels (E/M codes) with peers of the same specialty and state",
+      "Compares a provider's mix of office and emergency-room visit levels (E/M codes) with peers of the same specialty and state",
     entry_type: "ML Model",
     status: "Not connected",
     editable: false,
@@ -960,10 +957,10 @@ taxonomy_ba_rules = [
     updated_at: now
   },
   %{
-    name: "TaxonomyMismatchNewProvider",
+    name: "MissingTaxonomyNewProvider",
     rule_text:
       """
-      RULE taxonomy_mismatch_new_provider
+      RULE missing_taxonomy_new_provider
       DESCRIPTION "New provider with missing taxonomy on high-value claim is high risk"
       WHEN billing_provider.taxonomy IS NULL
            AND provider.tenure_days < 90
@@ -1000,7 +997,7 @@ taxonomy_ba_catalogue_entries = [
     updated_at: now
   },
   %{
-    name: "TaxonomyMismatchNewProvider",
+    name: "MissingTaxonomyNewProvider",
     description:
       "Flag new providers (<90 days) submitting $5k+ claims without taxonomy as potential fraud",
     entry_type: "BA Rule",

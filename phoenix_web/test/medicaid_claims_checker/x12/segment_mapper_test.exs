@@ -196,11 +196,6 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapperTest do
       refute claim["claim_totals"]["total_charges"] > 750_000
     end
 
-    test "RULE ExtremeAmounts — charges do not exceed $1M", %{claim: claim} do
-      # WHEN claim_totals.total_charges > 1000000
-      refute claim["claim_totals"]["total_charges"] > 1_000_000
-    end
-
     test "RULE HighValueClaim — claim_amount does not exceed $50K", %{claim: claim} do
       # WHEN financial.claim_amount > 50000
       refute claim["financial"]["claim_amount"] > 50_000

@@ -47,7 +47,7 @@
     "tenure_days": 30
   },
   "rendering_provider": null,
-  "sample_notes": "Provider credentialed 30 days ago, no taxonomy, $7,500 of injections: TaxonomyMismatchNewProvider, and MissingProviderTaxonomy (no taxonomy, over $1,000).",
+  "sample_notes": "Provider credentialed 30 days ago, no taxonomy, $7,500 of injections: MissingTaxonomyNewProvider, and MissingProviderTaxonomy (no taxonomy, over $1,000).",
   "service_lines": [
     {
       "charge_amount": 3.0e3,

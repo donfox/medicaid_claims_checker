@@ -47,7 +47,7 @@
     "tenure_days": 20
   },
   "rendering_provider": null,
-  "sample_notes": "Four rules at once: TaxonomyMismatchNewProvider, MissingProviderTaxonomy, NewProviderLargeSubmission and UnauthorizedProcedure.",
+  "sample_notes": "Four rules at once: MissingTaxonomyNewProvider, MissingProviderTaxonomy, NewProviderLargeSubmission and UnauthorizedProcedure.",
   "service_lines": [
     {
       "charge_amount": 4.9e3,

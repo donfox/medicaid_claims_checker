@@ -955,44 +955,6 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "MOCK-RULE-EXTREME",
-            "matched": [
-              "ExcessiveTotalCharges",
-              "ExtremeAmounts",
-              "HighValueClaim"
-            ],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "R_business_rules/R2_each_rule_alone/ExtremeAmounts.json",
-      "purpose": "Total charges over $1,000,000"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "EXTREME01",
-            "matched": [
-              "ExtremeAmounts",
-              "ExcessiveTotalCharges",
-              "HighValueClaim",
-              "UnauthorizedProcedure"
-            ],
-            "not_checked": [
-              "NewProviderLargeSubmission"
-            ],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "R_business_rules/R2_each_rule_alone/ExtremeAmounts.x12",
-      "purpose": "Total over $1,000,000 → ExtremeAmounts and ExcessiveTotalCharges"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
             "claim_id": "MOCK-RULE-FUTURE",
             "matched": [
               "FutureServiceDate"
@@ -1257,6 +1219,22 @@
       "expect": {
         "claims": [
           {
+            "claim_id": "MOCK-RULE-NEWNOTAX",
+            "matched": [
+              "MissingProviderTaxonomy",
+              "MissingTaxonomyNewProvider"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "R_business_rules/R2_each_rule_alone/MissingTaxonomyNewProvider.json",
+      "purpose": "New provider, no taxonomy, claim over $5,000"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
             "claim_id": "MOCK-RULE-NEWPROV",
             "matched": [
               "NewProviderLargeSubmission"
@@ -1378,22 +1356,6 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "MOCK-RULE-NEWNOTAX",
-            "matched": [
-              "MissingProviderTaxonomy",
-              "TaxonomyMismatchNewProvider"
-            ],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "R_business_rules/R2_each_rule_alone/TaxonomyMismatchNewProvider.json",
-      "purpose": "New provider, no taxonomy, claim over $5,000"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
             "claim_id": "MOCK-RULE-NOAUTH",
             "matched": [
               "UnauthorizedProcedure"
@@ -1471,7 +1433,6 @@
             "claim_id": "MOCK-MULTI-EXTREME",
             "matched": [
               "ExcessiveTotalCharges",
-              "ExtremeAmounts",
               "HighValueClaim",
               "NewProviderLargeSubmission",
               "UnauthorizedProcedure"
@@ -1496,7 +1457,7 @@
             ],
             "not_checked": [
               "NewProviderLargeSubmission",
-              "TaxonomyMismatchNewProvider"
+              "MissingTaxonomyNewProvider"
             ],
             "nppes": "ok"
           }
@@ -1512,8 +1473,8 @@
             "claim_id": "MOCK-MULTI-NEWPROV",
             "matched": [
               "MissingProviderTaxonomy",
+              "MissingTaxonomyNewProvider",
               "NewProviderLargeSubmission",
-              "TaxonomyMismatchNewProvider",
               "UnauthorizedProcedure"
             ],
             "nppes": "ok"
@@ -1737,14 +1698,14 @@
               "UnauthorizedProcedure"
             ],
             "not_checked": [
-              "TaxonomyMismatchNewProvider"
+              "MissingTaxonomyNewProvider"
             ],
             "nppes": "ok"
           }
         ]
       },
       "file": "R_business_rules/R9_rule_not_decidable/missing_taxonomy_new_provider.x12",
-      "purpose": "No taxonomy, $8,000 → MissingProviderTaxonomy, UnauthorizedProcedure; TaxonomyMismatchNewProvider not checked (no tenure)"
+      "purpose": "No taxonomy, $8,000 → MissingProviderTaxonomy, UnauthorizedProcedure; MissingTaxonomyNewProvider not checked (no tenure)"
     },
     {
       "expect": {

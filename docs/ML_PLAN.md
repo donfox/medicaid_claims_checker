@@ -23,7 +23,7 @@ Ten ML Models make a fairly complete set (agreed 2026-11-20). Checks that follow
 | # | ML Model | ML technique | Data | Covers |
 |---|---|---|---|---|
 | 1 | BillingPatternAnomalyModel | Unsupervised anomaly detection (Isolation Forest) | Public | Unusual on many measures at once; procedure mix, code concentration and payment outliers are its features |
-| 2 | UpcodingModel | Peer-distribution comparison | Public | Share of the highest office-visit (E/M) levels |
+| 2 | UpcodingModel | Peer-distribution comparison | Public | Share of the highest office and emergency-room visit (E/M) levels, e.g. 99205/99215 and 99285 |
 | 3 | BillingSurgeModel | Time series, change-point detection | Public | Sudden jumps, new providers billing heavily soon after enrolling ("bust-out"), forecast vs. actual |
 | 4 | ProviderBehaviorRiskModel | Supervised classification (gradient-boosted trees) | Public, LEIE as labels | Patterns that came before an exclusion |
 | 5 | ProviderNetworkModel | Graph analysis | Public | Billing and servicing links, shared addresses or officials, closeness to excluded providers |
@@ -37,7 +37,7 @@ Ten ML Models make a fairly complete set (agreed 2026-11-20). Checks that follow
 
 **Possible only with a decision to use patient data (PHI):** SharedPatientNetworkModel (providers with unusual patient overlap) and MemberUtilizationModel (a member's use far above members with similar diagnoses). They are not in the catalogue.
 
-**Related rules, not duplicates:** `HighComplexityERVisit` (UpcodingModel), `NewProviderLargeSubmission` (BillingSurgeModel) and `ExtremeAmounts` / `HighValueClaim` (ClaimAmountAnomalyModel) use a fixed limit someone chose; the ML Model learns its limit per peer group. Both are kept.
+**Related rules, not duplicates:** `HighComplexityERVisit` (UpcodingModel), `NewProviderLargeSubmission` (BillingSurgeModel) and `ExcessiveTotalCharges` / `HighValueClaim` / `SuspiciouslyLowCharge` (ClaimAmountAnomalyModel) use a fixed limit someone chose; the ML Model learns its limit per peer group. Both are kept.
 
 ### Default Rule candidates
 

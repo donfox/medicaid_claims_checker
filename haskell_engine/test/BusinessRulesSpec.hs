@@ -2,7 +2,7 @@
 
 -- |
 -- Module      : BusinessRulesSpec
--- Description : HSpec tests for all 17 active business rules using business-schema JSON
+-- Description : HSpec tests for all 16 active business rules using business-schema JSON
 --
 -- Tests every active seeded rule (Default and BA Rules) by parsing the canonical DSL text and evaluating
 -- it against hand-crafted business-schema JSON documents (not X12 segment paths).
@@ -25,7 +25,7 @@ testDay :: Day
 testDay = fromGregorian 2026 2 28
 
 -- ---------------------------------------------------------------------------
--- Canonical DSL texts for all 17 active business rules
+-- Canonical DSL texts for all 16 active business rules
 -- ---------------------------------------------------------------------------
 
 ruleExcessiveTotalCharges :: String
@@ -33,12 +33,6 @@ ruleExcessiveTotalCharges =
   "RULE excessive_total_charges \"Flags claims with total charges exceeding $750,000 as potential fraud\" \
   \WHEN claim_totals.total_charges > 750000 \
   \THEN FLAG_FRAUD \"Total charges exceed $750K threshold\";"
-
-ruleExtremeAmounts :: String
-ruleExtremeAmounts =
-  "RULE extreme_amounts \"Flags claims with total charges exceeding $1,000,000\" \
-  \WHEN claim_totals.total_charges > 1000000 \
-  \THEN FLAG_FRAUD \"Extreme billing amount exceeds $1M\";"
 
 ruleFutureServiceDate :: String
 ruleFutureServiceDate =
@@ -117,9 +111,9 @@ ruleSuspiciouslyLowCharge =
   \WHEN financial.claim_amount < 5 \
   \THEN FLAG_FRAUD \"Suspiciously low charge — possible billing manipulation\" END"
 
-ruleTaxonomyMismatchNewProvider :: String
-ruleTaxonomyMismatchNewProvider =
-  "RULE taxonomy_mismatch_new_provider \
+ruleMissingTaxonomyNewProvider :: String
+ruleMissingTaxonomyNewProvider =
+  "RULE missing_taxonomy_new_provider \
   \DESCRIPTION \"New provider with missing taxonomy on high-value claim is high risk\" \
   \WHEN billing_provider.taxonomy IS NULL AND provider.tenure_days < 90 AND financial.claim_amount > 5000 \
   \THEN FLAG_FRAUD \"New provider with no taxonomy code submitting high-value claim\" END"
@@ -429,30 +423,24 @@ businessRulesSpec =
         resultMatched result `shouldBe` False
 
     -- -----------------------------------------------------------------------
-    -- 9. ExcessiveTotalCharges and ExtremeAmounts
+    -- 9. ExcessiveTotalCharges
     -- -----------------------------------------------------------------------
-    describe "ExcessiveTotalCharges and ExtremeAmounts fire on large amounts" $ do
+    describe "ExcessiveTotalCharges fires on large amounts" $ do
 
-      it "total_charges = 800000.0 → ExcessiveTotalCharges fires, ExtremeAmounts does NOT" $ do
+      it "total_charges = 800000.0 → fires" $ do
         let doc = object ["claim_totals" .= object ["total_charges" .= (800000.0 :: Double)]]
         r1 <- evalRule ruleExcessiveTotalCharges doc
-        r2 <- evalRule ruleExtremeAmounts doc
         resultMatched r1 `shouldBe` True
-        resultMatched r2 `shouldBe` False
 
-      it "total_charges = 1500000.0 → both fire" $ do
+      it "total_charges = 1500000.0 → fires" $ do
         let doc = object ["claim_totals" .= object ["total_charges" .= (1500000.0 :: Double)]]
         r1 <- evalRule ruleExcessiveTotalCharges doc
-        r2 <- evalRule ruleExtremeAmounts doc
         resultMatched r1 `shouldBe` True
-        resultMatched r2 `shouldBe` True
 
-      it "total_charges = 450.0 → neither fires" $ do
+      it "total_charges = 450.0 → does NOT fire" $ do
         let doc = object ["claim_totals" .= object ["total_charges" .= (450.0 :: Double)]]
         r1 <- evalRule ruleExcessiveTotalCharges doc
-        r2 <- evalRule ruleExtremeAmounts doc
         resultMatched r1 `shouldBe` False
-        resultMatched r2 `shouldBe` False
 
     -- -----------------------------------------------------------------------
     -- 10. UnauthorizedProcedure
@@ -598,9 +586,9 @@ businessRulesSpec =
         resultMatched result `shouldBe` False
 
     -- -----------------------------------------------------------------------
-    -- 15. TaxonomyMismatchNewProvider
+    -- 15. MissingTaxonomyNewProvider
     -- -----------------------------------------------------------------------
-    describe "TaxonomyMismatchNewProvider fires when taxonomy null AND tenure < 90 AND amount > $5K" $ do
+    describe "MissingTaxonomyNewProvider fires when taxonomy null AND tenure < 90 AND amount > $5K" $ do
 
       it "null taxonomy + tenure=30 + $6000 → fires" $ do
         let doc = object
@@ -608,7 +596,7 @@ businessRulesSpec =
               , "provider"         .= object ["tenure_days" .= (30 :: Int)]
               , "financial"        .= object ["claim_amount" .= (6000 :: Double)]
               ]
-        result <- evalRule ruleTaxonomyMismatchNewProvider doc
+        result <- evalRule ruleMissingTaxonomyNewProvider doc
         resultMatched result `shouldBe` True
 
       it "null taxonomy + tenure=null + $6000 → does NOT fire (null safe)" $ do
@@ -617,7 +605,7 @@ businessRulesSpec =
               , "provider"         .= object ["tenure_days" .= Aeson.Null]
               , "financial"        .= object ["claim_amount" .= (6000 :: Double)]
               ]
-        result <- evalRule ruleTaxonomyMismatchNewProvider doc
+        result <- evalRule ruleMissingTaxonomyNewProvider doc
         resultMatched result `shouldBe` False
 
     -- -----------------------------------------------------------------------

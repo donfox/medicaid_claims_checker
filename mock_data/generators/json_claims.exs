@@ -324,16 +324,6 @@ samples = [
      ],
      notes: "Inpatient cardiac stay totalling $800,000: ExcessiveTotalCharges, and HighValueClaim (over $50,000)."),
    {["ExcessiveTotalCharges", "HighValueClaim"], "ok"}},
-  {"R_business_rules/R2_each_rule_alone", "ExtremeAmounts", "Total charges over $1,000,000",
-   Samples.claim("MOCK-RULE-EXTREME", :tirr,
-     type: "837I",
-     patient: 1,
-     auth: "PA2026082801",
-     dx: ["S14105A", "G8220"],
-     lines: [{mon, nil, 1_050_000, revenue: "0118", units: 42}, {mon, nil, 200_000, revenue: "0420", units: 120}],
-     notes:
-       "Rehabilitation hospital stay totalling $1,250,000: ExtremeAmounts, ExcessiveTotalCharges and HighValueClaim."),
-   {["ExtremeAmounts", "ExcessiveTotalCharges", "HighValueClaim"], "ok"}},
   {"R_business_rules/R2_each_rule_alone", "FutureServiceDate", "Second service line dated 2099",
    Samples.claim("MOCK-RULE-FUTURE", :delray,
      patient: 2,
@@ -478,7 +468,7 @@ samples = [
      lines: [{mon, "99211", 2}],
      notes: "A $2.00 nurse visit: SuspiciouslyLowCharge."),
    {["SuspiciouslyLowCharge"], "ok"}},
-  {"R_business_rules/R2_each_rule_alone", "TaxonomyMismatchNewProvider", "New provider, no taxonomy, claim over $5,000",
+  {"R_business_rules/R2_each_rule_alone", "MissingTaxonomyNewProvider", "New provider, no taxonomy, claim over $5,000",
    Samples.claim("MOCK-RULE-NEWNOTAX", :tlc_pain,
      taxonomy: false,
      tenure: 30,
@@ -487,9 +477,9 @@ samples = [
      dx: ["M5416"],
      lines: [{tue, "64483", 3_000}, {tue, "64484", 1_500}, {thu, "62323", 3_000}],
      notes:
-       "Provider credentialed 30 days ago, no taxonomy, $7,500 of injections: TaxonomyMismatchNewProvider, " <>
+       "Provider credentialed 30 days ago, no taxonomy, $7,500 of injections: MissingTaxonomyNewProvider, " <>
          "and MissingProviderTaxonomy (no taxonomy, over $1,000)."),
-   {["TaxonomyMismatchNewProvider", "MissingProviderTaxonomy"], "ok"}},
+   {["MissingTaxonomyNewProvider", "MissingProviderTaxonomy"], "ok"}},
   {"R_business_rules/R2_each_rule_alone", "UnauthorizedProcedure", "Claim over $5,000 with no authorization",
    Samples.claim("MOCK-RULE-NOAUTH", :ninigret,
      pos: "24",
@@ -522,9 +512,9 @@ samples = [
        {thu, "D6114", 12_000}
      ],
      notes:
-       "Four rules at once: TaxonomyMismatchNewProvider, MissingProviderTaxonomy, NewProviderLargeSubmission " <>
+       "Four rules at once: MissingTaxonomyNewProvider, MissingProviderTaxonomy, NewProviderLargeSubmission " <>
          "and UnauthorizedProcedure."),
-   {["TaxonomyMismatchNewProvider", "MissingProviderTaxonomy", "NewProviderLargeSubmission", "UnauthorizedProcedure"],
+   {["MissingTaxonomyNewProvider", "MissingProviderTaxonomy", "NewProviderLargeSubmission", "UnauthorizedProcedure"],
     "ok"}},
   {"R_business_rules/R3_several_rules", "er_visit_no_auth", "99285 over $10,000 with no authorization",
    Samples.claim("MOCK-MULTI-ERNOAUTH", :mcep,
@@ -542,10 +532,9 @@ samples = [
      dx: ["A419", "J9601"],
      lines: [{mon, nil, 640_000, revenue: "0200", units: 32}, {mon, nil, 460_000, revenue: "0250"}],
      notes:
-       "$1,100,000 inpatient claim, provider credentialed 60 days ago, no authorization: ExtremeAmounts, " <>
+       "$1,100,000 inpatient claim, provider credentialed 60 days ago, no authorization: " <>
          "ExcessiveTotalCharges, HighValueClaim, UnauthorizedProcedure and NewProviderLargeSubmission."),
-   {["ExtremeAmounts", "ExcessiveTotalCharges", "HighValueClaim", "UnauthorizedProcedure",
-     "NewProviderLargeSubmission"], "ok"}},
+   {["ExcessiveTotalCharges", "HighValueClaim", "UnauthorizedProcedure", "NewProviderLargeSubmission"], "ok"}},
   {"R_business_rules/R3_several_rules", "weekend_no_taxonomy", "Saturday office visit sent without a taxonomy",
    Samples.claim("MOCK-MULTI-WEEKENDTAX", :jarman,
      taxonomy: false,

@@ -51,7 +51,7 @@
     "tenure_days": 60
   },
   "rendering_provider": null,
-  "sample_notes": "$1,100,000 inpatient claim, provider credentialed 60 days ago, no authorization: ExtremeAmounts, ExcessiveTotalCharges, HighValueClaim, UnauthorizedProcedure and NewProviderLargeSubmission.",
+  "sample_notes": "$1,100,000 inpatient claim, provider credentialed 60 days ago, no authorization: ExcessiveTotalCharges, HighValueClaim, UnauthorizedProcedure and NewProviderLargeSubmission.",
   "service_lines": [
     {
       "charge_amount": 6.4e5,

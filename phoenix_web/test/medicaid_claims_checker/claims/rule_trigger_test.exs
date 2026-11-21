@@ -498,19 +498,14 @@ defmodule MedicaidClaimsChecker.Claims.RuleTriggerTest do
   end
 
   # ---------------------------------------------------------------------------
-  # ExcessiveTotalCharges / ExtremeAmounts — large charge amounts
+  # ExcessiveTotalCharges — large charge amounts
   # ---------------------------------------------------------------------------
 
-  describe "RULE ExcessiveTotalCharges and ExtremeAmounts" do
+  describe "RULE ExcessiveTotalCharges" do
     setup do
       create_rule!(
         "excessive_total_charges",
         ~s|RULE excessive_total_charges "Flags claims with total charges exceeding $750,000 as potential fraud" WHEN claim_totals.total_charges > 750000 THEN FLAG_FRAUD "Total charges exceed $750K threshold";|
-      )
-
-      create_rule!(
-        "extreme_amounts",
-        ~s|RULE extreme_amounts "Flags claims with total charges exceeding $1,000,000" WHEN claim_totals.total_charges > 1000000 THEN FLAG_FRAUD "Extreme billing amount exceeds $1M";|
       )
 
       :ok

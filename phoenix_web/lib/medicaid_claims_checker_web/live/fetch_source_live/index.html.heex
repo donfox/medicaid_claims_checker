@@ -978,7 +978,7 @@
                                   <%= if file.not_assessed do %>
                                     <div id={"not-assessed-detail-#{file.id}"} class="bg-amber-50 border border-amber-200 rounded-lg p-3">
                                       <p class="text-sm font-semibold text-amber-900">Not assessed — the rules were not checked</p>
-                                      <p class="text-xs text-amber-800 mt-1">Reason: <%= file.error %>. This claim is not clean: an analyst must review it. To try again, upload it with “Test upload: allow re-submission” ticked.</p>
+                                      <p class="text-xs text-amber-800 mt-1">Reason: <%= file.error %>. This claim is not clean: a BA must review it. To try again, upload it with “Test upload: allow re-submission” ticked.</p>
                                     </div>
                                   <% end %>
 

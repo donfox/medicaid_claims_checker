@@ -1,6 +1,6 @@
 # Medicaid Claims Checker DSL Engine
 
-Haskell engine that parses claim-checking rules, written in a domain-specific language (DSL), and evaluates them against JSON claims. Its results are recommendations for an analyst.
+Haskell engine that parses claim-checking rules, written in a domain-specific language (DSL), and evaluates them against JSON claims. Its results are recommendations for a business analyst (BA), who decides.
 
 ## Features
 
@@ -36,7 +36,7 @@ The server itself is in `app/`:
 | `Middleware` | Rate limit and shared-secret auth, applied to every request |
 | `Routes` | HTTP routing and the request handlers |
 
-Tests mirror this layout: `test/Claims/<Module>Spec.hs` tests `src/Claims/<Module>.hs`. The others in `test/`: `ParserProps.hs` (QuickCheck round-trip properties of the parser), `Claims/Pretty.hs` (the test-only printer they use), `BusinessRulesSpec.hs` (the business rules against sample claims), and `AppSpec.hs` (the HTTP layer in `app/`: auth, rate limit and routing, run on WAI requests without a server; the test suite compiles `app/` for it). `Spec.hs` runs them all.
+Tests mirror this layout: `test/Claims/<Module>Spec.hs` tests `src/Claims/<Module>.hs`. The others in `test/`: `ParserProps.hs` (QuickCheck round-trip properties of the parser), `Claims/Pretty.hs` (the test-only printer they use), `BusinessRulesSpec.hs` (the business rules against sample claims), and `AppSpec.hs` (the HTTP layer in `app/`: auth, rate limit and routing, run on WAI requests without a server; the test suite compiles `app/` for it). `Spec.hs` runs them all. `test/fixtures/` holds two rule files the parser tests read: every rule in `valid_rules.dsl` must parse, and every rule in `faulty_rules.dsl` must be rejected.
 
 ## Building
 
@@ -51,6 +51,26 @@ From repository root, equivalent:
 ```bash
 stack --stack-yaml haskell_engine/stack.yaml build
 ```
+
+## Testing
+
+Run from the `haskell_engine` directory:
+
+```bash
+stack test
+```
+
+These tests build their inputs in the tests themselves, plus the two rule
+files in `test/fixtures/`, so they need no database, Phoenix or network.
+
+The shared test files in `../mock_data` reach the engine through the
+end-to-end tests, which send every test claim to a real engine:
+
+- `../scripts/test.sh` starts its own engine on a spare port and uploads each
+  file through the app.
+- `mix run --no-start ../mock_data/tools/verify.exs`, run from `phoenix_web`,
+  sends the same files to the engine at `RULE_ENGINE_URL` (by default the one
+  `scripts/start.sh` runs on port 8080).
 
 ## Running
 
@@ -92,6 +112,16 @@ When they run on different machines:
    `RULE_ENGINE_CA_CERT` to the CA file; a certificate from a public CA needs
    nothing more.
 
+### Other settings
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `RULE_ENGINE_SECRET` | unset | Shared secret Phoenix sends as a Bearer token. When unset, every request except `/api/health` is refused |
+| `ENGINE_RATE_LIMIT` | `1000` | Most requests one address may make in 60 seconds, from 1 to 10,000,000. `scripts/test.sh` raises it for its own engine |
+| `ML_SCORER_URL` | unset | The ML scoring service, used only by `/api/evaluate`. It must start with `https://` and may not name a private, loopback or cloud-metadata address. When unset or refused, the engine uses a neutral stand-in score |
+| `ML_TIMEOUT_MS` | `120` | Milliseconds to wait for the scoring service |
+| `ALLOW_ML_TEST_OVERRIDE` | unset | For tests only: `true` lets a claim's `_mlStatus: "error"` field simulate a scoring failure |
+
 `gen-dev-tls.sh [host ...]` writes a development CA (`priv/tls/ca.pem`, for
 `RULE_ENGINE_CA_CERT`) and an engine certificate signed by it (`cert.pem`,
 `key.pem`) covering `localhost`, `127.0.0.1` and any hosts given. Phoenix
@@ -122,7 +152,7 @@ A classification derived from the *actions* of the matched rules, not just their
 | HighRisk | Any matched rule has `REQUIRE_REVIEW`, or a `RISK_SCORE` of 70 or more |
 | LowRisk | Anything else |
 
-The app counts HighRisk and CriticalRisk claims as flagged for analyst review. `MediumRisk` is kept in the report format for stored reports but is not currently produced. A claim can trigger several rules and remain LowRisk if none of them asks for review or scores 70 or more.
+The app counts HighRisk and CriticalRisk claims as flagged for BA review. `MediumRisk` is kept in the report format for stored reports but is not currently produced. A claim can trigger several rules and remain LowRisk if none of them asks for review or scores 70 or more.
 
 ### Rules not checked
 
@@ -130,7 +160,7 @@ A rule whose condition depends on missing or unusable data does not match. Its r
 
 ### A claim that times out is not assessed
 
-Each claim has a 30-second limit. When a claim exceeds it, `/api/batch-evaluate` returns `{"claimIndex": i, "error": "evaluation timed out after 30 s", "reason": "timeout"}` for that claim, with no `report`. The rest of the batch is unaffected. `reason` is a short code for programs; `error` is the message for people. Phoenix stores such a claim with status `not_assessed` and the message, and never as clean: Jobs History shows it as NOT ASSESSED with the reason, counts it separately, and says an analyst must review it. A provider (NPPES) rejection on the same claim is still shown. Any per-claim `error` is treated the same way, with or without a `reason`.
+Each claim has a 30-second limit. When a claim exceeds it, `/api/batch-evaluate` returns `{"claimIndex": i, "error": "evaluation timed out after 30 s", "reason": "timeout"}` for that claim, with no `report`. The rest of the batch is unaffected. `reason` is a short code for programs; `error` is the message for people. Phoenix stores such a claim with status `not_assessed` and the message, and never as clean: Jobs History shows it as NOT ASSESSED with the reason, counts it separately, and says a BA must review it. A provider (NPPES) rejection on the same claim is still shown. Any per-claim `error` is treated the same way, with or without a `reason`.
 
 ### Known limitation: the engine keeps working after Phoenix stops waiting
 
@@ -149,7 +179,7 @@ flowchart TD
     subgraph S1["①&nbsp;Check&nbsp;the&nbsp;request&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"]
         RL{"Under the rate limit?<br/>1,000 requests a minute<br/>per address"}
         AU{"Correct shared secret?<br/>RULE_ENGINE_SECRET"}
-        SZ{"Valid JSON, at most<br/>500 claims and<br/>512 KB of rule text?"}
+        SZ{"Valid JSON, at most<br/>10 MB, 500 claims and<br/>512 KB of rule text?"}
     end
 
     subgraph S2["②&nbsp;Parse&nbsp;the&nbsp;rules&nbsp;once&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"]
@@ -211,7 +241,7 @@ flowchart TD
 
 | Step | Where the code is |
 |---|---|
-| ① Check the request | `app/Middleware.hs` (rate limit, shared secret), then `handleBatchEvaluate` in `app/Routes.hs` (size limits) |
+| ① Check the request | `app/Middleware.hs` (rate limit, shared secret), then in `app/Routes.hs`: `withJsonBody` (10 MB body limit, valid JSON, shared by every endpoint) and `handleBatchEvaluate` (500 claims, 512 KB of rule text) |
 | ② Parse the rules once | `loadRules` in `src/Claims/Parser.hs`, building the types in `src/Claims/Syntax.hs` |
 | ③ Check every claim | `evaluateClaim` (the 30-second limit) in `src/Claims/Pipeline.hs`; `evaluateSimpleJson`, `evaluateRuleSimple`, `evaluateWithEnv` and `determineRiskLevel` in `src/Claims/Evaluator.hs` |
 

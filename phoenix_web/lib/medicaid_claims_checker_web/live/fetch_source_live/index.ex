@@ -98,7 +98,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
       msg =
         if not_assessed > 0 do
           msg <>
-            " #{not_assessed}/#{total} claim(s) not assessed (the rule engine could not check them) — an analyst must review them."
+            " #{not_assessed}/#{total} claim(s) not assessed (the rule engine could not check them) — a BA must review them."
         else
           msg
         end

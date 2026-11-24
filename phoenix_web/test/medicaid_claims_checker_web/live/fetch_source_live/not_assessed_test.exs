@@ -73,7 +73,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.NotAssessedTest do
     html = view |> element(~s(tr[phx-value-id="#{slow.id}"])) |> render_click()
     assert has_element?(view, "#not-assessed-detail-#{slow.id}")
     assert html =~ "Not assessed — the rules were not checked"
-    assert html =~ "an analyst must review it"
+    assert html =~ "a BA must review it"
     refute html =~ "claim is clean"
 
     row = view |> element(~s(tr[phx-value-id="#{slow.id}"])) |> render()

@@ -12,7 +12,7 @@ defmodule MedicaidClaimsCheckerWeb.UseCases.UUploadTest do
 
   @json "claim_rule_checks/each_rule_alone/HighValueClaim.json"
   @x12 "x12_files/837p_professional/clean_office_visit.x12"
-  @zip "zip_files/mixed_file_types/mixed_bundle.zip"
+  @zip "zip_files/mixed_file_types.zip"
   @clean_json "claim_rule_checks/clean_claim/office_visit.json"
   @already "Nothing was evaluated: every claim was already submitted."
 

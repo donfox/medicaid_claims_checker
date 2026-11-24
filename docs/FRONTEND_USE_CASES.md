@@ -62,19 +62,19 @@
 
 | ID | Use case | Test files | What the app should show |
 |---|---|---|---|
-| **Z1** | Zip with .x12, .edi, .json and other files | `zip_files/mixed_file_types/` mixed_bundle.zip | The three claim files are evaluated (ZIPEDIB matches MissingDiagnosisCodes); README.txt is ignored. |
-| **Z2** | Zip with JSON files only | `zip_files/json_only_zip/` two_json_claims.zip | Both JSON claims evaluated; Clean. |
-| **Z3** | Path-traversal entry (`../escape.x12`) | `zip_files/path_traversal/` path_traversal.zip | Read as escape.x12 and evaluated (Clean); nothing is written to disk. |
-| **Z4** | Zip with nothing usable / empty zip | `zip_files/nothing_usable/` empty.zip, text_files_only.zip | “No processable claims found”. |
-| **Z5** | Zip inside a zip | `zip_files/zip_inside_zip/` nested.zip | The outer .x12 is evaluated (Clean); the inner zip is ignored. |
-| **Z6** | Corrupt zip | `zip_files/corrupt_zip/` cut_off.zip | “No processable claims found”. |
+| **Z1** | Zip with .x12, .edi, .json and other files | `zip_files/` mixed_file_types.zip | The three claim files are evaluated (ZIPEDIB matches MissingDiagnosisCodes); README.txt is ignored. |
+| **Z2** | Zip with JSON files only | `zip_files/` two_json_claims.zip | Both JSON claims evaluated; Clean. |
+| **Z3** | Path-traversal entry (`../escape.x12`) | `zip_files/` path_traversal.zip | Read as escape.x12 and evaluated (Clean); nothing is written to disk. |
+| **Z4** | Zip with nothing usable / empty zip | `zip_files/` empty.zip, text_files_only.zip | “No processable claims found”. |
+| **Z5** | Zip inside a zip | `zip_files/` zip_inside_zip.zip | The outer .x12 is evaluated (Clean); the inner zip is ignored. |
+| **Z6** | Corrupt zip | `zip_files/` corrupt.zip | “No processable claims found”. |
 | **Z7** | More than 15,000 claims | `zip_files/over_15000_claims/` — not in git; make it with `elixir mock_data/generate.exs --large 15001` | Nothing is evaluated. The message names the reason: “This batch has 15001 claims; the limit is 15000. Split the files into smaller batches and try again.” Up to 15,000 claims are evaluated normally. |
 
 ## U — Upload behaviour
 
 | ID | Use case | Test files | What the app should show |
 |---|---|---|---|
-| **U1** | Several files of mixed types at once | For example each_rule_alone/HighValueClaim.json, X1…/clean_office_visit.x12, Z1…/mixed_bundle.zip | Every file’s claims are evaluated in one batch. |
+| **U1** | Several files of mixed types at once | For example each_rule_alone/HighValueClaim.json, X1…/clean_office_visit.x12, zip_files/mixed_file_types.zip | Every file’s claims are evaluated in one batch. |
 | **U2** | Unsupported file type (.txt, .pdf) | Any non-claim file | “File type not accepted. Allowed: .json, .x12, .edi, .zip”, before upload. |
 | **U3** | File over 10 MB | Any file over 10 MB (not kept in git) | “File is too large (max 10 MB).”, before upload. |
 | **U4** | Same file uploaded twice | Any claim file, checkbox unticked | Second time: “Nothing was evaluated: every claim was already submitted…”, and a red notice in Jobs History. |

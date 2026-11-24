@@ -67,12 +67,12 @@ different results; `manifest.json` has each one's.
 | `x12_files/edi_extension/clean_claim.edi` | An ordinary clean 837P claim named `.edi` |
 | `x12_files/edi_extension/alternate_delimiters.edi` | `\|` and `>` as separators |
 | `x12_files/edi_extension/not_x12.edi` | Plain text named `.edi` |
-| `zip_files/mixed_file_types/` | A zip with `.x12`, `.edi`, `.json` and an ignored `.txt` |
-| `zip_files/json_only_zip/` | A zip holding only `.json` claims |
-| `zip_files/path_traversal/` | A zip entry named `../escape.x12` |
-| `zip_files/nothing_usable/` | An empty zip; a zip of `.txt`/`.csv` only: nothing to evaluate |
-| `zip_files/zip_inside_zip/` | A zip holding an `.x12` and another zip, which is ignored |
-| `zip_files/corrupt_zip/` | A zip cut off part-way, which can't be opened |
+| `zip_files/mixed_file_types.zip` | A zip with `.x12`, `.edi`, `.json` and an ignored `.txt` |
+| `zip_files/two_json_claims.zip` | A zip holding only `.json` claims |
+| `zip_files/path_traversal.zip` | A zip entry named `../escape.x12` |
+| `zip_files/empty.zip`, `text_files_only.zip` | An empty zip; a zip of `.txt`/`.csv` only: nothing to evaluate |
+| `zip_files/zip_inside_zip.zip` | A zip holding an `.x12` and another zip, which is ignored |
+| `zip_files/corrupt.zip` | A zip cut off part-way, which can't be opened |
 | `zip_files/over_15000_claims/` | Not committed: made by `generate.exs --large N` (the use-case test builds its own) |
 | `claim_rule_checks/clean_claim/` | Claims no rule should match |
 | `claim_rule_checks/each_rule_alone/` | One file per rule, named after it |

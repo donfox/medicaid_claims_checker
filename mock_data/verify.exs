@@ -258,12 +258,13 @@ folder_ids = %{
   "rule_not_decidable" => "R9",
   "age_out_of_range_or_missing_dob" => "R10",
   "replacement_or_void_claim" => "R11",
-  "mixed_file_types" => "Z1",
-  "json_only_zip" => "Z2",
-  "path_traversal" => "Z3",
-  "nothing_usable" => "Z4",
-  "zip_inside_zip" => "Z5",
-  "corrupt_zip" => "Z6",
+  "mixed_file_types.zip" => "Z1",
+  "two_json_claims.zip" => "Z2",
+  "path_traversal.zip" => "Z3",
+  "empty.zip" => "Z4",
+  "text_files_only.zip" => "Z4",
+  "zip_inside_zip.zip" => "Z5",
+  "corrupt.zip" => "Z6",
   "over_15000_claims" => "Z7"
 }
 

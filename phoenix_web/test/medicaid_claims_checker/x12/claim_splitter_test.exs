@@ -308,7 +308,7 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
 
     test "an absent billing NPI becomes nil, not an empty string" do
       assert {:ok, [claim]} =
-               claims(read("N_nppes_provider_checks/N10_no_billing_npi/missing_billing_npi.x12"))
+               claims(read("nppes_provider_checks/no_billing_npi/missing_billing_npi.x12"))
 
       assert claim["provider"]["npi"] == nil
       assert claim["billing_provider"]["npi"] == nil

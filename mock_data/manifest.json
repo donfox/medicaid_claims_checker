@@ -5,221 +5,6 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "NONPI01",
-            "matched": [
-              "MissingRequiredFields"
-            ],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "N_nppes_provider_checks/N10_no_billing_npi/missing_billing_npi.x12",
-      "purpose": "NM1*85 with no NPI → MissingRequiredFields"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "REND01",
-            "matched": [],
-            "nppes": "was deactivated"
-          }
-        ]
-      },
-      "file": "N_nppes_provider_checks/N11_deactivated_rendering_provider/rendering_npi_deactivated.x12",
-      "purpose": "Valid billing NPI, deactivated rendering provider (NM1*82) → NPPES should reject"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "NPILUHN01",
-            "matched": [
-              "InvalidProviderNPI"
-            ],
-            "nppes": "not found in NPPES"
-          }
-        ]
-      },
-      "file": "N_nppes_provider_checks/N2_malformed_npi/bad_checksum.x12",
-      "purpose": "Billing NPI fails Luhn (so it cannot be in NPPES) → InvalidProviderNPI; NPPES rejects"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "NPIFMT01",
-            "matched": [
-              "InvalidNPIFormat",
-              "InvalidProviderNPI"
-            ],
-            "nppes": "not found in NPPES"
-          }
-        ]
-      },
-      "file": "N_nppes_provider_checks/N2_malformed_npi/nine_digit_npi.x12",
-      "purpose": "9-digit billing NPI → InvalidNPIFormat, InvalidProviderNPI; NPPES rejects"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "MOCK-NPPES-UNISSUED",
-            "matched": [],
-            "nppes": "not found in NPPES"
-          }
-        ]
-      },
-      "file": "N_nppes_provider_checks/N3_npi_never_issued/unissued_npi.json",
-      "purpose": "Luhn-valid NPI that was never issued"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "NPIUNK01",
-            "matched": [],
-            "nppes": "not found in NPPES"
-          }
-        ]
-      },
-      "file": "N_nppes_provider_checks/N3_npi_never_issued/unissued_npi.x12",
-      "purpose": "Luhn-valid NPI absent from NPPES → NPPES rejects; no engine rule"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "MOCK-NPPES-DEACT",
-            "matched": [],
-            "nppes": "was deactivated"
-          }
-        ]
-      },
-      "file": "N_nppes_provider_checks/N4_deactivated_provider/deactivated_provider.json",
-      "purpose": "NPI deactivated 2024-12-12, service in 2026"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "NPIDEAC01",
-            "matched": [],
-            "nppes": "was deactivated"
-          }
-        ]
-      },
-      "file": "N_nppes_provider_checks/N4_deactivated_provider/deactivated_provider.x12",
-      "purpose": "Real NPI deactivated 2024-12-12, service 2026 → NPPES rejects"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "NPIDEAC02",
-            "matched": [],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "N_nppes_provider_checks/N5_service_before_deactivation/service_before_deactivation.x12",
-      "purpose": "Same deactivated provider, service before deactivation → NPPES ok"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "NPIDEAC03",
-            "matched": [],
-            "nppes": "service rendered on 2024-12-20"
-          }
-        ]
-      },
-      "file": "N_nppes_provider_checks/N6_deactivated_mid_claim/deactivated_mid_claim.x12",
-      "purpose": "Same provider, one line before and one after the 2024-12-12 deactivation → NPPES rejects the later line"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "MOCK-NPPES-REACT",
-            "matched": [],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "N_nppes_provider_checks/N7_reactivated_provider/reactivated_provider.json",
-      "purpose": "Same reactivated NPI, service in 2026: accepted"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "NPIREAC01",
-            "matched": [],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "N_nppes_provider_checks/N7_reactivated_provider/reactivated_provider.x12",
-      "purpose": "Real NPI deactivated 2008-01-09, reactivated 2009-07-10; service 2026 → NPPES ok"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "MOCK-NPPES-GAP",
-            "matched": [],
-            "nppes": "was deactivated"
-          }
-        ]
-      },
-      "file": "N_nppes_provider_checks/N7_reactivated_provider/reactivation_gap.json",
-      "purpose": "Service while the NPI was deactivated (before its reactivation)"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "NPIREAC02",
-            "matched": [],
-            "nppes": "was deactivated"
-          }
-        ]
-      },
-      "file": "N_nppes_provider_checks/N7_reactivated_provider/reactivation_gap.x12",
-      "purpose": "Same NPI, service 2008-06-01 between deactivation and reactivation → NPPES rejects"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "MOCK-NPPES-PREENUM",
-            "matched": [],
-            "nppes": "was not issued until"
-          }
-        ]
-      },
-      "file": "N_nppes_provider_checks/N8_service_before_npi_issued/before_enumeration.json",
-      "purpose": "Service dated before the NPI was issued"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "MOCK-NPPES-DROPPED",
-            "matched": [],
-            "nppes": "has not been in the NPPES file since"
-          }
-        ]
-      },
-      "file": "N_nppes_provider_checks/N9_dropped_from_nppes/dropped_provider.json",
-      "purpose": "NPI no longer in the NPPES file"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
             "claim_id": "REDUN-BETWEEN-002",
             "matched": [
               "stay_1_5"
@@ -1669,6 +1454,221 @@
       "expect": { "error": "no claim found" },
       "file": "json_files/not_a_claim/patient_record.json",
       "purpose": "Valid JSON that is not a claim (a patient record, no claim_id) → refused, nothing evaluated"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "NPIDEAC03",
+            "matched": [],
+            "nppes": "service rendered on 2024-12-20"
+          }
+        ]
+      },
+      "file": "nppes_provider_checks/deactivated_mid_claim/deactivated_mid_claim.x12",
+      "purpose": "Same provider, one line before and one after the 2024-12-12 deactivation → NPPES rejects the later line"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "MOCK-NPPES-DEACT",
+            "matched": [],
+            "nppes": "was deactivated"
+          }
+        ]
+      },
+      "file": "nppes_provider_checks/deactivated_provider/deactivated_provider.json",
+      "purpose": "NPI deactivated 2024-12-12, service in 2026"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "NPIDEAC01",
+            "matched": [],
+            "nppes": "was deactivated"
+          }
+        ]
+      },
+      "file": "nppes_provider_checks/deactivated_provider/deactivated_provider.x12",
+      "purpose": "Real NPI deactivated 2024-12-12, service 2026 → NPPES rejects"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "REND01",
+            "matched": [],
+            "nppes": "was deactivated"
+          }
+        ]
+      },
+      "file": "nppes_provider_checks/deactivated_rendering_provider/rendering_npi_deactivated.x12",
+      "purpose": "Valid billing NPI, deactivated rendering provider (NM1*82) → NPPES should reject"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "MOCK-NPPES-DROPPED",
+            "matched": [],
+            "nppes": "has not been in the NPPES file since"
+          }
+        ]
+      },
+      "file": "nppes_provider_checks/dropped_from_nppes/dropped_provider.json",
+      "purpose": "NPI no longer in the NPPES file"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "NPILUHN01",
+            "matched": [
+              "InvalidProviderNPI"
+            ],
+            "nppes": "not found in NPPES"
+          }
+        ]
+      },
+      "file": "nppes_provider_checks/malformed_npi/bad_checksum.x12",
+      "purpose": "Billing NPI fails Luhn (so it cannot be in NPPES) → InvalidProviderNPI; NPPES rejects"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "NPIFMT01",
+            "matched": [
+              "InvalidNPIFormat",
+              "InvalidProviderNPI"
+            ],
+            "nppes": "not found in NPPES"
+          }
+        ]
+      },
+      "file": "nppes_provider_checks/malformed_npi/nine_digit_npi.x12",
+      "purpose": "9-digit billing NPI → InvalidNPIFormat, InvalidProviderNPI; NPPES rejects"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "NONPI01",
+            "matched": [
+              "MissingRequiredFields"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "nppes_provider_checks/no_billing_npi/missing_billing_npi.x12",
+      "purpose": "NM1*85 with no NPI → MissingRequiredFields"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "MOCK-NPPES-UNISSUED",
+            "matched": [],
+            "nppes": "not found in NPPES"
+          }
+        ]
+      },
+      "file": "nppes_provider_checks/npi_never_issued/unissued_npi.json",
+      "purpose": "Luhn-valid NPI that was never issued"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "NPIUNK01",
+            "matched": [],
+            "nppes": "not found in NPPES"
+          }
+        ]
+      },
+      "file": "nppes_provider_checks/npi_never_issued/unissued_npi.x12",
+      "purpose": "Luhn-valid NPI absent from NPPES → NPPES rejects; no engine rule"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "MOCK-NPPES-REACT",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "nppes_provider_checks/reactivated_provider/reactivated_provider.json",
+      "purpose": "Same reactivated NPI, service in 2026: accepted"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "NPIREAC01",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "nppes_provider_checks/reactivated_provider/reactivated_provider.x12",
+      "purpose": "Real NPI deactivated 2008-01-09, reactivated 2009-07-10; service 2026 → NPPES ok"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "MOCK-NPPES-GAP",
+            "matched": [],
+            "nppes": "was deactivated"
+          }
+        ]
+      },
+      "file": "nppes_provider_checks/reactivated_provider/reactivation_gap.json",
+      "purpose": "Service while the NPI was deactivated (before its reactivation)"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "NPIREAC02",
+            "matched": [],
+            "nppes": "was deactivated"
+          }
+        ]
+      },
+      "file": "nppes_provider_checks/reactivated_provider/reactivation_gap.x12",
+      "purpose": "Same NPI, service 2008-06-01 between deactivation and reactivation → NPPES rejects"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "NPIDEAC02",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "nppes_provider_checks/service_before_deactivation/service_before_deactivation.x12",
+      "purpose": "Same deactivated provider, service before deactivation → NPPES ok"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "MOCK-NPPES-PREENUM",
+            "matched": [],
+            "nppes": "was not issued until"
+          }
+        ]
+      },
+      "file": "nppes_provider_checks/service_before_npi_issued/before_enumeration.json",
+      "purpose": "Service dated before the NPI was issued"
     },
     {
       "expect": {

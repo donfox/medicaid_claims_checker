@@ -104,16 +104,16 @@
 | ID | Use case | Test files | What the app should show |
 |---|---|---|---|
 | **N1** | Active provider | Any clean claim, e.g. R1_clean_claim/ | NPPES check passes. |
-| **N2** | Malformed NPI (length / check digit) | `N_nppes_provider_checks/N2_malformed_npi/` nine_digit_npi.x12, bad_checksum.x12 | InvalidProviderNPI (and InvalidNPIFormat for 9 digits); NPPES: “not found in NPPES”. |
-| **N3** | NPI never issued | `N_nppes_provider_checks/N3_npi_never_issued/` unissued_npi (.json and .x12) | “not found in NPPES”. |
-| **N4** | Deactivated provider | `N_nppes_provider_checks/N4_deactivated_provider/` deactivated_provider (.json and .x12) | “was deactivated”. |
-| **N5** | Service before the deactivation | `N_nppes_provider_checks/N5_service_before_deactivation/` service_before_deactivation.x12 | Accepted; Clean. |
-| **N6** | Deactivated part-way through a claim | `N_nppes_provider_checks/N6_deactivated_mid_claim/` deactivated_mid_claim.x12 | Rejected for the later line: “service rendered on 2024-12-20 …”. |
-| **N7** | Reactivated provider / service in the gap | `N_nppes_provider_checks/N7_reactivated_provider/` reactivated_provider, reactivation_gap (.json and .x12) | Accepted after reactivation; “was deactivated” for service inside the gap. |
-| **N8** | Service before the NPI was issued | `N_nppes_provider_checks/N8_service_before_npi_issued/` before_enumeration.json | “was not issued until …”. |
-| **N9** | Provider dropped from the NPPES file | `N_nppes_provider_checks/N9_dropped_from_nppes/` dropped_provider.json | “has not been in the NPPES file since …” (needs the October 2026 import). |
-| **N10** | No billing NPI | `N_nppes_provider_checks/N10_no_billing_npi/` missing_billing_npi.x12 | MissingRequiredFields. |
-| **N11** | Deactivated rendering provider | `N_nppes_provider_checks/N11_deactivated_rendering_provider/` rendering_npi_deactivated.x12 | NPPES rejects the rendering provider: “was deactivated”. |
+| **N2** | Malformed NPI (length / check digit) | `nppes_provider_checks/malformed_npi/` nine_digit_npi.x12, bad_checksum.x12 | InvalidProviderNPI (and InvalidNPIFormat for 9 digits); NPPES: “not found in NPPES”. |
+| **N3** | NPI never issued | `nppes_provider_checks/npi_never_issued/` unissued_npi (.json and .x12) | “not found in NPPES”. |
+| **N4** | Deactivated provider | `nppes_provider_checks/deactivated_provider/` deactivated_provider (.json and .x12) | “was deactivated”. |
+| **N5** | Service before the deactivation | `nppes_provider_checks/service_before_deactivation/` service_before_deactivation.x12 | Accepted; Clean. |
+| **N6** | Deactivated part-way through a claim | `nppes_provider_checks/deactivated_mid_claim/` deactivated_mid_claim.x12 | Rejected for the later line: “service rendered on 2024-12-20 …”. |
+| **N7** | Reactivated provider / service in the gap | `nppes_provider_checks/reactivated_provider/` reactivated_provider, reactivation_gap (.json and .x12) | Accepted after reactivation; “was deactivated” for service inside the gap. |
+| **N8** | Service before the NPI was issued | `nppes_provider_checks/service_before_npi_issued/` before_enumeration.json | “was not issued until …”. |
+| **N9** | Provider dropped from the NPPES file | `nppes_provider_checks/dropped_from_nppes/` dropped_provider.json | “has not been in the NPPES file since …” (needs the October 2026 import). |
+| **N10** | No billing NPI | `nppes_provider_checks/no_billing_npi/` missing_billing_npi.x12 | MissingRequiredFields. |
+| **N11** | Deactivated rendering provider | `nppes_provider_checks/deactivated_rendering_provider/` rendering_npi_deactivated.x12 | NPPES rejects the rendering provider: “was deactivated”. |
 
 ## P — Rules page
 

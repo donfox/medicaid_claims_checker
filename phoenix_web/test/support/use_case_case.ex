@@ -130,7 +130,7 @@ defmodule MedicaidClaimsCheckerWeb.UseCaseCase do
     Enum.filter(@manifest, &(use_case_id(&1["file"]) in List.wrap(ids)))
   end
 
-  # The X12, JSON and zip folders and the EDI files have no ID in their names.
+  # The X12, JSON, NPPES and zip folders and the EDI files have no ID in their names.
   @folder_use_cases %{
     "837p_professional" => "X1",
     "837i_institutional" => "X2",
@@ -150,6 +150,16 @@ defmodule MedicaidClaimsCheckerWeb.UseCaseCase do
     "engine_request" => "J6",
     "invalid_json" => "J7",
     "837i_or_837d_style_json" => "J8",
+    "malformed_npi" => "N2",
+    "npi_never_issued" => "N3",
+    "deactivated_provider" => "N4",
+    "service_before_deactivation" => "N5",
+    "deactivated_mid_claim" => "N6",
+    "reactivated_provider" => "N7",
+    "service_before_npi_issued" => "N8",
+    "dropped_from_nppes" => "N9",
+    "no_billing_npi" => "N10",
+    "deactivated_rendering_provider" => "N11",
     "mixed_file_types" => "Z1",
     "json_only_zip" => "Z2",
     "path_traversal" => "Z3",

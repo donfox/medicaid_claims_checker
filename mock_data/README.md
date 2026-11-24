@@ -28,7 +28,7 @@ the limit).
 | `x12_files/edi_extension/` | E1–E3 | Uploading `.edi` files: alternate delimiters, a file that isn't X12 |
 | `zip_files/` | Z1–Z7 | Uploading `.zip` files: mixed contents, path traversal, the 15,000-claim limit |
 | `R_business_rules/` | R1–R11 | What the 20 business rules match |
-| `N_nppes_provider_checks/` | N1–N11 | The NPPES provider check: malformed, unissued, deactivated, reactivated, dropped NPIs |
+| `nppes_provider_checks/` | N1–N11 | The NPPES provider check: malformed, unissued, deactivated, reactivated, dropped NPIs |
 | `P_rules_page/` | P1–P4 | Rule files for the Rules page |
 | `pipeline/` | none | Inputs for one internal processing step (see below); never uploaded |
 
@@ -84,16 +84,16 @@ different results; `manifest.json` has each one's.
 | `R_business_rules/R9_rule_not_decidable/` | A rule reported "not checked" because the claim lacks its field |
 | `R_business_rules/R10_age_out_of_range_or_missing_dob/` | Born 1880, born 2099, no date of birth |
 | `R_business_rules/R11_replacement_or_void_claim/` | Frequency codes 7 and 8: the rules apply as to an original |
-| `N_nppes_provider_checks/N2_malformed_npi/` | Wrong length; failed check digit |
-| `N_nppes_provider_checks/N3_npi_never_issued/` | Valid check digit, never issued |
-| `N_nppes_provider_checks/N4_deactivated_provider/` | Deactivated 2024-12-12, service in 2026 |
-| `N_nppes_provider_checks/N5_service_before_deactivation/` | Same provider, service before the deactivation: accepted |
-| `N_nppes_provider_checks/N6_deactivated_mid_claim/` | One line before and one after the deactivation |
-| `N_nppes_provider_checks/N7_reactivated_provider/` | Service after reactivation (accepted) and in the gap (rejected) |
-| `N_nppes_provider_checks/N8_service_before_npi_issued/` | Service dated before the NPI existed |
-| `N_nppes_provider_checks/N9_dropped_from_nppes/` | NPI dropped from the NPPES file (needs the October 2026 import) |
-| `N_nppes_provider_checks/N10_no_billing_npi/` | No billing NPI |
-| `N_nppes_provider_checks/N11_deactivated_rendering_provider/` | Valid billing NPI, deactivated rendering provider |
+| `nppes_provider_checks/malformed_npi/` | Wrong length; failed check digit |
+| `nppes_provider_checks/npi_never_issued/` | Valid check digit, never issued |
+| `nppes_provider_checks/deactivated_provider/` | Deactivated 2024-12-12, service in 2026 |
+| `nppes_provider_checks/service_before_deactivation/` | Same provider, service before the deactivation: accepted |
+| `nppes_provider_checks/deactivated_mid_claim/` | One line before and one after the deactivation |
+| `nppes_provider_checks/reactivated_provider/` | Service after reactivation (accepted) and in the gap (rejected) |
+| `nppes_provider_checks/service_before_npi_issued/` | Service dated before the NPI existed |
+| `nppes_provider_checks/dropped_from_nppes/` | NPI dropped from the NPPES file (needs the October 2026 import) |
+| `nppes_provider_checks/no_billing_npi/` | No billing NPI |
+| `nppes_provider_checks/deactivated_rendering_provider/` | Valid billing NPI, deactivated rendering provider |
 | `P_rules_page/P1_feature_examples/` | `examples.dsl`: DSL features the business rules don't use |
 | `P_rules_page/P2_redundancy_levels/` | `redundancy_levels.dsl` and the claims written for it (`claims/`) |
 | `P_rules_page/P3_syntax_error/` | A rule with a syntax error: shown as an issue, not saved |

@@ -16,8 +16,8 @@
 #
 # --only keeps the cases in one use-case folder or group: R5 matches
 # R5_exact_thresholds (not R50...), R matches R_business_rules. The X12,
-# JSON and zip folders and the EDI files have no ID in their names, so X,
-# X1-X7, E, E1-E3, J, J1-J8, Z and Z1-Z7 are mapped to them below. --suite
+# JSON, NPPES and zip folders and the EDI files have no ID in their names,
+# so X, X1-X7, E, E1-E3, J, J1-J8, N, N2-N11, Z and Z1-Z7 are mapped to them below. --suite
 # checks another directory with a manifest.json in the same format. A case
 # with "rules" is evaluated against that rules file instead of the database
 # rules.
@@ -235,6 +235,17 @@ folder_ids = %{
   "engine_request" => "J6",
   "invalid_json" => "J7",
   "837i_or_837d_style_json" => "J8",
+  "nppes_provider_checks" => "N",
+  "malformed_npi" => "N2",
+  "npi_never_issued" => "N3",
+  "deactivated_provider" => "N4",
+  "service_before_deactivation" => "N5",
+  "deactivated_mid_claim" => "N6",
+  "reactivated_provider" => "N7",
+  "service_before_npi_issued" => "N8",
+  "dropped_from_nppes" => "N9",
+  "no_billing_npi" => "N10",
+  "deactivated_rendering_provider" => "N11",
   "mixed_file_types" => "Z1",
   "json_only_zip" => "Z2",
   "path_traversal" => "Z3",

@@ -81,9 +81,9 @@ defmodule MedicaidClaimsCheckerWeb.UseCases.PRulesPageTest do
   defp saved(name), do: Repo.one(from(r in BusinessRule, where: r.name == ^name))
 
   @tag use_case: "P1"
-  test "P1 every rule in examples.dsl parses and saves as an active rule", %{conn: conn} do
+  test "P1 every rule in feature_examples.dsl parses and saves as an active rule", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/rules")
-    rules = rules_in("rules_page/feature_examples/examples.dsl")
+    rules = rules_in("rules_page/feature_examples.dsl")
     assert length(rules) == 10
 
     for {name, text, _} <- rules do
@@ -136,7 +136,7 @@ defmodule MedicaidClaimsCheckerWeb.UseCases.PRulesPageTest do
   @tag use_case: "P3"
   test "P3 a rule with a syntax error is shown as an issue and not saved", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/rules")
-    [{name, text, _}] = rules_in("rules_page/syntax_error/missing_then.dsl")
+    [{name, text, _}] = rules_in("rules_page/missing_then.dsl")
     params = %{"catalog" => %{"name" => name, "text" => text}}
 
     view |> form("#catalog-rule-form", params) |> render_change()
@@ -152,7 +152,7 @@ defmodule MedicaidClaimsCheckerWeb.UseCases.PRulesPageTest do
     conn: conn
   } do
     {:ok, view, _html} = live(conn, ~p"/rules")
-    [{name, text, _}] = rules_in("rules_page/unknown_field/old_field_name.dsl")
+    [{name, text, _}] = rules_in("rules_page/old_field_name.dsl")
 
     save_rule(view, name, text)
     assert %{active: false} = saved(name)

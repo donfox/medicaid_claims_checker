@@ -94,10 +94,10 @@ different results; `manifest.json` has each one's.
 | `nppes_provider_checks/dropped_from_nppes/` | NPI dropped from the NPPES file (needs the October 2026 import) |
 | `nppes_provider_checks/no_billing_npi/` | No billing NPI |
 | `nppes_provider_checks/deactivated_rendering_provider/` | Valid billing NPI, deactivated rendering provider |
-| `rules_page/feature_examples/` | `examples.dsl`: DSL features the business rules don't use |
+| `rules_page/feature_examples.dsl` | DSL features the business rules don't use |
 | `rules_page/redundancy_levels/` | `redundancy_levels.dsl` and the claims written for it (`claims/`) |
-| `rules_page/syntax_error/` | A rule with a syntax error: shown as an issue, not saved |
-| `rules_page/unknown_field/` | A rule using an old field name: saved as an inactive draft, with the current name suggested |
+| `rules_page/missing_then.dsl` | A rule with a syntax error: shown as an issue, not saved |
+| `rules_page/old_field_name.dsl` | A rule using an old field name: saved as an inactive draft, with the current name suggested |
 
 ## Generated and hand-written files
 
@@ -231,7 +231,7 @@ The copy keeps the expected results (`manifest.json` is retagged too), so
   the group F stay rules need a revenue code, which professional claims don't
   have, and the ER rules need a claim-level place of service, which
   institutional claims don't have.
-- **`feature_examples/examples.dsl`** is 10 rules showing DSL features the
+- **`feature_examples.dsl`** is 10 rules showing DSL features the
   business rules don't use: nested `EXISTS`, `NOT EXISTS`, `NOT FORALL`,
   `COUNT`, `in_list`, `starts_with`, `MATCHES`, `has_procedure`,
   `is_age_valid`, indexed paths and multiple actions. Each one parses, passes

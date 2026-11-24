@@ -7,19 +7,23 @@ for manual testing and by the automated tests and scripts.
 
 ## How it is organised
 
-Files are grouped by the **use case** they test, using the IDs from the
-Frontend Use Cases list ([docs/FRONTEND_USE_CASES.md](../docs/FRONTEND_USE_CASES.md)):
+Files are grouped by the **use case** they test. Each use case has an ID from
+the Frontend Use Cases list ([docs/FRONTEND_USE_CASES.md](../docs/FRONTEND_USE_CASES.md)).
+The IDs are not in the folder or file names; [Every use case](#every-use-case)
+lists them.
 
 ```
 mock_data/
-  <group>/                   one folder per kind of test, named <letter>_<what it covers>
-    <ID>_<use case>/         one folder per use case, named <ID>_<what it tests>
+  <group>/                   one folder per kind of test
+    <use case>/              a folder holding a use case's files
       <variant>.<ext>        the test files; the name says what the file does
+    <use case>.<ext>         in json_files, rules_page and zip_files, a use case
+                             with one or two files sits directly in its group
 ```
 
 For example, `claim_rule_checks/exact_thresholds/exactly_50000.x12` is a
-claim of exactly $50,000.00 for use case R5 (rules must not match at exactly
-the limit).
+claim of exactly $50,000.00 for use case R5. HighValueClaim needs more than
+$50,000, so it must not match.
 
 | Group folder | Use cases | What they test |
 |---|---|---|
@@ -32,9 +36,9 @@ the limit).
 | `rules_page/` | P1–P4 | Rule files for the Rules page |
 | `converter_output/` | none | Inputs for one internal processing step (see below); never uploaded |
 
-Every use case has test data. Those with no folder of their own, U1–U8
-(upload behaviour), N1 (active provider) and R8 (new-provider rules), use
-files from other folders.
+Every use case has test data. U1–U8 (upload behaviour), N1 (active provider)
+and R8 (new-provider rules) have no file of their own and use files from other
+folders.
 
 **One home per file.** Some files test more than one use case. Every R2 X12
 file is also an 837P file (X1), for instance. Each file lives in the folder of
@@ -45,59 +49,59 @@ files are in the same folder: `each_rule_alone/HighValueClaim.json` and
 `HighValueClaim.x12`. They are separate claims and can expect slightly
 different results; `manifest.json` has each one's.
 
-### Every use-case folder
+### Every use case
 
-| Folder | Contents |
-|---|---|
-| `json_files/routine_office_visit.json` | One claim in a `.json` file |
-| `json_files/two_claims.json` | A plain list `[...]` of claims, no wrapper |
-| `json_files/claims_wrapper/` | Claims wrapped as `{"claims": [...]}`: `mixed_batch`, `clean_batch`, `mixed_risk` |
-| `json_files/list_with_bad_entries.json` | A list holding claims and entries that aren't claims |
-| `json_files/patient_record.json` | Valid JSON that isn't a claim: refused |
-| `json_files/rules_text_and_claims.json` | An engine request (`rulesText` + claims), which must be refused as an upload |
-| `json_files/invalid_json.json` | A claim file cut off part-way: not valid JSON, refused |
-| `json_files/dental_837d.json`, `institutional_837i.json` | JSON claims in the 837D (dental) and 837I (institutional) layouts |
-| `x12_files/837p_professional/` | Clean 837P claims, incl. a line dated as a range and a dependant patient |
-| `x12_files/837i_institutional/` | 837I claims: dated on the line, or on the claim only |
-| `x12_files/837d_dental/` | An 837D claim |
-| `x12_files/several_claims_one_transaction_set/` | Three claims in one transaction set; two claims for one subscriber |
-| `x12_files/several_transaction_sets/` | Two transaction sets in one file |
-| `x12_files/one_line_or_windows_line_endings/` | No newlines; CRLF line endings |
-| `x12_files/broken_envelope_or_file/` | Truncated, wrong segment count, mismatched control numbers, too short, no claims |
-| `x12_files/edi_extension/clean_claim.edi` | An ordinary clean 837P claim named `.edi` |
-| `x12_files/edi_extension/alternate_delimiters.edi` | `\|` and `>` as separators |
-| `x12_files/edi_extension/not_x12.edi` | Plain text named `.edi` |
-| `zip_files/mixed_file_types.zip` | A zip with `.x12`, `.edi`, `.json` and an ignored `.txt` |
-| `zip_files/two_json_claims.zip` | A zip holding only `.json` claims |
-| `zip_files/path_traversal.zip` | A zip entry named `../escape.x12` |
-| `zip_files/empty.zip`, `text_files_only.zip` | An empty zip; a zip of `.txt`/`.csv` only: nothing to evaluate |
-| `zip_files/zip_inside_zip.zip` | A zip holding an `.x12` and another zip, which is ignored |
-| `zip_files/corrupt.zip` | A zip cut off part-way, which can't be opened |
-| `zip_files/over_15000_claims/` | Not committed: made by `generate.exs --large N` (the use-case test builds its own) |
-| `claim_rule_checks/clean_claim/` | Claims no rule should match |
-| `claim_rule_checks/each_rule_alone/` | One file per rule, named after it |
-| `claim_rule_checks/several_rules/` | Claims that match several rules |
-| `claim_rule_checks/problem_on_second_line/` | The problem is on service line 2, not line 1 |
-| `claim_rule_checks/exact_thresholds/` | Amounts exactly at a "greater than" limit, which must not match |
-| `claim_rule_checks/weekend_office_variants/` | Saturday, Sunday, weekday and home-visit variants of WeekendOfficeVisit |
-| `claim_rule_checks/weekend_inpatient_stay/` | Weekend inpatient stays, which WeekendOfficeVisit must skip |
-| `claim_rule_checks/rule_not_decidable/` | A rule reported "not checked" because the claim lacks its field |
-| `claim_rule_checks/age_out_of_range_or_missing_dob/` | Born 1880, born 2099, no date of birth |
-| `claim_rule_checks/replacement_or_void_claim/` | Frequency codes 7 and 8: the rules apply as to an original |
-| `nppes_provider_checks/malformed_npi/` | Wrong length; failed check digit |
-| `nppes_provider_checks/npi_never_issued/` | Valid check digit, never issued |
-| `nppes_provider_checks/deactivated_provider/` | Deactivated 2024-12-12, service in 2026 |
-| `nppes_provider_checks/service_before_deactivation/` | Same provider, service before the deactivation: accepted |
-| `nppes_provider_checks/deactivated_mid_claim/` | One line before and one after the deactivation |
-| `nppes_provider_checks/reactivated_provider/` | Service after reactivation (accepted) and in the gap (rejected) |
-| `nppes_provider_checks/service_before_npi_issued/` | Service dated before the NPI existed |
-| `nppes_provider_checks/dropped_from_nppes/` | NPI dropped from the NPPES file (needs the October 2026 import) |
-| `nppes_provider_checks/no_billing_npi/` | No billing NPI |
-| `nppes_provider_checks/deactivated_rendering_provider/` | Valid billing NPI, deactivated rendering provider |
-| `rules_page/feature_examples.dsl` | DSL features the business rules don't use |
-| `rules_page/redundancy_levels/` | `redundancy_levels.dsl` and the claims written for it (`claims/`) |
-| `rules_page/missing_then.dsl` | A rule with a syntax error: shown as an issue, not saved |
-| `rules_page/old_field_name.dsl` | A rule using an old field name: saved as an inactive draft, with the current name suggested |
+| ID | Folder or file | Contents |
+|---|---|---|
+| J1 | `json_files/routine_office_visit.json` | One claim in a `.json` file |
+| J2 | `json_files/two_claims.json` | A plain list `[...]` of claims, no wrapper |
+| J3 | `json_files/claims_wrapper/` | Claims wrapped as `{"claims": [...]}`: `mixed_batch`, `clean_batch`, `mixed_risk` |
+| J4 | `json_files/list_with_bad_entries.json` | A list holding claims and entries that aren't claims |
+| J5 | `json_files/patient_record.json` | Valid JSON that isn't a claim: refused |
+| J6 | `json_files/rules_text_and_claims.json` | An engine request (`rulesText` + claims), which must be refused as an upload |
+| J7 | `json_files/invalid_json.json` | A claim file cut off part-way: not valid JSON, refused |
+| J8 | `json_files/dental_837d.json`, `institutional_837i.json` | JSON claims in the 837D (dental) and 837I (institutional) layouts |
+| X1 | `x12_files/837p_professional/` | Clean 837P claims, incl. a line dated as a range, a dependant patient and procedure modifiers |
+| X2 | `x12_files/837i_institutional/` | 837I claims: dated on the line or on the claim only, and condition codes with no diagnosis |
+| X3 | `x12_files/837d_dental/` | An 837D claim |
+| X4 | `x12_files/several_claims_one_transaction_set/` | Three claims in one transaction set; two claims for one subscriber |
+| X5 | `x12_files/several_transaction_sets/` | Two transaction sets in one file |
+| X6 | `x12_files/one_line_or_windows_line_endings/` | No newlines; CRLF line endings |
+| X7 | `x12_files/broken_envelope_or_file/` | Truncated, wrong segment count, mismatched control numbers, too short, no claims |
+| E1 | `x12_files/edi_extension/clean_claim.edi` | An ordinary clean 837P claim named `.edi` |
+| E2 | `x12_files/edi_extension/alternate_delimiters.edi` | `\|` and `>` as separators |
+| E3 | `x12_files/edi_extension/not_x12.edi` | Plain text named `.edi` |
+| Z1 | `zip_files/mixed_file_types.zip` | A zip with `.x12`, `.edi`, `.json` and an ignored `.txt` |
+| Z2 | `zip_files/two_json_claims.zip` | A zip holding only `.json` claims |
+| Z3 | `zip_files/path_traversal.zip` | A zip entry named `../escape.x12` |
+| Z4 | `zip_files/empty.zip`, `text_files_only.zip` | An empty zip; a zip of `.txt`/`.csv` only: nothing to evaluate |
+| Z5 | `zip_files/zip_inside_zip.zip` | A zip holding an `.x12` and another zip, which is ignored |
+| Z6 | `zip_files/corrupt.zip` | A zip cut off part-way, which can't be opened |
+| Z7 | `zip_files/over_15000_claims/` | Not committed: made by `generate.exs --large N` (the use-case test builds its own) |
+| R1 | `claim_rule_checks/clean_claim/` | Claims no rule should match |
+| R2 | `claim_rule_checks/each_rule_alone/` | One file per rule, named after it |
+| R3 | `claim_rule_checks/several_rules/` | Claims that match several rules |
+| R4 | `claim_rule_checks/problem_on_second_line/` | The problem is on service line 2, not line 1 |
+| R5 | `claim_rule_checks/exact_thresholds/` | Amounts exactly at a "greater than" limit, which must not match |
+| R6 | `claim_rule_checks/weekend_office_variants/` | Saturday, Sunday, weekday and home-visit variants of WeekendOfficeVisit |
+| R7 | `claim_rule_checks/weekend_inpatient_stay/` | Weekend inpatient stays, which WeekendOfficeVisit must skip |
+| R9 | `claim_rule_checks/rule_not_decidable/` | A rule reported "not checked" because the claim lacks its field |
+| R10 | `claim_rule_checks/age_out_of_range_or_missing_dob/` | Born 1880, born 2099, no date of birth |
+| R11 | `claim_rule_checks/replacement_or_void_claim/` | Frequency codes 7 and 8: the rules apply as to an original |
+| N2 | `nppes_provider_checks/malformed_npi/` | Wrong length; failed check digit |
+| N3 | `nppes_provider_checks/npi_never_issued/` | Valid check digit, never issued |
+| N4 | `nppes_provider_checks/deactivated_provider/` | Deactivated 2024-12-12, service in 2026 |
+| N5 | `nppes_provider_checks/service_before_deactivation/` | Same provider, service before the deactivation: accepted |
+| N6 | `nppes_provider_checks/deactivated_mid_claim/` | One line before and one after the deactivation |
+| N7 | `nppes_provider_checks/reactivated_provider/` | Service after reactivation (accepted) and in the gap (rejected) |
+| N8 | `nppes_provider_checks/service_before_npi_issued/` | Service dated before the NPI existed |
+| N9 | `nppes_provider_checks/dropped_from_nppes/` | NPI dropped from the NPPES file (needs the October 2026 import) |
+| N10 | `nppes_provider_checks/no_billing_npi/` | No billing NPI |
+| N11 | `nppes_provider_checks/deactivated_rendering_provider/` | Valid billing NPI, deactivated rendering provider |
+| P1 | `rules_page/feature_examples.dsl` | DSL features the business rules don't use |
+| P2 | `rules_page/redundancy_levels/` | `redundancy_levels.dsl` and the claims written for it (`claims/`) |
+| P3 | `rules_page/missing_then.dsl` | A rule with a syntax error: shown as an issue, not saved |
+| P4 | `rules_page/old_field_name.dsl` | A rule using an old field name: saved as an inactive draft, with the current name suggested |
 
 ## Generated and hand-written files
 
@@ -108,13 +112,13 @@ again; an edit to the file itself is lost on the next run.
 
 ```bash
 elixir mock_data/generate.exs              # rewrite every generated file
-elixir mock_data/generate.exs --large 15000 # also write a Z7 large-batch zip (not committed)
+elixir mock_data/generate.exs --large 15001 # also write a Z7 large-batch zip (not committed)
 ```
 
 | Generator | Writes |
 |---|---|
 | `test_case_generators/x12_files.exs` | every `.x12`, `.edi` and `.zip` file |
-| `test_case_generators/json_claims.exs` | the JSON claims in R, N and P2, and the J3 batches |
+| `test_case_generators/json_claims.exs` | the JSON claims in R, N and P2, and the files for J2, J3 (`clean_batch`, `mixed_batch`), J5, J7 and J8 |
 
 The generator deletes the files the previous `manifest.json` lists before
 writing, so renaming or removing a case leaves nothing behind. It never
@@ -181,8 +185,13 @@ cd phoenix_web
 mix run --no-start ../mock_data/verify.exs             # every generated file
 mix run --no-start ../mock_data/verify.exs --only R5   # one use case
 mix run --no-start ../mock_data/verify.exs --only N    # one group
-mix run --no-start ../mock_data/verify.exs --large ../mock_data/zip_files/over_15000_claims/large_batch_15000.zip
+mix run --no-start ../mock_data/verify.exs --large ../mock_data/zip_files/over_15000_claims/large_batch_15001.zip
 ```
+
+`--only` takes a use case ID or a group letter. X includes the E cases, which
+sit under `x12_files/`. J1, J4, J6, N1, P1, P3, P4, R8, U1–U8 and Z7 have no
+manifest case of their own, so check them with `scripts/test.sh`, for example
+`scripts/test.sh J1 Z7`.
 
 Each file goes through the same steps as an upload, then the NPPES check and
 the rules, and the outcome is compared with `manifest.json`. Hand-written

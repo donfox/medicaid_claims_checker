@@ -386,7 +386,7 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapperTest do
     end
 
     test "837D: CLM05-1 is the place of service" do
-      claim = convert("X_x12_files/837d_dental/dental.x12")
+      claim = convert("x12_files/837d_dental/dental.x12")
       assert claim["transaction_type"] == "837D"
       assert claim["claim_details"]["place_of_service"] == "11"
       assert claim["claim_details"]["facility_type_code"] == nil
@@ -396,7 +396,7 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapperTest do
   describe "837D service lines" do
     test "units come from SV3-06, the procedure count" do
       # SV3*AD:D1110*95.00****1 — SV3-05 (prosthesis code) is blank
-      [line] = convert("X_x12_files/837d_dental/dental.x12")["service_lines"]
+      [line] = convert("x12_files/837d_dental/dental.x12")["service_lines"]
       assert line["units"] == "1"
       assert line["charge_amount"] == "95.00"
     end
@@ -411,9 +411,9 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapperTest do
       line["modifiers"]
     end
 
-    @professional "X_x12_files/837p_professional/clean_office_visit.x12"
-    @institutional "X_x12_files/837i_institutional/institutional.x12"
-    @dental "X_x12_files/837d_dental/dental.x12"
+    @professional "x12_files/837p_professional/clean_office_visit.x12"
+    @institutional "x12_files/837i_institutional/institutional.x12"
+    @dental "x12_files/837d_dental/dental.x12"
 
     test "837P, 837I and 837D lines keep their modifiers, in order" do
       assert convert_with(@professional, "HC:99213*", "HC:99213:25:59*") ==

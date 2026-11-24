@@ -42,13 +42,13 @@
 
 | ID | Use case | Test files | What the app should show |
 |---|---|---|---|
-| **X1** | 837P professional claim | `X_x12_files/837p_professional/` clean_office_visit.x12, clean_multi_line.x12, line_date_range.x12, patient_not_subscriber.x12, cents_add_up.x12, procedure_modifiers.x12 | “1 X12/EDI claim(s) translated”; Clean. A line dated as a range is read by its start date; a dependant's own patient loop gives the patient fields; three $33.33 lines balance a $99.99 total. |
-| **X2** | 837I institutional claim | `X_x12_files/837i_institutional/` institutional.x12, institutional_claim_dates.x12, condition_codes_no_diagnosis.x12 | Translated and evaluated; Clean. With the dates on the claim only, the line takes the statement start date and the NPPES check passes. Condition and value codes are not diagnoses, so a claim with only those matches MissingDiagnosisCodes. |
-| **X3** | 837D dental claim | `X_x12_files/837d_dental/` dental.x12 | Translated and evaluated; Clean. |
-| **X4** | Several claims in one transaction set | `X_x12_files/several_claims_one_transaction_set/` three_claims.x12, two_claims_same_subscriber.x12 | Each claim is its own result row. three_claims: MULTI01 Clean; MULTI02 HighValueClaim + HighComplexityERVisit + UnauthorizedProcedure; MULTI03 MissingDiagnosisCodes. Same subscriber: SAMESUB01 Clean, SAMESUB02 SuspiciouslyLowCharge. |
-| **X5** | Several transaction sets in one file | `X_x12_files/several_transaction_sets/` two_transaction_sets.x12 | All four claims from both sets are evaluated; TXA02 SuspiciouslyLowCharge, TXB02 PatientAgeOutOfRange. |
-| **X6** | One-line file / Windows line endings | `X_x12_files/one_line_or_windows_line_endings/` no_newlines.x12, crlf_line_endings.x12 | Read like a normal file; Clean. |
-| **X7** | Broken envelope or file | `X_x12_files/broken_envelope_or_file/` truncated, wrong_se_count, control_number_mismatch, too_short, envelope_no_claims (.x12) | Refused, naming the problem: “incomplete transmission”, “SE segment count”, “interchange control number mismatch”, “too short”, “no claims found”. No claims evaluated. |
+| **X1** | 837P professional claim | `x12_files/837p_professional/` clean_office_visit.x12, clean_multi_line.x12, line_date_range.x12, patient_not_subscriber.x12, cents_add_up.x12, procedure_modifiers.x12 | “1 X12/EDI claim(s) translated”; Clean. A line dated as a range is read by its start date; a dependant's own patient loop gives the patient fields; three $33.33 lines balance a $99.99 total. |
+| **X2** | 837I institutional claim | `x12_files/837i_institutional/` institutional.x12, institutional_claim_dates.x12, condition_codes_no_diagnosis.x12 | Translated and evaluated; Clean. With the dates on the claim only, the line takes the statement start date and the NPPES check passes. Condition and value codes are not diagnoses, so a claim with only those matches MissingDiagnosisCodes. |
+| **X3** | 837D dental claim | `x12_files/837d_dental/` dental.x12 | Translated and evaluated; Clean. |
+| **X4** | Several claims in one transaction set | `x12_files/several_claims_one_transaction_set/` three_claims.x12, two_claims_same_subscriber.x12 | Each claim is its own result row. three_claims: MULTI01 Clean; MULTI02 HighValueClaim + HighComplexityERVisit + UnauthorizedProcedure; MULTI03 MissingDiagnosisCodes. Same subscriber: SAMESUB01 Clean, SAMESUB02 SuspiciouslyLowCharge. |
+| **X5** | Several transaction sets in one file | `x12_files/several_transaction_sets/` two_transaction_sets.x12 | All four claims from both sets are evaluated; TXA02 SuspiciouslyLowCharge, TXB02 PatientAgeOutOfRange. |
+| **X6** | One-line file / Windows line endings | `x12_files/one_line_or_windows_line_endings/` no_newlines.x12, crlf_line_endings.x12 | Read like a normal file; Clean. |
+| **X7** | Broken envelope or file | `x12_files/broken_envelope_or_file/` truncated, wrong_se_count, control_number_mismatch, too_short, envelope_no_claims (.x12) | Refused, naming the problem: “incomplete transmission”, “SE segment count”, “interchange control number mismatch”, “too short”, “no claims found”. No claims evaluated. |
 
 ## E — EDI (.edi) uploads
 
@@ -62,13 +62,13 @@
 
 | ID | Use case | Test files | What the app should show |
 |---|---|---|---|
-| **Z1** | Zip with .x12, .edi, .json and other files | `Z_zip_files/mixed_file_types/` mixed_bundle.zip | The three claim files are evaluated (ZIPEDIB matches MissingDiagnosisCodes); README.txt is ignored. |
-| **Z2** | Zip with JSON files only | `Z_zip_files/json_only_zip/` two_json_claims.zip | Both JSON claims evaluated; Clean. |
-| **Z3** | Path-traversal entry (`../escape.x12`) | `Z_zip_files/path_traversal/` path_traversal.zip | Read as escape.x12 and evaluated (Clean); nothing is written to disk. |
-| **Z4** | Zip with nothing usable / empty zip | `Z_zip_files/nothing_usable/` empty.zip, text_files_only.zip | “No processable claims found”. |
-| **Z5** | Zip inside a zip | `Z_zip_files/zip_inside_zip/` nested.zip | The outer .x12 is evaluated (Clean); the inner zip is ignored. |
-| **Z6** | Corrupt zip | `Z_zip_files/corrupt_zip/` cut_off.zip | “No processable claims found”. |
-| **Z7** | More than 15,000 claims | `Z_zip_files/over_15000_claims/` — not in git; make it with `elixir mock_data/generate.exs --large 15001` | Nothing is evaluated. The message names the reason: “This batch has 15001 claims; the limit is 15000. Split the files into smaller batches and try again.” Up to 15,000 claims are evaluated normally. |
+| **Z1** | Zip with .x12, .edi, .json and other files | `zip_files/mixed_file_types/` mixed_bundle.zip | The three claim files are evaluated (ZIPEDIB matches MissingDiagnosisCodes); README.txt is ignored. |
+| **Z2** | Zip with JSON files only | `zip_files/json_only_zip/` two_json_claims.zip | Both JSON claims evaluated; Clean. |
+| **Z3** | Path-traversal entry (`../escape.x12`) | `zip_files/path_traversal/` path_traversal.zip | Read as escape.x12 and evaluated (Clean); nothing is written to disk. |
+| **Z4** | Zip with nothing usable / empty zip | `zip_files/nothing_usable/` empty.zip, text_files_only.zip | “No processable claims found”. |
+| **Z5** | Zip inside a zip | `zip_files/zip_inside_zip/` nested.zip | The outer .x12 is evaluated (Clean); the inner zip is ignored. |
+| **Z6** | Corrupt zip | `zip_files/corrupt_zip/` cut_off.zip | “No processable claims found”. |
+| **Z7** | More than 15,000 claims | `zip_files/over_15000_claims/` — not in git; make it with `elixir mock_data/generate.exs --large 15001` | Nothing is evaluated. The message names the reason: “This batch has 15001 claims; the limit is 15000. Split the files into smaller batches and try again.” Up to 15,000 claims are evaluated normally. |
 
 ## U — Upload behaviour
 

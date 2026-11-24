@@ -1717,7 +1717,7 @@
           }
         ]
       },
-      "file": "X_x12_files/837d_dental/dental.x12",
+      "file": "x12_files/837d_dental/dental.x12",
       "purpose": "837D dental claim (SV3, TOO), clean"
     },
     {
@@ -1732,7 +1732,7 @@
           }
         ]
       },
-      "file": "X_x12_files/837i_institutional/condition_codes_no_diagnosis.x12",
+      "file": "x12_files/837i_institutional/condition_codes_no_diagnosis.x12",
       "purpose": "837I with condition (BG) and value (BE) codes but no diagnosis: they are not diagnoses (other_codes), so MissingDiagnosisCodes matches"
     },
     {
@@ -1745,7 +1745,7 @@
           }
         ]
       },
-      "file": "X_x12_files/837i_institutional/institutional.x12",
+      "file": "x12_files/837i_institutional/institutional.x12",
       "purpose": "837I institutional claim (SV2, CL1), clean"
     },
     {
@@ -1758,7 +1758,7 @@
           }
         ]
       },
-      "file": "X_x12_files/837i_institutional/institutional_claim_dates.x12",
+      "file": "x12_files/837i_institutional/institutional_claim_dates.x12",
       "purpose": "837I with the dates on the claim (statement period 2026-09-10 to 09-12, admission) and none on the line; the line takes the statement start date, clean"
     },
     {
@@ -1771,7 +1771,7 @@
           }
         ]
       },
-      "file": "X_x12_files/837p_professional/cents_add_up.x12",
+      "file": "x12_files/837p_professional/cents_add_up.x12",
       "purpose": "Three lines of $33.33 and a $99.99 total: added in exact cents they balance, so ClaimTotalMismatch must not match; clean"
     },
     {
@@ -1784,7 +1784,7 @@
           }
         ]
       },
-      "file": "X_x12_files/837p_professional/clean_multi_line.x12",
+      "file": "x12_files/837p_professional/clean_multi_line.x12",
       "purpose": "Clean claim with three service lines and two diagnoses"
     },
     {
@@ -1797,7 +1797,7 @@
           }
         ]
       },
-      "file": "X_x12_files/837p_professional/clean_office_visit.x12",
+      "file": "x12_files/837p_professional/clean_office_visit.x12",
       "purpose": "Clean low-value office visit; no rule should match"
     },
     {
@@ -1810,7 +1810,7 @@
           }
         ]
       },
-      "file": "X_x12_files/837p_professional/line_date_range.x12",
+      "file": "x12_files/837p_professional/line_date_range.x12",
       "purpose": "Service line dated as a range (RD8 2026-09-01 to 09-03); rules read the start date, clean"
     },
     {
@@ -1823,7 +1823,7 @@
           }
         ]
       },
-      "file": "X_x12_files/837p_professional/patient_not_subscriber.x12",
+      "file": "x12_files/837p_professional/patient_not_subscriber.x12",
       "purpose": "Patient is a dependant in their own patient loop (HL 23); patient fields are the child's, clean"
     },
     {
@@ -1836,32 +1836,32 @@
           }
         ]
       },
-      "file": "X_x12_files/837p_professional/procedure_modifiers.x12",
+      "file": "x12_files/837p_professional/procedure_modifiers.x12",
       "purpose": "Service line with procedure modifiers 25 and 59 (SV1-01), read as service_lines[].modifiers; clean"
     },
     {
       "expect": { "error": "interchange control number mismatch" },
-      "file": "X_x12_files/broken_envelope_or_file/control_number_mismatch.x12",
+      "file": "x12_files/broken_envelope_or_file/control_number_mismatch.x12",
       "purpose": "IEA control number differs from ISA → reject"
     },
     {
       "expect": { "error": "no claims found" },
-      "file": "X_x12_files/broken_envelope_or_file/envelope_no_claims.x12",
+      "file": "x12_files/broken_envelope_or_file/envelope_no_claims.x12",
       "purpose": "Valid envelope with a billing provider but no CLM → rejected, no claims"
     },
     {
       "expect": { "error": "too short" },
-      "file": "X_x12_files/broken_envelope_or_file/too_short.x12",
+      "file": "x12_files/broken_envelope_or_file/too_short.x12",
       "purpose": "File shorter than an ISA segment → reject"
     },
     {
       "expect": { "error": "incomplete transmission" },
-      "file": "X_x12_files/broken_envelope_or_file/truncated.x12",
+      "file": "x12_files/broken_envelope_or_file/truncated.x12",
       "purpose": "File cut off mid-way through the second claim (no SE/GE/IEA) → reject as incomplete"
     },
     {
       "expect": { "error": "SE segment count" },
-      "file": "X_x12_files/broken_envelope_or_file/wrong_se_count.x12",
+      "file": "x12_files/broken_envelope_or_file/wrong_se_count.x12",
       "purpose": "SE segment count off by 3 → reject"
     },
     {
@@ -1874,7 +1874,7 @@
           }
         ]
       },
-      "file": "X_x12_files/one_line_or_windows_line_endings/crlf_line_endings.x12",
+      "file": "x12_files/one_line_or_windows_line_endings/crlf_line_endings.x12",
       "purpose": "Windows CRLF line endings, clean"
     },
     {
@@ -1887,7 +1887,7 @@
           }
         ]
       },
-      "file": "X_x12_files/one_line_or_windows_line_endings/no_newlines.x12",
+      "file": "x12_files/one_line_or_windows_line_endings/no_newlines.x12",
       "purpose": "Whole file on one line (no newlines), clean"
     },
     {
@@ -1919,7 +1919,7 @@
           }
         ]
       },
-      "file": "X_x12_files/several_claims_one_transaction_set/three_claims.x12",
+      "file": "x12_files/several_claims_one_transaction_set/three_claims.x12",
       "purpose": "Three subscribers, one claim each, in one transaction set"
     },
     {
@@ -1939,7 +1939,7 @@
           }
         ]
       },
-      "file": "X_x12_files/several_claims_one_transaction_set/two_claims_same_subscriber.x12",
+      "file": "x12_files/several_claims_one_transaction_set/two_claims_same_subscriber.x12",
       "purpose": "One subscriber with two claims (two CLMs under one HL)"
     },
     {
@@ -1971,12 +1971,12 @@
           }
         ]
       },
-      "file": "X_x12_files/several_transaction_sets/two_transaction_sets.x12",
+      "file": "x12_files/several_transaction_sets/two_transaction_sets.x12",
       "purpose": "One interchange, two ST..SE transaction sets with two claims each"
     },
     {
       "expect": { "error": "No processable claims found" },
-      "file": "Z_zip_files/corrupt_zip/cut_off.zip",
+      "file": "zip_files/corrupt_zip/cut_off.zip",
       "purpose": "Zip file cut off part-way, so it can't be opened → nothing to evaluate"
     },
     {
@@ -1994,7 +1994,7 @@
           }
         ]
       },
-      "file": "Z_zip_files/json_only_zip/two_json_claims.zip",
+      "file": "zip_files/json_only_zip/two_json_claims.zip",
       "purpose": "Zip holding only .json claims"
     },
     {
@@ -2019,17 +2019,17 @@
           }
         ]
       },
-      "file": "Z_zip_files/mixed_file_types/mixed_bundle.zip",
+      "file": "zip_files/mixed_file_types/mixed_bundle.zip",
       "purpose": "Zip holding an .x12, an .edi, a .json and a .txt (ignored)"
     },
     {
       "expect": { "error": "No processable claims found" },
-      "file": "Z_zip_files/nothing_usable/empty.zip",
+      "file": "zip_files/nothing_usable/empty.zip",
       "purpose": "Zip with no entries → nothing to evaluate"
     },
     {
       "expect": { "error": "No processable claims found" },
-      "file": "Z_zip_files/nothing_usable/text_files_only.zip",
+      "file": "zip_files/nothing_usable/text_files_only.zip",
       "purpose": "Zip holding only .txt and .csv files, which are ignored → nothing to evaluate"
     },
     {
@@ -2042,7 +2042,7 @@
           }
         ]
       },
-      "file": "Z_zip_files/path_traversal/path_traversal.zip",
+      "file": "zip_files/path_traversal/path_traversal.zip",
       "purpose": "Zip whose only entry is ../escape.x12 → Erlang's in-memory unzip strips the ../ and the entry is read as escape.x12; nothing is written to disk"
     },
     {
@@ -2055,7 +2055,7 @@
           }
         ]
       },
-      "file": "Z_zip_files/zip_inside_zip/nested.zip",
+      "file": "zip_files/zip_inside_zip/nested.zip",
       "purpose": "Zip holding an .x12 and another zip; the inner zip is ignored, so only the outer claim is evaluated"
     }
   ]

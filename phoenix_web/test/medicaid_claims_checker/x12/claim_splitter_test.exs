@@ -30,21 +30,21 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
     test "accepts a well-formed file" do
       assert {:ok, nil} =
                ClaimSplitter.split_transaction_sets(
-                 read("X_x12_files/837p_professional/clean_office_visit.x12")
+                 read("x12_files/837p_professional/clean_office_visit.x12")
                )
     end
 
     test "rejects a truncated file as an incomplete transmission" do
       assert {:error, "Incomplete transmission:" <> _} =
                ClaimSplitter.split_transaction_sets(
-                 read("X_x12_files/broken_envelope_or_file/truncated.x12")
+                 read("x12_files/broken_envelope_or_file/truncated.x12")
                )
     end
 
     test "rejects a wrong SE segment count" do
       assert {:error, "SE segment count is 27 but transaction set 0001 has 24 segments"} =
                ClaimSplitter.split_transaction_sets(
-                 read("X_x12_files/broken_envelope_or_file/wrong_se_count.x12")
+                 read("x12_files/broken_envelope_or_file/wrong_se_count.x12")
                )
     end
 
@@ -52,14 +52,14 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
       assert {:error,
               "Interchange control number mismatch: ISA13 is 000000101 but IEA02 is 000000999"} =
                ClaimSplitter.split_transaction_sets(
-                 read("X_x12_files/broken_envelope_or_file/control_number_mismatch.x12")
+                 read("x12_files/broken_envelope_or_file/control_number_mismatch.x12")
                )
     end
 
     test "rejects a GE count that doesn't match the transaction sets" do
       content =
         String.replace(
-          read("X_x12_files/several_transaction_sets/two_transaction_sets.x12"),
+          read("x12_files/several_transaction_sets/two_transaction_sets.x12"),
           "GE*2*101~",
           "GE*1*101~"
         )
@@ -69,7 +69,7 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
     end
 
     test "rejects an interchange that opens before the previous one is closed" do
-      clean = read("X_x12_files/837p_professional/clean_office_visit.x12")
+      clean = read("x12_files/837p_professional/clean_office_visit.x12")
       [without_iea, _] = String.split(clean, "IEA*", parts: 2)
 
       assert {:error, "Incomplete transmission: interchange 000000101 has no IEA trailer"} =
@@ -79,8 +79,8 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
 
   describe "split_transaction_sets/1 with several interchanges" do
     test "a file holding two interchanges gives one standalone piece per transaction set" do
-      clean = read("X_x12_files/837p_professional/clean_office_visit.x12")
-      two_sets = read("X_x12_files/several_transaction_sets/two_transaction_sets.x12")
+      clean = read("x12_files/837p_professional/clean_office_visit.x12")
+      two_sets = read("x12_files/several_transaction_sets/two_transaction_sets.x12")
 
       {:ok, pieces} = ClaimSplitter.split_transaction_sets(clean <> two_sets)
       assert length(pieces) == 3
@@ -98,7 +98,7 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
 
   describe "reading the file" do
     test "ignores a byte-order mark and leading blank lines" do
-      clean = read("X_x12_files/837p_professional/clean_office_visit.x12")
+      clean = read("x12_files/837p_professional/clean_office_visit.x12")
       {:ok, [expected]} = claims(clean)
 
       assert {:ok, [^expected]} = claims(<<0xEF, 0xBB, 0xBF>> <> clean)
@@ -106,7 +106,7 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
     end
 
     test "a one-line file missing only its final terminator still reads" do
-      clean = read("X_x12_files/837p_professional/clean_office_visit.x12")
+      clean = read("x12_files/837p_professional/clean_office_visit.x12")
       {:ok, [expected]} = claims(clean)
 
       oneline = clean |> String.replace(~r/~\s*/, "~") |> String.trim_trailing("~")
@@ -114,7 +114,7 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
     end
 
     test "a newline can be the segment terminator" do
-      clean = read("X_x12_files/837p_professional/clean_office_visit.x12")
+      clean = read("x12_files/837p_professional/clean_office_visit.x12")
       {:ok, [expected]} = claims(clean)
 
       assert {:ok, [^expected]} = claims(String.replace(clean, ~r/~\r?\n?/, "\n"))
@@ -130,7 +130,7 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
       assert {:error, "The ISA interchange header is not the standard fixed width" <> _} =
                ClaimSplitter.split_transaction_sets(
                  String.replace(
-                   read("X_x12_files/837p_professional/clean_office_visit.x12"),
+                   read("x12_files/837p_professional/clean_office_visit.x12"),
                    "TESTSUBMIT01   ",
                    "TESTSUBMIT01"
                  )
@@ -140,7 +140,7 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
 
   describe "split_claims_to_x12/1" do
     test "a transaction set with no CLM is an error, not an empty claim" do
-      content = read("X_x12_files/broken_envelope_or_file/envelope_no_claims.x12")
+      content = read("x12_files/broken_envelope_or_file/envelope_no_claims.x12")
       assert {:error, "No claims found" <> _} = ClaimSplitter.split_claims_to_x12(content)
     end
 
@@ -148,7 +148,7 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
       assert {:ok, [first, second]} =
                claims(
                  read(
-                   "X_x12_files/several_claims_one_transaction_set/two_claims_same_subscriber.x12"
+                   "x12_files/several_claims_one_transaction_set/two_claims_same_subscriber.x12"
                  )
                )
 
@@ -165,7 +165,7 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
 
     test "claims under different subscribers keep their own subscriber" do
       assert {:ok, claims} =
-               claims(read("X_x12_files/several_claims_one_transaction_set/three_claims.x12"))
+               claims(read("x12_files/several_claims_one_transaction_set/three_claims.x12"))
 
       assert Enum.map(claims, &{&1["claim_id"], &1["patient"]["name"]["last"]}) ==
                [{"MULTI01", "ALPHA"}, {"MULTI02", "BRAVO"}, {"MULTI03", "CHARLIE"}]
@@ -173,7 +173,7 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
 
     test "each claim carries its own billing provider when a file has two" do
       content =
-        read("X_x12_files/several_claims_one_transaction_set/two_claims_same_subscriber.x12")
+        read("x12_files/several_claims_one_transaction_set/two_claims_same_subscriber.x12")
 
       # Give the second claim its own billing-provider (HL 20) and subscriber loop.
       [head, tail] = String.split(content, "CLM*SAMESUB02", parts: 2)
@@ -199,7 +199,7 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
     end
 
     test "split claims keep the file's own delimiters and a correct SE count" do
-      three = read("X_x12_files/several_claims_one_transaction_set/three_claims.x12")
+      three = read("x12_files/several_claims_one_transaction_set/three_claims.x12")
       piped = String.replace(three, "*", "|")
 
       {:ok, parts} = ClaimSplitter.split_claims_to_x12(piped)
@@ -252,7 +252,7 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
 
     test "837I claim-level dates are kept and a line without a date takes the statement period" do
       assert {:ok, [claim]} =
-               claims(read("X_x12_files/837i_institutional/institutional_claim_dates.x12"))
+               claims(read("x12_files/837i_institutional/institutional_claim_dates.x12"))
 
       assert %{
                "statement_from_date" => "20260910",
@@ -265,14 +265,14 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
     end
 
     test "a line date range gives its start as date_of_service and its end separately" do
-      assert {:ok, [claim]} = claims(read("X_x12_files/837p_professional/line_date_range.x12"))
+      assert {:ok, [claim]} = claims(read("x12_files/837p_professional/line_date_range.x12"))
 
       assert [%{"date_of_service" => "20260901", "date_of_service_end" => "20260903"}] =
                claim["service_lines"]
 
       # A single date has no end.
       assert {:ok, [plain]} =
-               claims(read("X_x12_files/837p_professional/clean_office_visit.x12"))
+               claims(read("x12_files/837p_professional/clean_office_visit.x12"))
 
       assert [%{"date_of_service" => "20260901", "date_of_service_end" => nil}] =
                plain["service_lines"]
@@ -280,7 +280,7 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
 
     test "a dependant's own patient loop fills the patient fields" do
       assert {:ok, [claim]} =
-               claims(read("X_x12_files/837p_professional/patient_not_subscriber.x12"))
+               claims(read("x12_files/837p_professional/patient_not_subscriber.x12"))
 
       assert claim["patient"] == %{
                "date_of_birth" => "20200101",
@@ -292,7 +292,7 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
     end
 
     test "blank elements become nil everywhere, so IS NULL rules see them" do
-      clean = read("X_x12_files/837i_institutional/institutional.x12")
+      clean = read("x12_files/837i_institutional/institutional.x12")
 
       blanked =
         clean

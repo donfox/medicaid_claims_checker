@@ -24,9 +24,9 @@ the limit).
 | Group folder | Use cases | What they test |
 |---|---|---|
 | `J_json_files/` | J1–J8 | Uploading `.json` files: one claim, a wrapped list, entries that aren't claims, engine requests |
-| `X_x12_files/` | X1–X7 | Uploading `.x12` files: 837P/I/D, several claims or transaction sets, line endings, broken files |
+| `x12_files/` | X1–X7 | Uploading `.x12` files: 837P/I/D, several claims or transaction sets, line endings, broken files |
 | `E_edi_files/` | E1–E3 | Uploading `.edi` files: alternate delimiters, a file that isn't X12 |
-| `Z_zip_files/` | Z1–Z7 | Uploading `.zip` files: mixed contents, path traversal, the 15,000-claim limit |
+| `zip_files/` | Z1–Z7 | Uploading `.zip` files: mixed contents, path traversal, the 15,000-claim limit |
 | `R_business_rules/` | R1–R11 | What the 20 business rules match |
 | `N_nppes_provider_checks/` | N1–N11 | The NPPES provider check: malformed, unissued, deactivated, reactivated, dropped NPIs |
 | `P_rules_page/` | P1–P4 | Rule files for the Rules page |
@@ -57,23 +57,23 @@ different results; `manifest.json` has each one's.
 | `J_json_files/J6_engine_request/` | An engine request (`rulesText` + claims), which must be refused as an upload |
 | `J_json_files/J7_invalid_json/` | A claim file cut off part-way: not valid JSON, refused |
 | `J_json_files/J8_837i_or_837d_style_json/` | JSON claims in the 837D (dental) and 837I (institutional) layouts |
-| `X_x12_files/837p_professional/` | Clean 837P claims, incl. a line dated as a range and a dependant patient |
-| `X_x12_files/837i_institutional/` | 837I claims: dated on the line, or on the claim only |
-| `X_x12_files/837d_dental/` | An 837D claim |
-| `X_x12_files/several_claims_one_transaction_set/` | Three claims in one transaction set; two claims for one subscriber |
-| `X_x12_files/several_transaction_sets/` | Two transaction sets in one file |
-| `X_x12_files/one_line_or_windows_line_endings/` | No newlines; CRLF line endings |
-| `X_x12_files/broken_envelope_or_file/` | Truncated, wrong segment count, mismatched control numbers, too short, no claims |
+| `x12_files/837p_professional/` | Clean 837P claims, incl. a line dated as a range and a dependant patient |
+| `x12_files/837i_institutional/` | 837I claims: dated on the line, or on the claim only |
+| `x12_files/837d_dental/` | An 837D claim |
+| `x12_files/several_claims_one_transaction_set/` | Three claims in one transaction set; two claims for one subscriber |
+| `x12_files/several_transaction_sets/` | Two transaction sets in one file |
+| `x12_files/one_line_or_windows_line_endings/` | No newlines; CRLF line endings |
+| `x12_files/broken_envelope_or_file/` | Truncated, wrong segment count, mismatched control numbers, too short, no claims |
 | `E_edi_files/E1_plain_edi/` | An ordinary clean 837P claim named `.edi` |
 | `E_edi_files/E2_alternate_delimiters/` | `\|` and `>` as separators |
 | `E_edi_files/E3_not_x12/` | Plain text named `.edi` |
-| `Z_zip_files/mixed_file_types/` | A zip with `.x12`, `.edi`, `.json` and an ignored `.txt` |
-| `Z_zip_files/json_only_zip/` | A zip holding only `.json` claims |
-| `Z_zip_files/path_traversal/` | A zip entry named `../escape.x12` |
-| `Z_zip_files/nothing_usable/` | An empty zip; a zip of `.txt`/`.csv` only: nothing to evaluate |
-| `Z_zip_files/zip_inside_zip/` | A zip holding an `.x12` and another zip, which is ignored |
-| `Z_zip_files/corrupt_zip/` | A zip cut off part-way, which can't be opened |
-| `Z_zip_files/over_15000_claims/` | Not committed: made by `generate.exs --large N` (the use-case test builds its own) |
+| `zip_files/mixed_file_types/` | A zip with `.x12`, `.edi`, `.json` and an ignored `.txt` |
+| `zip_files/json_only_zip/` | A zip holding only `.json` claims |
+| `zip_files/path_traversal/` | A zip entry named `../escape.x12` |
+| `zip_files/nothing_usable/` | An empty zip; a zip of `.txt`/`.csv` only: nothing to evaluate |
+| `zip_files/zip_inside_zip/` | A zip holding an `.x12` and another zip, which is ignored |
+| `zip_files/corrupt_zip/` | A zip cut off part-way, which can't be opened |
+| `zip_files/over_15000_claims/` | Not committed: made by `generate.exs --large N` (the use-case test builds its own) |
 | `R_business_rules/R1_clean_claim/` | Claims no rule should match |
 | `R_business_rules/R2_each_rule_alone/` | One file per rule, named after it |
 | `R_business_rules/R3_several_rules/` | Claims that match several rules |
@@ -181,7 +181,7 @@ cd phoenix_web
 mix run --no-start ../mock_data/verify.exs             # every generated file
 mix run --no-start ../mock_data/verify.exs --only R5   # one use case
 mix run --no-start ../mock_data/verify.exs --only N    # one group
-mix run --no-start ../mock_data/verify.exs --large ../mock_data/Z_zip_files/over_15000_claims/large_batch_15000.zip
+mix run --no-start ../mock_data/verify.exs --large ../mock_data/zip_files/over_15000_claims/large_batch_15000.zip
 ```
 
 Each file goes through the same steps as an upload, then the NPPES check and

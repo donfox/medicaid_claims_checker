@@ -11,11 +11,13 @@
 #   RULE_ENGINE_SECRET=... mix run --no-start ../mock_data/verify.exs
 #   mix run --no-start ../mock_data/verify.exs --only R5        # one use case
 #   mix run --no-start ../mock_data/verify.exs --only N         # one group
-#   mix run --no-start ../mock_data/verify.exs --large ../mock_data/Z_zip_files/over_15000_claims/large_batch_15000.zip
+#   mix run --no-start ../mock_data/verify.exs --large ../mock_data/zip_files/over_15000_claims/large_batch_15000.zip
 #   mix run --no-start ../mock_data/verify.exs --suite DIR      # e.g. a retagged copy
 #
 # --only keeps the cases in one use-case folder or group: R5 matches
-# R5_exact_thresholds (not R50...), R matches R_business_rules. --suite
+# R5_exact_thresholds (not R50...), R matches R_business_rules. The X12 and
+# zip folders have no ID in their names, so X, X1-X7, Z and Z1-Z7 are mapped
+# to them below. --suite
 # checks another directory with a manifest.json in the same format. A case
 # with "rules" is evaluated against that rules file instead of the database
 # rules.
@@ -210,9 +212,32 @@ end
 manifest = Path.join(suite_dir, "manifest.json") |> File.read!() |> JSON.decode!()
 only = opts[:only]
 
+folder_ids = %{
+  "x12_files" => "X",
+  "837p_professional" => "X1",
+  "837i_institutional" => "X2",
+  "837d_dental" => "X3",
+  "several_claims_one_transaction_set" => "X4",
+  "several_transaction_sets" => "X5",
+  "one_line_or_windows_line_endings" => "X6",
+  "broken_envelope_or_file" => "X7",
+  "zip_files" => "Z",
+  "mixed_file_types" => "Z1",
+  "json_only_zip" => "Z2",
+  "path_traversal" => "Z3",
+  "nothing_usable" => "Z4",
+  "zip_inside_zip" => "Z5",
+  "corrupt_zip" => "Z6",
+  "over_15000_claims" => "Z7"
+}
+
 cases =
   Enum.filter(manifest["cases"], fn c ->
-    is_nil(only) or c["file"] |> Path.dirname() |> Path.split() |> Enum.any?(&String.starts_with?(&1, only <> "_"))
+    is_nil(only) or
+      c["file"]
+      |> Path.dirname()
+      |> Path.split()
+      |> Enum.any?(&(String.starts_with?(&1, only <> "_") or folder_ids[&1] == only))
   end)
 
 if cases == [], do: raise("no cases match --only #{only}")

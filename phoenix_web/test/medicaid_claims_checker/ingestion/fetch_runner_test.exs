@@ -26,12 +26,12 @@ defmodule MedicaidClaimsChecker.Ingestion.FetchRunnerTest do
   } do
     File.write!(
       Path.join(dir, "good.x12"),
-      MockData.read!("X_x12_files/837p_professional/clean_office_visit.x12")
+      MockData.read!("x12_files/837p_professional/clean_office_visit.x12")
     )
 
     File.write!(
       Path.join(dir, "cut.x12"),
-      MockData.read!("X_x12_files/broken_envelope_or_file/truncated.x12")
+      MockData.read!("x12_files/broken_envelope_or_file/truncated.x12")
     )
 
     assert {{:ok, _}, batch} = run(dir)
@@ -45,7 +45,7 @@ defmodule MedicaidClaimsChecker.Ingestion.FetchRunnerTest do
   test "when nothing can be read, a failed batch names every rejected file", %{tmp_dir: dir} do
     File.write!(
       Path.join(dir, "cut.x12"),
-      MockData.read!("X_x12_files/broken_envelope_or_file/truncated.x12")
+      MockData.read!("x12_files/broken_envelope_or_file/truncated.x12")
     )
 
     File.write!(Path.join(dir, "notes.txt"), "hello")

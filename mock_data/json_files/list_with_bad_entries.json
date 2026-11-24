@@ -12,7 +12,7 @@
       "application_receiver": "PAYER",
       "group_control_number": "101"
     },
-    "claim_id": "CLM-ROUTINE-001",
+    "claim_id": "CLM-ROUTINE-003",
     "claim_header": {
       "claim_control_number": "CLM20260220101",
       "claim_submission_reason": "Original",

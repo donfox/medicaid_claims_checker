@@ -44,7 +44,7 @@ defmodule MedicaidClaimsChecker.Claims.JsonClaimTest do
 
       assert length(claims) == 8
 
-      assert {:ok, [%{"claim_id" => "CLM-ROUTINE-001"}, %{"claim_id" => "CLM-HIGHVAL-001"}],
+      assert {:ok, [%{"claim_id" => "CLM-ROUTINE-003"}, %{"claim_id" => "CLM-HIGHVAL-001"}],
               [{2, _}, {4, _}]} =
                JsonClaim.parse(
                  MockData.read!(

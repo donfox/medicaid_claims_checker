@@ -218,5 +218,22 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.DuplicateUploadTest do
       assert ids ==
                ~w(MULTI01 MULTI02 MULTI03 MOCK-CLEAN-001 MULTI01-2 MULTI02-2 MULTI03-2 MOCK-CLEAN-001-2)
     end
+
+    @tag :tmp_dir
+    test "can copy the whole mock_data folder, an unreadable zip unchanged", %{tmp_dir: tmp_dir} do
+      mock_data = MedicaidClaimsChecker.MockData.path("")
+
+      assert {output, 0} =
+               System.cmd("elixir", [@retag, "--tag", "2", "--out", tmp_dir, mock_data],
+                 stderr_to_stdout: true
+               )
+
+      copy = Path.join(tmp_dir, Path.basename(mock_data))
+      corrupt = "zip_files/corrupt.zip"
+      assert File.read!(Path.join(copy, corrupt)) == File.read!(Path.join(mock_data, corrupt)), output
+
+      assert File.read!(Path.join(copy, "claim_rule_checks/clean_claim/office_visit.json")) =~
+               ~s("claim_id": "MOCK-CLEAN-001-2")
+    end
   end
 end

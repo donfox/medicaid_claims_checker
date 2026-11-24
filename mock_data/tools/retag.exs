@@ -13,7 +13,9 @@
 #                manifest.json expectations alike)
 #   * .x12 .edi  every CLM01 (the claim ID) gets the suffix; a file without
 #                an ISA header is copied unchanged
-#   * .zip       its entries are retagged the same way, names kept
+#   * .zip       its entries are retagged the same way, names kept; a zip
+#                that can't be opened (the corrupt-zip case) is copied
+#                unchanged
 #   * .dsl       copied unchanged (rule files a manifest names)
 #
 # Other files (.exs, .md) are skipped. A copied suite with a manifest can be
@@ -85,7 +87,13 @@ defmodule RetagTestData do
   # names written back are the raw ones from the central directory (the
   # path-traversal test case depends on them).
   defp retag_zip(content, tag) do
-    {:ok, entries} = :zip.unzip(content, [:memory])
+    case :zip.unzip(content, [:memory]) do
+      {:ok, entries} -> rezip(content, entries, tag)
+      {:error, _reason} -> content
+    end
+  end
+
+  defp rezip(content, entries, tag) do
     raw = raw_names(content)
 
     retagged =

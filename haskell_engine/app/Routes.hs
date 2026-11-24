@@ -20,6 +20,7 @@ import Control.Concurrent.Async (mapConcurrently)
 import Control.Concurrent.QSem (QSem, signalQSem, waitQSem)
 import Control.Exception (bracket_)
 import Data.Aeson (FromJSON (..), ToJSON (..), Value (..), decode, encode, object, withObject, (.:), (.=))
+import Data.Aeson.Types (Pair)
 import Data.Text qualified as T
 import Data.ByteString qualified as BS
 import Data.ByteString.Char8 qualified as BS8
@@ -60,6 +61,24 @@ readBodyLimited req = go 0 []
                 then pure $ Left "Request body exceeds the 10 MB limit"
                 else go newTotal (chunk : chunks)
 
+-- | Reads and decodes a JSON request body, then passes it to the handler.
+-- A body over the size limit, or one that isn't valid JSON for the
+-- request, gets a 400 with an @error@ field and the extra fields given.
+withJsonBody ::
+  FromJSON a =>
+  [Pair] ->
+  Request ->
+  (Response -> IO ResponseReceived) ->
+  (a -> IO ResponseReceived) ->
+  IO ResponseReceived
+withJsonBody extra request respond handler = do
+  bodyResult <- readBodyLimited request
+  case bodyResult of
+    Left sizeErr -> badRequest sizeErr
+    Right body -> maybe (badRequest "Invalid JSON") handler (decode body)
+  where
+    badRequest err = respond $ jsonResponse status400 $ object (("error" .= (err :: String)) : extra)
+
 -- | Dispatch by path, then method: an unknown path is 404, a known path
 -- with the wrong method is 405 with an @Allow@ header.
 app :: QSem -> Application
@@ -91,111 +110,81 @@ handleHealth respond =
 -- | Evaluate a single claim document against a DSL rule set, combining DSL
 -- results with an ML score (or stub when @ML_SCORER_URL@ is unset).
 handleEvaluate :: Request -> (Response -> IO ResponseReceived) -> IO ResponseReceived
-handleEvaluate request respond = do
-  bodyResult <- readBodyLimited request
-  case bodyResult of
-    Left sizeErr ->
-      respond $ jsonResponse status400 $ object ["error" .= sizeErr]
-    Right body ->
-      case decode body of
-        Nothing ->
-          respond $
-            jsonResponse status400 $
-              object ["error" .= ("Invalid JSON" :: String)]
-        Just evalReq -> do
-          result <- processEvaluation evalReq
-          case result of
-            Left err ->
-              let (status, body') = evaluationErrorJSON err
-               in respond $ jsonResponse status body'
-            Right report ->
-              respond $ jsonResponse status200 (toJSON report)
+handleEvaluate request respond =
+  withJsonBody [] request respond $ \evalReq -> do
+    result <- processEvaluation evalReq
+    case result of
+      Left err ->
+        let (status, body') = evaluationErrorJSON err
+         in respond $ jsonResponse status body'
+      Right report ->
+        respond $ jsonResponse status200 (toJSON report)
 
 -- | Evaluate a batch of claims against a set of DSL rules.
 --
 -- Claims within the batch are evaluated in parallel, bounded by the worker
 -- semaphore (one slot per GHC capability / CPU core).
 handleBatchEvaluate :: QSem -> Request -> (Response -> IO ResponseReceived) -> IO ResponseReceived
-handleBatchEvaluate sem request respond = do
-  bodyResult <- readBodyLimited request
-  case bodyResult of
-    Left sizeErr ->
-      respond $ jsonResponse status400 $ object ["error" .= sizeErr]
-    Right body ->
-      case decode body of
-        Nothing ->
-          respond $
-            jsonResponse status400 $
-              object ["error" .= ("Invalid JSON" :: String)]
-        Just req ->
-          if length (batchClaims req) > maxBatchClaims
-            then
-              respond $
-                jsonResponse status400 $
-                  object ["error" .= ("Batch exceeds maximum of 500 claims" :: String)]
-            else if T.length (batchRulesText req) > maxRulesTextChars
-            then
-              respond $
-                jsonResponse status400 $
-                  object ["error" .= ("rulesText exceeds the 512 KB limit" :: String)]
-            else
-              case loadRules (batchRulesText req) of
-                Left err ->
-                  respond $
-                    jsonResponse status400 $
-                      object ["error" .= err]
-                Right engine -> do
-                  today <- localToday
-                  let claims = batchClaims req
-                  results <- mapConcurrently
-                    ( \(i, doc) ->
-                        bracket_ (waitQSem sem) (signalQSem sem) $ do
-                          mReport <- evaluateClaim engine today doc
-                          pure $ case mReport of
-                            Just report ->
-                              object
-                                [ "claimIndex" .= (i :: Int),
-                                  "report" .= reportToJSON report
-                                ]
-                            Nothing ->
-                              object
-                                [ "claimIndex" .= (i :: Int),
-                                  "error" .= ("evaluation timed out after 30 s" :: String),
-                                  "reason" .= ("timeout" :: String)
-                                ]
-                    )
-                    (zip [0 ..] claims)
-                  respond $
-                    jsonResponse status200 $
-                      object
-                        [ "batchResults" .= results,
-                          "totalClaims" .= length claims
-                        ]
+handleBatchEvaluate sem request respond =
+  withJsonBody [] request respond $ \req ->
+    if length (batchClaims req) > maxBatchClaims
+      then
+        respond $
+          jsonResponse status400 $
+            object ["error" .= ("Batch exceeds maximum of 500 claims" :: String)]
+      else if T.length (batchRulesText req) > maxRulesTextChars
+      then
+        respond $
+          jsonResponse status400 $
+            object ["error" .= ("rulesText exceeds the 512 KB limit" :: String)]
+      else
+        case loadRules (batchRulesText req) of
+          Left err ->
+            respond $
+              jsonResponse status400 $
+                object ["error" .= err]
+          Right engine -> do
+            today <- localToday
+            let claims = batchClaims req
+            results <- mapConcurrently
+              ( \(i, doc) ->
+                  bracket_ (waitQSem sem) (signalQSem sem) $ do
+                    mReport <- evaluateClaim engine today doc
+                    pure $ case mReport of
+                      Just report ->
+                        object
+                          [ "claimIndex" .= (i :: Int),
+                            "report" .= reportToJSON report
+                          ]
+                      Nothing ->
+                        object
+                          [ "claimIndex" .= (i :: Int),
+                            "error" .= ("evaluation timed out after 30 s" :: String),
+                            "reason" .= ("timeout" :: String)
+                          ]
+              )
+              (zip [0 ..] claims)
+            respond $
+              jsonResponse status200 $
+                object
+                  [ "batchResults" .= results,
+                    "totalClaims" .= length claims
+                  ]
 
 -- | Parse a single DSL rule and return its AST as JSON. Useful for editor
 -- tooling and rule authoring validation without running a full evaluation.
 handleParseRule :: Request -> (Response -> IO ResponseReceived) -> IO ResponseReceived
-handleParseRule request respond = do
-  bodyResult <- readBodyLimited request
-  case bodyResult of
-    Left sizeErr ->
-      respond $ jsonResponse status400 $ object ["error" .= sizeErr]
-    Right body ->
-      case decode body of
-        Nothing ->
-          respond $
-            jsonResponse status400 $
-              object ["error" .= ("Invalid JSON" :: String)]
-        Just parseReq ->
-          case parseRuleRequest parseReq of
-            Left err ->
-              respond $
-                jsonResponse status400 $
-                  object ["error" .= err, "success" .= False]
-            Right rule ->
-              respond $
-                jsonResponse status200 $
-                  object ["rule" .= rule, "success" .= True]
+handleParseRule request respond =
+  withJsonBody [] request respond $ \parseReq ->
+    case parseRuleRequest parseReq of
+      Left err ->
+        respond $
+          jsonResponse status400 $
+            object ["error" .= err, "success" .= False]
+      Right rule ->
+        respond $
+          jsonResponse status200 $
+            object ["rule" .= rule, "success" .= True]
 
 -- Helper for JSON responses
 jsonResponse :: Status -> Value -> Response
@@ -246,42 +235,32 @@ instance FromJSON CheckRedundancyRequest where
       <*> v .: "existingRulesTexts"
 
 handleCheckRedundancy :: Request -> (Response -> IO ResponseReceived) -> IO ResponseReceived
-handleCheckRedundancy request respond = do
-  bodyResult <- readBodyLimited request
-  case bodyResult of
-    Left sizeErr ->
-      respond $ jsonResponse status400 $ object ["error" .= sizeErr, "success" .= False]
-    Right body ->
-      case decode body of
-        Nothing ->
-          respond $
-            jsonResponse status400 $
-              object ["error" .= ("Invalid JSON" :: String), "success" .= False]
-        Just req ->
-          case parseRules (candidateRuleText req) of
-            Left err ->
-              respond $
-                jsonResponse status400 $
-                  object
-                    [ "error" .= ("Could not parse candidate rule: " ++ show err),
-                      "success" .= False
-                    ]
-            Right [] ->
-              respond $
-                jsonResponse status400 $
-                  object
-                    [ "error" .= ("No rules found in candidate text" :: String),
-                      "success" .= False
-                    ]
-            Right (candidate : _) ->
-              let existingRules = concatMap parseExistingRule (existingRulesTexts req)
-                  matches = checkRedundancy candidate existingRules
-               in respond $
-                    jsonResponse status200 $
-                      object
-                        [ "success" .= True,
-                          "matches" .= matches
-                        ]
+handleCheckRedundancy request respond =
+  withJsonBody ["success" .= False] request respond $ \req ->
+    case parseRules (candidateRuleText req) of
+      Left err ->
+        respond $
+          jsonResponse status400 $
+            object
+              [ "error" .= ("Could not parse candidate rule: " ++ show err),
+                "success" .= False
+              ]
+      Right [] ->
+        respond $
+          jsonResponse status400 $
+            object
+              [ "error" .= ("No rules found in candidate text" :: String),
+                "success" .= False
+              ]
+      Right (candidate : _) ->
+        let existingRules = concatMap parseExistingRule (existingRulesTexts req)
+            matches = checkRedundancy candidate existingRules
+         in respond $
+              jsonResponse status200 $
+                object
+                  [ "success" .= True,
+                    "matches" .= matches
+                  ]
   where
     parseExistingRule txt = case parseRules txt of
       Right rules -> rules

@@ -1,8 +1,8 @@
 # Writes the generated test files in this folder and manifest.json, which
 # records the expected result of each one.
 #
-#   elixir mock_data/generate.exs              # rewrite every generated file
-#   elixir mock_data/generate.exs --large 15000 # also write the Z7 large-batch zip (not committed)
+#   elixir mock_data/tools/generate.exs              # rewrite every generated file
+#   elixir mock_data/tools/generate.exs --large 15001 # also write the Z7 large-batch zip (not committed)
 #
 # The cases are defined in test_case_generators/json_claims.exs and
 # test_case_generators/x12_files.exs: edit those, never the files or manifest.json.
@@ -11,9 +11,9 @@
 # manifest) are never touched.
 #
 # Check the results with
-#   cd phoenix_web && mix run --no-start ../mock_data/verify.exs
+#   cd phoenix_web && mix run --no-start ../mock_data/tools/verify.exs
 
-root = Path.dirname(__ENV__.file)
+root = Path.expand("..", Path.dirname(__ENV__.file))
 manifest_path = Path.join(root, "manifest.json")
 {opts, _} = OptionParser.parse!(System.argv(), strict: [large: :integer])
 
@@ -69,7 +69,7 @@ case opts[:large] do
 
     manifest = %{
       "about" =>
-        "Expected results for each generated file, checked by mock_data/verify.exs. " <>
+        "Expected results for each generated file, checked by mock_data/tools/verify.exs. " <>
           "`matched` is the exact set of rules that should match: the active business rules seeded by " <>
           "priv/repo/seeds.exs, or the rules file named in `rules`. `not_checked` is the exact set of rules " <>
           "reported as not checked. `nppes` is ok or text the NPPES rejection must contain. `known_issue` marks " <>

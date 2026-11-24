@@ -104,8 +104,8 @@ All test data is in `mock_data/`, one folder per use case (see `mock_data/README
 From `phoenix_web`, with the engine running and the dev database seeded:
 
 ```bash
-mix run --no-start ../mock_data/verify.exs            # every generated file
-mix run --no-start ../mock_data/verify.exs --only R5  # one use case
+mix run --no-start ../mock_data/tools/verify.exs            # every generated file
+mix run --no-start ../mock_data/tools/verify.exs --only R5  # one use case
 ```
 
 Each file goes through the same steps as an upload, then the NPPES check and the active

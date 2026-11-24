@@ -1,5 +1,5 @@
 # The X12 837 cases: raw .x12, .edi and .zip files, each with its expected
-# outcome. Run by ../generate.exs, which writes them and manifest.json;
+# outcome. Run by ../tools/generate.exs, which writes them and manifest.json;
 # don't run this file on its own.
 #
 # Patients and claims are synthetic. Provider NPIs are real, from the NPPES
@@ -8,7 +8,7 @@
 # (Luhn-valid but unassigned), and the malformed NPIs in the format cases.
 # Provider names in deactivated cases are made up: CMS publishes no name
 # for a deactivated NPI.
-# Check results with mock_data/verify.exs.
+# Check results with mock_data/tools/verify.exs.
 
 defmodule X12Suite.Builder do
   @moduledoc false
@@ -769,6 +769,6 @@ defmodule X12Suite do
     do: term |> JSON.encode!() |> :json.decode() |> :json.format() |> IO.iodata_to_binary()
 end
 
-# Returned to ../generate.exs, which writes the files and the manifest.
+# Returned to ../tools/generate.exs, which writes the files and the manifest.
 zips = Enum.map(X12Suite.Cases.zips(), fn {meta, entries} -> Map.put(meta, :zip_entries, entries) end)
 X12Suite.Cases.all() ++ zips

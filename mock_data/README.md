@@ -35,6 +35,8 @@ $50,000, so it must not match.
 | `nppes_provider_checks/` | N1–N11 | The NPPES provider check: malformed, unissued, deactivated, reactivated, dropped NPIs |
 | `rules_page/` | P1–P4 | Rule files for the Rules page |
 | `converter_output/` | none | Inputs for one internal processing step (see below); never uploaded |
+| `test_case_generators/` | none | The case definitions `tools/generate.exs` builds the test files from |
+| `tools/` | none | The scripts that generate, check, retag and refresh the test data |
 
 Every use case has test data. U1–U8 (upload behaviour), N1 (active provider)
 and R8 (new-provider rules) have no file of their own and use files from other
@@ -77,7 +79,7 @@ different results; `manifest.json` has each one's.
 | Z4 | `zip_files/empty.zip`, `text_files_only.zip` | An empty zip; a zip of `.txt`/`.csv` only: nothing to evaluate |
 | Z5 | `zip_files/zip_inside_zip.zip` | A zip holding an `.x12` and another zip, which is ignored |
 | Z6 | `zip_files/corrupt.zip` | A zip cut off part-way, which can't be opened |
-| Z7 | `zip_files/over_15000_claims/` | Not committed: made by `generate.exs --large N` (the use-case test builds its own) |
+| Z7 | `zip_files/over_15000_claims/` | Not committed: made by `tools/generate.exs --large N` (the use-case test builds its own) |
 | R1 | `claim_rule_checks/clean_claim/` | Claims no rule should match |
 | R2 | `claim_rule_checks/each_rule_alone/` | One file per rule, named after it |
 | R3 | `claim_rule_checks/several_rules/` | Claims that match several rules |
@@ -105,14 +107,14 @@ different results; `manifest.json` has each one's.
 
 ## Generated and hand-written files
 
-Most files are **generated**: written by `generate.exs` from the case
+Most files are **generated**: written by `tools/generate.exs` from the case
 definitions in `test_case_generators/`, together with `manifest.json`, the expected
 result of each generated file. To change one, edit the generator and run it
 again; an edit to the file itself is lost on the next run.
 
 ```bash
-elixir mock_data/generate.exs              # rewrite every generated file
-elixir mock_data/generate.exs --large 15001 # also write a Z7 large-batch zip (not committed)
+elixir mock_data/tools/generate.exs              # rewrite every generated file
+elixir mock_data/tools/generate.exs --large 15001 # also write a Z7 large-batch zip (not committed)
 ```
 
 | Generator | Writes |
@@ -182,10 +184,10 @@ NPPES registry):
 
 ```bash
 cd phoenix_web
-mix run --no-start ../mock_data/verify.exs             # every generated file
-mix run --no-start ../mock_data/verify.exs --only R5   # one use case
-mix run --no-start ../mock_data/verify.exs --only N    # one group
-mix run --no-start ../mock_data/verify.exs --large ../mock_data/zip_files/over_15000_claims/large_batch_15001.zip
+mix run --no-start ../mock_data/tools/verify.exs             # every generated file
+mix run --no-start ../mock_data/tools/verify.exs --only R5   # one use case
+mix run --no-start ../mock_data/tools/verify.exs --only N    # one group
+mix run --no-start ../mock_data/tools/verify.exs --large ../mock_data/zip_files/over_15000_claims/large_batch_15001.zip
 ```
 
 `--only` takes a use case ID or a group letter. X includes the E cases, which
@@ -210,7 +212,7 @@ database, which `scripts/test.sh` loads into the empty test database. Rewrite it
 after an NPPES re-import or after adding a provider to the mock data:
 
 ```bash
-cd phoenix_web && mix run --no-start ../mock_data/export_nppes_extract.exs
+cd phoenix_web && mix run --no-start ../mock_data/tools/export_nppes_extract.exs
 ```
 
 ## Uploading a file more than once
@@ -221,11 +223,11 @@ re-submit checkbox on the upload page lets the same files through; see
 To make copies whose claim IDs end in `-N` instead, using a new N each round:
 
 ```bash
-elixir mock_data/retag.exs --tag 3 --out ~/upload_round3 mock_data
+elixir mock_data/tools/retag.exs --tag 3 --out ~/upload_round3 mock_data
 ```
 
 The copy keeps the expected results (`manifest.json` is retagged too), so
-`verify.exs --suite ~/upload_round3/mock_data` checks it.
+`tools/verify.exs --suite ~/upload_round3/mock_data` checks it.
 
 ## The rule files
 

@@ -24,7 +24,7 @@ All test data (claim files, rule files, expected results) is outside this folder
 | `lib/medicaid_claims_checker/` | **What the app does.** Reading claims, checking providers, calling the rule engine, the database. No web pages. | `x12/` reads X12 files, `claims/` evaluates and stores claims, `nppes/` checks NPIs, `ingestion/` fetches files on a schedule |
 | `lib/medicaid_claims_checker_web/` | **The web pages and URLs** people use to reach it | `live/fetch_source_live/` is the upload page (`/`), `live/rule_live/` the Rules page (`/rules`), `router.ex` maps each URL to its page |
 
-The web folder calls the other folder, never the reverse (the one exception is `application.ex`, which starts the web server). That's why the same processing serves an upload, a scheduled fetch and `mock_data/verify.exs`, which has no web page at all. [How a Batch of Claims Is Processed](#how-a-batch-of-claims-is-processed) below charts that path, with the file for each step.
+The web folder calls the other folder, never the reverse (the one exception is `application.ex`, which starts the web server). That's why the same processing serves an upload, a scheduled fetch and `mock_data/tools/verify.exs`, which has no web page at all. [How a Batch of Claims Is Processed](#how-a-batch-of-claims-is-processed) below charts that path, with the file for each step.
 
 Inside `lib/medicaid_claims_checker/`, a file and a folder with the same name go together: `claims.ex` is the entry point the rest of the app calls, and `claims/` holds the pieces behind it.
 

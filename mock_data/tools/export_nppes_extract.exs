@@ -5,7 +5,7 @@
 #
 # Run again after re-importing NPPES or adding a provider to the mock data:
 #
-#   cd phoenix_web && mix run --no-start ../mock_data/export_nppes_extract.exs
+#   cd phoenix_web && mix run --no-start ../mock_data/tools/export_nppes_extract.exs
 #
 # An NPI the registry doesn't know (a deliberately unissued or malformed one)
 # is simply absent from the extract, as it is from the registry.
@@ -17,7 +17,7 @@ Application.put_env(:medicaid_claims_checker, Repo, Keyword.put(Application.get_
 {:ok, _} = Application.ensure_all_started([:postgrex, :ecto_sql])
 {:ok, _} = Repo.start_link()
 
-root = Path.dirname(__ENV__.file)
+root = Path.expand("..", Path.dirname(__ENV__.file))
 
 # Every 10-digit number in the mock data, including inside zips.
 contents = fn path ->

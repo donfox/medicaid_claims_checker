@@ -7,7 +7,7 @@ defmodule MedicaidClaimsCheckerWeb.UseCases.ZZipFilesTest do
   manifest_tests(~w(Z1 Z2 Z3 Z4 Z5 Z6))
 
   # Z7's zip is too big to commit; it is built here by the same generator
-  # as `elixir mock_data/generate.exs --large 15001`.
+  # as `elixir mock_data/tools/generate.exs --large 15001`.
   @tag use_case: "Z7"
   @tag timeout: 300_000
   test "Z7 a zip of 15,001 claims: the batch is refused, with the limit named", %{conn: conn} do

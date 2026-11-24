@@ -176,8 +176,8 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.DuplicateUploadTest do
     assert frequency_codes == ["1", "1", "1", "8", "8", "8"]
   end
 
-  describe "mock_data/retag.exs copies" do
-    @retag MedicaidClaimsChecker.MockData.path("retag.exs")
+  describe "mock_data/tools/retag.exs copies" do
+    @retag MedicaidClaimsChecker.MockData.path("tools/retag.exs")
     @office_visit MedicaidClaimsChecker.MockData.path(
                     "claim_rule_checks/clean_claim/office_visit.json"
                   )

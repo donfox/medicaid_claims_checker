@@ -1,6 +1,6 @@
 # Copies test data with every claim ID tagged, so it can be uploaded again.
 #
-#   elixir mock_data/retag.exs --tag N --out DIR SRC...
+#   elixir mock_data/tools/retag.exs --tag N --out DIR SRC...
 #
 # Phoenix refuses a file it has already received and a claim it has already
 # evaluated, so each test file can be uploaded once per database. This
@@ -19,7 +19,7 @@
 # Other files (.exs, .md) are skipped. A copied suite with a manifest can be
 # checked like the original:
 #
-#   mix run --no-start ../mock_data/verify.exs --suite DIR/mock_data
+#   mix run --no-start ../mock_data/tools/verify.exs --suite DIR/mock_data
 #
 # Files with no claims (the error cases) are never recorded as submitted, so
 # they can be uploaded again as they are; they are copied for completeness.

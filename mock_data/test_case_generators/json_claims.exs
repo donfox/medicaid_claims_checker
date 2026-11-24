@@ -1,5 +1,5 @@
 # The JSON claim cases, each with its expected outcome. Run by
-# ../generate.exs, which writes them and manifest.json; don't run this file
+# ../tools/generate.exs, which writes them and manifest.json; don't run this file
 # on its own.
 #
 # Claims use the field layout the rules see (X12.SegmentMapper.normalize
@@ -14,7 +14,7 @@
 # and dropped NPIs, for which CMS publishes no address. Patients, member IDs,
 # tax IDs and authorization numbers are synthetic.
 #
-# Check results with mock_data/verify.exs.
+# Check results with mock_data/tools/verify.exs.
 
 defmodule Samples do
   @moduledoc false
@@ -827,7 +827,7 @@ batches = [
 
 # ------------------------------------------------------------------ output
 
-# Returned to ../generate.exs, which writes the files and the manifest.
+# Returned to ../tools/generate.exs, which writes the files and the manifest.
 json = fn term -> Samples.pretty_json(term) <> "\n" end
 expect = fn id, matched, nppes -> %{"claim_id" => id, "matched" => Enum.sort(matched), "nppes" => nppes} end
 p2 = "rules_page/redundancy_levels"

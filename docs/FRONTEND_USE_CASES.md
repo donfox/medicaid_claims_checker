@@ -68,7 +68,7 @@
 | **Z4** | Zip with nothing usable / empty zip | `zip_files/` empty.zip, text_files_only.zip | “No processable claims found”. |
 | **Z5** | Zip inside a zip | `zip_files/` zip_inside_zip.zip | The outer .x12 is evaluated (Clean); the inner zip is ignored. |
 | **Z6** | Corrupt zip | `zip_files/` corrupt.zip | “No processable claims found”. |
-| **Z7** | More than 15,000 claims | `zip_files/over_15000_claims/` — not in git; make it with `elixir mock_data/generate.exs --large 15001` | Nothing is evaluated. The message names the reason: “This batch has 15001 claims; the limit is 15000. Split the files into smaller batches and try again.” Up to 15,000 claims are evaluated normally. |
+| **Z7** | More than 15,000 claims | `zip_files/over_15000_claims/` — not in git; make it with `elixir mock_data/tools/generate.exs --large 15001` | Nothing is evaluated. The message names the reason: “This batch has 15001 claims; the limit is 15000. Split the files into smaller batches and try again.” Up to 15,000 claims are evaluated normally. |
 
 ## U — Upload behaviour
 
@@ -145,7 +145,7 @@ Rules page) and the claims in `rules_page/redundancy_levels/claims/`, which are 
 | The checkbox isn't there | The app isn't running in development. Start it with `scripts/start.sh`; after a change to `config/dev.exs`, restart Phoenix. |
 | X12 error files (X7, E3) or zips with nothing usable (Z4, Z6) | They hold no claims, so they are never recorded and are refused only for what is wrong with them. |
 | A new-provider rule doesn't fire on an X12 file | Provider tenure comes only from JSON claims; use the JSON files for R8. |
-| Copies with new claim IDs are wanted anyway | `elixir mock_data/retag.exs --tag 3 --out ~/upload_round3 mock_data` writes copies whose claim IDs end in `-3`, with a matching `manifest.json`; check them with `verify.exs --suite ~/upload_round3/mock_data`. Not needed while the checkbox is ticked. |
+| Copies with new claim IDs are wanted anyway | `elixir mock_data/tools/retag.exs --tag 3 --out ~/upload_round3 mock_data` writes copies whose claim IDs end in `-3`, with a matching `manifest.json`; check them with `verify.exs --suite ~/upload_round3/mock_data`. Not needed while the checkbox is ticked. |
 
-To check every file without clicking, use `scripts/test.sh` or `mock_data/verify.exs`; see
+To check every file without clicking, use `scripts/test.sh` or `mock_data/tools/verify.exs`; see
 [TEST_PROCEDURE.md](TEST_PROCEDURE.md#4-run-the-use-case-tests).

@@ -4,8 +4,8 @@
 #   elixir mock_data/generate.exs              # rewrite every generated file
 #   elixir mock_data/generate.exs --large 15000 # also write the Z7 large-batch zip (not committed)
 #
-# The cases are defined in generators/json_claims.exs and
-# generators/x12_files.exs: edit those, never the files or manifest.json.
+# The cases are defined in test_case_generators/json_claims.exs and
+# test_case_generators/x12_files.exs: edit those, never the files or manifest.json.
 # Files listed in the previous manifest are deleted first, so a renamed or
 # removed case leaves nothing behind. Hand-written files (not in the
 # manifest) are never touched.
@@ -35,11 +35,11 @@ write_zip = fn rel, entries ->
   {:ok, _} = :zip.create(String.to_charlist(path), zip_entries)
 end
 
-{x12_cases, _} = Code.eval_file(Path.join(root, "generators/x12_files.exs"))
+{x12_cases, _} = Code.eval_file(Path.join(root, "test_case_generators/x12_files.exs"))
 
 case opts[:large] do
   nil ->
-    {json_cases, _} = Code.eval_file(Path.join(root, "generators/json_claims.exs"))
+    {json_cases, _} = Code.eval_file(Path.join(root, "test_case_generators/json_claims.exs"))
 
     if File.exists?(manifest_path) do
       for %{"file" => rel} <- manifest_path |> File.read!() |> JSON.decode!() |> Map.fetch!("cases") do

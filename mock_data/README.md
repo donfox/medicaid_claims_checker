@@ -102,7 +102,7 @@ different results; `manifest.json` has each one's.
 ## Generated and hand-written files
 
 Most files are **generated**: written by `generate.exs` from the case
-definitions in `generators/`, together with `manifest.json`, the expected
+definitions in `test_case_generators/`, together with `manifest.json`, the expected
 result of each generated file. To change one, edit the generator and run it
 again; an edit to the file itself is lost on the next run.
 
@@ -113,8 +113,8 @@ elixir mock_data/generate.exs --large 15000 # also write a Z7 large-batch zip (n
 
 | Generator | Writes |
 |---|---|
-| `generators/x12_files.exs` | every `.x12`, `.edi` and `.zip` file |
-| `generators/json_claims.exs` | the JSON claims in R, N and P2, and the J3 batches |
+| `test_case_generators/x12_files.exs` | every `.x12`, `.edi` and `.zip` file |
+| `test_case_generators/json_claims.exs` | the JSON claims in R, N and P2, and the J3 batches |
 
 The generator deletes the files the previous `manifest.json` lists before
 writing, so renaming or removing a case leaves nothing behind. It never

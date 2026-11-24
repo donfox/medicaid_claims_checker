@@ -12,7 +12,7 @@ defmodule MedicaidClaimsCheckerWeb.UseCases.ZZipFilesTest do
   @tag timeout: 300_000
   test "Z7 a zip of 15,001 claims: the batch is refused, with the limit named", %{conn: conn} do
     n = Evaluator.max_batch_claims() + 1
-    {_cases, _} = Code.eval_file(MedicaidClaimsChecker.MockData.path("generators/x12_files.exs"))
+    {_cases, _} = Code.eval_file(MedicaidClaimsChecker.MockData.path("test_case_generators/x12_files.exs"))
     {_meta, entries} = apply(X12Suite.Cases, :large, [n])
 
     {:ok, {_, zip}} =

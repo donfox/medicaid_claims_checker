@@ -5,343 +5,6 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "REDUN-BETWEEN-002",
-            "matched": [
-              "stay_1_5"
-            ],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "P_rules_page/P2_redundancy_levels/claims/between_disjoint.json",
-      "purpose": "Group F control: 3 room-and-board days",
-      "rules": "P_rules_page/P2_redundancy_levels/redundancy_levels.dsl"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "REDUN-BETWEEN-001",
-            "matched": [
-              "stay_10_21",
-              "stay_7_14",
-              "stay_7_14_dup"
-            ],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "P_rules_page/P2_redundancy_levels/claims/between_overlap.json",
-      "purpose": "Group F Levels 1 and 4: 12 room-and-board days",
-      "rules": "P_rules_page/P2_redundancy_levels/redundancy_levels.dsl"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "REDUN-PARTIAL-003",
-            "matched": [
-              "cardio_moderate"
-            ],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "P_rules_page/P2_redundancy_levels/claims/cardiology_moderate.json",
-      "purpose": "Group I: cardiology at $30,000 matches only the moderate rule",
-      "rules": "P_rules_page/P2_redundancy_levels/redundancy_levels.dsl"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "REDUN-COMPOUND-001",
-            "matched": [
-              "er_visit_flag",
-              "er_visit_flag_copy",
-              "er_visit_reject",
-              "high_amount_50k",
-              "high_amount_50k_dup",
-              "high_amount_new_provider",
-              "high_amount_only",
-              "high_amount_reject",
-              "high_or_er",
-              "high_or_er_dup",
-              "moderate_amount_flag",
-              "moderate_amount_newer_provider",
-              "new_provider_90",
-              "new_provider_reject",
-              "provider_probation"
-            ],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "P_rules_page/P2_redundancy_levels/claims/compound_all_levels.json",
-      "purpose": "Groups A-D together: $80,000 ER claim from a 45-day provider",
-      "rules": "P_rules_page/P2_redundancy_levels/redundancy_levels.dsl"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "REDUN-CONTROL-001",
-            "matched": [],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "P_rules_page/P2_redundancy_levels/claims/control_no_triggers.json",
-      "purpose": "Negative control: no redundancy rule should match",
-      "rules": "P_rules_page/P2_redundancy_levels/redundancy_levels.dsl"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "REDUN-EXACT-DUP-001",
-            "matched": [
-              "high_amount_50k",
-              "high_amount_50k_dup",
-              "high_amount_only",
-              "high_or_er",
-              "high_or_er_dup",
-              "moderate_amount_flag"
-            ],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "P_rules_page/P2_redundancy_levels/claims/exact_duplicate.json",
-      "purpose": "Group A Level 1: two identical > $50,000 rules both fire",
-      "rules": "P_rules_page/P2_redundancy_levels/redundancy_levels.dsl"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "REDUN-PARTIAL-002",
-            "matched": [
-              "high_amount_50k",
-              "high_amount_50k_dup",
-              "high_amount_only",
-              "high_or_er",
-              "high_or_er_dup",
-              "inpatient_high_amount",
-              "moderate_amount_flag"
-            ],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "P_rules_page/P2_redundancy_levels/claims/multi_field_no_overlap.json",
-      "purpose": "Group I control: same amount and POS, orthopedic taxonomy",
-      "rules": "P_rules_page/P2_redundancy_levels/redundancy_levels.dsl"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "REDUN-PARTIAL-001",
-            "matched": [
-              "cardio_high_amount",
-              "cardio_moderate",
-              "high_amount_50k",
-              "high_amount_50k_dup",
-              "high_amount_only",
-              "high_or_er",
-              "high_or_er_dup",
-              "inpatient_high_amount",
-              "moderate_amount_flag"
-            ],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "P_rules_page/P2_redundancy_levels/claims/multi_field_partial.json",
-      "purpose": "Group I: cardiology inpatient claim over $50,000",
-      "rules": "P_rules_page/P2_redundancy_levels/redundancy_levels.dsl"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "REDUN-NOT-001",
-            "matched": [
-              "not_original_flag",
-              "not_original_flag_dup",
-              "not_original_reject"
-            ],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "P_rules_page/P2_redundancy_levels/claims/negation.json",
-      "purpose": "Group H Levels 1 and 3: a replacement claim (frequency 7)",
-      "rules": "P_rules_page/P2_redundancy_levels/redundancy_levels.dsl"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "REDUN-NOT-002",
-            "matched": [],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "P_rules_page/P2_redundancy_levels/claims/negation_control.json",
-      "purpose": "Group H control: an original claim (frequency 1)",
-      "rules": "P_rules_page/P2_redundancy_levels/redundancy_levels.dsl"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "REDUN-PROV-SUB-001",
-            "matched": [
-              "new_provider_90",
-              "new_provider_reject",
-              "provider_probation",
-              "very_new_provider_30"
-            ],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "P_rules_page/P2_redundancy_levels/claims/new_provider_subsumption.json",
-      "purpose": "Group B Levels 2-4: tenure 20 days fires every tenure rule",
-      "rules": "P_rules_page/P2_redundancy_levels/redundancy_levels.dsl"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "REDUN-OR-001",
-            "matched": [
-              "high_amount_50k",
-              "high_amount_50k_dup",
-              "high_amount_only",
-              "high_or_er",
-              "high_or_er_dup",
-              "moderate_amount_flag"
-            ],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "P_rules_page/P2_redundancy_levels/claims/or_condition.json",
-      "purpose": "Group G: the amount arm of the OR",
-      "rules": "P_rules_page/P2_redundancy_levels/redundancy_levels.dsl"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "REDUN-OR-002",
-            "matched": [
-              "er_visit_flag",
-              "er_visit_flag_copy",
-              "er_visit_reject",
-              "high_or_er",
-              "high_or_er_dup"
-            ],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "P_rules_page/P2_redundancy_levels/claims/or_er_arm.json",
-      "purpose": "Group G: the ER arm of the OR",
-      "rules": "P_rules_page/P2_redundancy_levels/redundancy_levels.dsl"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "REDUN-OVERLAP-001",
-            "matched": [
-              "high_amount_50k",
-              "high_amount_50k_dup",
-              "high_amount_only",
-              "high_or_er",
-              "high_or_er_dup",
-              "mid_range_review",
-              "moderate_amount_flag"
-            ],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "P_rules_page/P2_redundancy_levels/claims/overlap_mid_range.json",
-      "purpose": "Group A Level 4: $55,000 is inside both > $50,000 and $40,000-$60,000",
-      "rules": "P_rules_page/P2_redundancy_levels/redundancy_levels.dsl"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "REDUN-SHADOW-001",
-            "matched": [
-              "er_visit_flag",
-              "er_visit_flag_copy",
-              "er_visit_reject",
-              "high_or_er",
-              "high_or_er_dup"
-            ],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "P_rules_page/P2_redundancy_levels/claims/shadowed_er_visit.json",
-      "purpose": "Group C Levels 1 and 3: ER place of service, same condition, FLAG vs REJECT",
-      "rules": "P_rules_page/P2_redundancy_levels/redundancy_levels.dsl"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "REDUN-STRING-001",
-            "matched": [
-              "diabetes_flag",
-              "diabetes_flag_dup",
-              "diabetes_reject"
-            ],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "P_rules_page/P2_redundancy_levels/claims/string_diagnosis_dup.json",
-      "purpose": "Group E Levels 1 and 3: principal diagnosis E11.9",
-      "rules": "P_rules_page/P2_redundancy_levels/redundancy_levels.dsl"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "REDUN-SUBSUME-001",
-            "matched": [
-              "extreme_amount_100k",
-              "high_amount_50k",
-              "high_amount_50k_dup",
-              "high_amount_only",
-              "high_amount_reject",
-              "high_or_er",
-              "high_or_er_dup",
-              "inpatient_high_amount",
-              "moderate_amount_flag"
-            ],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "P_rules_page/P2_redundancy_levels/claims/subsumption_extreme_amount.json",
-      "purpose": "Group A Levels 2-3: > $100,000 is subsumed by > $50,000; > $75,000 REJECT shadows",
-      "rules": "P_rules_page/P2_redundancy_levels/redundancy_levels.dsl"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
             "claim_id": "OLDPT01",
             "matched": [
               "PatientAgeOutOfRange"
@@ -1669,6 +1332,343 @@
       },
       "file": "nppes_provider_checks/service_before_npi_issued/before_enumeration.json",
       "purpose": "Service dated before the NPI was issued"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "REDUN-BETWEEN-002",
+            "matched": [
+              "stay_1_5"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "rules_page/redundancy_levels/claims/between_disjoint.json",
+      "purpose": "Group F control: 3 room-and-board days",
+      "rules": "rules_page/redundancy_levels/redundancy_levels.dsl"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "REDUN-BETWEEN-001",
+            "matched": [
+              "stay_10_21",
+              "stay_7_14",
+              "stay_7_14_dup"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "rules_page/redundancy_levels/claims/between_overlap.json",
+      "purpose": "Group F Levels 1 and 4: 12 room-and-board days",
+      "rules": "rules_page/redundancy_levels/redundancy_levels.dsl"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "REDUN-PARTIAL-003",
+            "matched": [
+              "cardio_moderate"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "rules_page/redundancy_levels/claims/cardiology_moderate.json",
+      "purpose": "Group I: cardiology at $30,000 matches only the moderate rule",
+      "rules": "rules_page/redundancy_levels/redundancy_levels.dsl"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "REDUN-COMPOUND-001",
+            "matched": [
+              "er_visit_flag",
+              "er_visit_flag_copy",
+              "er_visit_reject",
+              "high_amount_50k",
+              "high_amount_50k_dup",
+              "high_amount_new_provider",
+              "high_amount_only",
+              "high_amount_reject",
+              "high_or_er",
+              "high_or_er_dup",
+              "moderate_amount_flag",
+              "moderate_amount_newer_provider",
+              "new_provider_90",
+              "new_provider_reject",
+              "provider_probation"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "rules_page/redundancy_levels/claims/compound_all_levels.json",
+      "purpose": "Groups A-D together: $80,000 ER claim from a 45-day provider",
+      "rules": "rules_page/redundancy_levels/redundancy_levels.dsl"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "REDUN-CONTROL-001",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "rules_page/redundancy_levels/claims/control_no_triggers.json",
+      "purpose": "Negative control: no redundancy rule should match",
+      "rules": "rules_page/redundancy_levels/redundancy_levels.dsl"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "REDUN-EXACT-DUP-001",
+            "matched": [
+              "high_amount_50k",
+              "high_amount_50k_dup",
+              "high_amount_only",
+              "high_or_er",
+              "high_or_er_dup",
+              "moderate_amount_flag"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "rules_page/redundancy_levels/claims/exact_duplicate.json",
+      "purpose": "Group A Level 1: two identical > $50,000 rules both fire",
+      "rules": "rules_page/redundancy_levels/redundancy_levels.dsl"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "REDUN-PARTIAL-002",
+            "matched": [
+              "high_amount_50k",
+              "high_amount_50k_dup",
+              "high_amount_only",
+              "high_or_er",
+              "high_or_er_dup",
+              "inpatient_high_amount",
+              "moderate_amount_flag"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "rules_page/redundancy_levels/claims/multi_field_no_overlap.json",
+      "purpose": "Group I control: same amount and POS, orthopedic taxonomy",
+      "rules": "rules_page/redundancy_levels/redundancy_levels.dsl"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "REDUN-PARTIAL-001",
+            "matched": [
+              "cardio_high_amount",
+              "cardio_moderate",
+              "high_amount_50k",
+              "high_amount_50k_dup",
+              "high_amount_only",
+              "high_or_er",
+              "high_or_er_dup",
+              "inpatient_high_amount",
+              "moderate_amount_flag"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "rules_page/redundancy_levels/claims/multi_field_partial.json",
+      "purpose": "Group I: cardiology inpatient claim over $50,000",
+      "rules": "rules_page/redundancy_levels/redundancy_levels.dsl"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "REDUN-NOT-001",
+            "matched": [
+              "not_original_flag",
+              "not_original_flag_dup",
+              "not_original_reject"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "rules_page/redundancy_levels/claims/negation.json",
+      "purpose": "Group H Levels 1 and 3: a replacement claim (frequency 7)",
+      "rules": "rules_page/redundancy_levels/redundancy_levels.dsl"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "REDUN-NOT-002",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "rules_page/redundancy_levels/claims/negation_control.json",
+      "purpose": "Group H control: an original claim (frequency 1)",
+      "rules": "rules_page/redundancy_levels/redundancy_levels.dsl"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "REDUN-PROV-SUB-001",
+            "matched": [
+              "new_provider_90",
+              "new_provider_reject",
+              "provider_probation",
+              "very_new_provider_30"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "rules_page/redundancy_levels/claims/new_provider_subsumption.json",
+      "purpose": "Group B Levels 2-4: tenure 20 days fires every tenure rule",
+      "rules": "rules_page/redundancy_levels/redundancy_levels.dsl"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "REDUN-OR-001",
+            "matched": [
+              "high_amount_50k",
+              "high_amount_50k_dup",
+              "high_amount_only",
+              "high_or_er",
+              "high_or_er_dup",
+              "moderate_amount_flag"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "rules_page/redundancy_levels/claims/or_condition.json",
+      "purpose": "Group G: the amount arm of the OR",
+      "rules": "rules_page/redundancy_levels/redundancy_levels.dsl"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "REDUN-OR-002",
+            "matched": [
+              "er_visit_flag",
+              "er_visit_flag_copy",
+              "er_visit_reject",
+              "high_or_er",
+              "high_or_er_dup"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "rules_page/redundancy_levels/claims/or_er_arm.json",
+      "purpose": "Group G: the ER arm of the OR",
+      "rules": "rules_page/redundancy_levels/redundancy_levels.dsl"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "REDUN-OVERLAP-001",
+            "matched": [
+              "high_amount_50k",
+              "high_amount_50k_dup",
+              "high_amount_only",
+              "high_or_er",
+              "high_or_er_dup",
+              "mid_range_review",
+              "moderate_amount_flag"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "rules_page/redundancy_levels/claims/overlap_mid_range.json",
+      "purpose": "Group A Level 4: $55,000 is inside both > $50,000 and $40,000-$60,000",
+      "rules": "rules_page/redundancy_levels/redundancy_levels.dsl"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "REDUN-SHADOW-001",
+            "matched": [
+              "er_visit_flag",
+              "er_visit_flag_copy",
+              "er_visit_reject",
+              "high_or_er",
+              "high_or_er_dup"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "rules_page/redundancy_levels/claims/shadowed_er_visit.json",
+      "purpose": "Group C Levels 1 and 3: ER place of service, same condition, FLAG vs REJECT",
+      "rules": "rules_page/redundancy_levels/redundancy_levels.dsl"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "REDUN-STRING-001",
+            "matched": [
+              "diabetes_flag",
+              "diabetes_flag_dup",
+              "diabetes_reject"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "rules_page/redundancy_levels/claims/string_diagnosis_dup.json",
+      "purpose": "Group E Levels 1 and 3: principal diagnosis E11.9",
+      "rules": "rules_page/redundancy_levels/redundancy_levels.dsl"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "REDUN-SUBSUME-001",
+            "matched": [
+              "extreme_amount_100k",
+              "high_amount_50k",
+              "high_amount_50k_dup",
+              "high_amount_only",
+              "high_amount_reject",
+              "high_or_er",
+              "high_or_er_dup",
+              "inpatient_high_amount",
+              "moderate_amount_flag"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "rules_page/redundancy_levels/claims/subsumption_extreme_amount.json",
+      "purpose": "Group A Levels 2-3: > $100,000 is subsumed by > $50,000; > $75,000 REJECT shadows",
+      "rules": "rules_page/redundancy_levels/redundancy_levels.dsl"
     },
     {
       "expect": {

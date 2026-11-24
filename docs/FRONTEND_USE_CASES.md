@@ -119,10 +119,10 @@
 
 | ID | Use case | Test files | What the app should show |
 |---|---|---|---|
-| **P1** | Feature examples | `P_rules_page/P1_feature_examples/` examples.dsl | Each of the 10 rules parses, passes the schema check and saves as an active rule. |
-| **P2** | Redundancy levels | `P_rules_page/P2_redundancy_levels/` redundancy_levels.dsl (add in file order) | Exact duplicate, subsumption and shadowed warnings each appear where the file’s comments say, and ask Save Anyway / Cancel. A rule whose only matches are partial overlaps saves at once, with the overlaps listed in a note. |
-| **P3** | Rule with a syntax error | `P_rules_page/P3_syntax_error/` missing_then.dsl | “Rule syntax issue” shown while typing; saving gives “Could not save rule”; nothing saved. |
-| **P4** | Rule naming an unknown field | `P_rules_page/P4_unknown_field/` old_field_name.dsl | Saved as an inactive draft, with the current name suggested (“subscriber.subscriber_id -> subscriber.member_id”). |
+| **P1** | Feature examples | `rules_page/feature_examples/` examples.dsl | Each of the 10 rules parses, passes the schema check and saves as an active rule. |
+| **P2** | Redundancy levels | `rules_page/redundancy_levels/` redundancy_levels.dsl (add in file order) | Exact duplicate, subsumption and shadowed warnings each appear where the file’s comments say, and ask Save Anyway / Cancel. A rule whose only matches are partial overlaps saves at once, with the overlaps listed in a note. |
+| **P3** | Rule with a syntax error | `rules_page/syntax_error/` missing_then.dsl | “Rule syntax issue” shown while typing; saving gives “Could not save rule”; nothing saved. |
+| **P4** | Rule naming an unknown field | `rules_page/unknown_field/` old_field_name.dsl | Saved as an inactive draft, with the current name suggested (“subscriber.subscriber_id -> subscriber.member_id”). |
 
 ## Uploading the same files again
 
@@ -136,7 +136,7 @@ While it is ticked, the files in `mock_data/` can be uploaded as they are, round
 production never shows it, and the server ignores the request if it is sent anyway.
 
 When uploading by hand (up to 100 files, 10 MB each), leave out `manifest.json`, the `.dsl` rule files (they go on the
-Rules page) and the claims in `P_rules_page/P2_redundancy_levels/claims/`, which are written for
+Rules page) and the claims in `rules_page/redundancy_levels/claims/`, which are written for
 `redundancy_levels.dsl`, not the live rules.
 
 | Situation | What to do |

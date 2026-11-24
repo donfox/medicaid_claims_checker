@@ -83,7 +83,7 @@ defmodule MedicaidClaimsCheckerWeb.UseCases.PRulesPageTest do
   @tag use_case: "P1"
   test "P1 every rule in examples.dsl parses and saves as an active rule", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/rules")
-    rules = rules_in("P_rules_page/P1_feature_examples/examples.dsl")
+    rules = rules_in("rules_page/feature_examples/examples.dsl")
     assert length(rules) == 10
 
     for {name, text, _} <- rules do
@@ -109,7 +109,7 @@ defmodule MedicaidClaimsCheckerWeb.UseCases.PRulesPageTest do
     # Only this file's rules: the seeded ones would add warnings of their own.
     Repo.update_all(BusinessRule, set: [active: false])
     {:ok, view, _html} = live(conn, ~p"/rules")
-    rules = rules_in("P_rules_page/P2_redundancy_levels/redundancy_levels.dsl")
+    rules = rules_in("rules_page/redundancy_levels/redundancy_levels.dsl")
     assert Enum.count(rules, &elem(&1, 2)) >= 15
 
     # Collect every mismatch, so one run lists them all.
@@ -136,7 +136,7 @@ defmodule MedicaidClaimsCheckerWeb.UseCases.PRulesPageTest do
   @tag use_case: "P3"
   test "P3 a rule with a syntax error is shown as an issue and not saved", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/rules")
-    [{name, text, _}] = rules_in("P_rules_page/P3_syntax_error/missing_then.dsl")
+    [{name, text, _}] = rules_in("rules_page/syntax_error/missing_then.dsl")
     params = %{"catalog" => %{"name" => name, "text" => text}}
 
     view |> form("#catalog-rule-form", params) |> render_change()
@@ -152,7 +152,7 @@ defmodule MedicaidClaimsCheckerWeb.UseCases.PRulesPageTest do
     conn: conn
   } do
     {:ok, view, _html} = live(conn, ~p"/rules")
-    [{name, text, _}] = rules_in("P_rules_page/P4_unknown_field/old_field_name.dsl")
+    [{name, text, _}] = rules_in("rules_page/unknown_field/old_field_name.dsl")
 
     save_rule(view, name, text)
     assert %{active: false} = saved(name)

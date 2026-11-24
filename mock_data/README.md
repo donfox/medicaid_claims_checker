@@ -29,7 +29,7 @@ the limit).
 | `zip_files/` | Z1–Z7 | Uploading `.zip` files: mixed contents, path traversal, the 15,000-claim limit |
 | `R_business_rules/` | R1–R11 | What the 20 business rules match |
 | `nppes_provider_checks/` | N1–N11 | The NPPES provider check: malformed, unissued, deactivated, reactivated, dropped NPIs |
-| `P_rules_page/` | P1–P4 | Rule files for the Rules page |
+| `rules_page/` | P1–P4 | Rule files for the Rules page |
 | `pipeline/` | none | Inputs for one internal processing step (see below); never uploaded |
 
 Every use case has test data. Those with no folder of their own, U1–U8
@@ -94,10 +94,10 @@ different results; `manifest.json` has each one's.
 | `nppes_provider_checks/dropped_from_nppes/` | NPI dropped from the NPPES file (needs the October 2026 import) |
 | `nppes_provider_checks/no_billing_npi/` | No billing NPI |
 | `nppes_provider_checks/deactivated_rendering_provider/` | Valid billing NPI, deactivated rendering provider |
-| `P_rules_page/P1_feature_examples/` | `examples.dsl`: DSL features the business rules don't use |
-| `P_rules_page/P2_redundancy_levels/` | `redundancy_levels.dsl` and the claims written for it (`claims/`) |
-| `P_rules_page/P3_syntax_error/` | A rule with a syntax error: shown as an issue, not saved |
-| `P_rules_page/P4_unknown_field/` | A rule using an old field name: saved as an inactive draft, with the current name suggested |
+| `rules_page/feature_examples/` | `examples.dsl`: DSL features the business rules don't use |
+| `rules_page/redundancy_levels/` | `redundancy_levels.dsl` and the claims written for it (`claims/`) |
+| `rules_page/syntax_error/` | A rule with a syntax error: shown as an issue, not saved |
+| `rules_page/unknown_field/` | A rule using an old field name: saved as an inactive draft, with the current name suggested |
 
 ## Generated and hand-written files
 
@@ -124,7 +124,7 @@ touches the **hand-written** files, which are not in the manifest:
 - `json_files/claims_wrapper/mixed_risk.json`
 - `json_files/claims_mixed_with_non_claims/list_with_bad_entries.json`
 - `json_files/engine_request/rules_text_and_claims.json`
-- the `.dsl` files in `P_rules_page/`
+- the `.dsl` files in `rules_page/`
 - `pipeline/converter_output/`
 
 ### `pipeline/converter_output/`
@@ -220,18 +220,18 @@ The copy keeps the expected results (`manifest.json` is retagged too), so
 
 ## The rule files
 
-- **`P2_redundancy_levels/redundancy_levels.dsl`** is 32 rules that overlap
+- **`redundancy_levels/redundancy_levels.dsl`** is 32 rules that overlap
   on purpose. Added to the Rules page one at a time in file order, the
   redundancy check reports all four levels: exact duplicates, subsumed rules,
   shadowed rules and condition overlaps. Comments mark which level each rule
-  was written to show. The claims in `P2_redundancy_levels/claims/` show
+  was written to show. The claims in `redundancy_levels/claims/` show
   which overlapping rules fire together. The rules are in groups A–I; the
   group G OR rules share the amount field, so they fire on every claim over
   $50,000. Some rules come back "not checked" where a claim lacks the field:
   the group F stay rules need a revenue code, which professional claims don't
   have, and the ER rules need a claim-level place of service, which
   institutional claims don't have.
-- **`P1_feature_examples/examples.dsl`** is 10 rules showing DSL features the
+- **`feature_examples/examples.dsl`** is 10 rules showing DSL features the
   business rules don't use: nested `EXISTS`, `NOT EXISTS`, `NOT FORALL`,
   `COUNT`, `in_list`, `starts_with`, `MATCHES`, `has_procedure`,
   `is_age_valid`, indexed paths and multiple actions. Each one parses, passes

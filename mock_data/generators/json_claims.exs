@@ -830,7 +830,7 @@ batches = [
 # Returned to ../generate.exs, which writes the files and the manifest.
 json = fn term -> Samples.pretty_json(term) <> "\n" end
 expect = fn id, matched, nppes -> %{"claim_id" => id, "matched" => Enum.sort(matched), "nppes" => nppes} end
-p2 = "P_rules_page/P2_redundancy_levels"
+p2 = "rules_page/redundancy_levels"
 
 Enum.map(samples, fn {dir, name, purpose, c, {matched, nppes}} ->
   %{

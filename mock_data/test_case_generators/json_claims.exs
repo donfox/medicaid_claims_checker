@@ -293,7 +293,7 @@ samples = [
      lines: [{mon, "99244", 350}, {mon, "72100", 95}],
      notes: "Clean claim: office consultation plus lumbar X-ray, $445. No rule should match."),
    {[], "ok"}},
-  {"claim_rule_checks/weekend_inpatient_stay", "inpatient_weekend_stay", "837I inpatient stay over a weekend; WeekendOfficeVisit must not match",
+  {"claim_rule_checks", "inpatient_weekend_stay", "837I inpatient stay over a weekend; WeekendOfficeVisit must not match",
    Samples.claim("MOCK-CLEAN-005", :windham,
      type: "837I",
      facility: "11",

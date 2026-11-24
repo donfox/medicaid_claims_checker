@@ -93,9 +93,9 @@
 | **R4** | Problem on the 2nd service line | `claim_rule_checks/problem_on_second_line/` er_99285_line2, future_date_line2, pre1900_line2 (.x12) | HighComplexityERVisit, FutureServiceDate and ImpossibleDates match: rules check every line, not just the first. |
 | **R5** | Exact thresholds | `claim_rule_checks/exact_thresholds/` exactly_5, exactly_500_weekend_office, exactly_5000, exactly_50000 (.x12) | “Greater than” limits don’t match at exactly the limit (exactly_50000 matches only UnauthorizedProcedure). |
 | **R6** | Weekend office visit variants | `claim_rule_checks/weekend_office_variants/` saturday_office, sunday_office, weekday_office_no_match, saturday_home_visit_no_match (.x12) | Saturday and Sunday office visits match WeekendOfficeVisit; weekday and home visits don’t. |
-| **R7** | Weekend inpatient stay | `claim_rule_checks/weekend_inpatient_stay/` inpatient_weekend.x12, inpatient_weekend_stay.json | WeekendOfficeVisit doesn’t match; Clean. |
+| **R7** | Weekend inpatient stay | `claim_rule_checks/` inpatient_weekend.x12, inpatient_weekend_stay.json | WeekendOfficeVisit doesn’t match; Clean. |
 | **R8** | New-provider rules (tenure) | `claim_rule_checks/each_rule_alone/` NewProviderLargeSubmission.json, MissingTaxonomyNewProvider.json | Match on JSON claims (tenure comes only from JSON). |
-| **R9** | Rule that cannot be decided | `claim_rule_checks/rule_not_decidable/` missing_taxonomy_new_provider.x12 | MissingTaxonomyNewProvider shown as “Not checked”, naming the missing field. |
+| **R9** | Rule that cannot be decided | `claim_rule_checks/` missing_taxonomy_new_provider.x12 | MissingTaxonomyNewProvider shown as “Not checked”, naming the missing field. |
 | **R10** | Patient age out of range / missing DOB | `claim_rule_checks/age_out_of_range_or_missing_dob/` born_1880, born_2099, missing_dob (.x12) | PatientAgeOutOfRange for 1880 and 2099; MissingRequiredFields for no date of birth. |
 | **R11** | Void / replacement against business rules | `claim_rule_checks/replacement_or_void_claim/` replacement_frequency_7, void_frequency_8 (.json and .x12) | The rules apply as to an original claim: HighValueClaim matches (the X12 files also match UnauthorizedProcedure). |
 

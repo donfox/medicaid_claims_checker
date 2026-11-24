@@ -406,7 +406,7 @@ defmodule X12Suite.Cases do
       single("claim_rule_checks/each_rule_alone/MissingProviderTaxonomy.x12", "No PRV*BI, $2,500 → MissingProviderTaxonomy",
         claim("NOTAX01", lines: [{"99215", "2500.00", "20260904"}]),
         ok("NOTAX01", ["MissingProviderTaxonomy"]), @no_taxonomy),
-      single("claim_rule_checks/rule_not_decidable/missing_taxonomy_new_provider.x12",
+      single("claim_rule_checks/missing_taxonomy_new_provider.x12",
         "No taxonomy, $8,000 → MissingProviderTaxonomy, UnauthorizedProcedure; MissingTaxonomyNewProvider not checked (no tenure)",
         claim("NOTAX02", lines: [{"20610", "8000.00", "20260904"}]),
         ok("NOTAX02", ["MissingProviderTaxonomy", "UnauthorizedProcedure"], not_checked: ["MissingTaxonomyNewProvider"]),
@@ -515,7 +515,7 @@ defmodule X12Suite.Cases do
         ok("ALTDELIM01", ["HighComplexityERVisit", "UnauthorizedProcedure"], not_checked: ["NewProviderLargeSubmission"]),
         format: [element: "|", sub: ">"],
         billing: [name: "KEVIN LANE DO PA", npi: "1003001579", taxonomy: "207Q00000X"]),
-      single("claim_rule_checks/weekend_inpatient_stay/inpatient_weekend.x12",
+      single("claim_rule_checks/inpatient_weekend.x12",
         "837I bill type 11 (hospital inpatient) on Saturday 2026-09-12, $900 → no WeekendOfficeVisit " <>
           "(facility type 11 is not place of service 11, office)",
         claim("INST02", pos: "11", lines: [{"99223", "900.00", "20260912"}]), ok("INST02", []),

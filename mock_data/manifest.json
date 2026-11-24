@@ -684,6 +684,51 @@
       "expect": {
         "claims": [
           {
+            "claim_id": "INST02",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "claim_rule_checks/inpatient_weekend.x12",
+      "purpose": "837I bill type 11 (hospital inpatient) on Saturday 2026-09-12, $900 → no WeekendOfficeVisit (facility type 11 is not place of service 11, office)"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "MOCK-CLEAN-005",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "claim_rule_checks/inpatient_weekend_stay.json",
+      "purpose": "837I inpatient stay over a weekend; WeekendOfficeVisit must not match"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "NOTAX02",
+            "matched": [
+              "MissingProviderTaxonomy",
+              "UnauthorizedProcedure"
+            ],
+            "not_checked": [
+              "MissingTaxonomyNewProvider"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "claim_rule_checks/missing_taxonomy_new_provider.x12",
+      "purpose": "No taxonomy, $8,000 → MissingProviderTaxonomy, UnauthorizedProcedure; MissingTaxonomyNewProvider not checked (no tenure)"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
             "claim_id": "ERVISIT02",
             "matched": [
               "HighComplexityERVisit",
@@ -801,25 +846,6 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "NOTAX02",
-            "matched": [
-              "MissingProviderTaxonomy",
-              "UnauthorizedProcedure"
-            ],
-            "not_checked": [
-              "MissingTaxonomyNewProvider"
-            ],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "claim_rule_checks/rule_not_decidable/missing_taxonomy_new_provider.x12",
-      "purpose": "No taxonomy, $8,000 → MissingProviderTaxonomy, UnauthorizedProcedure; MissingTaxonomyNewProvider not checked (no tenure)"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
             "claim_id": "MOCK-MULTI-ERNOAUTH",
             "matched": [
               "HighComplexityERVisit",
@@ -905,32 +931,6 @@
       },
       "file": "claim_rule_checks/several_rules/weekend_no_taxonomy.json",
       "purpose": "Saturday office visit sent without a taxonomy"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "INST02",
-            "matched": [],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "claim_rule_checks/weekend_inpatient_stay/inpatient_weekend.x12",
-      "purpose": "837I bill type 11 (hospital inpatient) on Saturday 2026-09-12, $900 → no WeekendOfficeVisit (facility type 11 is not place of service 11, office)"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "MOCK-CLEAN-005",
-            "matched": [],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "claim_rule_checks/weekend_inpatient_stay/inpatient_weekend_stay.json",
-      "purpose": "837I inpatient stay over a weekend; WeekendOfficeVisit must not match"
     },
     {
       "expect": {

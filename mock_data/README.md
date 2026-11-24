@@ -17,8 +17,9 @@ mock_data/
   <group>/                   one folder per kind of test
     <use case>/              a folder holding a use case's files
       <variant>.<ext>        the test files; the name says what the file does
-    <use case>.<ext>         in json_files, rules_page and zip_files, a use case
-                             with one or two files sits directly in its group
+    <use case>.<ext>         in claim_rule_checks, json_files, rules_page and
+                             zip_files, a use case with one or two files sits
+                             directly in its group
 ```
 
 For example, `claim_rule_checks/exact_thresholds/exactly_50000.x12` is a
@@ -84,8 +85,8 @@ different results; `manifest.json` has each one's.
 | R4 | `claim_rule_checks/problem_on_second_line/` | The problem is on service line 2, not line 1 |
 | R5 | `claim_rule_checks/exact_thresholds/` | Amounts exactly at a "greater than" limit, which must not match |
 | R6 | `claim_rule_checks/weekend_office_variants/` | Saturday, Sunday, weekday and home-visit variants of WeekendOfficeVisit |
-| R7 | `claim_rule_checks/weekend_inpatient_stay/` | Weekend inpatient stays, which WeekendOfficeVisit must skip |
-| R9 | `claim_rule_checks/rule_not_decidable/` | A rule reported "not checked" because the claim lacks its field |
+| R7 | `claim_rule_checks/inpatient_weekend.x12`, `inpatient_weekend_stay.json` | Weekend inpatient stays, which WeekendOfficeVisit must skip |
+| R9 | `claim_rule_checks/missing_taxonomy_new_provider.x12` | A rule reported "not checked" because the claim lacks its field |
 | R10 | `claim_rule_checks/age_out_of_range_or_missing_dob/` | Born 1880, born 2099, no date of birth |
 | R11 | `claim_rule_checks/replacement_or_void_claim/` | Frequency codes 7 and 8: the rules apply as to an original |
 | N2 | `nppes_provider_checks/malformed_npi/` | Wrong length; failed check digit |

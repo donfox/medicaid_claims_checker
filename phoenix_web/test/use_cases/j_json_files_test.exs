@@ -7,7 +7,7 @@ defmodule MedicaidClaimsCheckerWeb.UseCases.JJsonFilesTest do
   @tag use_case: "J1"
   test "J1 routine_office_visit.json: one claim is evaluated", %{conn: conn} do
     %{claims: claims, message: message} =
-      upload(conn, ["J_json_files/J1_one_claim/routine_office_visit.json"])
+      upload(conn, ["json_files/one_claim/routine_office_visit.json"])
 
     assert [%{status: "evaluated"}] = Map.values(claims)
     assert message =~ "1 claim(s)"
@@ -15,7 +15,7 @@ defmodule MedicaidClaimsCheckerWeb.UseCases.JJsonFilesTest do
 
   @tag use_case: "J3"
   test ~s|J3 mixed_risk.json: every claim in {"claims": [...]} is evaluated|, %{conn: conn} do
-    rel = "J_json_files/J3_claims_wrapper/mixed_risk.json"
+    rel = "json_files/claims_wrapper/mixed_risk.json"
 
     count =
       rel
@@ -33,7 +33,7 @@ defmodule MedicaidClaimsCheckerWeb.UseCases.JJsonFilesTest do
   @tag use_case: "J4"
   test "J4 list_with_bad_entries.json: claims are evaluated, the other entries named and refused",
        %{conn: conn} do
-    rel = "J_json_files/J4_claims_mixed_with_non_claims/list_with_bad_entries.json"
+    rel = "json_files/claims_mixed_with_non_claims/list_with_bad_entries.json"
 
     {:ok, good, refused} =
       rel
@@ -54,7 +54,7 @@ defmodule MedicaidClaimsCheckerWeb.UseCases.JJsonFilesTest do
     conn: conn
   } do
     %{claims: claims, message: message} =
-      upload(conn, ["J_json_files/J6_engine_request/rules_text_and_claims.json"])
+      upload(conn, ["json_files/engine_request/rules_text_and_claims.json"])
 
     assert claims == %{}
     assert message =~ "an engine test request"

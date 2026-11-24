@@ -5,136 +5,6 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "MOCK-LIST-001",
-            "matched": [],
-            "nppes": "ok"
-          },
-          {
-            "claim_id": "MOCK-LIST-002",
-            "matched": [
-              "MissingDiagnosisCodes"
-            ],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "J_json_files/J2_list_of_claims/two_claims.json",
-      "purpose": "A plain list [...] of two claims, without the {\"claims\": ...} wrapper"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "MOCK-CLEANBATCH-001",
-            "matched": [],
-            "nppes": "ok"
-          },
-          {
-            "claim_id": "MOCK-CLEANBATCH-002",
-            "matched": [],
-            "nppes": "ok"
-          },
-          {
-            "claim_id": "MOCK-CLEANBATCH-003",
-            "matched": [],
-            "nppes": "ok"
-          },
-          {
-            "claim_id": "MOCK-CLEANBATCH-004",
-            "matched": [],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "J_json_files/J3_claims_wrapper/clean_batch.json",
-      "purpose": "Four clean claims from four providers; nothing should match"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "MOCK-BATCH-001",
-            "matched": [],
-            "nppes": "ok"
-          },
-          {
-            "claim_id": "MOCK-BATCH-002",
-            "matched": [],
-            "nppes": "ok"
-          },
-          {
-            "claim_id": "MOCK-BATCH-003",
-            "matched": [
-              "WeekendOfficeVisit"
-            ],
-            "nppes": "ok"
-          },
-          {
-            "claim_id": "MOCK-BATCH-004",
-            "matched": [
-              "UnauthorizedProcedure"
-            ],
-            "nppes": "ok"
-          },
-          {
-            "claim_id": "MOCK-BATCH-005",
-            "matched": [
-              "HighComplexityERVisit"
-            ],
-            "nppes": "ok"
-          },
-          {
-            "claim_id": "MOCK-BATCH-006",
-            "matched": [
-              "MissingDiagnosisCodes"
-            ],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "J_json_files/J3_claims_wrapper/mixed_batch.json",
-      "purpose": "Six claims in one file: two clean, four that each match different rules"
-    },
-    {
-      "expect": { "error": "no claim found" },
-      "file": "J_json_files/J5_not_a_claim/patient_record.json",
-      "purpose": "Valid JSON that is not a claim (a patient record, no claim_id) → refused, nothing evaluated"
-    },
-    {
-      "expect": { "error": "not valid JSON" },
-      "file": "J_json_files/J7_invalid_json/cut_off.json",
-      "purpose": "A claim file cut off part-way, so not valid JSON → refused, nothing evaluated"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "MOCK-DENTAL-001",
-            "matched": [],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "J_json_files/J8_837i_or_837d_style_json/dental_837d.json",
-      "purpose": "837D-style JSON claim (procedure qualifier AD, tooth number); clean"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "MOCK-INST-001",
-            "matched": [],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "J_json_files/J8_837i_or_837d_style_json/institutional_837i.json",
-      "purpose": "837I-style JSON claim (facility type, revenue codes, no procedure codes); clean"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
             "claim_id": "NONPI01",
             "matched": [
               "MissingRequiredFields"
@@ -1669,6 +1539,136 @@
       },
       "file": "R_business_rules/R9_rule_not_decidable/missing_taxonomy_new_provider.x12",
       "purpose": "No taxonomy, $8,000 → MissingProviderTaxonomy, UnauthorizedProcedure; MissingTaxonomyNewProvider not checked (no tenure)"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "MOCK-DENTAL-001",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "json_files/837i_or_837d_style_json/dental_837d.json",
+      "purpose": "837D-style JSON claim (procedure qualifier AD, tooth number); clean"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "MOCK-INST-001",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "json_files/837i_or_837d_style_json/institutional_837i.json",
+      "purpose": "837I-style JSON claim (facility type, revenue codes, no procedure codes); clean"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "MOCK-CLEANBATCH-001",
+            "matched": [],
+            "nppes": "ok"
+          },
+          {
+            "claim_id": "MOCK-CLEANBATCH-002",
+            "matched": [],
+            "nppes": "ok"
+          },
+          {
+            "claim_id": "MOCK-CLEANBATCH-003",
+            "matched": [],
+            "nppes": "ok"
+          },
+          {
+            "claim_id": "MOCK-CLEANBATCH-004",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "json_files/claims_wrapper/clean_batch.json",
+      "purpose": "Four clean claims from four providers; nothing should match"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "MOCK-BATCH-001",
+            "matched": [],
+            "nppes": "ok"
+          },
+          {
+            "claim_id": "MOCK-BATCH-002",
+            "matched": [],
+            "nppes": "ok"
+          },
+          {
+            "claim_id": "MOCK-BATCH-003",
+            "matched": [
+              "WeekendOfficeVisit"
+            ],
+            "nppes": "ok"
+          },
+          {
+            "claim_id": "MOCK-BATCH-004",
+            "matched": [
+              "UnauthorizedProcedure"
+            ],
+            "nppes": "ok"
+          },
+          {
+            "claim_id": "MOCK-BATCH-005",
+            "matched": [
+              "HighComplexityERVisit"
+            ],
+            "nppes": "ok"
+          },
+          {
+            "claim_id": "MOCK-BATCH-006",
+            "matched": [
+              "MissingDiagnosisCodes"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "json_files/claims_wrapper/mixed_batch.json",
+      "purpose": "Six claims in one file: two clean, four that each match different rules"
+    },
+    {
+      "expect": { "error": "not valid JSON" },
+      "file": "json_files/invalid_json/cut_off.json",
+      "purpose": "A claim file cut off part-way, so not valid JSON → refused, nothing evaluated"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "MOCK-LIST-001",
+            "matched": [],
+            "nppes": "ok"
+          },
+          {
+            "claim_id": "MOCK-LIST-002",
+            "matched": [
+              "MissingDiagnosisCodes"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "json_files/list_of_claims/two_claims.json",
+      "purpose": "A plain list [...] of two claims, without the {\"claims\": ...} wrapper"
+    },
+    {
+      "expect": { "error": "no claim found" },
+      "file": "json_files/not_a_claim/patient_record.json",
+      "purpose": "Valid JSON that is not a claim (a patient record, no claim_id) → refused, nothing evaluated"
     },
     {
       "expect": {

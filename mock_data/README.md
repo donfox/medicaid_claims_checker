@@ -23,7 +23,7 @@ the limit).
 
 | Group folder | Use cases | What they test |
 |---|---|---|
-| `J_json_files/` | J1–J8 | Uploading `.json` files: one claim, a wrapped list, entries that aren't claims, engine requests |
+| `json_files/` | J1–J8 | Uploading `.json` files: one claim, a wrapped list, entries that aren't claims, engine requests |
 | `x12_files/` | X1–X7 | Uploading `.x12` files: 837P/I/D, several claims or transaction sets, line endings, broken files |
 | `x12_files/edi_extension/` | E1–E3 | Uploading `.edi` files: alternate delimiters, a file that isn't X12 |
 | `zip_files/` | Z1–Z7 | Uploading `.zip` files: mixed contents, path traversal, the 15,000-claim limit |
@@ -49,14 +49,14 @@ different results; `manifest.json` has each one's.
 
 | Folder | Contents |
 |---|---|
-| `J_json_files/J1_one_claim/` | One claim in a `.json` file |
-| `J_json_files/J2_list_of_claims/` | A plain list `[...]` of claims, no wrapper |
-| `J_json_files/J3_claims_wrapper/` | Claims wrapped as `{"claims": [...]}`: `mixed_batch`, `clean_batch`, `mixed_risk` |
-| `J_json_files/J4_claims_mixed_with_non_claims/` | A list holding claims and entries that aren't claims |
-| `J_json_files/J5_not_a_claim/` | Valid JSON that isn't a claim: refused |
-| `J_json_files/J6_engine_request/` | An engine request (`rulesText` + claims), which must be refused as an upload |
-| `J_json_files/J7_invalid_json/` | A claim file cut off part-way: not valid JSON, refused |
-| `J_json_files/J8_837i_or_837d_style_json/` | JSON claims in the 837D (dental) and 837I (institutional) layouts |
+| `json_files/one_claim/` | One claim in a `.json` file |
+| `json_files/list_of_claims/` | A plain list `[...]` of claims, no wrapper |
+| `json_files/claims_wrapper/` | Claims wrapped as `{"claims": [...]}`: `mixed_batch`, `clean_batch`, `mixed_risk` |
+| `json_files/claims_mixed_with_non_claims/` | A list holding claims and entries that aren't claims |
+| `json_files/not_a_claim/` | Valid JSON that isn't a claim: refused |
+| `json_files/engine_request/` | An engine request (`rulesText` + claims), which must be refused as an upload |
+| `json_files/invalid_json/` | A claim file cut off part-way: not valid JSON, refused |
+| `json_files/837i_or_837d_style_json/` | JSON claims in the 837D (dental) and 837I (institutional) layouts |
 | `x12_files/837p_professional/` | Clean 837P claims, incl. a line dated as a range and a dependant patient |
 | `x12_files/837i_institutional/` | 837I claims: dated on the line, or on the claim only |
 | `x12_files/837d_dental/` | An 837D claim |
@@ -120,10 +120,10 @@ The generator deletes the files the previous `manifest.json` lists before
 writing, so renaming or removing a case leaves nothing behind. It never
 touches the **hand-written** files, which are not in the manifest:
 
-- `J_json_files/J1_one_claim/routine_office_visit.json`
-- `J_json_files/J3_claims_wrapper/mixed_risk.json`
-- `J_json_files/J4_claims_mixed_with_non_claims/list_with_bad_entries.json`
-- `J_json_files/J6_engine_request/rules_text_and_claims.json`
+- `json_files/one_claim/routine_office_visit.json`
+- `json_files/claims_wrapper/mixed_risk.json`
+- `json_files/claims_mixed_with_non_claims/list_with_bad_entries.json`
+- `json_files/engine_request/rules_text_and_claims.json`
 - the `.dsl` files in `P_rules_page/`
 - `pipeline/converter_output/`
 

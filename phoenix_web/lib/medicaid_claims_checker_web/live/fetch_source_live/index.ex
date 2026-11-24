@@ -8,7 +8,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
   alias MedicaidClaimsChecker.Ingestion.ZipLimit
   alias MedicaidClaimsChecker.Nppes
   alias MedicaidClaimsCheckerWeb.AdminLive.NppesPanel
-  alias MedicaidClaimsChecker.X12.{ClaimSplitter, Converter, SegmentMapper}
+  alias MedicaidClaimsChecker.X12.FileClaims
 
   @impl true
   def mount(_params, _session, socket) do
@@ -791,9 +791,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
 
     {claims, failures} =
       Enum.reduce(x12_files, {[], []}, fn file, {claims_acc, failures_acc} ->
-        {filename, content} = file
         {file_claims, file_failures} = translate_x12_file(file)
-        file_claims = with_source_file(file_claims, filename, content)
         {claims_acc ++ file_claims, failures_acc ++ file_failures}
       end)
 
@@ -851,52 +849,10 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
     end
   end
 
+  # Claims from one X12/EDI file, and its problems as message text.
   defp translate_x12_file({filename, content}) do
-    # Pre-split files that have multiple GS/ST transaction sets in one envelope
-    case ClaimSplitter.split_transaction_sets(content) do
-      {:ok, nil} ->
-        # Single transaction set — proceed with normal per-claim splitting
-        translate_x12_single({filename, content})
-
-      {:ok, ts_parts} ->
-        # Multiple transaction sets — translate each independently
-        Enum.reduce(ts_parts, {[], []}, fn ts_content, {claims_acc, failures_acc} ->
-          {file_claims, file_failures} = translate_x12_single({filename, ts_content})
-          {claims_acc ++ file_claims, failures_acc ++ file_failures}
-        end)
-
-      {:error, reason} ->
-        {[], ["#{filename}: #{reason}"]}
-    end
-  end
-
-  defp translate_x12_single({filename, content}) do
-    case ClaimSplitter.split_claims_to_x12(content) do
-      {:ok, nil} ->
-        case translate_x12(content) do
-          {:ok, claim} ->
-            {[%{"filename" => to_json_filename(filename), "claim" => claim}], []}
-
-          {:error, reason} ->
-            {[], ["#{filename}: #{reason}"]}
-        end
-
-      {:ok, parts} when is_list(parts) ->
-        Enum.reduce(parts, {[], []}, fn %{claim_id: cid, x12_content: cx12},
-                                        {claims_acc, failures_acc} ->
-          case translate_x12(cx12) do
-            {:ok, claim} ->
-              {claims_acc ++ [%{"filename" => to_split_filename(filename, cid), "claim" => claim}],
-               failures_acc}
-
-            {:error, reason} ->
-              {claims_acc, failures_acc ++ ["#{filename} (claim #{cid}): #{reason}"]}
-          end
-        end)
-
-      {:error, reason} ->
-        {[], ["#{filename}: #{reason}"]}
-    end
+    {claims, problems} = FileClaims.claims(filename, content)
+    {claims, Enum.map(problems, &"#{&1["filename"]}: #{&1["reason"]}")}
   end
 
   defp format_translation_failures([]), do: ""
@@ -913,17 +869,6 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.Index do
       end
 
     " Translation issues: #{shown}#{more_text}"
-  end
-
-  defp translate_x12(x12_content) do
-    with {:ok, flat_json} <- Converter.convert_content(x12_content),
-         {:ok, semantic} <- SegmentMapper.map_from_json(flat_json) do
-      {:ok, semantic}
-    end
-  end
-
-  defp to_json_filename(filename) do
-    Path.rootname(filename) <> ".json"
   end
 
   defp to_split_filename(filename, claim_id) do

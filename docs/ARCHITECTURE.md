@@ -79,7 +79,7 @@ Syntax, MLClient, ListenConfig, Middleware → nothing in the engine
 
 1. A Quantum scheduler triggers a `FetchRunner` job when a `fetch_schedules` entry is due.
 2. `RemoteFetcher` downloads files from the configured `fetch_sources` URI using SFTP, HTTP(S) or a local directory. Zips are unpacked (refused if they would unpack to more than 100 MB).
-3. `ClaimSplitter` splits multi-claim X12 files, and `Converter` plus `SegmentMapper` translate each claim into semantic JSON.
+3. `X12.FileClaims` reads each X12 file: `ClaimSplitter` splits it into transaction sets and claims, and `Converter` plus `SegmentMapper` translate each claim into semantic JSON. Manual uploads use the same module, so a file is read the same way however it arrives.
 4. `Claims.ingest_batch/1` writes one `batches` row and one `edi_files` row per claim in a single transaction. A file or claim already submitted is refused and recorded in `batches.duplicates`; a fetched file that can't be read is recorded in `batches.rejected_files`. Manual uploads take the same path.
 5. After a successful ingest, an Oban job (`Workers.BatchEvaluationWorker`) runs `Evaluator.evaluate_batch/1`.
 

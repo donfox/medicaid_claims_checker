@@ -22,7 +22,7 @@ defmodule MedicaidClaimsChecker.Ingestion.FetchRunner do
   alias MedicaidClaimsChecker.Claims.Fingerprint
   alias MedicaidClaimsChecker.Ingestion
   alias MedicaidClaimsChecker.Ingestion.RemoteFetcher
-  alias MedicaidClaimsChecker.X12.{ClaimSplitter, Converter, SegmentMapper}
+  alias MedicaidClaimsChecker.X12.FileClaims
 
   def run(source_config) when is_map(source_config) do
     uri = source_config["uri"] || source_config[:uri]
@@ -126,73 +126,7 @@ defmodule MedicaidClaimsChecker.Ingestion.FetchRunner do
   end
 
   # {claims, rejected} for one fetched file.
-  defp claims_for_file({filename, content, sha}) do
-    case ClaimSplitter.split_transaction_sets(content) do
-      {:ok, tx_sets} ->
-        parts = if is_list(tx_sets), do: tx_sets, else: [content]
-        source = %{"filename" => filename, "sha256" => sha}
-
-        {claims, rejected} =
-          parts
-          |> Enum.map(&claims_for_transaction_set(filename, &1))
-          |> Enum.reduce({[], []}, fn {c, r}, {ca, ra} -> {ca ++ c, ra ++ r} end)
-
-        {Enum.map(claims, &Map.put(&1, "source_file", source)), rejected}
-
-      {:error, reason} ->
-        {[], [rejection(filename, reason)]}
-    end
-  end
-
-  defp claims_for_transaction_set(filename, content) do
-    case ClaimSplitter.split_claims_to_x12(content) do
-      {:ok, nil} ->
-        case translate_x12(content) do
-          {:ok, claim} -> {[%{"filename" => to_json_filename(filename), "claim" => claim}], []}
-          {:error, reason} -> {[], [rejection(filename, reason)]}
-        end
-
-      {:ok, claims} when is_list(claims) ->
-        claims
-        |> Enum.map(fn %{claim_id: claim_id, x12_content: claim_x12} ->
-          case translate_x12(claim_x12) do
-            {:ok, claim} ->
-              {[%{"filename" => to_split_filename(filename, claim_id), "claim" => claim}], []}
-
-            {:error, reason} ->
-              {[], [rejection("#{filename} (claim #{claim_id})", reason)]}
-          end
-        end)
-        |> Enum.reduce({[], []}, fn {c, r}, {ca, ra} -> {ca ++ c, ra ++ r} end)
-
-      {:error, reason} ->
-        {[], [rejection(filename, reason)]}
-    end
-  end
-
-  defp rejection(filename, reason) do
-    %{
-      "filename" => filename,
-      "reason" => if(is_binary(reason), do: reason, else: inspect(reason))
-    }
-  end
-
-  defp translate_x12(x12_content) do
-    with {:ok, flat_json} <- Converter.convert_content(x12_content),
-         {:ok, semantic} <- SegmentMapper.map_from_json(flat_json) do
-      {:ok, semantic}
-    end
-  end
-
-  defp to_json_filename(original_filename) do
-    root = Path.rootname(original_filename)
-    root <> ".json"
-  end
-
-  defp to_split_filename(original_filename, claim_id) do
-    root = Path.rootname(original_filename)
-    "#{root}_#{claim_id}.json"
-  end
+  defp claims_for_file({filename, content, _sha}), do: FileClaims.claims(filename, content)
 
   defp build_fetch_opts(source_config) do
     creds = source_config["credentials"] || source_config[:credentials] || %{}

@@ -117,7 +117,7 @@ flowchart TD
 | Step | Where the code is (under `lib/medicaid_claims_checker/` unless shown) |
 |---|---|
 | Files arrive | Upload: the `"process_manual_upload"` event (the Process Files button), handled in `lib/medicaid_claims_checker_web/live/fetch_source_live/index.ex`. Schedule: `ingestion/fetch_runner.ex`, run by `scheduler.ex`, fetching through `ingestion/remote_fetcher.ex` |
-| ① Read the files | `x12/claim_splitter.ex` splits X12 into claims; `x12/converter.ex` (with `parser.ex`, `segment_mapper.ex`) turns each into JSON; `claims/json_claim.ex` reads `.json` files |
+| ① Read the files | `x12/file_claims.ex` reads each X12 file, for uploads and fetches alike: `x12/claim_splitter.ex` splits it into claims; `x12/converter.ex` (with `parser.ex`, `segment_mapper.ex`) turns each into JSON; `claims/json_claim.ex` reads `.json` files |
 | ② Store the batch | `Claims.ingest_batch` in `claims.ex`: one database transaction that refuses duplicate claims, saves the rest and queues the job |
 | ③ Evaluate the batch | `workers/batch_evaluation_worker.ex` runs `Evaluator.evaluate_batch` in `claims/evaluator.ex`, which builds each request with `claims/payload_builder.ex` and sends it through `claims/engine_client.ex` |
 | Results | `Evaluator` announces *completed* or *failed*; the upload page is listening and refreshes Jobs History |

@@ -31,14 +31,14 @@
 
 alias MedicaidClaimsChecker.{Claims, Repo}
 alias MedicaidClaimsChecker.Claims.{Evaluator, JsonClaim}
-alias MedicaidClaimsChecker.X12.{ClaimSplitter, Converter, SegmentMapper}
+alias MedicaidClaimsChecker.X12.FileClaims
 alias MedicaidClaimsChecker.Claims.PayloadBuilder
 
 defmodule MockDataVerify do
   @moduledoc false
 
   # --- Ingestion: mirrors FetchSourceLive.Index (classify, extract zips,
-  # translate_x12_file) so results match a manual upload. ---
+  # read X12 with X12.FileClaims) so results match a manual upload. ---
 
   def ingest(path) do
     name = Path.basename(path)
@@ -96,49 +96,13 @@ defmodule MockDataVerify do
     end
   end
 
+  # The X12 reading uploads and scheduled fetches share (X12.FileClaims).
+  # Stored claims go through Jason, so use string keys like the DB does.
   defp x12_file(fname, content) do
-    case ClaimSplitter.split_transaction_sets(content) do
-      {:ok, nil} ->
-        x12_single(fname, content)
+    {claims, problems} = FileClaims.claims(fname, content)
 
-      {:ok, parts} ->
-        Enum.reduce(parts, {[], []}, fn part, {c, f} ->
-          {c2, f2} = x12_single(fname, part)
-          {c ++ c2, f ++ f2}
-        end)
-
-      {:error, reason} ->
-        {[], ["#{fname}: #{reason}"]}
-    end
-  end
-
-  defp x12_single(fname, content) do
-    case ClaimSplitter.split_claims_to_x12(content) do
-      {:ok, nil} ->
-        case translate(content) do
-          {:ok, claim} -> {[%{"filename" => fname, "claim" => claim}], []}
-          {:error, reason} -> {[], ["#{fname}: #{reason}"]}
-        end
-
-      {:ok, parts} ->
-        Enum.reduce(parts, {[], []}, fn %{claim_id: cid, x12_content: x12}, {c, f} ->
-          case translate(x12) do
-            {:ok, claim} -> {c ++ [%{"filename" => fname, "claim" => claim}], f}
-            {:error, reason} -> {c, f ++ ["#{fname} (claim #{cid}): #{reason}"]}
-          end
-        end)
-
-      {:error, reason} ->
-        {[], ["#{fname}: #{reason}"]}
-    end
-  end
-
-  defp translate(x12) do
-    with {:ok, flat} <- Converter.convert_content(x12),
-         {:ok, semantic} <- SegmentMapper.map_from_json(flat) do
-      # Stored claims go through Jason, so use string keys like the DB does.
-      {:ok, semantic |> Jason.encode!() |> Jason.decode!()}
-    end
+    {Enum.map(claims, &%{"filename" => fname, "claim" => &1["claim"] |> Jason.encode!() |> Jason.decode!()}),
+     Enum.map(problems, &"#{&1["filename"]}: #{&1["reason"]}")}
   end
 
   # --- Engine ---

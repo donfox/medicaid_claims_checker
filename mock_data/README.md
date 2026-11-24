@@ -57,13 +57,13 @@ different results; `manifest.json` has each one's.
 | `J_json_files/J6_engine_request/` | An engine request (`rulesText` + claims), which must be refused as an upload |
 | `J_json_files/J7_invalid_json/` | A claim file cut off part-way: not valid JSON, refused |
 | `J_json_files/J8_837i_or_837d_style_json/` | JSON claims in the 837D (dental) and 837I (institutional) layouts |
-| `X_x12_files/X1_837p_professional/` | Clean 837P claims, incl. a line dated as a range and a dependant patient |
-| `X_x12_files/X2_837i_institutional/` | 837I claims: dated on the line, or on the claim only |
-| `X_x12_files/X3_837d_dental/` | An 837D claim |
-| `X_x12_files/X4_several_claims_one_transaction_set/` | Three claims in one transaction set; two claims for one subscriber |
-| `X_x12_files/X5_several_transaction_sets/` | Two transaction sets in one file |
-| `X_x12_files/X6_one_line_or_windows_line_endings/` | No newlines; CRLF line endings |
-| `X_x12_files/X7_broken_envelope_or_file/` | Truncated, wrong segment count, mismatched control numbers, too short, no claims |
+| `X_x12_files/837p_professional/` | Clean 837P claims, incl. a line dated as a range and a dependant patient |
+| `X_x12_files/837i_institutional/` | 837I claims: dated on the line, or on the claim only |
+| `X_x12_files/837d_dental/` | An 837D claim |
+| `X_x12_files/several_claims_one_transaction_set/` | Three claims in one transaction set; two claims for one subscriber |
+| `X_x12_files/several_transaction_sets/` | Two transaction sets in one file |
+| `X_x12_files/one_line_or_windows_line_endings/` | No newlines; CRLF line endings |
+| `X_x12_files/broken_envelope_or_file/` | Truncated, wrong segment count, mismatched control numbers, too short, no claims |
 | `E_edi_files/E1_plain_edi/` | An ordinary clean 837P claim named `.edi` |
 | `E_edi_files/E2_alternate_delimiters/` | `\|` and `>` as separators |
 | `E_edi_files/E3_not_x12/` | Plain text named `.edi` |

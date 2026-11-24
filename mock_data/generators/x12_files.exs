@@ -316,9 +316,9 @@ defmodule X12Suite.Cases do
 
   def single_claims do
     [
-      single("X_x12_files/X1_837p_professional/clean_office_visit.x12", "Clean low-value office visit; no rule should match",
+      single("X_x12_files/837p_professional/clean_office_visit.x12", "Clean low-value office visit; no rule should match",
         claim("CLEAN001"), ok("CLEAN001", [])),
-      single("X_x12_files/X1_837p_professional/clean_multi_line.x12", "Clean claim with three service lines and two diagnoses",
+      single("X_x12_files/837p_professional/clean_multi_line.x12", "Clean claim with three service lines and two diagnoses",
         claim("CLEAN002",
           dx: ["Z0000", "J069"],
           lines: [{"99214", "210.00", "20260902"}, {"87880", "45.00", "20260902"}, {"36415", "18.00", "20260902"}]),
@@ -468,46 +468,46 @@ defmodule X12Suite.Cases do
 
   def formats do
     [
-      single("X_x12_files/X2_837i_institutional/institutional.x12", "837I institutional claim (SV2, CL1), clean",
+      single("X_x12_files/837i_institutional/institutional.x12", "837I institutional claim (SV2, CL1), clean",
         claim("INST01", pos: "13", lines: [{"99284", "900.00", "20260911"}]), ok("INST01", []),
         kind: :i, billing: [name: "THE ROSS ORTHOPAEDIC WELLNESS CENTER", npi: "1003005000", taxonomy: "207X00000X"]),
-      single("X_x12_files/X2_837i_institutional/institutional_claim_dates.x12",
+      single("X_x12_files/837i_institutional/institutional_claim_dates.x12",
         "837I with the dates on the claim (statement period 2026-09-10 to 09-12, admission) " <>
           "and none on the line; the line takes the statement start date, clean",
         claim("INST03", pos: "13", statement: {"20260910", "20260912"}, admission: "202609101200",
           lines: [{"99223", "900.00", nil}]),
         ok("INST03", []),
         kind: :i, billing: [name: "THE ROSS ORTHOPAEDIC WELLNESS CENTER", npi: "1003005000", taxonomy: "207X00000X"]),
-      single("X_x12_files/X2_837i_institutional/condition_codes_no_diagnosis.x12",
+      single("X_x12_files/837i_institutional/condition_codes_no_diagnosis.x12",
         "837I with condition (BG) and value (BE) codes but no diagnosis: they are not diagnoses " <>
           "(other_codes), so MissingDiagnosisCodes matches",
         claim("INST04", pos: "13", dx: [], other_hi: [{"BG", "01"}, {"BE", "80"}],
           lines: [{"99284", "900.00", "20260911"}]),
         ok("INST04", ["MissingDiagnosisCodes"]),
         kind: :i, billing: [name: "THE ROSS ORTHOPAEDIC WELLNESS CENTER", npi: "1003005000", taxonomy: "207X00000X"]),
-      single("X_x12_files/X1_837p_professional/cents_add_up.x12",
+      single("X_x12_files/837p_professional/cents_add_up.x12",
         "Three lines of $33.33 and a $99.99 total: added in exact cents they balance, so " <>
           "ClaimTotalMismatch must not match; clean",
         claim("CENTS01",
           lines: [{"99211", "33.33", "20260901"}, {"36415", "33.33", "20260901"}, {"81002", "33.33", "20260901"}]),
         ok("CENTS01", [])),
-      single("X_x12_files/X1_837p_professional/line_date_range.x12",
+      single("X_x12_files/837p_professional/line_date_range.x12",
         "Service line dated as a range (RD8 2026-09-01 to 09-03); rules read the start date, clean",
         claim("RANGE01", lines: [{"99213", "150.00", "20260901-20260903"}]), ok("RANGE01", [])),
-      single("X_x12_files/X1_837p_professional/procedure_modifiers.x12",
+      single("X_x12_files/837p_professional/procedure_modifiers.x12",
         "Service line with procedure modifiers 25 and 59 (SV1-01), read as service_lines[].modifiers; clean",
         claim("MODIFIER01", lines: [{"99213:25:59", "150.00", "20260901"}]), ok("MODIFIER01", [])),
-      single("X_x12_files/X1_837p_professional/patient_not_subscriber.x12",
+      single("X_x12_files/837p_professional/patient_not_subscriber.x12",
         "Patient is a dependant in their own patient loop (HL 23); patient fields are the child's, clean",
         claim("DEPEND01", patient: [last: "CHILD", first: "KID", dob: "20200101", gender: "M"]),
         ok("DEPEND01", [])),
-      single("X_x12_files/X3_837d_dental/dental.x12", "837D dental claim (SV3, TOO), clean",
+      single("X_x12_files/837d_dental/dental.x12", "837D dental claim (SV3, TOO), clean",
         claim("DENT01", lines: [{"D1110", "95.00", "20260912"}]), ok("DENT01", []), kind: :d),
       single("E_edi_files/E1_plain_edi/clean_claim.edi", "Ordinary clean 837P claim in a file named .edi",
         claim("EDICLEAN01"), ok("EDICLEAN01", [])),
-      single("X_x12_files/X6_one_line_or_windows_line_endings/no_newlines.x12", "Whole file on one line (no newlines), clean",
+      single("X_x12_files/one_line_or_windows_line_endings/no_newlines.x12", "Whole file on one line (no newlines), clean",
         claim("ONELINE01"), ok("ONELINE01", []), format: [newline: ""]),
-      single("X_x12_files/X6_one_line_or_windows_line_endings/crlf_line_endings.x12", "Windows CRLF line endings, clean",
+      single("X_x12_files/one_line_or_windows_line_endings/crlf_line_endings.x12", "Windows CRLF line endings, clean",
         claim("CRLF01"), ok("CRLF01", []), format: [newline: "\r\n"]),
       single("E_edi_files/E2_alternate_delimiters/alternate_delimiters.edi",
         "Element separator | and sub-element separator > (both legal per ISA); ER 99285 over $10,000",
@@ -542,7 +542,7 @@ defmodule X12Suite.Cases do
 
     [
       %{
-        file: "X_x12_files/X4_several_claims_one_transaction_set/three_claims.x12",
+        file: "X_x12_files/several_claims_one_transaction_set/three_claims.x12",
         purpose: "Three subscribers, one claim each, in one transaction set",
         content: interchange([transaction(three, @valid_ortho)]),
         expect: %{
@@ -555,7 +555,7 @@ defmodule X12Suite.Cases do
         }
       },
       %{
-        file: "X_x12_files/X5_several_transaction_sets/two_transaction_sets.x12",
+        file: "X_x12_files/several_transaction_sets/two_transaction_sets.x12",
         purpose: "One interchange, two ST..SE transaction sets with two claims each",
         content: interchange([transaction(tx_a), transaction(tx_b)]),
         expect: %{
@@ -568,7 +568,7 @@ defmodule X12Suite.Cases do
         }
       },
       %{
-        file: "X_x12_files/X4_several_claims_one_transaction_set/two_claims_same_subscriber.x12",
+        file: "X_x12_files/several_claims_one_transaction_set/two_claims_same_subscriber.x12",
         purpose: "One subscriber with two claims (two CLMs under one HL)",
         content:
           interchange([
@@ -589,19 +589,19 @@ defmodule X12Suite.Cases do
 
     [
       %{
-        file: "X_x12_files/X7_broken_envelope_or_file/truncated.x12",
+        file: "X_x12_files/broken_envelope_or_file/truncated.x12",
         purpose: "File cut off mid-way through the second claim (no SE/GE/IEA) → reject as incomplete",
         content: truncated,
         expect: %{error: "incomplete transmission"}
       },
       %{
-        file: "X_x12_files/X7_broken_envelope_or_file/wrong_se_count.x12",
+        file: "X_x12_files/broken_envelope_or_file/wrong_se_count.x12",
         purpose: "SE segment count off by 3 → reject",
         content: interchange([transaction([claim("SECOUNT01")])], se_adjust: 3),
         expect: %{error: "SE segment count"}
       },
       %{
-        file: "X_x12_files/X7_broken_envelope_or_file/control_number_mismatch.x12",
+        file: "X_x12_files/broken_envelope_or_file/control_number_mismatch.x12",
         purpose: "IEA control number differs from ISA → reject",
         content: interchange([transaction([claim("CTRL01")])], iea_control: "000000999"),
         expect: %{error: "interchange control number mismatch"}
@@ -613,13 +613,13 @@ defmodule X12Suite.Cases do
         expect: %{error: "must start with ISA"}
       },
       %{
-        file: "X_x12_files/X7_broken_envelope_or_file/too_short.x12",
+        file: "X_x12_files/broken_envelope_or_file/too_short.x12",
         purpose: "File shorter than an ISA segment → reject",
         content: "ISA*00*~\n",
         expect: %{error: "too short"}
       },
       %{
-        file: "X_x12_files/X7_broken_envelope_or_file/envelope_no_claims.x12",
+        file: "X_x12_files/broken_envelope_or_file/envelope_no_claims.x12",
         purpose: "Valid envelope with a billing provider but no CLM → rejected, no claims",
         content: interchange([transaction([])]),
         expect: %{error: "no claims found"}

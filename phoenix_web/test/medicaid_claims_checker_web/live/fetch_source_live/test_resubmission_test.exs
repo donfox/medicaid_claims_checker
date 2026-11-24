@@ -10,7 +10,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.TestResubmissionTest do
   alias MedicaidClaimsChecker.Claims.Batch
 
   @three_claims MockData.path(
-                  "X_x12_files/X4_several_claims_one_transaction_set/three_claims.x12"
+                  "X_x12_files/several_claims_one_transaction_set/three_claims.x12"
                 )
 
   setup %{conn: conn} do

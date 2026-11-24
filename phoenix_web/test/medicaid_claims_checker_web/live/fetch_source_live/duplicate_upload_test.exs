@@ -11,7 +11,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.DuplicateUploadTest do
   alias MedicaidClaimsChecker.Repo
 
   @three_claims MedicaidClaimsChecker.MockData.path(
-                  "x12_files/several_claims_one_transaction_set/three_claims.x12"
+                  "x12_files/three_claims.x12"
                 )
 
   setup %{conn: conn} do

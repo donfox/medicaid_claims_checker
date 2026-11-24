@@ -17,8 +17,8 @@ mock_data/
   <group>/                   one folder per kind of test
     <use case>/              a folder holding a use case's files
       <variant>.<ext>        the test files; the name says what the file does
-    <use case>.<ext>         in every group except x12_files, a use case with
-                             one or two files sits directly in its group
+    <use case>.<ext>         a use case with one or two files sits directly
+                             in its group
 ```
 
 For example, `claim_rule_checks/exact_thresholds/exactly_50000.x12` is a
@@ -63,10 +63,10 @@ different results; `manifest.json` has each one's.
 | J8 | `json_files/dental_837d.json`, `institutional_837i.json` | JSON claims in the 837D (dental) and 837I (institutional) layouts |
 | X1 | `x12_files/837p_professional/` | Clean 837P claims, incl. a line dated as a range, a dependant patient and procedure modifiers |
 | X2 | `x12_files/837i_institutional/` | 837I claims: dated on the line or on the claim only, and condition codes with no diagnosis |
-| X3 | `x12_files/837d_dental/` | An 837D claim |
-| X4 | `x12_files/several_claims_one_transaction_set/` | Three claims in one transaction set; two claims for one subscriber |
-| X5 | `x12_files/several_transaction_sets/` | Two transaction sets in one file |
-| X6 | `x12_files/one_line_or_windows_line_endings/` | No newlines; CRLF line endings |
+| X3 | `x12_files/dental.x12` | An 837D claim |
+| X4 | `x12_files/three_claims.x12`, `two_claims_same_subscriber.x12` | Three claims in one transaction set; two claims for one subscriber |
+| X5 | `x12_files/two_transaction_sets.x12` | Two transaction sets in one file |
+| X6 | `x12_files/no_newlines.x12`, `crlf_line_endings.x12` | No newlines; CRLF line endings |
 | X7 | `x12_files/broken_envelope_or_file/` | Truncated, wrong segment count, mismatched control numbers, too short, no claims |
 | E1 | `x12_files/edi_extension/clean_claim.edi` | An ordinary clean 837P claim named `.edi` |
 | E2 | `x12_files/edi_extension/alternate_delimiters.edi` | `\|` and `>` as separators |

@@ -501,13 +501,13 @@ defmodule X12Suite.Cases do
         "Patient is a dependant in their own patient loop (HL 23); patient fields are the child's, clean",
         claim("DEPEND01", patient: [last: "CHILD", first: "KID", dob: "20200101", gender: "M"]),
         ok("DEPEND01", [])),
-      single("x12_files/837d_dental/dental.x12", "837D dental claim (SV3, TOO), clean",
+      single("x12_files/dental.x12", "837D dental claim (SV3, TOO), clean",
         claim("DENT01", lines: [{"D1110", "95.00", "20260912"}]), ok("DENT01", []), kind: :d),
       single("x12_files/edi_extension/clean_claim.edi", "Ordinary clean 837P claim in a file named .edi",
         claim("EDICLEAN01"), ok("EDICLEAN01", [])),
-      single("x12_files/one_line_or_windows_line_endings/no_newlines.x12", "Whole file on one line (no newlines), clean",
+      single("x12_files/no_newlines.x12", "Whole file on one line (no newlines), clean",
         claim("ONELINE01"), ok("ONELINE01", []), format: [newline: ""]),
-      single("x12_files/one_line_or_windows_line_endings/crlf_line_endings.x12", "Windows CRLF line endings, clean",
+      single("x12_files/crlf_line_endings.x12", "Windows CRLF line endings, clean",
         claim("CRLF01"), ok("CRLF01", []), format: [newline: "\r\n"]),
       single("x12_files/edi_extension/alternate_delimiters.edi",
         "Element separator | and sub-element separator > (both legal per ISA); ER 99285 over $10,000",
@@ -542,7 +542,7 @@ defmodule X12Suite.Cases do
 
     [
       %{
-        file: "x12_files/several_claims_one_transaction_set/three_claims.x12",
+        file: "x12_files/three_claims.x12",
         purpose: "Three subscribers, one claim each, in one transaction set",
         content: interchange([transaction(three, @valid_ortho)]),
         expect: %{
@@ -555,7 +555,7 @@ defmodule X12Suite.Cases do
         }
       },
       %{
-        file: "x12_files/several_transaction_sets/two_transaction_sets.x12",
+        file: "x12_files/two_transaction_sets.x12",
         purpose: "One interchange, two ST..SE transaction sets with two claims each",
         content: interchange([transaction(tx_a), transaction(tx_b)]),
         expect: %{
@@ -568,7 +568,7 @@ defmodule X12Suite.Cases do
         }
       },
       %{
-        file: "x12_files/several_claims_one_transaction_set/two_claims_same_subscriber.x12",
+        file: "x12_files/two_claims_same_subscriber.x12",
         purpose: "One subscriber with two claims (two CLMs under one HL)",
         content:
           interchange([

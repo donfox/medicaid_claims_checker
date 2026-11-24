@@ -59,7 +59,7 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
     test "rejects a GE count that doesn't match the transaction sets" do
       content =
         String.replace(
-          read("x12_files/several_transaction_sets/two_transaction_sets.x12"),
+          read("x12_files/two_transaction_sets.x12"),
           "GE*2*101~",
           "GE*1*101~"
         )
@@ -80,7 +80,7 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
   describe "split_transaction_sets/1 with several interchanges" do
     test "a file holding two interchanges gives one standalone piece per transaction set" do
       clean = read("x12_files/837p_professional/clean_office_visit.x12")
-      two_sets = read("x12_files/several_transaction_sets/two_transaction_sets.x12")
+      two_sets = read("x12_files/two_transaction_sets.x12")
 
       {:ok, pieces} = ClaimSplitter.split_transaction_sets(clean <> two_sets)
       assert length(pieces) == 3
@@ -148,7 +148,7 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
       assert {:ok, [first, second]} =
                claims(
                  read(
-                   "x12_files/several_claims_one_transaction_set/two_claims_same_subscriber.x12"
+                   "x12_files/two_claims_same_subscriber.x12"
                  )
                )
 
@@ -165,7 +165,7 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
 
     test "claims under different subscribers keep their own subscriber" do
       assert {:ok, claims} =
-               claims(read("x12_files/several_claims_one_transaction_set/three_claims.x12"))
+               claims(read("x12_files/three_claims.x12"))
 
       assert Enum.map(claims, &{&1["claim_id"], &1["patient"]["name"]["last"]}) ==
                [{"MULTI01", "ALPHA"}, {"MULTI02", "BRAVO"}, {"MULTI03", "CHARLIE"}]
@@ -173,7 +173,7 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
 
     test "each claim carries its own billing provider when a file has two" do
       content =
-        read("x12_files/several_claims_one_transaction_set/two_claims_same_subscriber.x12")
+        read("x12_files/two_claims_same_subscriber.x12")
 
       # Give the second claim its own billing-provider (HL 20) and subscriber loop.
       [head, tail] = String.split(content, "CLM*SAMESUB02", parts: 2)
@@ -199,7 +199,7 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
     end
 
     test "split claims keep the file's own delimiters and a correct SE count" do
-      three = read("x12_files/several_claims_one_transaction_set/three_claims.x12")
+      three = read("x12_files/three_claims.x12")
       piped = String.replace(three, "*", "|")
 
       {:ok, parts} = ClaimSplitter.split_claims_to_x12(piped)

@@ -94,7 +94,7 @@ defmodule MedicaidClaimsChecker.Claims.FingerprintTest do
 
     @professional "x12_files/837p_professional/clean_office_visit.x12"
     @rendering "nppes_provider_checks/rendering_npi_deactivated.x12"
-    @dental "x12_files/837d_dental/dental.x12"
+    @dental "x12_files/dental.x12"
     @institutional "x12_files/837i_institutional/institutional.x12"
 
     test "have the same fingerprint as their stored copy" do

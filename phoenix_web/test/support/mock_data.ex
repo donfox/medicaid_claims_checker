@@ -2,7 +2,7 @@ defmodule MedicaidClaimsChecker.MockData do
   @moduledoc """
   Paths into the repository's `mock_data/` folder, where all test data
   lives. Paths are relative to it, e.g.
-  `"x12_files/several_claims_one_transaction_set/three_claims.x12"`.
+  `"x12_files/three_claims.x12"`.
   """
 
   @root Path.expand("../../../mock_data", __DIR__)

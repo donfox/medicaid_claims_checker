@@ -117,7 +117,8 @@ defmodule MedicaidClaimsChecker.Claims do
 
   With "allow_resubmission" => true, and only where the
   `:allow_test_resubmission` setting is on (development), nothing is
-  refused: test files can be evaluated again. The batch name says so.
+  refused: test files can be evaluated again. The batch name says so only
+  when it holds something that would otherwise have been refused.
 
   Returns {:ok, %{batch: batch, edi_files: [...], duplicates: [...]}} or
   {:error, reason}.
@@ -127,12 +128,20 @@ defmodule MedicaidClaimsChecker.Claims do
     source = Map.get(params, "source", "manual_upload")
     resubmit? = params["allow_resubmission"] == true and test_resubmission_allowed?()
     batch_name = Map.get(params, "batch_name") || default_batch_name(source)
-    batch_name = if resubmit?, do: batch_name <> " (test re-submission)", else: batch_name
     rejected = Map.get(params, "rejected_files") || []
 
     result =
       Repo.transaction(fn ->
         Repo.query!("SELECT pg_advisory_xact_lock($1)", [@ingest_lock_key])
+
+        {accepted, refusals, known_files} = split_duplicates(claims)
+
+        {accepted, duplicates, batch_name} =
+          cond do
+            not resubmit? -> {accepted, refusals, batch_name}
+            refusals == [] -> {accepted, [], batch_name}
+            true -> {accept_all(claims), [], batch_name <> " (test re-submission)"}
+          end
 
         batch_attrs = %{
           batch_id: batch_id,
@@ -148,9 +157,6 @@ defmodule MedicaidClaimsChecker.Claims do
             {:ok, b} -> b
             {:error, changeset} -> Repo.rollback({:batch, changeset})
           end
-
-        {accepted, duplicates, known_files} =
-          if resubmit?, do: accept_all(claims), else: split_duplicates(claims)
 
         edi_files =
           Enum.map(accepted, fn {%{"filename" => filename, "claim" => claim_json}, fingerprint} ->
@@ -236,12 +242,8 @@ defmodule MedicaidClaimsChecker.Claims do
   def test_resubmission_allowed?,
     do: Application.get_env(:medicaid_claims_checker, :allow_test_resubmission, false) == true
 
-  # A test re-submission: every claim is accepted. known_files still lists
-  # earlier copies of the files so they aren't recorded twice.
-  defp accept_all(claims) do
-    entries = Enum.map(claims, &{&1, Fingerprint.claim(&1["claim"])})
-    {entries, [], previous_files(entries)}
-  end
+  # A test re-submission: every claim is accepted.
+  defp accept_all(claims), do: Enum.map(claims, &{&1, Fingerprint.claim(&1["claim"])})
 
   # Splits ingest entries into {accepted, duplicates, known_files}: accepted
   # is [{entry, claim_fingerprint}], duplicates are the refusal records stored

@@ -49,7 +49,10 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.TestResubmissionTest do
         do: assert(upload(view, "three_claims.x12", content) =~ "3 X12/EDI claim(s) translated")
 
     assert Enum.map(batches(), & &1.duplicates) == [[], [], []]
-    assert Enum.all?(batches(), &(&1.batch_name =~ "(test re-submission)"))
+
+    # The first upload was new; only the two repeats are re-submissions.
+    assert Enum.map(batches(), &(&1.batch_name =~ "(test re-submission)")) ==
+             [false, true, true]
   end
 
   test "unticked, the duplicate check works as in production", %{conn: conn} do

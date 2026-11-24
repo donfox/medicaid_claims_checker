@@ -130,8 +130,7 @@ defmodule MedicaidClaimsCheckerWeb.UseCaseCase do
     Enum.filter(@manifest, &(use_case_id(&1["file"]) in List.wrap(ids)))
   end
 
-  # The X12, JSON, NPPES, rules-page and zip folders and the EDI files have no ID
-  # in their names.
+  # Folders and the EDI files have no ID in their names.
   @folder_use_cases %{
     "837p_professional" => "X1",
     "837i_institutional" => "X2",
@@ -162,6 +161,16 @@ defmodule MedicaidClaimsCheckerWeb.UseCaseCase do
     "no_billing_npi" => "N10",
     "deactivated_rendering_provider" => "N11",
     "redundancy_levels" => "P2",
+    "clean_claim" => "R1",
+    "each_rule_alone" => "R2",
+    "several_rules" => "R3",
+    "problem_on_second_line" => "R4",
+    "exact_thresholds" => "R5",
+    "weekend_office_variants" => "R6",
+    "weekend_inpatient_stay" => "R7",
+    "rule_not_decidable" => "R9",
+    "age_out_of_range_or_missing_dob" => "R10",
+    "replacement_or_void_claim" => "R11",
     "mixed_file_types" => "Z1",
     "json_only_zip" => "Z2",
     "path_traversal" => "Z3",
@@ -171,7 +180,7 @@ defmodule MedicaidClaimsCheckerWeb.UseCaseCase do
     "over_15000_claims" => "Z7"
   }
 
-  @doc ~S|The use-case ID of a mock_data path: "R_business_rules/R5_exact_thresholds/x.x12" -> "R5".|
+  @doc ~S|The use-case ID of a mock_data path: "business_rules/exact_thresholds/x.x12" -> "R5".|
   def use_case_id(rel_path) do
     rel_path
     |> Path.split()

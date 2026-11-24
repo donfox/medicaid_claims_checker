@@ -15,10 +15,8 @@
 #   mix run --no-start ../mock_data/verify.exs --suite DIR      # e.g. a retagged copy
 #
 # --only keeps the cases in one use-case folder or group: R5 matches
-# R5_exact_thresholds (not R50...), R matches R_business_rules. The X12,
-# JSON, NPPES, rules-page and zip folders and the EDI files have no ID in
-# their names, so X, X1-X7, E, E1-E3, J, J1-J8, N, N2-N11, P, P2, Z and
-# Z1-Z7 are mapped to them below. --suite
+# exact_thresholds, R matches business_rules. Folders and the EDI files
+# have no ID in their names, so each ID is mapped to them below. --suite
 # checks another directory with a manifest.json in the same format. A case
 # with "rules" is evaluated against that rules file instead of the database
 # rules.
@@ -249,6 +247,17 @@ folder_ids = %{
   "deactivated_rendering_provider" => "N11",
   "rules_page" => "P",
   "redundancy_levels" => "P2",
+  "business_rules" => "R",
+  "clean_claim" => "R1",
+  "each_rule_alone" => "R2",
+  "several_rules" => "R3",
+  "problem_on_second_line" => "R4",
+  "exact_thresholds" => "R5",
+  "weekend_office_variants" => "R6",
+  "weekend_inpatient_stay" => "R7",
+  "rule_not_decidable" => "R9",
+  "age_out_of_range_or_missing_dob" => "R10",
+  "replacement_or_void_claim" => "R11",
   "mixed_file_types" => "Z1",
   "json_only_zip" => "Z2",
   "path_traversal" => "Z3",

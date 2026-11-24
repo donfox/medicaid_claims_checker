@@ -10,10 +10,10 @@ defmodule MedicaidClaimsCheckerWeb.UseCases.UUploadTest do
 
   alias MedicaidClaimsChecker.MockData
 
-  @json "R_business_rules/R2_each_rule_alone/HighValueClaim.json"
+  @json "business_rules/each_rule_alone/HighValueClaim.json"
   @x12 "x12_files/837p_professional/clean_office_visit.x12"
   @zip "zip_files/mixed_file_types/mixed_bundle.zip"
-  @clean_json "R_business_rules/R1_clean_claim/office_visit.json"
+  @clean_json "business_rules/clean_claim/office_visit.json"
   @already "Nothing was evaluated: every claim was already submitted."
 
   defp expected(files) do

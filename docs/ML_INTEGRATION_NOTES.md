@@ -2,7 +2,7 @@
 
 Working notes for Edition 2's planned Python scoring service, which will first serve the trained ML Models in [ML_PLAN.md](ML_PLAN.md). They record how the Haskell engine talks to an ML scorer today, and the engine issues to settle before that service is built. They were collected during the October 2026 review of the Haskell engine.
 
-Edition 2's rule applies here as well: an ML score is evidence for an analyst, never a decision.
+Edition 2's rule applies here as well: an ML score is evidence for a business analyst (BA), never a decision.
 
 ## Current state
 
@@ -63,7 +63,7 @@ The first scorer will serve the **trained ML Models** in [ML_PLAN.md](ML_PLAN.md
 Calling an outside LLM through an API is a **separate, later step**. It also depends on the decision to avoid commercial services for now. When it comes, the contract raises three points:
 
 - **Scores are not calibrated.** An LLM can return a number, but it is not a probability, and the same claim can score differently from run to run. The fixed bands (0.35 / 0.80 / 0.93) assume a calibrated score.
-- **The useful output is the explanation.** The contract has no free-text field, only `top_factors`. Under Edition 2 the LLM's reasons are the evidence an analyst needs, so the contract probably needs a rationale field.
+- **The useful output is the explanation.** The contract has no free-text field, only `top_factors`. Under Edition 2 the LLM's reasons are the evidence a BA needs, so the contract probably needs a rationale field.
 - **Categories may fit better than a score.** For example *no concern / worth a look / needs review*. `MediumRisk` is not produced by the rules (see item 6) and is reserved: "worth a look" is a natural candidate for it.
 
 ## Issues to resolve before building the Python service
@@ -78,7 +78,7 @@ Calling an outside LLM through an API is a **separate, later step**. It also dep
    - The HTTP status code is not checked, so an error response with a JSON body may be accepted.
    - `mlErrorResult` throws away the error message, which makes scorer failures hard to diagnose.
 6. **Decisions are worded as outcomes.**
-   - A matched `REJECT` rule produces status `REJECT` in queue `"denied"`, which goes against "the system recommends, an analyst decides". `PolicyCombiner` outputs should be reworded as recommendations.
+   - A matched `REJECT` rule produces status `REJECT` in queue `"denied"`, which goes against "the system recommends, a BA decides". `PolicyCombiner` outputs should be reworded as recommendations.
    - `Evaluator` also computes its own `overallRisk` (any `FLAG_FRAUD` = `CriticalRisk`) separately from `PolicyCombiner`. Settle on a single place where a recommendation is made.
    - `overallRisk` is what Phoenix uses to flag claims for review today. Since the October 2026 review, a matched `REQUIRE_REVIEW` or a risk score ≥ 70 gives `HighRisk` (before, these stayed Low or Medium and were not flagged), and `MediumRisk` is no longer produced. When ML scores join the decision, an ML band should be able to raise a claim to flagged in the same way.
 7. **Missing data.** Each rule result now has `resultUndecided` (the rule could not be checked because of missing or unusable data) and the report has `undecidedRules`. The app shows these rules as not checked. The LLM scorer will face the same question: decide whether it is told which rules could not be checked, and how it reports a claim it cannot assess because data is missing (it should not look like a low score). Each undecided result's `resultDetails` now names the missing or unusable fields, so the scorer request could pass that list along.

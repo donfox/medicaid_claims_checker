@@ -9,7 +9,7 @@ The platform has two runtime services:
 - **Phoenix LiveView app** on port `4000`  
   Handles the user interface, persistence, batch workflow, scheduling, and orchestration.
 - **Haskell DSL engine** on port `8080`  
-  Parses rules, evaluates claims, and returns deterministic rule results: recommendations for an analyst, who decides.
+  Parses rules, evaluates claims, and returns deterministic rule results: recommendations for a business analyst (BA), who decides.
 
 In normal operation, the Phoenix app sends rule text plus claim payloads to the Haskell engine over HTTP using JSON.
 

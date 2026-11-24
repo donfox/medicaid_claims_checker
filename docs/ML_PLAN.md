@@ -2,7 +2,7 @@
 
 Status: **proposal, not started** (written 2026-11-07). Nothing here has been downloaded, built or changed yet. Each phase below ends with a review, and the next one starts only when it is approved.
 
-Edition 2's rule applies throughout: **a model score is evidence for an analyst, never a decision.**
+Edition 2's rule applies throughout: **a model score is evidence for a business analyst (BA), never a decision.**
 Medicare is not involved at this point
 ## Why trained models first
 
@@ -18,7 +18,7 @@ The catalogue lists ten ML Models (see [The ML Models](#the-ml-models) below), a
 
 Ten ML Models make a fairly complete set (agreed 2026-11-20). Checks that follow fixed published tables or simple thresholds are Default Rules instead (see [Default Rule candidates](#default-rule-candidates)). Several smaller ideas are merged into one model as its features.
 
-**Data:** *Public* = HHS spending, LEIE and NPPES, available now. *Claims* = claims this app has checked, once enough real ones accumulate. *Decisions* = analyst decisions stored in the app.
+**Data:** *Public* = HHS spending, LEIE and NPPES, available now. *Claims* = claims this app has checked, once enough real ones accumulate. *Decisions* = BA decisions stored in the app.
 
 | # | ML Model | ML technique | Data | Covers |
 |---|---|---|---|---|
@@ -30,10 +30,10 @@ Ten ML Models make a fairly complete set (agreed 2026-11-20). Checks that follow
 | 6 | ClaimAmountAnomalyModel | Unsupervised, claim level | Claims | A claim far from similar claims (procedure, specialty, state) |
 | 7 | DiagnosisProcedureConsistencyModel | Association statistics | Claims | Diagnosis and procedure pairs that rarely occur together |
 | 8 | ModifierUsageModel | Peer-distribution comparison | Claims | Use of modifiers such as 25 and 59 compared with peers |
-| 9 | AnalystOutcomeModel | Supervised, learns from feedback | Claims, Decisions | Which flagged claims analysts usually confirm; orders the review queue |
+| 9 | AnalystOutcomeModel | Supervised, learns from feedback | Claims, Decisions | Which flagged claims BAs usually confirm; orders the review queue |
 | 10 | RuleEffectivenessModel | Supervised, threshold tuning | Claims, Decisions | Which Default and BA Rules lead to confirmed findings; suggests better limits |
 
-**Build order:** models 1–5 use public data and can be built first (1 in Phase 2, 4 in Phase 5; 2, 3 and 5 follow the same steps as Phase 2). Models 6–8 wait for real claims, and 9–10 for enough analyst decisions.
+**Build order:** models 1–5 use public data and can be built first (1 in Phase 2, 4 in Phase 5; 2, 3 and 5 follow the same steps as Phase 2). Models 6–8 wait for real claims, and 9–10 for enough BA decisions.
 
 **Possible only with a decision to use patient data (PHI):** SharedPatientNetworkModel (providers with unusual patient overlap) and MemberUtilizationModel (a member's use far above members with similar diagnoses). They are not in the catalogue.
 
@@ -68,13 +68,13 @@ Python was compared with the two languages already in the app, against what thes
 | Gradient boosting and calibration (models 4, 9, 10) | LightGBM or XGBoost, calibration built in | EXGBoost, younger; calibration by hand | Not available |
 | Change-point detection (model 3) | `ruptures` and others | Written by hand | Written by hand |
 | Graph analysis (model 5) | NetworkX | `libgraph`, basic | `fgl`, basic |
-| Per-claim reasons, the `top_factors` an analyst sees | SHAP, the standard method | No equivalent | No equivalent |
+| Per-claim reasons, the `top_factors` a BA sees | SHAP, the standard method | No equivalent | No equivalent |
 | Data files of several GB | Polars, DuckDB | Explorer (built on Polars) | Weak |
 | ML principles shown in a familiar form | scikit-learn, as in most courses and texts | Less familiar | Unfamiliar |
 | No new language or service | Adds both | Yes | Yes |
 | The later LLM step | Every SDK and local-model tool | Plain HTTP works | Plain HTTP works |
 
-**The deciding reasons:** the algorithms the plan names exist in Python and are mature, and SHAP gives the per-claim reasons that Edition 2 depends on (an analyst has to see why a claim scored high). Neither Elixir nor Haskell has an equivalent today. Haskell would mean writing the algorithms from scratch; Elixir was the credible alternative, keeping the app to two languages at the cost of simpler models and hand-written explanations.
+**The deciding reasons:** the algorithms the plan names exist in Python and are mature, and SHAP gives the per-claim reasons that Edition 2 depends on (a BA has to see why a claim scored high). Neither Elixir nor Haskell has an equivalent today. Haskell would mean writing the algorithms from scratch; Elixir was the credible alternative, keeping the app to two languages at the cost of simpler models and hand-written explanations.
 
 **The cost** is a third service to start, test and run (`scripts/start.sh` and the test scripts start it too). It is accepted because the same service will host the later LLM step, and because Python is the language the developer knows best.
 
@@ -219,7 +219,7 @@ Python reads `nppes_providers` straight from Postgres for peer groups, so nothin
 - A supervised model (gradient-boosted trees, LightGBM) trained on Phase 2's features plus tenure, with LEIE exclusions as labels.
 - Split by time (train on exclusions before a date, test on later ones), so the model is never tested on information it couldn't have had.
 - Calibrate it, so a score of 0.8 means roughly an 80% rate among similar providers.
-- Evaluate it by **precision in the top-ranked providers**, because analysts can review only so many claims a day. Write a model card, review it, and connect it the same way as in Phase 3.
+- Evaluate it by **precision in the top-ranked providers**, because BAs can review only so many claims a day. Write a model card, review it, and connect it the same way as in Phase 3.
 
 ## Guardrails (all phases)
 
@@ -233,11 +233,11 @@ Python reads `nppes_providers` straight from Postgres for peer groups, so nothin
 
 ## Limits of the whole system
 
-The Default Rules, BA Rules and ML Models together do not catch every anomalous claim, and are not meant to: their job is to catch the common patterns and send analysts to the riskiest claims first (reviewed 2026-11-20).
+The Default Rules, BA Rules and ML Models together do not catch every anomalous claim, and are not meant to: their job is to catch the common patterns and send BAs to the riskiest claims first (reviewed 2026-11-20).
 
 - **Beyond claims data.** Services never provided but billed at normal codes and volumes, medical necessity, kickbacks, and stolen provider identities can look normal on a claim. They need investigators, member contact or medical-records audits (see [Out of scope](#out-of-scope)).
 - **Data the app lacks.** Eligibility, death records, state enrollment, pharmacy claims and patient-level history; see *Future data sources* under [Data](#data).
-- **Misses can't be seen directly.** Every label from analyst decisions comes from claims that were already flagged, so models trained only on them learn to catch what the rules already catch. A **random audit sample** fixes this: analysts also review a small random share (for example 1%) of claims nothing flagged. That estimates the miss rate and gives unbiased labels, which matters most for AnalystOutcomeModel and RuleEffectivenessModel. Each such review is recorded in `claim_reviews` as *random audit*.
+- **Misses can't be seen directly.** Every label from BA decisions comes from claims that were already flagged, so models trained only on them learn to catch what the rules already catch. A **random audit sample** fixes this: BAs also review a small random share (for example 1%) of claims nothing flagged. That estimates the miss rate and gives unbiased labels, which matters most for AnalystOutcomeModel and RuleEffectivenessModel. Each such review is recorded in `claim_reviews` as *random audit*.
 
 ## Where things live
 
@@ -279,7 +279,7 @@ python_ml/
 
 1. ~~Is the HHS Medicaid Provider Spending data acceptable as the training data?~~ **Yes** (decided 2026-11-20).
 2. ~~Is the folder layout above acceptable?~~ **Yes**, as `python_ml/` (decided 2026-11-20).
-3. ~~Is the order acceptable: anomaly model first, supervised model fifth, the LLM afterwards?~~ **Yes** (decided 2026-11-20), as in [The ML Models](#the-ml-models): models 1–5 on public data, 6–8 once real claims accumulate, 9–10 once analysts have made enough decisions, the LLM step last.
+3. ~~Is the order acceptable: anomaly model first, supervised model fifth, the LLM afterwards?~~ **Yes** (decided 2026-11-20), as in [The ML Models](#the-ml-models): models 1–5 on public data, 6–8 once real claims accumulate, 9–10 once BAs have made enough decisions, the LLM step last.
 
 ## Decisions on the database
 
@@ -292,7 +292,7 @@ Open. Each has a recommendation.
 
 ## BA claim review
 
-Designed and accepted 2026-11-23, for Edition 2. Not built yet. Business analysts (BAs) are the reviewers; "analyst" elsewhere in this plan means a BA.
+Designed and accepted 2026-11-23, for Edition 2. Not built yet. Business analysts (BAs) are the reviewers.
 
 **Today** a BA cannot see the claim itself (Jobs History shows findings only, and the stored `edi_files.json_output` is never displayed), cannot record a decision, and cannot produce a report showing who reviewed what. Batches do not record who uploaded them.
 
@@ -329,7 +329,7 @@ Designed and accepted 2026-11-23, for Edition 2. Not built yet. Business analyst
 
 ## Logging and audit
 
-App-wide work, not specific to ML, recorded here because it should be in place before the ML results and analyst decisions are (reviewed 2026-11-20). Open; to be scheduled.
+App-wide work, not specific to ML, recorded here because it should be in place before the ML results and BA decisions are (reviewed 2026-11-20). Open; to be scheduled.
 
 **Today:**
 

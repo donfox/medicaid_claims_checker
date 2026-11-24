@@ -17,7 +17,7 @@ Medicaid Claims Checker is one of three independent healthcare-related projects 
 The project has two editions, each a stage in its progression.
 
 - **Edition 1: the teaching edition.** Built as a pedagogical example for discussion with interns: a rule engine and a web interface small enough to read end to end. It is preserved as completed and does not change. In Edition 1, claims the engine rated High or Critical risk, and claims whose provider failed the NPPES check, were labelled fraudulent automatically, a simplification suited to teaching.
-- **Edition 2: the production-ready prototype** (the current version, in active development). It takes the same ideas to the standard a real deployment would need: authentication and optional TLS between the web app and the engine, rate limiting, user accounts with administrator roles, duplicate-submission checks, X12 envelope validation, a full NPI registry checked as of each service date, and automated test suites. It is built on one principle: the system recommends and a named analyst decides. Rule results, NPPES checks and optional ML risk scores are evidence for an analyst and never a fraud determination. A planned AI assistant will advise the analyst in the same way (see [Roadmap](#roadmap)). It is still a prototype, run on synthetic data, not a live claims adjudication or payment system.
+- **Edition 2: the production-ready prototype** (the current version, in active development). It takes the same ideas to the standard a real deployment would need: authentication and optional TLS between the web app and the engine, rate limiting, user accounts with administrator roles, duplicate-submission checks, X12 envelope validation, a full NPI registry checked as of each service date, and automated test suites. It is built on one principle: the system recommends and a named business analyst (BA) decides. Rule results, NPPES checks and optional ML risk scores are evidence for a BA and never a fraud determination. A planned AI assistant will advise the BA in the same way (see [Roadmap](#roadmap)). It is still a prototype, run on synthetic data, not a live claims adjudication or payment system.
 
 Each edition is a Git tag; `main` always holds the latest edition. To look at Edition 1:
 
@@ -35,8 +35,8 @@ Each edition is a Git tag; `main` always holds the latest edition. To look at Ed
 
 Planned for Edition 2:
 
-- **Analyst review workflow:** a case queue, decisions recorded with the analyst, reason and evidence, and supervisor confirmation for serious decisions.
-- **Advisory AI assistant:** an API connection to a large language model (LLM) that summarises a claim's findings and drafts review notes for the analyst. Its output will be labelled advisory; it will not be able to change a claim's status or record a decision, and it will be used only with synthetic data.
+- **BA review workflow:** a review queue, decisions recorded with the BA, reason and evidence, and a second BA's sign-off for a referral for investigation (designed in [ML_PLAN.md](docs/ML_PLAN.md#ba-claim-review)).
+- **Advisory AI assistant:** an API connection to a large language model (LLM) that summarises a claim's findings and drafts review notes for the BA. Its output will be labelled advisory; it will not be able to change a claim's status or record a decision, and it will be used only with synthetic data.
 
 ## Getting Started
 

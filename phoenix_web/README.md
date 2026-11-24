@@ -136,7 +136,7 @@ rule results as well.
 - Business rule catalogue with type-based management (Default Rules, BA Rules, ML Models)
 - In-browser DSL editor with real-time syntax validation and redundancy detection
 - Batch evaluation history with per-claim risk level, matched rule details, and rules not checked because of missing data
-- Risk-level display (CriticalRisk, HighRisk, LowRisk); HighRisk and CriticalRisk claims are flagged for analyst review
+- Risk-level display (CriticalRisk, HighRisk, LowRisk); HighRisk and CriticalRisk claims are flagged for BA review
 
 ## Pages
 

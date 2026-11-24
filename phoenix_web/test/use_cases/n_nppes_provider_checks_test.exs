@@ -1,4 +1,4 @@
-defmodule MedicaidClaimsCheckerWeb.UseCases.NNppesTest do
+defmodule MedicaidClaimsCheckerWeb.UseCases.NNppesProviderChecksTest do
   @moduledoc """
   N1–N11: the NPPES provider check, against the registry rows in
   mock_data/nppes_extract.json.

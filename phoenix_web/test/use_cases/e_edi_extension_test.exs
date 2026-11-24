@@ -1,4 +1,4 @@
-defmodule MedicaidClaimsCheckerWeb.UseCases.EEdiFilesTest do
+defmodule MedicaidClaimsCheckerWeb.UseCases.EEdiExtensionTest do
   @moduledoc "E1–E3: uploading .edi files."
   use MedicaidClaimsCheckerWeb.UseCaseCase
 

@@ -1,4 +1,4 @@
-defmodule MedicaidClaimsCheckerWeb.UseCases.RBusinessRulesTest do
+defmodule MedicaidClaimsCheckerWeb.UseCases.RClaimRuleChecksTest do
   @moduledoc "R1–R11: what the seeded business rules match, through a real upload."
   use MedicaidClaimsCheckerWeb.UseCaseCase
 

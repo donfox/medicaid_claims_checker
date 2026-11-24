@@ -1686,13 +1686,8 @@
           }
         ]
       },
-      "file": "edi_files/alternate_delimiters/alternate_delimiters.edi",
+      "file": "edi_files/alternate_delimiters.edi",
       "purpose": "Element separator | and sub-element separator > (both legal per ISA); ER 99285 over $10,000"
-    },
-    {
-      "expect": { "error": "must start with ISA" },
-      "file": "edi_files/not_x12/not_x12.edi",
-      "purpose": "Plain text that is not X12 → reject"
     },
     {
       "expect": {
@@ -1704,8 +1699,13 @@
           }
         ]
       },
-      "file": "edi_files/plain_edi/clean_claim.edi",
+      "file": "edi_files/clean_claim.edi",
       "purpose": "Ordinary clean 837P claim in a file named .edi"
+    },
+    {
+      "expect": { "error": "must start with ISA" },
+      "file": "edi_files/not_x12.edi",
+      "purpose": "Plain text that is not X12 → reject"
     },
     {
       "expect": {

@@ -54,9 +54,9 @@
 
 | ID | Use case | Test files | What the app should show |
 |---|---|---|---|
-| **E1** | A plain, clean .edi file | `edi_files/plain_edi/` clean_claim.edi | Treated exactly like .x12; Clean. |
-| **E2** | Alternate delimiters (`\|` and `>`) | `edi_files/alternate_delimiters/` alternate_delimiters.edi | Translated; HighComplexityERVisit + UnauthorizedProcedure. |
-| **E3** | A file that is not X12 at all | `edi_files/not_x12/` not_x12.edi | Refused as not X12 (“must start with ISA”). |
+| **E1** | A plain, clean .edi file | `edi_files/` clean_claim.edi | Treated exactly like .x12; Clean. |
+| **E2** | Alternate delimiters (`\|` and `>`) | `edi_files/` alternate_delimiters.edi | Translated; HighComplexityERVisit + UnauthorizedProcedure. |
+| **E3** | A file that is not X12 at all | `edi_files/` not_x12.edi | Refused as not X12 (“must start with ISA”). |
 
 ## Z — Zip uploads
 

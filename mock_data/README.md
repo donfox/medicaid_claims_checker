@@ -64,9 +64,9 @@ different results; `manifest.json` has each one's.
 | `x12_files/several_transaction_sets/` | Two transaction sets in one file |
 | `x12_files/one_line_or_windows_line_endings/` | No newlines; CRLF line endings |
 | `x12_files/broken_envelope_or_file/` | Truncated, wrong segment count, mismatched control numbers, too short, no claims |
-| `edi_files/plain_edi/` | An ordinary clean 837P claim named `.edi` |
-| `edi_files/alternate_delimiters/` | `\|` and `>` as separators |
-| `edi_files/not_x12/` | Plain text named `.edi` |
+| `edi_files/clean_claim.edi` | An ordinary clean 837P claim named `.edi` |
+| `edi_files/alternate_delimiters.edi` | `\|` and `>` as separators |
+| `edi_files/not_x12.edi` | Plain text named `.edi` |
 | `zip_files/mixed_file_types/` | A zip with `.x12`, `.edi`, `.json` and an ignored `.txt` |
 | `zip_files/json_only_zip/` | A zip holding only `.json` claims |
 | `zip_files/path_traversal/` | A zip entry named `../escape.x12` |

@@ -15,8 +15,8 @@
 #   mix run --no-start ../mock_data/verify.exs --suite DIR      # e.g. a retagged copy
 #
 # --only keeps the cases in one use-case folder or group: R5 matches
-# R5_exact_thresholds (not R50...), R matches R_business_rules. The X12, EDI
-# and zip folders have no ID in their names, so X, X1-X7, E, E1-E3, Z and Z1-Z7
+# R5_exact_thresholds (not R50...), R matches R_business_rules. The X12 and
+# zip folders and the EDI files have no ID in their names, so X, X1-X7, E, E1-E3, Z and Z1-Z7
 # are mapped to them below. --suite
 # checks another directory with a manifest.json in the same format. A case
 # with "rules" is evaluated against that rules file instead of the database
@@ -223,9 +223,9 @@ folder_ids = %{
   "broken_envelope_or_file" => "X7",
   "zip_files" => "Z",
   "edi_files" => "E",
-  "plain_edi" => "E1",
-  "alternate_delimiters" => "E2",
-  "not_x12" => "E3",
+  "clean_claim.edi" => "E1",
+  "alternate_delimiters.edi" => "E2",
+  "not_x12.edi" => "E3",
   "mixed_file_types" => "Z1",
   "json_only_zip" => "Z2",
   "path_traversal" => "Z3",
@@ -238,10 +238,8 @@ folder_ids = %{
 cases =
   Enum.filter(manifest["cases"], fn c ->
     is_nil(only) or
-      c["file"]
-      |> Path.dirname()
-      |> Path.split()
-      |> Enum.any?(&(String.starts_with?(&1, only <> "_") or folder_ids[&1] == only))
+      c["file"] |> Path.dirname() |> Path.split() |> Enum.any?(&String.starts_with?(&1, only <> "_")) or
+      c["file"] |> Path.split() |> Enum.any?(&(folder_ids[&1] == only))
   end)
 
 if cases == [], do: raise("no cases match --only #{only}")

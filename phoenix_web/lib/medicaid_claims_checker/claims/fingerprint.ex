@@ -34,11 +34,16 @@ defmodule MedicaidClaimsChecker.Claims.Fingerprint do
   @doc "Lowercase hex SHA-256 of the fields that identify a claim."
   def claim(claim) when is_map(claim) do
     claim
+    |> stored_form()
     |> identity()
     |> canonical()
     |> Jason.encode!()
     |> sha256()
   end
+
+  # A translated X12 claim has atom keys in some sections, and its stored
+  # copy has none. Reading the stored form gives both the same hash.
+  defp stored_form(claim), do: claim |> Jason.encode!() |> Jason.decode!()
 
   # Without a claim ID the fixed fields may not tell two claims apart, so
   # everything outside the envelope is hashed.

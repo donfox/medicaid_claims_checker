@@ -2,6 +2,8 @@ defmodule MedicaidClaimsChecker.Claims.FingerprintTest do
   use ExUnit.Case, async: true
 
   alias MedicaidClaimsChecker.Claims.Fingerprint
+  alias MedicaidClaimsChecker.MockData
+  alias MedicaidClaimsChecker.X12.{Converter, SegmentMapper}
 
   @claim %{
     "claim_id" => "CLM-1",
@@ -79,6 +81,43 @@ defmodule MedicaidClaimsChecker.Claims.FingerprintTest do
 
     assert Fingerprint.claim(with_mods.([%{"code" => "25"}, %{"code" => "59"}])) !=
              Fingerprint.claim(with_mods.([%{"code" => "59"}, %{"code" => "25"}]))
+  end
+
+  describe "translated X12 claims" do
+    defp translated(file, from \\ "", to \\ "") do
+      x12 = MockData.read!(file)
+      x12 = if from == "", do: x12, else: String.replace(x12, from, to)
+      {:ok, flat} = Converter.convert_content(x12)
+      {:ok, claim} = SegmentMapper.map_from_json(flat)
+      SegmentMapper.normalize(claim)
+    end
+
+    @professional "x12_files/837p_professional/clean_office_visit.x12"
+    @rendering "nppes_provider_checks/deactivated_rendering_provider/rendering_npi_deactivated.x12"
+    @dental "x12_files/837d_dental/dental.x12"
+    @institutional "x12_files/837i_institutional/institutional.x12"
+
+    test "have the same fingerprint as their stored copy" do
+      for file <- [@professional, @rendering, @dental, @institutional] do
+        claim = translated(file)
+        stored = claim |> Jason.encode!() |> Jason.decode!()
+        assert Fingerprint.claim(claim) == Fingerprint.claim(stored), file
+      end
+    end
+
+    test "differ when an identifying section differs" do
+      for {file, from, to} <- [
+            {@professional, "HI*ABK:Z0000", "HI*ABK:J069"},
+            {@professional, "MCD000000001", "MCD000000999"},
+            {@institutional, "HI*ABK:Z0000", "HI*ABK:Z0000*BG:01"},
+            {@rendering, "NM1*82*1*GARCIA*MARIA****XX*1003002304", "NM1*82*1*GARCIA*MARIA****XX*1003000118"},
+            {@dental, "TOO*JP*19", "TOO*JP*20"}
+          ] do
+        assert String.contains?(MockData.read!(file), from), "fixture lacks #{from}"
+        assert Fingerprint.claim(translated(file)) != Fingerprint.claim(translated(file, from, to)),
+               "not detected: #{from} -> #{to}"
+      end
+    end
   end
 
   test "claims without an ID are told apart by their contents" do

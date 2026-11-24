@@ -118,6 +118,39 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.DuplicateUploadTest do
     assert Enum.all?(second.duplicates, &(Claims.describe_duplicate(&1) =~ "three_claims_"))
   end
 
+  describe "the same claim ID with different contents" do
+    @clean MedicaidClaimsChecker.MockData.path("x12_files/837p_professional/clean_office_visit.x12")
+
+    for {label, from, to} <- [
+          {"diagnosis", "HI*ABK:Z0000", "HI*ABK:J069"},
+          {"member", "MCD000000001", "MCD000000999"}
+        ] do
+      test "a different #{label} is a new claim", %{conn: conn} do
+        original = File.read!(@clean)
+        changed = String.replace(original, unquote(from), unquote(to))
+        assert changed != original
+
+        upload(conn, "original.x12", original)
+        upload(conn, "changed.x12", changed)
+
+        assert Enum.map(batches(), & &1.duplicates) == [[], []]
+        assert Repo.aggregate(EdiFile, :count) == 2
+      end
+    end
+
+    test "a re-sent claim matches a stored fingerprint recalculated from its copy", %{conn: conn} do
+      original = File.read!(@clean)
+      upload(conn, "original.x12", original)
+
+      stored = Repo.one!(EdiFile)
+      assert stored.claim_fingerprint == Claims.Fingerprint.claim(stored.json_output)
+
+      html = upload(conn, "resent.x12", original <> "\n")
+      assert html =~ "Nothing was evaluated: every claim was already submitted."
+      assert Repo.aggregate(EdiFile, :count) == 1
+    end
+  end
+
   test "a void of an uploaded claim is accepted", %{conn: conn} do
     content = File.read!(@three_claims)
     upload(conn, "three_claims.x12", content)

@@ -503,13 +503,13 @@ defmodule X12Suite.Cases do
         ok("DEPEND01", [])),
       single("x12_files/837d_dental/dental.x12", "837D dental claim (SV3, TOO), clean",
         claim("DENT01", lines: [{"D1110", "95.00", "20260912"}]), ok("DENT01", []), kind: :d),
-      single("E_edi_files/E1_plain_edi/clean_claim.edi", "Ordinary clean 837P claim in a file named .edi",
+      single("edi_files/plain_edi/clean_claim.edi", "Ordinary clean 837P claim in a file named .edi",
         claim("EDICLEAN01"), ok("EDICLEAN01", [])),
       single("x12_files/one_line_or_windows_line_endings/no_newlines.x12", "Whole file on one line (no newlines), clean",
         claim("ONELINE01"), ok("ONELINE01", []), format: [newline: ""]),
       single("x12_files/one_line_or_windows_line_endings/crlf_line_endings.x12", "Windows CRLF line endings, clean",
         claim("CRLF01"), ok("CRLF01", []), format: [newline: "\r\n"]),
-      single("E_edi_files/E2_alternate_delimiters/alternate_delimiters.edi",
+      single("edi_files/alternate_delimiters/alternate_delimiters.edi",
         "Element separator | and sub-element separator > (both legal per ISA); ER 99285 over $10,000",
         claim("ALTDELIM01", pos: "23", lines: [{"99285", "12000.00", "20260913"}]),
         ok("ALTDELIM01", ["HighComplexityERVisit", "UnauthorizedProcedure"], not_checked: ["NewProviderLargeSubmission"]),
@@ -607,7 +607,7 @@ defmodule X12Suite.Cases do
         expect: %{error: "interchange control number mismatch"}
       },
       %{
-        file: "E_edi_files/E3_not_x12/not_x12.edi",
+        file: "edi_files/not_x12/not_x12.edi",
         purpose: "Plain text that is not X12 → reject",
         content: String.duplicate("This is not an X12 file. It is a plain text note. ", 4) <> "\n",
         expect: %{error: "must start with ISA"}

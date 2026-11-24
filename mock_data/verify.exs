@@ -15,9 +15,9 @@
 #   mix run --no-start ../mock_data/verify.exs --suite DIR      # e.g. a retagged copy
 #
 # --only keeps the cases in one use-case folder or group: R5 matches
-# R5_exact_thresholds (not R50...), R matches R_business_rules. The X12 and
-# zip folders have no ID in their names, so X, X1-X7, Z and Z1-Z7 are mapped
-# to them below. --suite
+# R5_exact_thresholds (not R50...), R matches R_business_rules. The X12, EDI
+# and zip folders have no ID in their names, so X, X1-X7, E, E1-E3, Z and Z1-Z7
+# are mapped to them below. --suite
 # checks another directory with a manifest.json in the same format. A case
 # with "rules" is evaluated against that rules file instead of the database
 # rules.
@@ -222,6 +222,10 @@ folder_ids = %{
   "one_line_or_windows_line_endings" => "X6",
   "broken_envelope_or_file" => "X7",
   "zip_files" => "Z",
+  "edi_files" => "E",
+  "plain_edi" => "E1",
+  "alternate_delimiters" => "E2",
+  "not_x12" => "E3",
   "mixed_file_types" => "Z1",
   "json_only_zip" => "Z2",
   "path_traversal" => "Z3",

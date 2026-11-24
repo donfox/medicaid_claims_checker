@@ -130,7 +130,7 @@ defmodule MedicaidClaimsCheckerWeb.UseCaseCase do
     Enum.filter(@manifest, &(use_case_id(&1["file"]) in List.wrap(ids)))
   end
 
-  # The X12 and zip folders have no ID in their names.
+  # The X12, EDI and zip folders have no ID in their names.
   @folder_use_cases %{
     "837p_professional" => "X1",
     "837i_institutional" => "X2",
@@ -139,6 +139,9 @@ defmodule MedicaidClaimsCheckerWeb.UseCaseCase do
     "several_transaction_sets" => "X5",
     "one_line_or_windows_line_endings" => "X6",
     "broken_envelope_or_file" => "X7",
+    "plain_edi" => "E1",
+    "alternate_delimiters" => "E2",
+    "not_x12" => "E3",
     "mixed_file_types" => "Z1",
     "json_only_zip" => "Z2",
     "path_traversal" => "Z3",

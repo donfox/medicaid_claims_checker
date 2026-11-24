@@ -5,43 +5,6 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "EDICLEAN01",
-            "matched": [],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "E_edi_files/E1_plain_edi/clean_claim.edi",
-      "purpose": "Ordinary clean 837P claim in a file named .edi"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "ALTDELIM01",
-            "matched": [
-              "HighComplexityERVisit",
-              "UnauthorizedProcedure"
-            ],
-            "not_checked": [
-              "NewProviderLargeSubmission"
-            ],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "E_edi_files/E2_alternate_delimiters/alternate_delimiters.edi",
-      "purpose": "Element separator | and sub-element separator > (both legal per ISA); ER 99285 over $10,000"
-    },
-    {
-      "expect": { "error": "must start with ISA" },
-      "file": "E_edi_files/E3_not_x12/not_x12.edi",
-      "purpose": "Plain text that is not X12 → reject"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
             "claim_id": "MOCK-LIST-001",
             "matched": [],
             "nppes": "ok"
@@ -1706,6 +1669,43 @@
       },
       "file": "R_business_rules/R9_rule_not_decidable/missing_taxonomy_new_provider.x12",
       "purpose": "No taxonomy, $8,000 → MissingProviderTaxonomy, UnauthorizedProcedure; MissingTaxonomyNewProvider not checked (no tenure)"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "ALTDELIM01",
+            "matched": [
+              "HighComplexityERVisit",
+              "UnauthorizedProcedure"
+            ],
+            "not_checked": [
+              "NewProviderLargeSubmission"
+            ],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "edi_files/alternate_delimiters/alternate_delimiters.edi",
+      "purpose": "Element separator | and sub-element separator > (both legal per ISA); ER 99285 over $10,000"
+    },
+    {
+      "expect": { "error": "must start with ISA" },
+      "file": "edi_files/not_x12/not_x12.edi",
+      "purpose": "Plain text that is not X12 → reject"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "EDICLEAN01",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "edi_files/plain_edi/clean_claim.edi",
+      "purpose": "Ordinary clean 837P claim in a file named .edi"
     },
     {
       "expect": {

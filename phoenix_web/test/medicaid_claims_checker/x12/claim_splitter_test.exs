@@ -217,7 +217,7 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
   describe "conversion details" do
     test "uses the file's sub-element separator (ISA16) for composites" do
       assert {:ok, [claim]} =
-               claims(read("E_edi_files/E2_alternate_delimiters/alternate_delimiters.edi"))
+               claims(read("edi_files/alternate_delimiters/alternate_delimiters.edi"))
 
       assert [%{"procedure_code" => "99285", "procedure_qualifier" => "HC"}] =
                claim["service_lines"]

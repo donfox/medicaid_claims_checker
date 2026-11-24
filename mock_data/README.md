@@ -49,14 +49,14 @@ different results; `manifest.json` has each one's.
 
 | Folder | Contents |
 |---|---|
-| `json_files/one_claim/` | One claim in a `.json` file |
-| `json_files/list_of_claims/` | A plain list `[...]` of claims, no wrapper |
+| `json_files/routine_office_visit.json` | One claim in a `.json` file |
+| `json_files/two_claims.json` | A plain list `[...]` of claims, no wrapper |
 | `json_files/claims_wrapper/` | Claims wrapped as `{"claims": [...]}`: `mixed_batch`, `clean_batch`, `mixed_risk` |
-| `json_files/claims_mixed_with_non_claims/` | A list holding claims and entries that aren't claims |
-| `json_files/not_a_claim/` | Valid JSON that isn't a claim: refused |
-| `json_files/engine_request/` | An engine request (`rulesText` + claims), which must be refused as an upload |
-| `json_files/invalid_json/` | A claim file cut off part-way: not valid JSON, refused |
-| `json_files/837i_or_837d_style_json/` | JSON claims in the 837D (dental) and 837I (institutional) layouts |
+| `json_files/list_with_bad_entries.json` | A list holding claims and entries that aren't claims |
+| `json_files/patient_record.json` | Valid JSON that isn't a claim: refused |
+| `json_files/rules_text_and_claims.json` | An engine request (`rulesText` + claims), which must be refused as an upload |
+| `json_files/invalid_json.json` | A claim file cut off part-way: not valid JSON, refused |
+| `json_files/dental_837d.json`, `institutional_837i.json` | JSON claims in the 837D (dental) and 837I (institutional) layouts |
 | `x12_files/837p_professional/` | Clean 837P claims, incl. a line dated as a range and a dependant patient |
 | `x12_files/837i_institutional/` | 837I claims: dated on the line, or on the claim only |
 | `x12_files/837d_dental/` | An 837D claim |
@@ -120,10 +120,10 @@ The generator deletes the files the previous `manifest.json` lists before
 writing, so renaming or removing a case leaves nothing behind. It never
 touches the **hand-written** files, which are not in the manifest:
 
-- `json_files/one_claim/routine_office_visit.json`
+- `json_files/routine_office_visit.json`
 - `json_files/claims_wrapper/mixed_risk.json`
-- `json_files/claims_mixed_with_non_claims/list_with_bad_entries.json`
-- `json_files/engine_request/rules_text_and_claims.json`
+- `json_files/list_with_bad_entries.json`
+- `json_files/rules_text_and_claims.json`
 - the `.dsl` files in `rules_page/`
 - `converter_output/`
 

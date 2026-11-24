@@ -32,7 +32,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.JsonUploadTest do
   test "a file with no claim is refused and no batch is created", %{conn: conn} do
     content =
       MedicaidClaimsChecker.MockData.read!(
-        "json_files/engine_request/rules_text_and_claims.json"
+        "json_files/rules_text_and_claims.json"
       )
 
     html = upload(conn, [{"batch_redundancy_extended.json", content}])
@@ -44,7 +44,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.JsonUploadTest do
 
   test "claims are accepted and the refused file is named", %{conn: conn} do
     claim =
-      MedicaidClaimsChecker.MockData.read!("json_files/one_claim/routine_office_visit.json")
+      MedicaidClaimsChecker.MockData.read!("json_files/routine_office_visit.json")
 
     html = upload(conn, [{"claim.json", claim}, {"notes.json", ~s({"name": "x"})}])
 

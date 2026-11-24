@@ -29,14 +29,14 @@
 
 | ID | Use case | Test files | What the app should show |
 |---|---|---|---|
-| **J1** | One claim in a .json file | `json_files/one_claim/` routine_office_visit.json | “1 JSON claim(s) submitted for evaluation”; the claim is evaluated. |
-| **J2** | A list of claims `[ … ]` | `json_files/list_of_claims/` two_claims.json | Both claims evaluated: MOCK-LIST-001 Clean; MOCK-LIST-002 matches MissingDiagnosisCodes. |
+| **J1** | One claim in a .json file | `json_files/` routine_office_visit.json | “1 JSON claim(s) submitted for evaluation”; the claim is evaluated. |
+| **J2** | A list of claims `[ … ]` | `json_files/` two_claims.json | Both claims evaluated: MOCK-LIST-001 Clean; MOCK-LIST-002 matches MissingDiagnosisCodes. |
 | **J3** | Claims wrapped as `{"claims": [ … ]}` | `json_files/claims_wrapper/` mixed_batch.json, clean_batch.json, mixed_risk.json | Every claim evaluated. clean_batch: 4 Clean. mixed_batch: 2 Clean, then WeekendOfficeVisit, UnauthorizedProcedure, HighComplexityERVisit, MissingDiagnosisCodes. |
-| **J4** | Claims mixed with non-claim entries | `json_files/claims_mixed_with_non_claims/` list_with_bad_entries.json | The claims are evaluated; the final message still says “Not accepted: list_with_bad_entries.json (entry …)”, naming each refused entry. |
-| **J5** | A JSON file that is not a claim | `json_files/not_a_claim/` patient_record.json | Refused: “no claim found (expected a claim_id or claim field)”; nothing evaluated. |
-| **J6** | An engine request (rulesText + claims) | `json_files/engine_request/` rules_text_and_claims.json | Refused as “an engine test request (rules and a list of claims), not a claims file”; nothing evaluated. |
-| **J7** | Invalid JSON | `json_files/invalid_json/` cut_off.json | Refused: “not valid JSON”. |
-| **J8** | Dental / institutional claim as JSON | `json_files/837i_or_837d_style_json/` dental_837d.json, institutional_837i.json | Evaluated like a converted 837D / 837I; both Clean. |
+| **J4** | Claims mixed with non-claim entries | `json_files/` list_with_bad_entries.json | The claims are evaluated; the final message still says “Not accepted: list_with_bad_entries.json (entry …)”, naming each refused entry. |
+| **J5** | A JSON file that is not a claim | `json_files/` patient_record.json | Refused: “no claim found (expected a claim_id or claim field)”; nothing evaluated. |
+| **J6** | An engine request (rulesText + claims) | `json_files/` rules_text_and_claims.json | Refused as “an engine test request (rules and a list of claims), not a claims file”; nothing evaluated. |
+| **J7** | Invalid JSON | `json_files/` invalid_json.json | Refused: “not valid JSON”. |
+| **J8** | Dental / institutional claim as JSON | `json_files/` dental_837d.json, institutional_837i.json | Evaluated like a converted 837D / 837I; both Clean. |
 
 ## X — X12 (.x12) uploads
 

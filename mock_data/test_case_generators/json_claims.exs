@@ -593,7 +593,7 @@ samples = [
    {[], "not found in NPPES"}},
 
   # ------------------------------------------------- 837I and 837D layouts
-  {"json_files/837i_or_837d_style_json", "dental_837d", "837D-style JSON claim (procedure qualifier AD, tooth number); clean",
+  {"json_files", "dental_837d", "837D-style JSON claim (procedure qualifier AD, tooth number); clean",
    Samples.claim("MOCK-DENTAL-001", :awad,
      patient: 3,
      dx: ["K0251"],
@@ -601,7 +601,7 @@ samples = [
      type: "837D",
      notes: "Dental claim as the converter writes an 837D: periodic exam and a one-surface filling on tooth 19, $245. No rule should match."),
    {[], "ok"}},
-  {"json_files/837i_or_837d_style_json", "institutional_837i", "837I-style JSON claim (facility type, revenue codes, no procedure codes); clean",
+  {"json_files", "institutional_837i", "837I-style JSON claim (facility type, revenue codes, no procedure codes); clean",
    Samples.claim("MOCK-INST-001", :windham,
      type: "837I",
      facility: "13",
@@ -859,7 +859,7 @@ end) ++
   end) ++
   [
     %{
-      "file" => "json_files/list_of_claims/two_claims.json",
+      "file" => "json_files/two_claims.json",
       "purpose" => "A plain list [...] of two claims, without the {\"claims\": ...} wrapper",
       "content" =>
         json.(
@@ -873,7 +873,7 @@ end) ++
       }
     },
     %{
-      "file" => "json_files/not_a_claim/patient_record.json",
+      "file" => "json_files/patient_record.json",
       "purpose" => "Valid JSON that is not a claim (a patient record, no claim_id) → refused, nothing evaluated",
       "content" =>
         json.(%{
@@ -883,7 +883,7 @@ end) ++
       "expect" => %{"error" => "no claim found"}
     },
     %{
-      "file" => "json_files/invalid_json/cut_off.json",
+      "file" => "json_files/invalid_json.json",
       "purpose" => "A claim file cut off part-way, so not valid JSON → refused, nothing evaluated",
       "content" => String.slice(json.(Samples.claim("MOCK-BROKEN-001", :lane, lines: [{tue, "99213", 150}], notes: "Cut off.")), 0, 300),
       "expect" => %{"error" => "not valid JSON"}

@@ -9,7 +9,7 @@ defmodule MedicaidClaimsChecker.Claims.JsonClaimTest do
     test "a claim with a top-level claim_id" do
       assert {:ok, [%{"claim_id" => _}], []} =
                JsonClaim.parse(
-                 MockData.read!("json_files/one_claim/routine_office_visit.json")
+                 MockData.read!("json_files/routine_office_visit.json")
                )
     end
 
@@ -48,7 +48,7 @@ defmodule MedicaidClaimsChecker.Claims.JsonClaimTest do
               [{2, _}, {4, _}]} =
                JsonClaim.parse(
                  MockData.read!(
-                   "json_files/claims_mixed_with_non_claims/list_with_bad_entries.json"
+                   "json_files/list_with_bad_entries.json"
                  )
                )
     end
@@ -79,7 +79,7 @@ defmodule MedicaidClaimsChecker.Claims.JsonClaimTest do
     test "an engine test request (rules and a list of claims)" do
       assert {:error, reason} =
                JsonClaim.parse(
-                 MockData.read!("json_files/engine_request/rules_text_and_claims.json")
+                 MockData.read!("json_files/rules_text_and_claims.json")
                )
 
       assert reason =~ "engine test request"

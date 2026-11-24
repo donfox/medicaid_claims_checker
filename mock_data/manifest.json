@@ -992,32 +992,6 @@
       "expect": {
         "claims": [
           {
-            "claim_id": "MOCK-DENTAL-001",
-            "matched": [],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "json_files/837i_or_837d_style_json/dental_837d.json",
-      "purpose": "837D-style JSON claim (procedure qualifier AD, tooth number); clean"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
-            "claim_id": "MOCK-INST-001",
-            "matched": [],
-            "nppes": "ok"
-          }
-        ]
-      },
-      "file": "json_files/837i_or_837d_style_json/institutional_837i.json",
-      "purpose": "837I-style JSON claim (facility type, revenue codes, no procedure codes); clean"
-    },
-    {
-      "expect": {
-        "claims": [
-          {
             "claim_id": "MOCK-CLEANBATCH-001",
             "matched": [],
             "nppes": "ok"
@@ -1089,9 +1063,40 @@
       "purpose": "Six claims in one file: two clean, four that each match different rules"
     },
     {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "MOCK-DENTAL-001",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "json_files/dental_837d.json",
+      "purpose": "837D-style JSON claim (procedure qualifier AD, tooth number); clean"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
+            "claim_id": "MOCK-INST-001",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "json_files/institutional_837i.json",
+      "purpose": "837I-style JSON claim (facility type, revenue codes, no procedure codes); clean"
+    },
+    {
       "expect": { "error": "not valid JSON" },
-      "file": "json_files/invalid_json/cut_off.json",
+      "file": "json_files/invalid_json.json",
       "purpose": "A claim file cut off part-way, so not valid JSON → refused, nothing evaluated"
+    },
+    {
+      "expect": { "error": "no claim found" },
+      "file": "json_files/patient_record.json",
+      "purpose": "Valid JSON that is not a claim (a patient record, no claim_id) → refused, nothing evaluated"
     },
     {
       "expect": {
@@ -1110,13 +1115,8 @@
           }
         ]
       },
-      "file": "json_files/list_of_claims/two_claims.json",
+      "file": "json_files/two_claims.json",
       "purpose": "A plain list [...] of two claims, without the {\"claims\": ...} wrapper"
-    },
-    {
-      "expect": { "error": "no claim found" },
-      "file": "json_files/not_a_claim/patient_record.json",
-      "purpose": "Valid JSON that is not a claim (a patient record, no claim_id) → refused, nothing evaluated"
     },
     {
       "expect": {

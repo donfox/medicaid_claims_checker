@@ -545,7 +545,7 @@ samples = [
    {["WeekendOfficeVisit", "MissingProviderTaxonomy"], "ok"}},
 
   # ---------------------------------------------------------------- nppes
-  {"nppes_provider_checks/deactivated_provider", "deactivated_provider", "NPI deactivated 2024-12-12, service in 2026",
+  {"nppes_provider_checks", "deactivated_provider", "NPI deactivated 2024-12-12, service in 2026",
    Samples.claim("MOCK-NPPES-DEACT", :deactivated,
      patient: 1,
      dx: ["J069"],
@@ -554,7 +554,7 @@ samples = [
        "NPI 1003002304 was deactivated on 2024-12-12, so NPPES rejects a 2026 service. CMS publishes no " <>
          "name or address for a deactivated NPI; both are placeholders. No business rule matches."),
    {[], "was deactivated"}},
-  {"nppes_provider_checks/service_before_npi_issued", "before_enumeration", "Service dated before the NPI was issued",
+  {"nppes_provider_checks", "before_enumeration", "Service dated before the NPI was issued",
    Samples.claim("MOCK-NPPES-PREENUM", :coastal,
      patient: 2,
      dx: ["Z13220"],
@@ -575,7 +575,7 @@ samples = [
      lines: [{tue, "98941", 65}],
      notes: "NPI 1003003534 was reactivated 2009-07-10, so a 2026 service is accepted."),
    {[], "ok"}},
-  {"nppes_provider_checks/dropped_from_nppes", "dropped_provider", "NPI no longer in the NPPES file",
+  {"nppes_provider_checks", "dropped_provider", "NPI no longer in the NPPES file",
    Samples.claim("MOCK-NPPES-DROPPED", :dropped,
      patient: 2,
      dx: ["F411"],
@@ -584,7 +584,7 @@ samples = [
        "NPI 1093462368 was missing from the October 2026 full NPPES file (dropped_on 2026-10-18 in the dev " <>
          "registry); service on 2026-10-18. Address is a placeholder. Needs a registry imported with that file."),
    {[], "has not been in the NPPES file since"}},
-  {"nppes_provider_checks/npi_never_issued", "unissued_npi", "Luhn-valid NPI that was never issued",
+  {"nppes_provider_checks", "unissued_npi", "Luhn-valid NPI that was never issued",
    Samples.claim("MOCK-NPPES-UNISSUED", :unissued,
      patient: 3,
      dx: ["J069"],

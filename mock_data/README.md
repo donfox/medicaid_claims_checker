@@ -17,9 +17,8 @@ mock_data/
   <group>/                   one folder per kind of test
     <use case>/              a folder holding a use case's files
       <variant>.<ext>        the test files; the name says what the file does
-    <use case>.<ext>         in claim_rule_checks, json_files, rules_page and
-                             zip_files, a use case with one or two files sits
-                             directly in its group
+    <use case>.<ext>         in every group except x12_files, a use case with
+                             one or two files sits directly in its group
 ```
 
 For example, `claim_rule_checks/exact_thresholds/exactly_50000.x12` is a
@@ -89,16 +88,16 @@ different results; `manifest.json` has each one's.
 | R9 | `claim_rule_checks/missing_taxonomy_new_provider.x12` | A rule reported "not checked" because the claim lacks its field |
 | R10 | `claim_rule_checks/age_out_of_range_or_missing_dob/` | Born 1880, born 2099, no date of birth |
 | R11 | `claim_rule_checks/replacement_or_void_claim/` | Frequency codes 7 and 8: the rules apply as to an original |
-| N2 | `nppes_provider_checks/malformed_npi/` | Wrong length; failed check digit |
-| N3 | `nppes_provider_checks/npi_never_issued/` | Valid check digit, never issued |
-| N4 | `nppes_provider_checks/deactivated_provider/` | Deactivated 2024-12-12, service in 2026 |
-| N5 | `nppes_provider_checks/service_before_deactivation/` | Same provider, service before the deactivation: accepted |
-| N6 | `nppes_provider_checks/deactivated_mid_claim/` | One line before and one after the deactivation |
+| N2 | `nppes_provider_checks/bad_checksum.x12`, `nine_digit_npi.x12` | Wrong length; failed check digit |
+| N3 | `nppes_provider_checks/unissued_npi.json`, `unissued_npi.x12` | Valid check digit, never issued |
+| N4 | `nppes_provider_checks/deactivated_provider.json`, `deactivated_provider.x12` | Deactivated 2024-12-12, service in 2026 |
+| N5 | `nppes_provider_checks/service_before_deactivation.x12` | Same provider, service before the deactivation: accepted |
+| N6 | `nppes_provider_checks/deactivated_mid_claim.x12` | One line before and one after the deactivation |
 | N7 | `nppes_provider_checks/reactivated_provider/` | Service after reactivation (accepted) and in the gap (rejected) |
-| N8 | `nppes_provider_checks/service_before_npi_issued/` | Service dated before the NPI existed |
-| N9 | `nppes_provider_checks/dropped_from_nppes/` | NPI dropped from the NPPES file (needs the October 2026 import) |
-| N10 | `nppes_provider_checks/no_billing_npi/` | No billing NPI |
-| N11 | `nppes_provider_checks/deactivated_rendering_provider/` | Valid billing NPI, deactivated rendering provider |
+| N8 | `nppes_provider_checks/before_enumeration.json` | Service dated before the NPI existed |
+| N9 | `nppes_provider_checks/dropped_provider.json` | NPI dropped from the NPPES file (needs the October 2026 import) |
+| N10 | `nppes_provider_checks/missing_billing_npi.x12` | No billing NPI |
+| N11 | `nppes_provider_checks/rendering_npi_deactivated.x12` | Valid billing NPI, deactivated rendering provider |
 | P1 | `rules_page/feature_examples.dsl` | DSL features the business rules don't use |
 | P2 | `rules_page/redundancy_levels/` | `redundancy_levels.dsl` and the claims written for it (`claims/`) |
 | P3 | `rules_page/missing_then.dsl` | A rule with a syntax error: shown as an issue, not saved |

@@ -25,7 +25,7 @@ the limit).
 |---|---|---|
 | `J_json_files/` | J1–J8 | Uploading `.json` files: one claim, a wrapped list, entries that aren't claims, engine requests |
 | `x12_files/` | X1–X7 | Uploading `.x12` files: 837P/I/D, several claims or transaction sets, line endings, broken files |
-| `edi_files/` | E1–E3 | Uploading `.edi` files: alternate delimiters, a file that isn't X12 |
+| `x12_files/edi_extension/` | E1–E3 | Uploading `.edi` files: alternate delimiters, a file that isn't X12 |
 | `zip_files/` | Z1–Z7 | Uploading `.zip` files: mixed contents, path traversal, the 15,000-claim limit |
 | `R_business_rules/` | R1–R11 | What the 20 business rules match |
 | `N_nppes_provider_checks/` | N1–N11 | The NPPES provider check: malformed, unissued, deactivated, reactivated, dropped NPIs |
@@ -64,9 +64,9 @@ different results; `manifest.json` has each one's.
 | `x12_files/several_transaction_sets/` | Two transaction sets in one file |
 | `x12_files/one_line_or_windows_line_endings/` | No newlines; CRLF line endings |
 | `x12_files/broken_envelope_or_file/` | Truncated, wrong segment count, mismatched control numbers, too short, no claims |
-| `edi_files/clean_claim.edi` | An ordinary clean 837P claim named `.edi` |
-| `edi_files/alternate_delimiters.edi` | `\|` and `>` as separators |
-| `edi_files/not_x12.edi` | Plain text named `.edi` |
+| `x12_files/edi_extension/clean_claim.edi` | An ordinary clean 837P claim named `.edi` |
+| `x12_files/edi_extension/alternate_delimiters.edi` | `\|` and `>` as separators |
+| `x12_files/edi_extension/not_x12.edi` | Plain text named `.edi` |
 | `zip_files/mixed_file_types/` | A zip with `.x12`, `.edi`, `.json` and an ignored `.txt` |
 | `zip_files/json_only_zip/` | A zip holding only `.json` claims |
 | `zip_files/path_traversal/` | A zip entry named `../escape.x12` |

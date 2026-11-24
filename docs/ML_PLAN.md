@@ -121,7 +121,7 @@ All the libraries above are open source, in line with the decision to avoid comm
 
 ## Storage and database
 
-Each source is stored where it is used. Phoenix owns every database table, through Ecto migrations, as with `nppes_providers`; Python reads and writes rows but never changes the schema. No existing table changes.
+Each source is stored where it is used. Phoenix owns every database table, through Ecto migrations, as with `nppes_providers`; Python reads and writes rows but never changes the schema. One existing table changes: `batches` gains the user who uploaded it (see [BA claim review](#ba-claim-review)).
 
 The raw HHS Medicaid Provider Spending data (several GB, exact size confirmed before download) stays out of the database: files in `python_ml/data/`, converted once to Parquet. Only training reads these rows, all at once, and DuckDB or Polars does that faster than Postgres, which keeps the app's database small.
 
@@ -133,7 +133,7 @@ The raw HHS Medicaid Provider Spending data (several GB, exact size confirmed be
 | `ml_model_versions` | 2 | Python training | Scoring service; Phoenix | One row per trained version: model name (the catalogue name), version, data years, test results, model card link, status `candidate`, `active` or `retired` |
 | `ml_provider_scores` | 3 | Python training | Scoring service | One row per provider per model version (~1 million per version): NPI, score, top reasons, peer group, or *not assessed* with the reason |
 | `claim_ml_results` | 3–4 | Phoenix, from the engine's reply | Claim page; Python (labels) | One row per claim per model: model and version, score, band, reasons, or *not assessed* |
-| `analyst_decisions` | 4 (or earlier, see decisions below) | Phoenix, when an analyst decides | Claim page; Python (labels for models 9–10) | Claim, analyst, decision (for example *problem confirmed* or *legitimate*), note, time, why the claim was reviewed (*flagged*, or *random audit*), and a snapshot of the rule findings and ML scores shown when deciding. Rows are added, never changed. |
+| `claim_reviews` | 4 (or earlier, see decisions below) | Phoenix, when a BA decides or signs off | Claim page, review queue, reports; Python (labels for models 9–10) | Claim, BA, outcome, agree or disagree per triggered rule, note, time, why the claim was reviewed (*flagged*, *not assessed* or *random audit*), the review a sign-off confirms, and a snapshot of the rule findings and ML scores shown when deciding. Rows are added, never changed. |
 
 Python reads `nppes_providers` straight from Postgres for peer groups, so nothing is copied.
 
@@ -152,7 +152,7 @@ Python reads `nppes_providers` straight from Postgres for peer groups, so nothin
 2. The service looks up the billing provider in `ml_provider_scores` for each active version (models 1–5), and computes claim-level models (6–8) from the claim itself.
 3. The result returns through the engine to Phoenix, which stores it in `claim_ml_results`. A provider not in the data is stored as *not assessed*, never as low risk.
 
-**Retraining** reads `analyst_decisions` together with `claim_ml_results` as labels. That is how the models learn from use: as a new, reviewed version, never automatically.
+**Retraining** reads final outcomes from `claim_reviews` together with `claim_ml_results` as labels. That is how the models learn from use: as a new, reviewed version, never automatically.
 
 [DATABASE_ERD.md](DATABASE_ERD.md) gains each table when it is added.
 
@@ -208,7 +208,7 @@ Python reads `nppes_providers` straight from Postgres for peer groups, so nothin
 ### Phase 4: show it in the app
 
 - On each claim, the ML finding appears as a recommendation: band, score, top reasons, model version. A claim the model could not assess is shown as such.
-- The analyst's decision on a claim is stored in `analyst_decisions` with the model version that scored it, unless that table was built earlier. These decisions become training labels for future retraining.
+- The BA's decision on a claim is stored in `claim_reviews` with the model version that scored it, unless that table was built earlier. Final decisions become training labels for future retraining.
 - The random audit sample starts (see [Limits of the whole system](#limits-of-the-whole-system)).
 - BillingPatternAnomalyModel moves from *Not connected* to *Active* in the catalogue.
 
@@ -237,7 +237,7 @@ The Default Rules, BA Rules and ML Models together do not catch every anomalous 
 
 - **Beyond claims data.** Services never provided but billed at normal codes and volumes, medical necessity, kickbacks, and stolen provider identities can look normal on a claim. They need investigators, member contact or medical-records audits (see [Out of scope](#out-of-scope)).
 - **Data the app lacks.** Eligibility, death records, state enrollment, pharmacy claims and patient-level history; see *Future data sources* under [Data](#data).
-- **Misses can't be seen directly.** Every label from analyst decisions comes from claims that were already flagged, so models trained only on them learn to catch what the rules already catch. A **random audit sample** fixes this: analysts also review a small random share (for example 1%) of claims nothing flagged. That estimates the miss rate and gives unbiased labels, which matters most for AnalystOutcomeModel and RuleEffectivenessModel. Each such review is recorded in `analyst_decisions` as *random audit*.
+- **Misses can't be seen directly.** Every label from analyst decisions comes from claims that were already flagged, so models trained only on them learn to catch what the rules already catch. A **random audit sample** fixes this: analysts also review a small random share (for example 1%) of claims nothing flagged. That estimates the miss rate and gives unbiased labels, which matters most for AnalystOutcomeModel and RuleEffectivenessModel. Each such review is recorded in `claim_reviews` as *random audit*.
 
 ## Where things live
 
@@ -287,8 +287,45 @@ Open. Each has a recommendation.
 
 1. **Who loads the exclusion list?** Recommended: an Elixir importer built like the NPPES refresh, with a monthly schedule and a status panel in Settings. The ExcludedProvider rule needs the table whether or not ML runs; Python only reads it.
 2. **Where do ML results go?** Recommended: the separate `claim_ml_results` table, not the engine's `evaluation_report` on `edi_files`, so each model's version stays queryable for training labels and audits.
-3. **What can Python access?** Recommended: its own Postgres login that can read `nppes_providers`, `leie_exclusions` and `analyst_decisions`, and write only the `ml_*` tables. No access to `edi_files` until models 6–8; those rows hold patient data, so that access is a separate decision made then.
-4. **When is `analyst_decisions` built?** It is the missing piece of Edition 2's "the system recommends, an analyst decides": the app has nowhere to record a decision today. It needs a page for analysts as well as the table, and could be built before or alongside the ML work rather than in Phase 4.
+3. **What can Python access?** Recommended: its own Postgres login that can read `nppes_providers`, `leie_exclusions` and the outcome columns of `claim_reviews`, and write only the `ml_*` tables. It cannot read a review's note or snapshot, because a BA's free-text note may mention a member. No access to `edi_files` until models 6–8; those rows hold patient data, so that access is a separate decision made then.
+4. **When is `claim_reviews` built?** It is the missing piece of Edition 2's "the system recommends, a BA decides": the app has nowhere to record a decision today. The design is in [BA claim review](#ba-claim-review). It could be built before or alongside the ML work rather than in Phase 4.
+
+## BA claim review
+
+Designed and accepted 2026-11-23, for Edition 2. Not built yet. Business analysts (BAs) are the reviewers; "analyst" elsewhere in this plan means a BA.
+
+**Today** a BA cannot see the claim itself (Jobs History shows findings only, and the stored `edi_files.json_output` is never displayed), cannot record a decision, and cannot produce a report showing who reviewed what. Batches do not record who uploaded them.
+
+**Pages and reports:**
+
+| Piece | What it does |
+|---|---|
+| Claim page, `/claims/:id` | Summary, diagnosis codes, service lines, findings, review history and "show original". Each view is written to the audit log. |
+| Review queue, `/review` | Claims that are flagged, not assessed or in the random audit sample, and have no final decision. It works across batches, is unaffected by clearing Jobs History, and lets a BA assign a claim to themselves. |
+| Decision form | Outcome, agree or disagree for each triggered rule, and a note. Saved with the BA and time. A changed decision is a new row, so the history stays intact. |
+| Claim report | One claim, printable or saved as PDF. |
+| Decisions report | Decisions across claims, as CSV. Each export is written to the audit log. |
+
+**Outcomes:**
+
+| Outcome | Final? | Training label? |
+|---|---|---|
+| Problem confirmed | Yes | Yes |
+| Legitimate | Yes | Yes |
+| Needs more information | No, the claim stays in the queue | No |
+| Refer for investigation | Only after sign-off | Yes, once signed off |
+
+**Sign-off.** Only *Refer for investigation* needs it, because it is the outcome with consequences for a provider. A second BA confirms or returns the referral, and the BA who made it cannot sign it off. The sign-off is its own row in `claim_reviews`. A referral is an outcome of review, never a finding of fraud (see [Guardrails](#guardrails-all-phases)).
+
+**Member information** follows HIPAA's minimum-necessary rule:
+
+- Member names and IDs are hidden by default on the claim page and in the queue.
+- A "reveal" action shows them for that claim and writes who, which claim and when to the audit log.
+- "Show original" displays the raw claim, which contains member details, so it counts as a reveal.
+- Reports leave out member names and IDs.
+- CSV exports neutralize cells that a spreadsheet would run as a formula, because notes are free text.
+
+**Build order:** `audit_events` first, because every piece above writes to it; then the uploader on `batches`, the claim page, `claim_reviews` with the decision form, the queue, and the reports.
 
 ## Logging and audit
 
@@ -313,7 +350,7 @@ App-wide work, not specific to ML, recorded here because it should be in place b
 
 | # | Change | Where |
 |---|---|---|
-| 1 | An `audit_events` table: one row per action (user, action, target, time), rows only ever added. It covers logins, claim views, rule edits and switches, admin changes, and later analyst decisions and random-audit reviews. It is built with or before `analyst_decisions`. | Phoenix, new table |
+| 1 | An `audit_events` table: one row per action (user, action, target, time), rows only ever added. It covers logins, claim views, member-detail reveals, report exports, rule edits and switches, admin changes, and later BA decisions and random-audit reviews. It is built before `claim_reviews`. | Phoenix, new table |
 | 2 | One log line per engine request: path, status, duration and claim count, never claim contents. Phoenix sends its request ID with each call, and the engine logs it. | Engine and Phoenix |
 | 3 | Keep log history: append on start and rotate old files, instead of overwriting. | `scripts/start.sh` |
 | 4 | Keep the development debug level, and note in the README that `logs/` holds session tokens and claim IDs and must not be shared. | README |

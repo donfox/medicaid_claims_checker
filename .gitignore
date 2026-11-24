@@ -56,4 +56,4 @@ phoenix_web/config/dev.secret.exs
 *_security_review.pdf
 
 # Large-batch X12 test zips (use case Z7) — regenerate with mock_data/generate.exs --large N
-mock_data/Z_zip_files/Z7_over_15000_claims/
+mock_data/Z_zip_files/over_15000_claims/

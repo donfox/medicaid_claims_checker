@@ -648,7 +648,7 @@ defmodule X12Suite.Cases do
 
     [
       %{
-        file: "Z_zip_files/Z6_corrupt_zip/cut_off.zip",
+        file: "Z_zip_files/corrupt_zip/cut_off.zip",
         purpose: "Zip file cut off part-way, so it can't be opened → nothing to evaluate",
         content: binary_part(whole, 0, div(byte_size(whole), 2)),
         expect: %{error: "No processable claims found"}
@@ -690,19 +690,19 @@ defmodule X12Suite.Cases do
 
     [
       {%{
-         file: "Z_zip_files/Z1_mixed_file_types/mixed_bundle.zip",
+         file: "Z_zip_files/mixed_file_types/mixed_bundle.zip",
          purpose: "Zip holding an .x12, an .edi, a .json and a .txt (ignored)",
          expect: %{claims: [ok("ZIPX12A", []), ok("ZIPEDIB", ["MissingDiagnosisCodes"]), ok("ZIPJSON01", [])]}
        }, bundle},
       {%{
-         file: "Z_zip_files/Z3_path_traversal/path_traversal.zip",
+         file: "Z_zip_files/path_traversal/path_traversal.zip",
          purpose:
            "Zip whose only entry is ../escape.x12 → Erlang's in-memory unzip strips the ../ " <>
              "and the entry is read as escape.x12; nothing is written to disk",
          expect: %{claims: [ok("ESCAPE01", [])]}
        }, [{"../escape.x12", interchange([transaction([claim("ESCAPE01")])])}]},
       {%{
-         file: "Z_zip_files/Z2_json_only_zip/two_json_claims.zip",
+         file: "Z_zip_files/json_only_zip/two_json_claims.zip",
          purpose: "Zip holding only .json claims",
          expect: %{claims: [ok("ZIPJSON02", []), ok("ZIPJSON03", [])]}
        },
@@ -711,17 +711,17 @@ defmodule X12Suite.Cases do
          {"claims/second.json", X12Suite.pretty_json(json_claim("ZIPJSON03"))}
        ]},
       {%{
-         file: "Z_zip_files/Z4_nothing_usable/empty.zip",
+         file: "Z_zip_files/nothing_usable/empty.zip",
          purpose: "Zip with no entries → nothing to evaluate",
          expect: %{error: "No processable claims found"}
        }, []},
       {%{
-         file: "Z_zip_files/Z4_nothing_usable/text_files_only.zip",
+         file: "Z_zip_files/nothing_usable/text_files_only.zip",
          purpose: "Zip holding only .txt and .csv files, which are ignored → nothing to evaluate",
          expect: %{error: "No processable claims found"}
        }, [{"notes.txt", "Not a claim.\n"}, {"export.csv", "claim_id,amount\nX1,100\n"}]},
       {%{
-         file: "Z_zip_files/Z5_zip_inside_zip/nested.zip",
+         file: "Z_zip_files/zip_inside_zip/nested.zip",
          purpose: "Zip holding an .x12 and another zip; the inner zip is ignored, so only the outer claim is evaluated",
          expect: %{claims: [ok("OUTER01", [])]}
        },
@@ -756,7 +756,7 @@ defmodule X12Suite.Cases do
       end)
 
     {%{
-       file: "Z_zip_files/Z7_over_15000_claims/large_batch_#{n}.zip",
+       file: "Z_zip_files/over_15000_claims/large_batch_#{n}.zip",
        purpose: "#{n} clean claims across #{length(entries)} X12 files",
        expect: %{claim_count: n, over_cap: n > 15_000}
      }, entries}

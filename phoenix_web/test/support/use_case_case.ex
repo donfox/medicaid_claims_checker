@@ -130,15 +130,22 @@ defmodule MedicaidClaimsCheckerWeb.UseCaseCase do
     Enum.filter(@manifest, &(use_case_id(&1["file"]) in List.wrap(ids)))
   end
 
-  # The X12 folders have no ID in their names.
-  @x12_use_cases %{
+  # The X12 and zip folders have no ID in their names.
+  @folder_use_cases %{
     "837p_professional" => "X1",
     "837i_institutional" => "X2",
     "837d_dental" => "X3",
     "several_claims_one_transaction_set" => "X4",
     "several_transaction_sets" => "X5",
     "one_line_or_windows_line_endings" => "X6",
-    "broken_envelope_or_file" => "X7"
+    "broken_envelope_or_file" => "X7",
+    "mixed_file_types" => "Z1",
+    "json_only_zip" => "Z2",
+    "path_traversal" => "Z3",
+    "nothing_usable" => "Z4",
+    "zip_inside_zip" => "Z5",
+    "corrupt_zip" => "Z6",
+    "over_15000_claims" => "Z7"
   }
 
   @doc ~S|The use-case ID of a mock_data path: "R_business_rules/R5_exact_thresholds/x.x12" -> "R5".|
@@ -148,7 +155,7 @@ defmodule MedicaidClaimsCheckerWeb.UseCaseCase do
     |> Enum.find_value(fn part ->
       case Regex.run(~r/^([A-Z]\d+)_/, part) do
         [_, id] -> id
-        _ -> @x12_use_cases[part]
+        _ -> @folder_use_cases[part]
       end
     end)
   end

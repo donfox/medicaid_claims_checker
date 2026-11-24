@@ -62,13 +62,13 @@
 
 | ID | Use case | Test files | What the app should show |
 |---|---|---|---|
-| **Z1** | Zip with .x12, .edi, .json and other files | `Z_zip_files/Z1_mixed_file_types/` mixed_bundle.zip | The three claim files are evaluated (ZIPEDIB matches MissingDiagnosisCodes); README.txt is ignored. |
-| **Z2** | Zip with JSON files only | `Z_zip_files/Z2_json_only_zip/` two_json_claims.zip | Both JSON claims evaluated; Clean. |
-| **Z3** | Path-traversal entry (`../escape.x12`) | `Z_zip_files/Z3_path_traversal/` path_traversal.zip | Read as escape.x12 and evaluated (Clean); nothing is written to disk. |
-| **Z4** | Zip with nothing usable / empty zip | `Z_zip_files/Z4_nothing_usable/` empty.zip, text_files_only.zip | “No processable claims found”. |
-| **Z5** | Zip inside a zip | `Z_zip_files/Z5_zip_inside_zip/` nested.zip | The outer .x12 is evaluated (Clean); the inner zip is ignored. |
-| **Z6** | Corrupt zip | `Z_zip_files/Z6_corrupt_zip/` cut_off.zip | “No processable claims found”. |
-| **Z7** | More than 15,000 claims | `Z_zip_files/Z7_over_15000_claims/` — not in git; make it with `elixir mock_data/generate.exs --large 15001` | Nothing is evaluated. The message names the reason: “This batch has 15001 claims; the limit is 15000. Split the files into smaller batches and try again.” Up to 15,000 claims are evaluated normally. |
+| **Z1** | Zip with .x12, .edi, .json and other files | `Z_zip_files/mixed_file_types/` mixed_bundle.zip | The three claim files are evaluated (ZIPEDIB matches MissingDiagnosisCodes); README.txt is ignored. |
+| **Z2** | Zip with JSON files only | `Z_zip_files/json_only_zip/` two_json_claims.zip | Both JSON claims evaluated; Clean. |
+| **Z3** | Path-traversal entry (`../escape.x12`) | `Z_zip_files/path_traversal/` path_traversal.zip | Read as escape.x12 and evaluated (Clean); nothing is written to disk. |
+| **Z4** | Zip with nothing usable / empty zip | `Z_zip_files/nothing_usable/` empty.zip, text_files_only.zip | “No processable claims found”. |
+| **Z5** | Zip inside a zip | `Z_zip_files/zip_inside_zip/` nested.zip | The outer .x12 is evaluated (Clean); the inner zip is ignored. |
+| **Z6** | Corrupt zip | `Z_zip_files/corrupt_zip/` cut_off.zip | “No processable claims found”. |
+| **Z7** | More than 15,000 claims | `Z_zip_files/over_15000_claims/` — not in git; make it with `elixir mock_data/generate.exs --large 15001` | Nothing is evaluated. The message names the reason: “This batch has 15001 claims; the limit is 15000. Split the files into smaller batches and try again.” Up to 15,000 claims are evaluated normally. |
 
 ## U — Upload behaviour
 

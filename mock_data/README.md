@@ -67,13 +67,13 @@ different results; `manifest.json` has each one's.
 | `E_edi_files/E1_plain_edi/` | An ordinary clean 837P claim named `.edi` |
 | `E_edi_files/E2_alternate_delimiters/` | `\|` and `>` as separators |
 | `E_edi_files/E3_not_x12/` | Plain text named `.edi` |
-| `Z_zip_files/Z1_mixed_file_types/` | A zip with `.x12`, `.edi`, `.json` and an ignored `.txt` |
-| `Z_zip_files/Z2_json_only_zip/` | A zip holding only `.json` claims |
-| `Z_zip_files/Z3_path_traversal/` | A zip entry named `../escape.x12` |
-| `Z_zip_files/Z4_nothing_usable/` | An empty zip; a zip of `.txt`/`.csv` only: nothing to evaluate |
-| `Z_zip_files/Z5_zip_inside_zip/` | A zip holding an `.x12` and another zip, which is ignored |
-| `Z_zip_files/Z6_corrupt_zip/` | A zip cut off part-way, which can't be opened |
-| `Z_zip_files/Z7_over_15000_claims/` | Not committed: made by `generate.exs --large N` (the use-case test builds its own) |
+| `Z_zip_files/mixed_file_types/` | A zip with `.x12`, `.edi`, `.json` and an ignored `.txt` |
+| `Z_zip_files/json_only_zip/` | A zip holding only `.json` claims |
+| `Z_zip_files/path_traversal/` | A zip entry named `../escape.x12` |
+| `Z_zip_files/nothing_usable/` | An empty zip; a zip of `.txt`/`.csv` only: nothing to evaluate |
+| `Z_zip_files/zip_inside_zip/` | A zip holding an `.x12` and another zip, which is ignored |
+| `Z_zip_files/corrupt_zip/` | A zip cut off part-way, which can't be opened |
+| `Z_zip_files/over_15000_claims/` | Not committed: made by `generate.exs --large N` (the use-case test builds its own) |
 | `R_business_rules/R1_clean_claim/` | Claims no rule should match |
 | `R_business_rules/R2_each_rule_alone/` | One file per rule, named after it |
 | `R_business_rules/R3_several_rules/` | Claims that match several rules |
@@ -181,7 +181,7 @@ cd phoenix_web
 mix run --no-start ../mock_data/verify.exs             # every generated file
 mix run --no-start ../mock_data/verify.exs --only R5   # one use case
 mix run --no-start ../mock_data/verify.exs --only N    # one group
-mix run --no-start ../mock_data/verify.exs --large ../mock_data/Z_zip_files/Z7_over_15000_claims/large_batch_15000.zip
+mix run --no-start ../mock_data/verify.exs --large ../mock_data/Z_zip_files/over_15000_claims/large_batch_15000.zip
 ```
 
 Each file goes through the same steps as an upload, then the NPPES check and

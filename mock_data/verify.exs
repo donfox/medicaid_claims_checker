@@ -11,7 +11,7 @@
 #   RULE_ENGINE_SECRET=... mix run --no-start ../mock_data/verify.exs
 #   mix run --no-start ../mock_data/verify.exs --only R5        # one use case
 #   mix run --no-start ../mock_data/verify.exs --only N         # one group
-#   mix run --no-start ../mock_data/verify.exs --large ../mock_data/Z_zip_files/Z7_over_15000_claims/large_batch_15000.zip
+#   mix run --no-start ../mock_data/verify.exs --large ../mock_data/Z_zip_files/over_15000_claims/large_batch_15000.zip
 #   mix run --no-start ../mock_data/verify.exs --suite DIR      # e.g. a retagged copy
 #
 # --only keeps the cases in one use-case folder or group: R5 matches

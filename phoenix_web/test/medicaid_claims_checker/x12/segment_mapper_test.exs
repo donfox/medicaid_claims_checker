@@ -402,6 +402,33 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapperTest do
     end
   end
 
+  describe "procedure modifiers on JSON claims" do
+    defp json_modifiers(modifiers) do
+      claim = %{"claim_id" => "J1", "service_lines" => [%{"modifiers" => modifiers}]}
+      [line] = SegmentMapper.normalize(claim)["service_lines"]
+      line["modifiers"]
+    end
+
+    test "plain codes become the form rules read, in order" do
+      assert json_modifiers(["25", "59"]) == [%{"code" => "25"}, %{"code" => "59"}]
+      assert json_modifiers("25") == [%{"code" => "25"}]
+      assert json_modifiers([25]) == [%{"code" => "25"}]
+      assert json_modifiers([" 59 ", "", nil]) == [%{"code" => "59"}]
+    end
+
+    test "modifiers already in that form keep their other fields" do
+      modifier = %{"code" => "25", "description" => "Separate visit"}
+      assert json_modifiers([modifier]) == [modifier]
+    end
+
+    test "is idempotent, and leaves a line without modifiers alone" do
+      claim = %{"claim_id" => "J1", "service_lines" => [%{"modifiers" => ["25"]}, %{"units" => 1}]}
+      once = SegmentMapper.normalize(claim)
+      assert SegmentMapper.normalize(once) == once
+      assert Enum.at(once["service_lines"], 1) == %{"units" => 1}
+    end
+  end
+
   describe "procedure modifiers" do
     defp convert_with(file, from, to) do
       x12 = file |> MedicaidClaimsChecker.MockData.read!() |> String.replace(from, to)

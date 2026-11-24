@@ -652,11 +652,13 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
   X12 shape) into the claim contract rules read.
 
   Claims already in that contract (top-level `claim_id` key) pass through
-  unchanged, making this function idempotent. Absent X12 elements arrive as
-  "", which a rule would treat as present, so blank values become nil.
+  unchanged, except that procedure modifiers given as plain codes become
+  `%{"code" => code}`, the form rules read. This function is idempotent.
+  Absent X12 elements arrive as "", which a rule would treat as present, so
+  blank values become nil.
   """
   @spec normalize(map()) :: map()
-  def normalize(%{"claim_id" => _} = claim), do: claim
+  def normalize(%{"claim_id" => _} = claim), do: json_claim_modifiers(claim)
   def normalize(%{claim_id: _} = claim), do: claim
 
   def normalize(x12_map) when is_map(x12_map) do
@@ -744,6 +746,28 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
   end
 
   def normalize(other), do: other
+
+  defp json_claim_modifiers(%{"service_lines" => lines} = claim) when is_list(lines),
+    do: %{claim | "service_lines" => Enum.map(lines, &json_line_modifiers/1)}
+
+  defp json_claim_modifiers(claim), do: claim
+
+  defp json_line_modifiers(%{"modifiers" => modifiers} = line) when not is_nil(modifiers),
+    do: %{line | "modifiers" => modifiers |> List.wrap() |> Enum.flat_map(&json_modifier/1)}
+
+  defp json_line_modifiers(line), do: line
+
+  defp json_modifier(%{"code" => _} = modifier), do: [modifier]
+  defp json_modifier(code) when is_integer(code), do: [%{"code" => Integer.to_string(code)}]
+
+  defp json_modifier(code) when is_binary(code) do
+    case String.trim(code) do
+      "" -> []
+      trimmed -> [%{"code" => trimmed}]
+    end
+  end
+
+  defp json_modifier(_other), do: []
 
   defp normalize_service_line(line, claim_place_of_service) when is_map(line) do
     # date_of_service may already be renamed, or still be service_date (X12 schema)

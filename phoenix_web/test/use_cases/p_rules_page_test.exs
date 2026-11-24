@@ -10,6 +10,15 @@ defmodule MedicaidClaimsCheckerWeb.UseCases.PRulesPageTest do
   # P2's claims, evaluated against redundancy_levels.dsl.
   manifest_tests(~w(P2))
 
+  @tag use_case: "P1"
+  test "P1 the syntax guide shows the modifiers field and an example", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/rules")
+    render_click(view, "toggle_dsl_reference")
+
+    assert has_element?(view, "#dsl-help-modifiers-field")
+    assert has_element?(view, "#dsl-help-modifiers-example")
+  end
+
   # The rules in a .dsl file: {name, text, level}, where level is the N of a
   # "-- Level N" comment just above the rule (nil if none).
   defp rules_in(rel) do

@@ -662,6 +662,7 @@ COUNT(service_lines) = 0</code></pre>
                     <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">line.procedure_code</td><td class="p-1.5 text-gray-800">Service line procedure</td></tr>
                     <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">line.charge_amount</td><td class="p-1.5 text-gray-800">Service line charge</td></tr>
                     <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">line.date_of_service</td><td class="p-1.5 text-gray-800">Service line date</td></tr>
+                    <tr id="dsl-help-modifiers-field" class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">line.modifiers</td><td class="p-1.5 text-gray-800">Service line procedure modifiers, each with a code</td></tr>
                     <tr><td class="p-1.5 font-mono text-gray-900">line.place_of_service</td><td class="p-1.5 text-gray-800">Service line place of service</td></tr>
                   </tbody>
                 </table>
@@ -675,6 +676,7 @@ COUNT(service_lines) = 0</code></pre>
                     <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">billing_provider.address.zip</td><td class="p-1.5 text-gray-800">Deeper path</td></tr>
                     <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">EXISTS line IN service_lines WHERE line.charge_amount &gt; 500</td><td class="p-1.5 text-gray-800">Any service line</td></tr>
                     <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">FORALL line IN service_lines WHERE ...</td><td class="p-1.5 text-gray-800">Every service line</td></tr>
+                    <tr id="dsl-help-modifiers-example" class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">EXISTS line IN service_lines WHERE EXISTS m IN line.modifiers WHERE m.code = "25"</td><td class="p-1.5 text-gray-800">A line with modifier 25</td></tr>
                     <tr class="border-b border-gray-200"><td class="p-1.5 font-mono text-gray-900">COUNT(diagnosis_codes) = 0</td><td class="p-1.5 text-gray-800">Number of list items</td></tr>
                     <tr><td class="p-1.5 font-mono text-gray-900">service_lines.0.procedure_code</td><td class="p-1.5 text-gray-800">First service line only</td></tr>
                   </tbody>

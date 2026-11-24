@@ -6,7 +6,7 @@ defmodule MedicaidClaimsCheckerWeb.UseCases.RBusinessRulesTest do
 
   # R8: provider tenure comes only from JSON claims (X12 has no credentialing date).
   manifest_tests_as("R8", [
-    "business_rules/each_rule_alone/NewProviderLargeSubmission.json",
-    "business_rules/each_rule_alone/MissingTaxonomyNewProvider.json"
+    "claim_rule_checks/each_rule_alone/NewProviderLargeSubmission.json",
+    "claim_rule_checks/each_rule_alone/MissingTaxonomyNewProvider.json"
   ])
 end

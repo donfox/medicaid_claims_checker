@@ -146,7 +146,7 @@ defmodule MedicaidClaimsCheckerWeb.FetchSourceLive.DuplicateUploadTest do
   describe "mock_data/retag.exs copies" do
     @retag MedicaidClaimsChecker.MockData.path("retag.exs")
     @office_visit MedicaidClaimsChecker.MockData.path(
-                    "business_rules/clean_claim/office_visit.json"
+                    "claim_rule_checks/clean_claim/office_visit.json"
                   )
 
     @tag :tmp_dir

@@ -17,7 +17,7 @@ mock_data/
       <variant>.<ext>        the test files; the name says what the file does
 ```
 
-For example, `business_rules/exact_thresholds/exactly_50000.x12` is a
+For example, `claim_rule_checks/exact_thresholds/exactly_50000.x12` is a
 claim of exactly $50,000.00 for use case R5 (rules must not match at exactly
 the limit).
 
@@ -27,7 +27,7 @@ the limit).
 | `x12_files/` | X1–X7 | Uploading `.x12` files: 837P/I/D, several claims or transaction sets, line endings, broken files |
 | `x12_files/edi_extension/` | E1–E3 | Uploading `.edi` files: alternate delimiters, a file that isn't X12 |
 | `zip_files/` | Z1–Z7 | Uploading `.zip` files: mixed contents, path traversal, the 15,000-claim limit |
-| `business_rules/` | R1–R11 | What the 20 business rules match |
+| `claim_rule_checks/` | R1–R11 | What the 20 business rules match |
 | `nppes_provider_checks/` | N1–N11 | The NPPES provider check: malformed, unissued, deactivated, reactivated, dropped NPIs |
 | `rules_page/` | P1–P4 | Rule files for the Rules page |
 | `pipeline/` | none | Inputs for one internal processing step (see below); never uploaded |
@@ -74,16 +74,16 @@ different results; `manifest.json` has each one's.
 | `zip_files/zip_inside_zip/` | A zip holding an `.x12` and another zip, which is ignored |
 | `zip_files/corrupt_zip/` | A zip cut off part-way, which can't be opened |
 | `zip_files/over_15000_claims/` | Not committed: made by `generate.exs --large N` (the use-case test builds its own) |
-| `business_rules/clean_claim/` | Claims no rule should match |
-| `business_rules/each_rule_alone/` | One file per rule, named after it |
-| `business_rules/several_rules/` | Claims that match several rules |
-| `business_rules/problem_on_second_line/` | The problem is on service line 2, not line 1 |
-| `business_rules/exact_thresholds/` | Amounts exactly at a "greater than" limit, which must not match |
-| `business_rules/weekend_office_variants/` | Saturday, Sunday, weekday and home-visit variants of WeekendOfficeVisit |
-| `business_rules/weekend_inpatient_stay/` | Weekend inpatient stays, which WeekendOfficeVisit must skip |
-| `business_rules/rule_not_decidable/` | A rule reported "not checked" because the claim lacks its field |
-| `business_rules/age_out_of_range_or_missing_dob/` | Born 1880, born 2099, no date of birth |
-| `business_rules/replacement_or_void_claim/` | Frequency codes 7 and 8: the rules apply as to an original |
+| `claim_rule_checks/clean_claim/` | Claims no rule should match |
+| `claim_rule_checks/each_rule_alone/` | One file per rule, named after it |
+| `claim_rule_checks/several_rules/` | Claims that match several rules |
+| `claim_rule_checks/problem_on_second_line/` | The problem is on service line 2, not line 1 |
+| `claim_rule_checks/exact_thresholds/` | Amounts exactly at a "greater than" limit, which must not match |
+| `claim_rule_checks/weekend_office_variants/` | Saturday, Sunday, weekday and home-visit variants of WeekendOfficeVisit |
+| `claim_rule_checks/weekend_inpatient_stay/` | Weekend inpatient stays, which WeekendOfficeVisit must skip |
+| `claim_rule_checks/rule_not_decidable/` | A rule reported "not checked" because the claim lacks its field |
+| `claim_rule_checks/age_out_of_range_or_missing_dob/` | Born 1880, born 2099, no date of birth |
+| `claim_rule_checks/replacement_or_void_claim/` | Frequency codes 7 and 8: the rules apply as to an original |
 | `nppes_provider_checks/malformed_npi/` | Wrong length; failed check digit |
 | `nppes_provider_checks/npi_never_issued/` | Valid check digit, never issued |
 | `nppes_provider_checks/deactivated_provider/` | Deactivated 2024-12-12, service in 2026 |

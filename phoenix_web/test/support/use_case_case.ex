@@ -180,7 +180,7 @@ defmodule MedicaidClaimsCheckerWeb.UseCaseCase do
     "over_15000_claims" => "Z7"
   }
 
-  @doc ~S|The use-case ID of a mock_data path: "business_rules/exact_thresholds/x.x12" -> "R5".|
+  @doc ~S|The use-case ID of a mock_data path: "claim_rule_checks/exact_thresholds/x.x12" -> "R5".|
   def use_case_id(rel_path) do
     rel_path
     |> Path.split()

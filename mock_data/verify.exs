@@ -15,7 +15,7 @@
 #   mix run --no-start ../mock_data/verify.exs --suite DIR      # e.g. a retagged copy
 #
 # --only keeps the cases in one use-case folder or group: R5 matches
-# exact_thresholds, R matches business_rules. Folders and the EDI files
+# exact_thresholds, R matches claim_rule_checks. Folders and the EDI files
 # have no ID in their names, so each ID is mapped to them below. --suite
 # checks another directory with a manifest.json in the same format. A case
 # with "rules" is evaluated against that rules file instead of the database
@@ -247,7 +247,7 @@ folder_ids = %{
   "deactivated_rendering_provider" => "N11",
   "rules_page" => "P",
   "redundancy_levels" => "P2",
-  "business_rules" => "R",
+  "claim_rule_checks" => "R",
   "clean_claim" => "R1",
   "each_rule_alone" => "R2",
   "several_rules" => "R3",

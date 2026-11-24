@@ -370,7 +370,7 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapperTest do
     end
 
     test "837I: CLM05-1 is the facility type code, and there is no place of service" do
-      claim = convert("business_rules/weekend_inpatient_stay/inpatient_weekend.x12")
+      claim = convert("claim_rule_checks/weekend_inpatient_stay/inpatient_weekend.x12")
       assert claim["transaction_type"] == "837I"
       assert claim["claim_details"]["facility_type_code"] == "11"
       assert claim["claim_details"]["place_of_service"] == nil
@@ -378,7 +378,7 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapperTest do
     end
 
     test "837P: CLM05-1 is the place of service, and there is no facility type code" do
-      claim = convert("business_rules/weekend_office_variants/saturday_office.x12")
+      claim = convert("claim_rule_checks/weekend_office_variants/saturday_office.x12")
       assert claim["transaction_type"] == "837P"
       assert claim["claim_details"]["place_of_service"] == "11"
       assert claim["claim_details"]["facility_type_code"] == nil

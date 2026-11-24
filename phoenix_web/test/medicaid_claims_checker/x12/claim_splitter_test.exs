@@ -230,21 +230,21 @@ defmodule MedicaidClaimsChecker.X12.ClaimSplitterTest do
       assert {:ok, [claim]} =
                claims(
                  read(
-                   "business_rules/each_rule_alone/UnauthorizedProcedure_with_auth_no_match.x12"
+                   "claim_rule_checks/each_rule_alone/UnauthorizedProcedure_with_auth_no_match.x12"
                  )
                )
 
       assert claim["authorization"]["authorization_number"] == "PA20260001"
 
       assert {:ok, [claim]} =
-               claims(read("business_rules/each_rule_alone/UnauthorizedProcedure.x12"))
+               claims(read("claim_rule_checks/each_rule_alone/UnauthorizedProcedure.x12"))
 
       assert claim["authorization"]["authorization_number"] == nil
     end
 
     test "keeps place of service on the claim and each service line" do
       assert {:ok, [claim]} =
-               claims(read("business_rules/weekend_office_variants/saturday_office.x12"))
+               claims(read("claim_rule_checks/weekend_office_variants/saturday_office.x12"))
 
       assert claim["claim_details"]["place_of_service"] == "11"
       assert [%{"place_of_service" => "11"}] = claim["service_lines"]

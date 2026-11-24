@@ -9,7 +9,7 @@ defmodule MedicaidClaimsCheckerWeb.UseCases.NNppesTest do
 
   # N1: an active provider passes. Every clean claim has one.
   manifest_tests_as("N1", [
-    "business_rules/clean_claim/office_visit.json",
+    "claim_rule_checks/clean_claim/office_visit.json",
     "x12_files/837p_professional/clean_office_visit.x12"
   ])
 end

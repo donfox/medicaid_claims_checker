@@ -16,7 +16,7 @@ defmodule MedicaidClaimsChecker.Claims.JsonClaimTest do
     test "the X12 converter's output, normalized" do
       assert {:ok, [claim], []} =
                JsonClaim.parse(
-                 MockData.read!("pipeline/converter_output/valid_837p_lab_work.json")
+                 MockData.read!("converter_output/valid_837p_lab_work.json")
                )
 
       assert Map.has_key?(claim, "claim_id")

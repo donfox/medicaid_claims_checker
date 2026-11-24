@@ -30,7 +30,7 @@ the limit).
 | `claim_rule_checks/` | R1–R11 | What the 20 business rules match |
 | `nppes_provider_checks/` | N1–N11 | The NPPES provider check: malformed, unissued, deactivated, reactivated, dropped NPIs |
 | `rules_page/` | P1–P4 | Rule files for the Rules page |
-| `pipeline/` | none | Inputs for one internal processing step (see below); never uploaded |
+| `converter_output/` | none | Inputs for one internal processing step (see below); never uploaded |
 
 Every use case has test data. Those with no folder of their own, U1–U8
 (upload behaviour), N1 (active provider) and R8 (new-provider rules), use
@@ -125,9 +125,9 @@ touches the **hand-written** files, which are not in the manifest:
 - `json_files/claims_mixed_with_non_claims/list_with_bad_entries.json`
 - `json_files/engine_request/rules_text_and_claims.json`
 - the `.dsl` files in `rules_page/`
-- `pipeline/converter_output/`
+- `converter_output/`
 
-### `pipeline/converter_output/`
+### `converter_output/`
 
 Two 837P claims as the X12 converter outputs them, before
 `X12.SegmentMapper.normalize` turns them into the layout the rules see. The

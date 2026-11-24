@@ -8,12 +8,12 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
   # Real X12Translator output fixtures — the claims that were previously mis-evaluated
   @lab_work Jason.decode!(
               MedicaidClaimsChecker.MockData.read!(
-                "pipeline/converter_output/valid_837p_lab_work.json"
+                "converter_output/valid_837p_lab_work.json"
               )
             )
   @preventive Jason.decode!(
                 MedicaidClaimsChecker.MockData.read!(
-                  "pipeline/converter_output/valid_837p_preventive.json"
+                  "converter_output/valid_837p_preventive.json"
                 )
               )
 

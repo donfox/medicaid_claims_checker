@@ -7,12 +7,12 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapperTest do
   # These are the real files produced by X12Translator from 837P EDI input.
   @lab_work Jason.decode!(
               MedicaidClaimsChecker.MockData.read!(
-                "pipeline/converter_output/valid_837p_lab_work.json"
+                "converter_output/valid_837p_lab_work.json"
               )
             )
   @preventive Jason.decode!(
                 MedicaidClaimsChecker.MockData.read!(
-                  "pipeline/converter_output/valid_837p_preventive.json"
+                  "converter_output/valid_837p_preventive.json"
                 )
               )
 

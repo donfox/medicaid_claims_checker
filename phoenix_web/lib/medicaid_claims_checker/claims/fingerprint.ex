@@ -23,7 +23,7 @@ defmodule MedicaidClaimsChecker.Claims.Fingerprint do
   @detail_fields ~w(frequency_code facility_type_code place_of_service
                     statement_from_date statement_to_date admission_date discharge_date)
 
-  @line_fields ~w(procedure_qualifier procedure_code revenue_code modifiers unit_type
+  @line_fields ~w(procedure_qualifier procedure_code revenue_code unit_type
                   date_of_service date_of_service_end place_of_service)
 
   @tooth_fields ~w(tooth_code_qualifier tooth_number tooth_surface)
@@ -76,6 +76,7 @@ defmodule MedicaidClaimsChecker.Claims.Fingerprint do
       "line_number" => first(line, [["line_number"], ["service_line_number"]]),
       "charge" => line |> first([["charge_amount"], ["line_amount"]]) |> number(),
       "units" => number(line["units"]),
+      "modifiers" => rows(line["modifiers"], ~w(code)),
       "pointers" =>
         line |> first([["diagnosis_pointer"], ["diagnosis_pointers"]]) |> List.wrap(),
       "tooth" => take(line["tooth_info"], @tooth_fields)

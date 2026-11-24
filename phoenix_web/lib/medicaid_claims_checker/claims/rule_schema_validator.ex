@@ -73,6 +73,7 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidator do
     "service_lines.*.place_of_service",
     "service_lines.*.procedure_code",
     "service_lines.*.procedure_qualifier",
+    "service_lines.*.modifiers.*.code",
     "service_lines.*.charge_amount",
     "service_lines.*.units",
     "service_lines.*.unit_type",

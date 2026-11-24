@@ -183,6 +183,19 @@ defmodule MedicaidClaimsChecker.Claims.RuleSchemaValidatorTest do
     assert {:ok, _} = RuleSchemaValidator.validate(rule_text)
   end
 
+  test "accepts a rule on procedure modifiers" do
+    rule_text = """
+    RULE modifier_25
+    DESCRIPTION "Modifier 25"
+    WHEN EXISTS line IN service_lines WHERE EXISTS m IN line.modifiers WHERE m.code = "25"
+    THEN REQUIRE_REVIEW "x"
+    END
+    """
+
+    assert {:ok, %{references: references}} = RuleSchemaValidator.validate(rule_text)
+    assert "service_lines.*.modifiers.*.code" in references
+  end
+
   test "suggests the converter's name for a near-miss field" do
     rule_text = """
     RULE near_miss

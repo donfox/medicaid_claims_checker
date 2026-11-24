@@ -402,6 +402,41 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapperTest do
     end
   end
 
+  describe "procedure modifiers" do
+    defp convert_with(file, from, to) do
+      x12 = file |> MedicaidClaimsChecker.MockData.read!() |> String.replace(from, to)
+      {:ok, flat} = Converter.convert_content(x12)
+      {:ok, claim} = SegmentMapper.map_from_json(flat)
+      [line] = claim["service_lines"]
+      line["modifiers"]
+    end
+
+    @professional "X_x12_files/X1_837p_professional/clean_office_visit.x12"
+    @institutional "X_x12_files/X2_837i_institutional/institutional.x12"
+    @dental "X_x12_files/X3_837d_dental/dental.x12"
+
+    test "837P, 837I and 837D lines keep their modifiers, in order" do
+      assert convert_with(@professional, "HC:99213*", "HC:99213:25:59*") ==
+               [%{"code" => "25"}, %{"code" => "59"}]
+
+      assert convert_with(@institutional, "HC:99284*", "HC:99284:25*") == [%{"code" => "25"}]
+      assert convert_with(@dental, "AD:D1110*", "AD:D1110:TC*") == [%{"code" => "TC"}]
+    end
+
+    test "all four are read, and a description after them is not a modifier" do
+      assert convert_with(@professional, "HC:99213*", "HC:99213:25:59:76:77:OFFICE VISIT*") ==
+               Enum.map(~w(25 59 76 77), &%{"code" => &1})
+    end
+
+    test "a blank position is skipped" do
+      assert convert_with(@professional, "HC:99213*", "HC:99213::59*") == [%{"code" => "59"}]
+    end
+
+    test "a line without modifiers has none" do
+      assert convert_with(@professional, "HC:99213*", "HC:99213*") == []
+    end
+  end
+
   # ---------------------------------------------------------------------------
   # HI segments: diagnoses vs the other 837I codes
   # ---------------------------------------------------------------------------

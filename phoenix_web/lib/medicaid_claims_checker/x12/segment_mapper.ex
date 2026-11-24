@@ -529,6 +529,7 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
         %{
           procedure_qualifier: Enum.at(proc_parts, 0, ""),
           procedure_code: Enum.at(proc_parts, 1, ""),
+          modifiers: procedure_modifiers(proc_parts),
           charge_amount: get_el(sv1, 2),
           unit_type: get_el(sv1, 3),
           units: get_el(sv1, 4),
@@ -562,6 +563,7 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
           revenue_code: get_el(sv2, 1),
           procedure_qualifier: Enum.at(proc_parts, 0, ""),
           procedure_code: Enum.at(proc_parts, 1, ""),
+          modifiers: procedure_modifiers(proc_parts),
           charge_amount: get_el(sv2, 3),
           unit_type: get_el(sv2, 4),
           units: get_el(sv2, 5),
@@ -591,6 +593,7 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
         %{
           procedure_qualifier: Enum.at(proc_parts, 0, ""),
           procedure_code: Enum.at(proc_parts, 1, ""),
+          modifiers: procedure_modifiers(proc_parts),
           charge_amount: get_el(sv3, 2),
           unit_type: nil,
           # SV3-06 is the procedure count; SV3-05 is the prosthesis code
@@ -600,6 +603,15 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
           tooth_info: extract_tooth_info(line_segs, sub)
         }
     end
+  end
+
+  # The procedure composite is qualifier:code:modifier1:...:modifier4:description.
+  defp procedure_modifiers(proc_parts) do
+    proc_parts
+    |> Enum.slice(2, 4)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.map(&%{code: &1})
   end
 
   defp extract_tooth_info(line_segs, sub) do
@@ -745,6 +757,7 @@ defmodule MedicaidClaimsChecker.X12.SegmentMapper do
       "date_of_service_end" => blank_to_nil(date_end),
       "procedure_code" => blank_to_nil(nf(line, "procedure_code")),
       "procedure_qualifier" => blank_to_nil(nf(line, "procedure_qualifier")),
+      "modifiers" => Enum.map(nf(line, "modifiers") || [], &%{"code" => nf(&1, "code")}),
       "charge_amount" => blank_to_nil(nf(line, "charge_amount")),
       "unit_type" => blank_to_nil(nf(line, "unit_type")),
       "units" => blank_to_nil(nf(line, "units")),

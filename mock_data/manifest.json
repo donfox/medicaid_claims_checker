@@ -1776,6 +1776,19 @@
       "expect": {
         "claims": [
           {
+            "claim_id": "MODIFIER01",
+            "matched": [],
+            "nppes": "ok"
+          }
+        ]
+      },
+      "file": "X_x12_files/X1_837p_professional/procedure_modifiers.x12",
+      "purpose": "Service line with procedure modifiers 25 and 59 (SV1-01), read as service_lines[].modifiers; clean"
+    },
+    {
+      "expect": {
+        "claims": [
+          {
             "claim_id": "INST04",
             "matched": [
               "MissingDiagnosisCodes"

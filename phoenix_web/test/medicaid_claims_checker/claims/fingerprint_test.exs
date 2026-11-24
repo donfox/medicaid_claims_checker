@@ -68,6 +68,19 @@ defmodule MedicaidClaimsChecker.Claims.FingerprintTest do
     end
   end
 
+  test "modifiers count by code and order" do
+    [line] = @claim["service_lines"]
+    with_mods = fn mods -> Map.put(@claim, "service_lines", [Map.put(line, "modifiers", mods)]) end
+
+    assert same?(with_mods.([]))
+
+    assert Fingerprint.claim(with_mods.([%{"code" => "25"}])) ==
+             Fingerprint.claim(with_mods.([%{"code" => "25", "description" => "Separate visit"}]))
+
+    assert Fingerprint.claim(with_mods.([%{"code" => "25"}, %{"code" => "59"}])) !=
+             Fingerprint.claim(with_mods.([%{"code" => "59"}, %{"code" => "25"}]))
+  end
+
   test "claims without an ID are told apart by their contents" do
     one = %{"notes" => "first"}
     two = %{"notes" => "second"}

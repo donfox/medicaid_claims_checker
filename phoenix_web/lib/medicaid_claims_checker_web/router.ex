@@ -57,6 +57,7 @@ defmodule MedicaidClaimsCheckerWeb.Router do
 
       live_dashboard("/dashboard",
         metrics: MedicaidClaimsCheckerWeb.Telemetry,
+        additional_pages: [back_to_admin: MedicaidClaimsCheckerWeb.DevDashboard.BackToAdminPage],
         on_mount: [{MedicaidClaimsCheckerWeb.UserAuth, :require_admin}]
       )
     end

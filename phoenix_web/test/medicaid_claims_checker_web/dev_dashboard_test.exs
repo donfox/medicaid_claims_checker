@@ -22,6 +22,14 @@ defmodule MedicaidClaimsCheckerWeb.DevDashboardTest do
     assert html =~ "Dashboard"
   end
 
+  test "its menu has a Back to Admin item that goes to the Admin page", %{conn: conn} do
+    {:ok, admin} = AccountsFixtures.user_fixture() |> Accounts.set_user_admin(true)
+    conn = log_in_user(conn, admin)
+    {:ok, view, _html} = live(conn, "/dev/dashboard/home")
+    assert view |> element("a[href='/dev/dashboard/back_to_admin']", "Back to Admin") |> has_element?()
+    assert {:error, {:redirect, %{to: "/admin"}}} = live(conn, "/dev/dashboard/back_to_admin")
+  end
+
   # Admin links to this address so the browser's Back button works: it opens
   # without forwarding, while the bare /dev/dashboard forwards to it.
   test "/dev/dashboard/home opens without forwarding; the bare path forwards", %{conn: conn} do

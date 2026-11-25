@@ -101,3 +101,4 @@ test-suite medicaid-claims-dsl-test
                     , bytestring
                     , containers >= 0.6.5
                     , time >= 1.9
+                    , scientific

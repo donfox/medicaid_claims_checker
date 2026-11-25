@@ -30,11 +30,12 @@ import Control.Applicative ((<|>))
 import Control.Monad (void, when)
 import Data.Functor (($>))
 import Data.List (nub)
+import Data.Scientific (Scientific)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Text.Parsec hiding ((<|>))
 import Text.Parsec.Text
-import Claims.Syntax (Action, Binding, CompOp (..), Path (..), Predicate, Rule, Value, compileRegex, helperArity)
+import Claims.Syntax (Action, Binding, CompOp (..), Path (..), Predicate, Rule, Value, compileRegex, helperArity, maxNumber)
 import Claims.Syntax qualified as Syntax
 
 parseRule :: Text -> Either ParseError Rule
@@ -402,11 +403,11 @@ riskScoreLiteral = do
     then fail $ "RISK_SCORE must be in range 0-100, got: " ++ show n
     else pure (fromInteger n)
 
--- | @123@, @45.67@, @-5@, @-0.5@. A number too large for a 'Double' is a
--- parse error rather than infinity. Only the digits are backtracked over,
+-- | @123@, @45.67@, @-5@, @-0.5@, read exactly. A number larger in
+-- magnitude than 'maxNumber' is a parse error. Only the digits are backtracked over,
 -- so that error is final: the number is not then read as a field name
 -- (which, like @2300@, may start with a digit).
-numberLiteral :: Parser Double
+numberLiteral :: Parser Scientific
 numberLiteral = try digits >>= finite
   where
     digits = do
@@ -415,5 +416,5 @@ numberLiteral = try digits >>= finite
       fracPart <- optionMaybe (char '.' *> many1 digit)
       pure (sign ++ maybe intPart ((intPart ++ ".") ++) fracPart)
     finite text =
-      let d = read text :: Double
-       in if isInfinite d then fail ("Number is too large: " ++ take 20 text ++ "...") else pure d
+      let n = read text :: Scientific
+       in if abs n > maxNumber then fail ("Number is too large: " ++ take 20 text ++ "...") else pure n

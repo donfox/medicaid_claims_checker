@@ -1079,6 +1079,36 @@ evaluatorSpec = do
       resultMatched r2 `shouldBe` False
       resultUndecided r2 `shouldBe` True
 
+  describe "Numbers are exact decimals" $ do
+    let amountDoc v = object ["amount" .= v]
+        matchesOn d cond = case parseRule ("RULE t \"T\" WHEN " <> cond <> " THEN FLAG_FRAUD \"x\";") of
+          Left err -> error ("Parse failed: " ++ show err)
+          Right rule -> resultMatched (evaluateRuleSimple testDay d rule)
+        textAmount t = amountDoc (t :: String)
+
+    it "tells apart numbers a Double cannot (beyond 2^53)" $ do
+      matchesOn (textAmount "9007199254740993") "amount > 9007199254740992" `shouldBe` True
+      matchesOn (amountDoc (9007199254740993 :: Integer)) "amount = 9007199254740992" `shouldBe` False
+
+    it "tells apart decimals that differ past the 16th significant digit" $
+      matchesOn (textAmount "1000.0000000000000001") "amount > 1000" `shouldBe` True
+
+    it "compares money amounts written with different trailing zeros as equal" $ do
+      matchesOn (textAmount "1000.10") "amount = 1000.1" `shouldBe` True
+      matchesOn (amountDoc (1000.1 :: Double)) "amount BETWEEN 1000.10 AND 1000.10" `shouldBe` True
+
+    it "reads exponents in field values, but not +, hex, or numbers beyond the limit" $ do
+      matchesOn (textAmount "1.5e3") "amount = 1500" `shouldBe` True
+      mapM_
+        (\t -> matchesOn (textAmount t) "amount != 0" `shouldBe` False)
+        ["+5", "0x10", "1e400", "-1e400", "5 x"]
+
+    it "reads readNumber's whole text or nothing" $ do
+      readNumber "42" `shouldBe` Just 42
+      readNumber "-0.5" `shouldBe` Just (-0.5)
+      readNumber "1e999999999999" `shouldBe` Nothing
+      readNumber "Infinity" `shouldBe` Nothing
+
   -- ----------------------------------------------------------------
   -- Default Rule DSL Texts — Parse Validation
   -- ----------------------------------------------------------------

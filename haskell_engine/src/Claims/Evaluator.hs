@@ -39,7 +39,7 @@ import Data.Map.Strict qualified as Map
 import Data.Containers.ListUtils (nubOrd)
 import Data.Maybe (isJust, isNothing)
 import Data.Int (Int64)
-import Data.Scientific (FPFormat (Fixed), Scientific, base10Exponent, formatScientific, fromFloatDigits, toBoundedInteger, toRealFloat)
+import Data.Scientific (FPFormat (Fixed), Scientific, base10Exponent, formatScientific, toBoundedInteger)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Time (Day, DayOfWeek (Saturday, Sunday), dayOfWeek, defaultTimeLocale, parseTimeM, toGregorian)
@@ -47,7 +47,7 @@ import Data.Vector qualified as V
 import GHC.Generics (Generic)
 import Prelude hiding (EQ, GT, LT)
 import Claims.Syntax qualified as Syntax
-import Claims.Syntax (Action (..), CompOp (..), Path (..), Rule, RuleOutcome (..), RuleResult (..), compileRegex, resultAction, resultMatched, resultUndecided)
+import Claims.Syntax (Action (..), CompOp (..), Path (..), Rule, RuleOutcome (..), RuleResult (..), compileRegex, readNumber, resultAction, resultMatched, resultUndecided)
 import Text.Regex.TDFA (matchTest)
 import Text.Regex.TDFA.Text ()
 
@@ -283,15 +283,15 @@ resolveArgText :: EvalEnv -> Syntax.Value -> Check Text
 resolveArgText env arg =
   case arg of
     Syntax.StringValue t -> Right t
-    Syntax.NumberValue d -> Right (doubleToText d)
+    Syntax.NumberValue n -> Right (scientificToText n)
     Syntax.FieldValue fieldRef -> lookupText env fieldRef
     Syntax.ListValue _ -> Left ["a list is not a single value"]
 
-resolveArgNumber :: EvalEnv -> Syntax.Value -> Check Double
+resolveArgNumber :: EvalEnv -> Syntax.Value -> Check Scientific
 resolveArgNumber env arg =
   case arg of
-    Syntax.NumberValue d -> Right d
-    _ -> resolveArgText env arg >>= \t -> textToDouble t `orElse` (argLabel env arg <> " is not a number")
+    Syntax.NumberValue n -> Right n
+    _ -> resolveArgText env arg >>= \t -> readNumber t `orElse` (argLabel env arg <> " is not a number")
 
 resolveArgTextList :: EvalEnv -> Syntax.Value -> Check [Text]
 resolveArgTextList env arg =
@@ -305,7 +305,7 @@ argLabel :: EvalEnv -> Syntax.Value -> Text
 argLabel env = \case
   Syntax.FieldValue fieldRef -> displayPath env fieldRef
   Syntax.StringValue t -> "\"" <> t <> "\""
-  Syntax.NumberValue d -> doubleToText d
+  Syntax.NumberValue n -> scientificToText n
   Syntax.ListValue _ -> "list"
 
 isWeekend :: Day -> Bool
@@ -334,7 +334,7 @@ compareText env fieldRef val cmp =
 
 -- | Compare a field's number with a number literal or another field.
 -- 'Unknown' if either side is missing or not a number.
-compareNumber :: EvalEnv -> Path -> Syntax.Value -> (Double -> Double -> Bool) -> Truth
+compareNumber :: EvalEnv -> Path -> Syntax.Value -> (Scientific -> Scientific -> Bool) -> Truth
 compareNumber env fieldRef val cmp =
   fromCheck $ uncurry cmp <$> check2 (lookupNumber env fieldRef) expected
   where
@@ -351,13 +351,6 @@ applyOp = \case
   LT -> (<)
   GTE -> (>=)
   LTE -> (<=)
-
--- | Parse a Text value as a finite Double. "NaN", "Infinity" and numbers
--- too large for a Double are not numbers.
-textToDouble :: Text -> Maybe Double
-textToDouble t = case reads (T.unpack t) of
-  [(d, "")] | not (isNaN d || isInfinite d) -> Just d
-  _ -> Nothing
 
 -- ----------------------------------------------------------------------------
 -- JSON Field Lookup
@@ -390,9 +383,9 @@ lookupText env ref = case lookupValue env ref of
   Just v -> valueToText v `orElse` (displayPath env ref <> " is not a single value")
 
 -- | Look up a field as a number, or say why it cannot be used.
-lookupNumber :: EvalEnv -> Path -> Check Double
+lookupNumber :: EvalEnv -> Path -> Check Scientific
 lookupNumber env ref =
-  lookupText env ref >>= \t -> textToDouble t `orElse` (displayPath env ref <> " is not a number")
+  lookupText env ref >>= \t -> readNumber t `orElse` (displayPath env ref <> " is not a number")
 
 -- | A field path as an analyst would recognise it in the claim, with
 -- quantifier variables replaced by their collection and LET names by their
@@ -432,29 +425,16 @@ valueToText = \case
 --
 -- Whole numbers keep every digit (@1234567893@, not @1.234567893e9@), so
 -- numeric NPIs, codes and IDs compare correctly as text. Other numbers are
--- written out in plain decimal (@0.05@, not @5.0e-2@). Values outside the
--- 'Int64' range fall back to 'Double' rather than expanding a huge
--- exponent into a giant 'Integer'.
+-- written out in plain decimal (@0.05@, not @5.0e-2@). Numbers with a huge
+-- exponent are written in scientific notation (@1.0e400@) rather than
+-- expanded into a giant string of digits.
 scientificToText :: Scientific -> Text
 scientificToText n =
   case toBoundedInteger n :: Maybe Int64 of
     Just i -> T.pack (show i)
     Nothing
       | plainRange n -> T.pack (formatScientific Fixed Nothing n)
-      | otherwise -> doubleToText (toRealFloat n)
-
--- | Render a 'Double', dropping the @.0@ from whole numbers so a DSL
--- literal like @99213@ reads the same as the JSON number @99213@, and
--- writing other numbers in plain decimal like 'scientificToText'.
-doubleToText :: Double -> Text
-doubleToText d
-  | isNaN d || isInfinite d = T.pack (show d)
-  | d == fromIntegral i && abs d < 1e15 = T.pack (show i)
-  | plainRange s = T.pack (formatScientific Fixed Nothing s)
-  | otherwise = T.pack (show d)
-  where
-    i = round d :: Integer
-    s = fromFloatDigits d
+      | otherwise -> T.pack (show n)
 
 -- | Numbers small enough in magnitude, either way, to write out in full.
 plainRange :: Scientific -> Bool

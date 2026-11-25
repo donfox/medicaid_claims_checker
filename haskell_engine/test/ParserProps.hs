@@ -34,6 +34,7 @@ module ParserProps (parserProperties) where
 import Prelude hiding (EQ, GT, LT)
 import qualified Data.Text as T
 import Data.Text (Text)
+import Data.Scientific (Scientific, fromFloatDigits, scientific, toRealFloat)
 import Test.Hspec
 import Test.QuickCheck
 
@@ -114,11 +115,11 @@ safePatterns = ["^[0-9]{10}$", "^99[0-9]{3}$", "E11\\.[0-9]+", "^(A|B)[0-9]*$", 
 pickFrom :: [a] -> Gen a
 pickFrom = elements
 
--- | Generate a Double with up to two decimal places, positive or negative
--- (e.g. 42.0, -0.05, 1234.5). 'Claims.Pretty' never uses scientific
+-- | Generate a number with up to two decimal places, positive or negative
+-- (e.g. 42, -0.05, 1234.5). 'Claims.Pretty' never uses scientific
 -- notation, so small and fractional values round-trip too.
-genSafeDouble :: Gen Double
-genSafeDouble = (/ 100) . fromIntegral <$> choose (-999999 :: Int, 999999)
+genSafeNumber :: Gen Scientific
+genSafeNumber = (`scientific` (-2)) <$> choose (-999999, 999999)
 
 -- | A collection for EXISTS / FORALL / COUNT: a loop, optionally a segment.
 genCollectionPath :: Gen Path
@@ -126,7 +127,7 @@ genCollectionPath = (\loop segs -> Path (loop : segs)) <$> pickFrom safeLoops <*
 
 -- | A literal: no field references, since list elements must be scalars.
 genScalar :: Gen Value
-genScalar = oneof [StringValue <$> pickFrom safeStrings, NumberValue <$> genSafeDouble]
+genScalar = oneof [StringValue <$> pickFrom safeStrings, NumberValue <$> genSafeNumber]
 
 
 -- ============================================================
@@ -164,7 +165,7 @@ instance Arbitrary Value where
     [ (4, genScalar)
     , (1, FieldValue <$> arbitrary)
     ]
-  shrink (NumberValue n) = [NumberValue n' | n' <- shrink n, n' >= 0]
+  shrink (NumberValue n) = [NumberValue (fromFloatDigits d) | d <- shrink (toRealFloat n :: Double), d >= 0]
   shrink _               = []
 
 -- | Generate a predicate with bounded depth using QuickCheck's 'sized'.
@@ -205,10 +206,10 @@ genAtomic = oneof
   [ pure PTrue
   , pure PFalse
   , Compare <$> elements [EQ, NE] <*> arbitrary <*> arbitrary
-  , Compare <$> elements [GT, LT, GTE, LTE] <*> arbitrary <*> (NumberValue <$> genSafeDouble)
+  , Compare <$> elements [GT, LT, GTE, LTE] <*> arbitrary <*> (NumberValue <$> genSafeNumber)
   , Between <$> arbitrary
-            <*> (NumberValue <$> genSafeDouble)
-            <*> (NumberValue <$> genSafeDouble)
+            <*> (NumberValue <$> genSafeNumber)
+            <*> (NumberValue <$> genSafeNumber)
   , IsNull    <$> arbitrary
   , IsNotNull <$> arbitrary
   , Contains  <$> arbitrary <*> (StringValue <$> pickFrom safeStrings)

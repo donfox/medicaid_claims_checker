@@ -34,6 +34,7 @@ import Data.Aeson (ToJSON)
 import Data.List (nub, sort)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
+import Data.Scientific (Scientific)
 import Data.Text (Text)
 import qualified Data.Text as T
 import GHC.Generics (Generic)
@@ -195,7 +196,7 @@ satisfiable cs =
 -- | Is the intersection of these numeric constraints non-empty? Each is
 -- an interval whose ends may be open or closed. @> 5@ and @< 5@ leave
 -- nothing; @>= 5@ and @<= 5@ leave 5.
-intervalNonEmpty :: [(CompOp, Double)] -> Bool
+intervalNonEmpty :: [(CompOp, Scientific)] -> Bool
 intervalNonEmpty cs =
   let (lo, loClosed) = foldr1 (tighter (>)) [lowerBound op n | (op, n) <- cs]
       (hi, hiClosed) = foldr1 (tighter (<)) [upperBound op n | (op, n) <- cs]
@@ -208,19 +209,24 @@ intervalNonEmpty cs =
       | b `better` a = (b, cb)
       | otherwise = (a, ca && cb)
 
+-- | One end of an interval: a number, or unbounded. The derived order puts
+-- 'NegInf' below every number and 'PosInf' above.
+data Bound = NegInf | At Scientific | PosInf
+  deriving (Show, Eq, Ord)
+
 -- | The lower end of a constraint's interval and whether it is included.
-lowerBound :: CompOp -> Double -> (Double, Bool)
-lowerBound EQ n = (n, True)
-lowerBound GT n = (n, False)
-lowerBound GTE n = (n, True)
-lowerBound _ _ = (-1 / 0, False)
+lowerBound :: CompOp -> Scientific -> (Bound, Bool)
+lowerBound EQ n = (At n, True)
+lowerBound GT n = (At n, False)
+lowerBound GTE n = (At n, True)
+lowerBound _ _ = (NegInf, False)
 
 -- | The upper end of a constraint's interval and whether it is included.
-upperBound :: CompOp -> Double -> (Double, Bool)
-upperBound EQ n = (n, True)
-upperBound LT n = (n, False)
-upperBound LTE n = (n, True)
-upperBound _ _ = (1 / 0, False)
+upperBound :: CompOp -> Scientific -> (Bound, Bool)
+upperBound EQ n = (At n, True)
+upperBound LT n = (At n, False)
+upperBound LTE n = (At n, True)
+upperBound _ _ = (PosInf, False)
 
 -- ----------------------------------------------------------------------------
 -- Implication

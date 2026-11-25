@@ -26,6 +26,8 @@ module Claims.Syntax
     resultAction,
     resultUndecided,
     helperArity,
+    readNumber,
+    maxNumber,
     compileRegex,
   )
 where
@@ -37,6 +39,7 @@ import Data.Aeson.KeyMap qualified as KeyMap
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe)
+import Data.Scientific (Scientific, scientific)
 import Data.Text (Text)
 import Data.Text qualified as T
 import GHC.Generics (Generic)
@@ -102,7 +105,9 @@ instance ToJSON Path
 
 data Value
   = StringValue Text
-  | NumberValue Double
+  | -- | Exact decimal, so @1000.10@ is exactly 1000.10 and money compares
+    -- without binary rounding.
+    NumberValue Scientific
   | -- | @[a, b, ...]@, for helpers such as @in_list@
     ListValue [Value]
   | -- | A field on the right-hand side: @field1 > field2@
@@ -255,3 +260,21 @@ helperArity name = Map.lookup (T.toLower name) helperArities
 compileRegex :: Text -> Maybe Regex
 compileRegex pattern =
   makeRegexOptsM (defaultCompOpt {multiline = False}) (defaultExecOpt :: ExecOption) (T.unpack pattern)
+
+-- ----------------------------------------------------------------------------
+-- Numbers
+
+-- | The largest number a rule or a claim field may use: the largest finite
+-- 'Double', so the limit is the one the engine had when it used 'Double'.
+maxNumber :: Scientific
+maxNumber = scientific 17976931348623157 292
+
+-- | Read a whole text as a number: @42@, @-0.5@, @1.5e3@. A leading @+@,
+-- surrounding text, hexadecimal, @NaN@, @Infinity@ and numbers larger in
+-- magnitude than 'maxNumber' are not numbers.
+readNumber :: Text -> Maybe Scientific
+readNumber t
+  | "+" `T.isPrefixOf` T.stripStart t = Nothing
+  | otherwise = case [n | (n, "") <- reads (T.unpack t)] of
+      (n : _) | abs n <= maxNumber -> Just n
+      _ -> Nothing

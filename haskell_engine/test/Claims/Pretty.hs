@@ -35,7 +35,8 @@ where
 import Prelude hiding (EQ, GT, LT)
 import Data.Text (Text)
 import Data.Text qualified as T
-import Numeric (showFFloat)
+import Data.Maybe (fromMaybe)
+import Data.Scientific (FPFormat (Fixed), Scientific, formatScientific)
 import Claims.Syntax
 
 -- | Render a rule set, one blank line between rules.
@@ -106,12 +107,8 @@ prettyValue = \case
 
 -- | Plain decimal notation, never scientific (the parser does not read
 -- @1.0e-3@). Whole numbers drop the fractional part: @10000@, not @10000.0@.
-prettyNumber :: Double -> Text
-prettyNumber n
-  | n == fromIntegral whole && abs n < 1e15 = T.pack (show whole)
-  | otherwise = T.pack (showFFloat Nothing n "")
-  where
-    whole = round n :: Integer
+prettyNumber :: Scientific -> Text
+prettyNumber n = let t = T.pack (formatScientific Fixed Nothing n) in fromMaybe t (T.stripSuffix ".0" t)
 
 prettyPath :: Path -> Text
 prettyPath (Path parts) = T.intercalate "." parts

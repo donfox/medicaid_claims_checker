@@ -138,6 +138,11 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
   # 200 claims per HTTP request keeps payloads under ~5 MB and engine memory stable.
   @batch_chunk_size 200
 
+  # Every chunk carries the full rules text on purpose. The engine keeps no
+  # state, so it can never run stale rules after an edit; the text is ~1% of a
+  # chunk and parses in microseconds. The engine's rule cache and
+  # /api/compile-rules were removed for this reason in 41dcbdb (2026-10-15).
+
   defp call_batch_evaluate(rules_text, claims) do
     claims
     |> Enum.chunk_every(@batch_chunk_size)

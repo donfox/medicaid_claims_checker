@@ -88,6 +88,11 @@ stack --stack-yaml haskell_engine/stack.yaml run
 
 The server starts on `http://127.0.0.1:8080`. Every request except
 `/api/health` needs `Authorization: Bearer $RULE_ENGINE_SECRET`.
+`/api/health` is left open, and not rate-limited, on purpose so monitoring
+can reach it without the secret. It answers only `{"status":"healthy"}`,
+which tells a caller no more than the `401` any other request gets: that
+the engine is running. Responses carry no `Server` header, so they do not
+name the web server or its version.
 
 ### Listening and TLS
 

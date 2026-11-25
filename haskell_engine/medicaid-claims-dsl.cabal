@@ -49,6 +49,7 @@ executable medicaid-claims-dsl-server
     main-is:          Main.hs
     other-modules:    Middleware
                     , Routes
+                    , ServerSettings
     build-depends:    base >=4.14 && <5
                     , medicaid-claims-dsl
                     , aeson
@@ -75,9 +76,12 @@ test-suite medicaid-claims-dsl-test
     -- without starting a server.
     hs-source-dirs:   test, app
     main-is:          Spec.hs
+    -- Warp, started by the Server settings test, needs the threaded runtime.
+    ghc-options:      -threaded
     other-modules:    ParserProps
                     , Middleware
                     , Routes
+                    , ServerSettings
                     , AppSpec
                     , Claims.Pretty
                     , Claims.ParserSpec
@@ -102,3 +106,4 @@ test-suite medicaid-claims-dsl-test
                     , containers >= 0.6.5
                     , time >= 1.9
                     , scientific
+                    , warp

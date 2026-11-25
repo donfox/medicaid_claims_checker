@@ -26,7 +26,7 @@ import Data.IORef (atomicModifyIORef', newIORef)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe)
 import Data.ByteString.Char8 qualified as BS8
-import Network.Wai.Handler.Warp (defaultSettings, runSettings, setHost, setPort)
+import Network.Wai.Handler.Warp (runSettings, setHost, setPort)
 import Network.Wai.Handler.WarpTLS (runTLS, tlsSettings)
 import Data.String (fromString)
 import System.Directory (doesFileExist)
@@ -39,6 +39,7 @@ import Claims.Pipeline (EngineConfig (..), loadEngineConfig)
 import Data.Time.Clock (getCurrentTime)
 import Middleware (authMiddleware, parseRateLimit, pruneRateMap, rateLimitMiddleware, rateLimitWindowSecs)
 import Routes (app)
+import ServerSettings (baseSettings)
 
 main :: IO ()
 main = do
@@ -75,7 +76,7 @@ main = do
   putStrLn $ "Auth: " ++ if BS8.null secret then "WARNING — RULE_ENGINE_SECRET not set, all requests will be rejected" else "shared-secret enabled"
   putStrLn $ "ML scorer: " ++ maybe "off (ML_SCORER_URL unset or refused) — using the neutral stand-in score" mlEndpointUrl (engineMlClient engineCfg)
   putStrLn $ "Rate limit: " ++ show rateLimit ++ " requests per " ++ show rateLimitWindowSecs ++ " s per IP"
-  let settings = setHost (fromString (lcHost config)) (setPort (lcPort config) defaultSettings)
+  let settings = setHost (fromString (lcHost config)) (setPort (lcPort config) baseSettings)
       handler = rateLimitMiddleware rateLimit rateRef (authMiddleware secret (app engineCfg sem))
   case lcTls config of
     Just (cert, key) -> runTLS (tlsSettings cert key) settings handler

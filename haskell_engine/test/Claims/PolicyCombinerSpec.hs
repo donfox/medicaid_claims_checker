@@ -14,14 +14,14 @@ policyCombinerSpec :: Spec
 policyCombinerSpec = do
   describe "PolicyCombiner" $ do
     it "DSL reject always wins even with low ML risk" $ do
-      let rules = [mkResult "reject_rule" True (Just (RejectClaim "hard reject")) "reject"]
+      let rules = [mkResult "reject_rule" (Matched (RejectClaim "hard reject")) "reject"]
           ml = mlStubResult {mlRiskScore = Just 0.10}
           out = buildCombinedEnvelope defaultPolicyConfig "claim_1" "2026-02-20T00:00:00Z" rules ml
       status (decision out) `shouldBe` "REJECT"
       queue (decision out) `shouldBe` "denied"
 
     it "ML high risk escalates to fraud priority for non-reject outcomes" $ do
-      let rules = [mkResult "review_rule" True (Just (RequireReview "review")) "review"]
+      let rules = [mkResult "review_rule" (Matched (RequireReview "review")) "review"]
           ml = mlStubResult {mlRiskScore = Just 0.85}
           out = buildCombinedEnvelope defaultPolicyConfig "claim_2" "2026-02-20T00:00:00Z" rules ml
       status (decision out) `shouldBe` "REQUIRE_REVIEW"
@@ -61,12 +61,10 @@ policyCombinerSpec = do
       status (decision out) `shouldBe` "REQUIRE_REVIEW"
       queue (decision out) `shouldBe` "siu_escalation"
 
-mkResult :: String -> Bool -> Maybe Action -> String -> RuleResult
-mkResult name matched action details =
+mkResult :: String -> RuleOutcome -> String -> RuleResult
+mkResult name outcome details =
   RuleResult
     { resultRuleName = fromString name,
-      resultMatched = matched,
-      resultAction = action,
-      resultDetails = fromString details,
-      resultUndecided = False
+      resultOutcome = outcome,
+      resultDetails = fromString details
     }

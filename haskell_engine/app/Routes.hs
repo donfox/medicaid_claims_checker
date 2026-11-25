@@ -28,7 +28,7 @@ import Data.ByteString.Lazy qualified as BL
 import Network.HTTP.Types (Method, Status, methodGet, methodPost, status200, status400, status404, status405)
 import Network.Wai
 import Claims.Parser (loadRules, parseRules)
-import Claims.Pipeline (evaluateClaim, evaluationErrorJSON, localToday, processEvaluation, reportToJSON)
+import Claims.Pipeline (EngineConfig, evaluateClaim, evaluationErrorJSON, localToday, processEvaluation, reportToJSON)
 import Claims.RedundancyChecker (checkRedundancy)
 
 -- | Maximum allowed request body size (10 MB).
@@ -81,8 +81,8 @@ withJsonBody extra request respond handler = do
 
 -- | Dispatch by path, then method: an unknown path is 404, a known path
 -- with the wrong method is 405 with an @Allow@ header.
-app :: QSem -> Application
-app sem request respond =
+app :: EngineConfig -> QSem -> Application
+app cfg sem request respond =
   case route (pathInfo request) of
     Nothing -> respond $ jsonResponse status404 $ object ["error" .= ("Not found" :: String)]
     Just (method, handler)
@@ -95,7 +95,7 @@ app sem request respond =
               (encode $ object ["error" .= ("Method not allowed; use " <> BS8.unpack method :: String)])
   where
     route = \case
-      ["api", "evaluate"] -> Just (methodPost, handleEvaluate)
+      ["api", "evaluate"] -> Just (methodPost, handleEvaluate cfg)
       ["api", "batch-evaluate"] -> Just (methodPost, handleBatchEvaluate sem)
       ["api", "parse-rule"] -> Just (methodPost, handleParseRule)
       ["api", "check-redundancy"] -> Just (methodPost, handleCheckRedundancy)
@@ -109,10 +109,10 @@ handleHealth respond =
 
 -- | Evaluate a single claim document against a DSL rule set, combining DSL
 -- results with an ML score (or stub when @ML_SCORER_URL@ is unset).
-handleEvaluate :: Request -> (Response -> IO ResponseReceived) -> IO ResponseReceived
-handleEvaluate request respond =
+handleEvaluate :: EngineConfig -> Request -> (Response -> IO ResponseReceived) -> IO ResponseReceived
+handleEvaluate cfg request respond =
   withJsonBody [] request respond $ \evalReq -> do
-    result <- processEvaluation evalReq
+    result <- processEvaluation cfg evalReq
     case result of
       Left err ->
         let (status, body') = evaluationErrorJSON err

@@ -44,7 +44,7 @@ import Data.Time (Day, DayOfWeek (Saturday, Sunday), dayOfWeek, defaultTimeLocal
 import Data.Vector qualified as V
 import Prelude hiding (EQ, GT, LT)
 import Claims.Syntax qualified as Syntax
-import Claims.Syntax (Action (..), CompOp (..), Path (..), Rule, RuleResult (..), compileRegex)
+import Claims.Syntax (Action (..), CompOp (..), Path (..), Rule, RuleOutcome (..), RuleResult (..), compileRegex, resultAction, resultMatched, resultUndecided)
 import Text.Regex.TDFA (matchTest)
 import Text.Regex.TDFA.Text ()
 
@@ -225,34 +225,25 @@ evaluateWithEnv env = \case
 
 -- | Evaluate a complete rule against a JSON document.
 --
--- Returns a 'RuleResult' indicating whether the rule matched and what
--- action should be taken.
+-- Returns a 'RuleResult': matched (with the rule's action), not matched, or
+-- undecided for lack of data.
 evaluateRuleSimple :: Day -> Aeson.Value -> Syntax.Rule -> RuleResult
 evaluateRuleSimple today doc rule =
   let env = mkEnv today (Syntax.ruleBindings rule) doc
-      truth = evaluateWithEnv env (Syntax.ruleCondition rule)
-      matched = truth == Yes
-      action =
-        if matched
-          then Just (Syntax.ruleAction rule)
-          else Nothing
-      details = case truth of
-        Yes -> "Rule matched: " <> Syntax.ruleDescription rule
-        No -> "Rule did not match"
+      (outcome, details) = case evaluateWithEnv env (Syntax.ruleCondition rule) of
+        Yes -> (Matched (Syntax.ruleAction rule), "Rule matched: " <> Syntax.ruleDescription rule)
+        No -> (NotMatched, "Rule did not match")
         Unknown reasons ->
-          "Rule did not match: missing or unusable data ("
-            <> T.intercalate "; " (nubOrd reasons)
-            <> ")"
+          ( Undecided,
+            "Rule did not match: missing or unusable data ("
+              <> T.intercalate "; " (nubOrd reasons)
+              <> ")"
+          )
    in RuleResult
         { resultRuleName = Syntax.ruleName rule,
-          resultMatched = matched,
-          resultAction = action,
-          resultDetails = details,
-          resultUndecided = isUnknown truth
+          resultOutcome = outcome,
+          resultDetails = details
         }
-  where
-    isUnknown (Unknown _) = True
-    isUnknown _ = False
 
 -- | Run a built-in helper. A failed check (an argument missing or
 -- unusable, or an unknown call) is treated by the caller as 'Unknown'.

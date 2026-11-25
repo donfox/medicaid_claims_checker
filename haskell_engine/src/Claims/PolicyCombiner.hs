@@ -38,7 +38,7 @@ import Data.Aeson qualified as Aeson
 import Data.Text (Text)
 import GHC.Generics (Generic)
 import Claims.MLClient (MLModelInfo (..), MLResult (..), MLTopFactor (..))
-import Claims.Syntax (Action (..), RuleResult (..))
+import Claims.Syntax (Action (..), RuleResult (..), resultAction, resultMatched)
 
 -- | Risk-score thresholds that partition the ML probability space into bands:
 --

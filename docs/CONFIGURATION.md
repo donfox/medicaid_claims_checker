@@ -12,9 +12,9 @@ setting: `scripts/start.sh` and the development config supply working defaults.
 
 ## Haskell engine
 
-Read by `haskell_engine/app/Main.hs` and `src/Claims/ListenConfig.hs` at
-startup, except the ML settings, which `src/Claims/MLClient.hs` and
-`src/Claims/Pipeline.hs` read on each `/api/evaluate` request.
+All read once, at startup, by `haskell_engine/app/Main.hs` (the ML settings
+through `loadEngineConfig` in `src/Claims/Pipeline.hs`). Restart the engine
+after changing any of them.
 
 | Variable | Default | What it does |
 |---|---|---|

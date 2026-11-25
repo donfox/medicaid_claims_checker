@@ -34,6 +34,8 @@ import System.Exit (exitFailure)
 import System.Environment (lookupEnv)
 import System.IO (BufferMode (..), hPutStrLn, hSetBuffering, stderr, stdout)
 import Claims.ListenConfig (ListenConfig (..), resolveListen)
+import Claims.MLClient (MLClientConfig (..))
+import Claims.Pipeline (EngineConfig (..), loadEngineConfig)
 import Data.Time.Clock (getCurrentTime)
 import Middleware (authMiddleware, parseRateLimit, pruneRateMap, rateLimitMiddleware, rateLimitWindowSecs)
 import Routes (app)
@@ -62,6 +64,7 @@ main = do
   let workerCount = max 1 numCaps
   sem <- newQSem workerCount
   secret <- BS8.pack . fromMaybe "" <$> lookupEnv "RULE_ENGINE_SECRET"
+  engineCfg <- loadEngineConfig
   rateRef <- newIORef Map.empty
   -- Forget addresses with no requests in the last window (see pruneRateMap).
   _ <- forkIO $ forever $ do
@@ -70,9 +73,10 @@ main = do
     atomicModifyIORef' rateRef (\m -> (pruneRateMap now m, ()))
   putStrLn $ "Worker pool: " ++ show workerCount ++ " concurrent claim evaluations"
   putStrLn $ "Auth: " ++ if BS8.null secret then "WARNING — RULE_ENGINE_SECRET not set, all requests will be rejected" else "shared-secret enabled"
+  putStrLn $ "ML scorer: " ++ maybe "off (ML_SCORER_URL unset or refused) — using the neutral stand-in score" mlEndpointUrl (engineMlClient engineCfg)
   putStrLn $ "Rate limit: " ++ show rateLimit ++ " requests per " ++ show rateLimitWindowSecs ++ " s per IP"
   let settings = setHost (fromString (lcHost config)) (setPort (lcPort config) defaultSettings)
-      handler = rateLimitMiddleware rateLimit rateRef (authMiddleware secret (app sem))
+      handler = rateLimitMiddleware rateLimit rateRef (authMiddleware secret (app engineCfg sem))
   case lcTls config of
     Just (cert, key) -> runTLS (tlsSettings cert key) settings handler
     Nothing -> runSettings settings handler

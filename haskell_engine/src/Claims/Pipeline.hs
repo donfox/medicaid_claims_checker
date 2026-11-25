@@ -13,6 +13,10 @@ module Claims.Pipeline
   ( -- * Request
     EvaluationRequest (..),
 
+    -- * Configuration
+    EngineConfig (..),
+    loadEngineConfig,
+
     -- * Evaluation
     processEvaluation,
     EvaluationError (..),
@@ -40,8 +44,8 @@ import System.Environment (lookupEnv)
 import System.IO (hPutStrLn, stderr)
 import System.Timeout (timeout)
 import Claims.Evaluator (EvaluationReport (..), evaluateSimpleJson)
-import Claims.Syntax (RuleResult (..))
-import Claims.MLClient (MLResult, getMlClientConfig, mlErrorResult, mlStubResult, scoreClaimWithMl)
+import Claims.Syntax (RuleResult (..), resultMatched, resultUndecided)
+import Claims.MLClient (MLClientConfig, MLResult, getMlClientConfig, mlErrorResult, mlStubResult, scoreClaimWithMl)
 import Claims.Parser (loadRules)
 import Claims.PolicyCombiner
   ( CombinedEnvelope,
@@ -189,10 +193,30 @@ evaluationErrorJSON = \case
         ]
     )
 
+-- | Settings the pipeline takes from the environment. They are read once,
+-- at startup ('loadEngineConfig'), and passed to each request, so a request
+-- never looks at the environment itself.
+data EngineConfig = EngineConfig
+  { -- | The ML scorer, or 'Nothing' to use the neutral stand-in
+    -- ('mlStubResult'): @ML_SCORER_URL@ is unset or was refused.
+    engineMlClient :: Maybe MLClientConfig,
+    -- | @ALLOW_ML_TEST_OVERRIDE=true@: a claim's @_mlStatus: "error"@ field
+    -- simulates a scorer failure. For tests only.
+    engineAllowMlTestOverride :: Bool
+  }
+  deriving (Show, Eq)
+
+-- | Read the pipeline settings from the environment.
+loadEngineConfig :: IO EngineConfig
+loadEngineConfig =
+  EngineConfig
+    <$> getMlClientConfig
+    <*> ((== Just "true") <$> lookupEnv "ALLOW_ML_TEST_OVERRIDE")
+
 -- | Evaluate one claim end to end: parse the rules, run them, score the
 -- claim with the ML service (or its stand-in), and combine the two.
-processEvaluation :: EvaluationRequest -> IO (Either EvaluationError EvaluationResponse)
-processEvaluation req = do
+processEvaluation :: EngineConfig -> EvaluationRequest -> IO (Either EvaluationError EvaluationResponse)
+processEvaluation cfg req = do
   case loadRules (evalRulesText req) of
     Left err -> return $ Left (RulesError err)
     Right engine -> do
@@ -203,7 +227,7 @@ processEvaluation req = do
         Nothing -> return $ Left TimedOut
         Just report -> do
           let evaluatedAt = T.pack (formatTime defaultTimeLocale "%Y-%m-%dT%H:%M:%SZ" now)
-          mlResult <- selectMlResult req
+          mlResult <- selectMlResult cfg req
           let combined =
                 buildCombinedEnvelope
                   defaultPolicyConfig
@@ -216,40 +240,31 @@ processEvaluation req = do
 -- | Resolve the ML score for a claim.
 --
 -- The @_mlStatus: "error"@ test override is only honoured when
--- @ALLOW_ML_TEST_OVERRIDE=true@ is set in the environment, so it cannot be
--- triggered by crafted claim payloads in production.  A warning is emitted to
--- stderr whenever the override fires so it is auditable.
-selectMlResult :: EvaluationRequest -> IO MLResult
-selectMlResult req = do
-  mOverride <- lookupEnv "ALLOW_ML_TEST_OVERRIDE"
-  let allowOverride = mOverride == Just "true"
-      doc = evalDocument req
-      claimId = evalClaimId req
-  if allowOverride
-    then case doc of
-      Object _ ->
-        case parseMaybe parseMlStatus doc of
-          Just (Just s) | T.toLower s == "error" -> do
-            hPutStrLn stderr "WARNING: _mlStatus test override triggered — ML scorer bypassed"
-            pure $ mlErrorResult "forced"
-          _ -> fetchOrStub claimId doc
-      _ -> fetchOrStub claimId doc
-    else fetchOrStub claimId doc
+-- 'engineAllowMlTestOverride' is set, so it cannot be triggered by crafted
+-- claim payloads in production. A warning is emitted to stderr whenever the
+-- override fires so it is auditable.
+selectMlResult :: EngineConfig -> EvaluationRequest -> IO MLResult
+selectMlResult cfg req
+  | engineAllowMlTestOverride cfg && forcesMlError (evalDocument req) = do
+      hPutStrLn stderr "WARNING: _mlStatus test override triggered — ML scorer bypassed"
+      pure $ mlErrorResult "forced"
+  | otherwise = fetchOrStub (engineMlClient cfg) (evalClaimId req) (evalDocument req)
+
+-- | Whether a claim carries @"_mlStatus": "error"@ (in any letter case).
+forcesMlError :: Value -> Bool
+forcesMlError doc = case parseMaybe parseMlStatus doc of
+  Just (Just s) -> T.toLower s == "error"
+  _ -> False
   where
     parseMlStatus = withObject "MLStatus" $ \obj -> obj .:? "_mlStatus"
 
 -- | Call the ML scorer when configured; fall back to a neutral stub result
--- when @ML_SCORER_URL@ is absent so the server runs without the scorer service.
-fetchOrStub :: T.Text -> Value -> IO MLResult
-fetchOrStub claimId doc = do
-  mCfg <- getMlClientConfig
-  case mCfg of
-    Nothing -> pure mlStubResult
-    Just cfg -> do
-      result <- scoreClaimWithMl cfg claimId doc
-      case result of
-        Right ml -> pure ml
-        Left errMsg -> pure $ applyFallback defaultPolicyConfig errMsg
+-- when it is not, so the server runs without the scorer service.
+fetchOrStub :: Maybe MLClientConfig -> T.Text -> Value -> IO MLResult
+fetchOrStub Nothing _ _ = pure mlStubResult
+fetchOrStub (Just mlCfg) claimId doc = do
+  result <- scoreClaimWithMl mlCfg claimId doc
+  pure $ either (applyFallback defaultPolicyConfig) id result
 
 applyFallback :: PolicyConfig -> T.Text -> MLResult
 applyFallback cfg errMsg =

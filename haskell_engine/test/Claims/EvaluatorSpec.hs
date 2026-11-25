@@ -55,7 +55,7 @@ evaluatorSpec = do
 
   describe "RuleResult JSON wire format" $ do
     let composite =
-          mkResult "r" True (Just (CompositeAction [RejectClaim "dup", AssignRiskScore 90])) "matched"
+          mkResult "r" (Matched (CompositeAction [RejectClaim "dup", AssignRiskScore 90])) "matched"
         expected =
           object
             [ "resultRuleName" .= ("r" :: String),
@@ -79,7 +79,7 @@ evaluatorSpec = do
       Aeson.fromJSON (Aeson.toJSON composite) `shouldBe` Aeson.Success composite
 
     it "encodes an unmatched result's action as null" $
-      Aeson.toJSON (mkResult "r" False Nothing "no")
+      Aeson.toJSON (mkResult "r" NotMatched "no")
         `shouldBe` object
           [ "resultRuleName" .= ("r" :: String),
             "resultMatched" .= False,
@@ -97,7 +97,37 @@ evaluatorSpec = do
               "resultDetails" .= ("no" :: String)
             ]
         )
-        `shouldBe` Aeson.Success (mkResult "r" False Nothing "no")
+        `shouldBe` Aeson.Success (mkResult "r" NotMatched "no")
+
+    it "encodes an undecided result as unmatched, no action, resultUndecided true, and decodes it back" $ do
+      let undecided = mkResult "r" Undecided "missing"
+          encoded =
+            object
+              [ "resultRuleName" .= ("r" :: String),
+                "resultMatched" .= False,
+                "resultAction" .= Aeson.Null,
+                "resultDetails" .= ("missing" :: String),
+                "resultUndecided" .= True
+              ]
+      Aeson.toJSON undecided `shouldBe` encoded
+      Aeson.fromJSON encoded `shouldBe` Aeson.Success undecided
+
+    it "refuses a stored result whose fields disagree" $ do
+      let stored matched action undecided =
+            object
+              [ "resultRuleName" .= ("r" :: String),
+                "resultMatched" .= matched,
+                "resultAction" .= action,
+                "resultDetails" .= ("x" :: String),
+                "resultUndecided" .= undecided
+              ]
+          reject = object ["tag" .= ("RejectClaim'" :: String), "contents" .= ("x" :: String)]
+          isError (Aeson.Error _) = True
+          isError _ = False
+          decodes v = Aeson.fromJSON v :: Aeson.Result RuleResult
+      decodes (stored True Aeson.Null False) `shouldSatisfy` isError
+      decodes (stored False reject False) `shouldSatisfy` isError
+      decodes (stored True reject True) `shouldSatisfy` isError
 
   -- ----------------------------------------------------------------
   -- Claim Scenarios
@@ -499,7 +529,7 @@ evaluatorSpec = do
           reportOverallRisk report `shouldBe` CriticalRisk
 
     it "APPROVE-only rules do not create DSL concern in PolicyCombiner" $ do
-      let rules = [mkResult "approve_rule" True (Just (ApproveClaim "ok")) "approved"]
+      let rules = [mkResult "approve_rule" (Matched (ApproveClaim "ok")) "approved"]
           ml = mlStubResult {mlRiskScore = Just 0.10}
           out = buildCombinedEnvelope defaultPolicyConfig "claim_approve" "2026-02-27T00:00:00Z" rules ml
       status (decision out) `shouldBe` "APPROVE"
@@ -1053,12 +1083,10 @@ evaluatorSpec = do
   -- Default Rule DSL Texts — Parse Validation
   -- ----------------------------------------------------------------
 
-mkResult :: String -> Bool -> Maybe Action -> String -> RuleResult
-mkResult name matched action details =
+mkResult :: String -> RuleOutcome -> String -> RuleResult
+mkResult name outcome details =
   RuleResult
     { resultRuleName = fromString name,
-      resultMatched = matched,
-      resultAction = action,
-      resultDetails = fromString details,
-      resultUndecided = False
+      resultOutcome = outcome,
+      resultDetails = fromString details
     }

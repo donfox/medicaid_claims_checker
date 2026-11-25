@@ -21,6 +21,10 @@ module Claims.Syntax
     Value (..),
     CompOp (..),
     RuleResult (..),
+    RuleOutcome (..),
+    resultMatched,
+    resultAction,
+    resultUndecided,
     helperArity,
     compileRegex,
   )
@@ -130,19 +134,42 @@ instance FromJSON Action
 -- | The result of evaluating one rule against one claim.
 data RuleResult = RuleResult
   { resultRuleName :: Text
-  , resultMatched  :: Bool
-  , resultAction   :: Maybe Action
+  , resultOutcome  :: RuleOutcome
   , resultDetails  :: Text
-  , resultUndecided :: Bool
-    -- ^ The rule could not be decided because data it needs is missing or
-    -- unusable. Always 'False' when 'resultMatched' is 'True'.
   } deriving (Show, Eq, Generic)
 
+-- | How a rule came out. Only a matched rule has an action, and a rule
+-- cannot be both matched and undecided.
+data RuleOutcome
+  = Matched Action
+  | NotMatched
+  | -- | Not decided because data the rule needs is missing or unusable;
+    -- 'resultDetails' names it.
+    Undecided
+  deriving (Show, Eq, Generic)
+
+-- | Whether the rule matched.
+resultMatched :: RuleResult -> Bool
+resultMatched r = case resultOutcome r of
+  Matched _ -> True
+  _ -> False
+
+-- | The action of a matched rule.
+resultAction :: RuleResult -> Maybe Action
+resultAction r = case resultOutcome r of
+  Matched a -> Just a
+  _ -> Nothing
+
+-- | Whether the rule was left undecided for lack of data.
+resultUndecided :: RuleResult -> Bool
+resultUndecided r = resultOutcome r == Undecided
+
 -- | The JSON encoding is a wire contract with the Phoenix app and with
--- evaluation reports already stored in its database: action tags carry a
--- trailing prime (@{"tag": "RejectClaim'", ...}@), a leftover from when
--- results used a separate primed copy of 'Action'. The type is gone; the
--- format stays.
+-- evaluation reports already stored in its database: the outcome is spread
+-- over @resultMatched@, @resultAction@ and @resultUndecided@, and action
+-- tags carry a trailing prime (@{"tag": "RejectClaim'", ...}@), a leftover
+-- from when results used a separate primed copy of 'Action'. The type is
+-- gone; the format stays.
 instance ToJSON RuleResult where
   toJSON r =
     object
@@ -154,14 +181,19 @@ instance ToJSON RuleResult where
       ]
 
 instance FromJSON RuleResult where
-  parseJSON = withObject "RuleResult" $ \o ->
-    RuleResult
-      <$> o .: "resultRuleName"
-      <*> o .: "resultMatched"
-      <*> (traverse (parseJSON . retagActions unprime) =<< o .:? "resultAction")
-      <*> o .: "resultDetails"
-      -- Reports stored before this field existed omit it.
-      <*> o .:? "resultUndecided" .!= False
+  parseJSON = withObject "RuleResult" $ \o -> do
+    name <- o .: "resultRuleName"
+    matched <- o .: "resultMatched"
+    action <- traverse (parseJSON . retagActions unprime) =<< o .:? "resultAction"
+    details <- o .: "resultDetails"
+    -- Reports stored before this field existed omit it.
+    undecided <- o .:? "resultUndecided" .!= False
+    outcome <- case (matched, action, undecided) of
+      (True, Just a, False) -> pure (Matched a)
+      (False, Nothing, False) -> pure NotMatched
+      (False, Nothing, True) -> pure Undecided
+      _ -> fail "RuleResult: resultMatched, resultAction and resultUndecided disagree"
+    pure (RuleResult name outcome details)
     where
       unprime t = fromMaybe t (T.stripSuffix "'" t)
 

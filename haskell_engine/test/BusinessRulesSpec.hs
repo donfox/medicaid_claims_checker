@@ -15,7 +15,7 @@ import Data.Time (Day, fromGregorian)
 import Test.Hspec
 import Claims.Parser (parseRule)
 import Claims.Evaluator (evaluateRuleSimple)
-import Claims.Syntax (RuleResult (..))
+import Claims.Syntax (RuleResult, resultMatched, resultUndecided)
 
 -- ---------------------------------------------------------------------------
 -- Fixed test date (same as Spec.hs)

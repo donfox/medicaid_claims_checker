@@ -16,6 +16,7 @@ import Network.Wai (Application, Request (..), Response, defaultRequest, respons
 import Network.Wai.Internal (ResponseReceived (..))
 import Test.Hspec
 import Middleware
+import Claims.Pipeline (EngineConfig (..))
 import Routes (app)
 
 -- | Run an application on a request and return its response.
@@ -34,6 +35,10 @@ withToken r = r {requestHeaders = [("Authorization", "Bearer s3cret")]}
 -- | An inner application that always answers 200.
 alwaysOk :: Application
 alwaysOk _ respond = respond (responseLBS status200 [] "ok")
+
+-- | No scorer and no test override.
+testConfig :: EngineConfig
+testConfig = EngineConfig Nothing False
 
 statusOf :: Application -> Request -> IO Status
 statusOf application r = responseStatus <$> run application r
@@ -84,7 +89,7 @@ appSpec = describe "HTTP layer (app/)" $ do
   describe "Routing" $ do
     let routed method path = do
           sem <- newQSem 1
-          run (app sem) (request method path)
+          run (app testConfig sem) (request method path)
     it "an unknown path is 404" $
       responseStatus <$> routed methodGet ["api", "nope"] `shouldReturn` status404
     it "the wrong method is 405, with Allow naming the right one" $ do

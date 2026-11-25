@@ -22,7 +22,7 @@ pipelineSpec = do
         isRulesError _ = False
 
     it "rules that do not parse are a RulesError, answered with 400" $ do
-      result <- processEvaluation (request "RULE broken")
+      result <- processEvaluation noMl (request "RULE broken")
       result `shouldSatisfy` isRulesError
       fst (evaluationErrorJSON (RulesError "x")) `shouldBe` status400
 
@@ -36,7 +36,7 @@ pipelineSpec = do
                    )
 
     it "valid rules give a report" $ do
-      result <- processEvaluation (request "RULE r \"d\" WHEN amount > 5 THEN REQUIRE_REVIEW \"x\";")
+      result <- processEvaluation noMl (request "RULE r \"d\" WHEN amount > 5 THEN REQUIRE_REVIEW \"x\";")
       result `shouldSatisfy` isRight
 
   describe "The per-claim time limit" $ do
@@ -99,6 +99,10 @@ pipelineSpec = do
                 "document" .= object ["amount" .= (100 :: Int)]
               ]
       (Aeson.fromJSON payload :: Aeson.Result EvaluationRequest) `shouldSatisfy` isAesonError
+
+-- | No scorer (the stand-in score) and no test override.
+noMl :: EngineConfig
+noMl = EngineConfig Nothing False
 
 isAesonSuccess :: Aeson.Result a -> Bool
 isAesonSuccess (Aeson.Success _) = True

@@ -77,9 +77,12 @@ config :medicaid_claims_checker, MedicaidClaimsChecker.Scheduler,
 
 config :medicaid_claims_checker, Oban,
   repo: MedicaidClaimsChecker.Repo,
-  # Match the Haskell engine's worker pool size (max 1 numCaps) so Phoenix
-  # never issues more concurrent batch-evaluate calls than the engine can serve.
-  queues: [batch_evaluation: max(1, :erlang.system_info(:schedulers_online))]
+  # One batch per CPU core, matching the Haskell engine's worker pool, so
+  # Phoenix never issues more concurrent batch-evaluate calls than the engine
+  # can serve; and at most ten, because the engine's rate limit (1000 requests
+  # a minute from this app's one address) is sized for ten 15,000-claim
+  # batches at once (see Claims.Evaluator).
+  queues: [batch_evaluation: min(10, max(1, :erlang.system_info(:schedulers_online)))]
 
 config :medicaid_claims_checker, :config_poller, poll_interval_ms: 60_000
 

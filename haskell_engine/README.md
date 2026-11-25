@@ -112,10 +112,14 @@ When they run on different machines:
 
 1. On the engine host, set `ENGINE_HOST=0.0.0.0` (or the interface address)
    and the two TLS variables.
-2. On the Phoenix host, set `RULE_ENGINE_URL=https://<engine-host>:8080`.
-   If the certificate is self-signed or from an internal CA, also set
-   `RULE_ENGINE_CA_CERT` to the CA file; a certificate from a public CA needs
-   nothing more.
+2. On the Phoenix host, set `RULE_ENGINE_URL=https://<engine-host>:8080`
+   and `RULE_ENGINE_CA_CERT` to the CA file that signed the engine's
+   certificate. Use a certificate from an internal CA: with
+   `RULE_ENGINE_CA_CERT` set, Phoenix trusts only that CA, so a mistaken
+   `RULE_ENGINE_URL` fails at connection instead of sending claims to another
+   host. A certificate from a public CA also works without
+   `RULE_ENGINE_CA_CERT`, but then any host with a public certificate is
+   accepted (see [docs/CONFIGURATION.md](../docs/CONFIGURATION.md#encryption-in-production)).
 3. Firewall the engine's port so only the Phoenix host can reach it. The
    engine has no list of allowed clients of its own: once it listens on a
    network address, any machine that can reach the port can try the shared

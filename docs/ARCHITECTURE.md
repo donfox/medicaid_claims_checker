@@ -110,7 +110,7 @@ These are active design and implementation constraints, not future goals:
 - Rules always run against the claim as JSON: X12 files are converted first. The app uses only `/api/batch-evaluate`, so the ML path (`/api/evaluate`) is never used by the app.
 - `/api/batch-evaluate` reparses rules on every request; there is no rule cache.
 - Batch evaluation uses a hardcoded chunk size of `200` claims per Haskell request, and a batch may hold at most 15,000 claims.
-- The engine accepts 1,000 requests a minute per client IP by default (`ENGINE_RATE_LIMIT`).
+- The engine accepts 1,000 requests a minute per client IP by default (`ENGINE_RATE_LIMIT`). All of Phoenix's requests share one address; a rate-limited (429) chunk is sent again after the engine's `Retry-After` time, up to three times, before the batch fails.
 - NPPES data is refreshed on an interval, so claims evaluated between refreshes use the most recently imported snapshot.
 - Without a TLS certificate the engine listens on loopback only; serving it to another host requires HTTPS (see `haskell_engine/README.md`, "Listening and TLS").
 
@@ -122,7 +122,8 @@ These are active design and implementation constraints, not future goals:
   30-second time limit.
 - **Phoenix:** batch evaluations run as Oban jobs in the `batch_evaluation`
   queue, whose concurrency matches the engine's worker pool, so Phoenix never
-  sends more concurrent batch requests than the engine can serve. Within one
+  sends more concurrent batch requests than the engine can serve, and is at
+  most ten, so full batches stay within the engine's rate limit. Within one
   batch the 200-claim chunks are sent one after another.
 
 The system may accept large volumes of work, but the work in active

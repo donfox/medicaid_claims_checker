@@ -13,6 +13,9 @@ config :medicaid_claims_checker, MedicaidClaimsCheckerWeb.Endpoint,
 # Print only warnings and errors during test
 config :logger, level: :warning
 
+# Retry a rate-limited (429) engine call at once instead of after Retry-After.
+config :medicaid_claims_checker, :engine_rate_limit_wait_ms, 0
+
 config :medicaid_claims_checker, MedicaidClaimsChecker.Vault,
   ciphers: [
     default:

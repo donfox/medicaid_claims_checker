@@ -18,8 +18,10 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
   # 15,000-claim batch is 75 requests. The engine accepts 1000 requests a
   # minute from one IP address, and all of this app's requests share that
   # address: the cap leaves room for ten such batches at once plus Rules page
-  # calls. Revisit it if the chunk size or the engine's rate limit
-  # (haskell_engine/app/Middleware.hs) changes.
+  # calls, and the batch_evaluation queue runs at most ten (config.exs). A 429
+  # is retried after a wait (post_chunk/2). Revisit it if the chunk size, the
+  # queue limit or the engine's rate limit (haskell_engine/app/Middleware.hs)
+  # changes.
   @max_batch_claims 15_000
 
   @doc "Largest number of claims a single batch may send to the engine."
@@ -156,16 +158,63 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
   # submitted again). Only the batch_evaluation queue waits; nothing else does.
   @receive_timeout_ms 120_000
 
+  # The engine answers 429 when this app's address has made too many requests
+  # in the last 60 s; every Phoenix request shares that one address. A 429 is
+  # a reason to slow down, not a failed batch: wait the Retry-After time (at
+  # most 60 s) and send the same chunk again, up to @rate_limit_retries times.
+  @rate_limit_retries 3
+
+  defp post_chunk(body, retries_left \\ @rate_limit_retries) do
+    case EngineClient.post("/api/batch-evaluate", body,
+           connect_timeout: @connect_timeout_ms,
+           receive_timeout: @receive_timeout_ms
+         ) do
+      {:ok, %{status: 429} = resp} when retries_left > 0 ->
+        wait_ms = rate_limit_wait_ms(resp)
+
+        Logger.warning(
+          "Rule engine rate limit reached; sending the chunk again in #{div(wait_ms, 1000)} s " <>
+            "(#{retries_left} #{if retries_left == 1, do: "retry", else: "retries"} left)"
+        )
+
+        Process.sleep(wait_ms)
+        post_chunk(body, retries_left - 1)
+
+      other ->
+        other
+    end
+  end
+
+  # Tests set :engine_rate_limit_wait_ms so they do not wait a minute.
+  defp rate_limit_wait_ms(resp) do
+    case Application.get_env(:medicaid_claims_checker, :engine_rate_limit_wait_ms) do
+      ms when is_integer(ms) -> ms
+      nil -> retry_after_ms(Req.Response.get_header(resp, "retry-after"))
+    end
+  end
+
+  @doc false
+  # Milliseconds to wait from a Retry-After header's values: whole seconds,
+  # at most 60; 60 when missing or not a number (the engine sends 60).
+  def retry_after_ms(values) do
+    seconds =
+      with [value | _] <- values,
+           {n, ""} when n >= 0 <- Integer.parse(String.trim(value)) do
+        min(n, 60)
+      else
+        _ -> 60
+      end
+
+    seconds * 1000
+  end
+
   defp call_batch_evaluate(rules_text, claims) do
     claims
     |> Enum.chunk_every(@batch_chunk_size)
     |> Enum.reduce_while({:ok, []}, fn chunk, {:ok, acc} ->
       body = Jason.encode!(PayloadBuilder.build_batch_evaluate_payload(rules_text, chunk))
 
-      case EngineClient.post("/api/batch-evaluate", body,
-             connect_timeout: @connect_timeout_ms,
-             receive_timeout: @receive_timeout_ms
-           ) do
+      case post_chunk(body) do
         {:ok, %{status: 200, body: resp_body}} ->
           case Jason.decode(resp_body) do
             {:ok, %{"batchResults" => results}} -> {:cont, {:ok, acc ++ results}}

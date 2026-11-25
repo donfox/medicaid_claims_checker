@@ -21,7 +21,7 @@ after changing any of them.
 | `ENGINE_HOST` | `127.0.0.1` | Address to listen on. Without TLS only a loopback address is allowed. |
 | `ENGINE_PORT` | `8080` | Port to listen on. |
 | `RULE_ENGINE_TLS_CERT`, `RULE_ENGINE_TLS_KEY` | unset | Certificate and key files. With both set the engine serves HTTPS and may listen on any address. See [haskell_engine/README.md](../haskell_engine/README.md#listening-and-tls); `haskell_engine/gen-dev-tls.sh` makes a development certificate. |
-| `ENGINE_RATE_LIMIT` | `1000` | Most requests one client IP may make per 60 seconds; `/api/health` is not counted. `scripts/test.sh` raises it for its own engine. |
+| `ENGINE_RATE_LIMIT` | `1000` | Most requests one client IP may make per 60 seconds; `/api/health` is not counted. All of Phoenix's requests come from one address; 1000 covers ten 15,000-claim batches at once. When the limit is reached, Phoenix waits the engine's `Retry-After` time and sends the chunk again, up to three times. `scripts/test.sh` raises it for its own engine. |
 | `ML_SCORER_URL` | unset | The ML scoring service `/api/evaluate` calls. Unset, a fixed stand-in score is used. Must be `https://`; private and cloud-metadata addresses are refused. |
 | `ML_TIMEOUT_MS` | `120` | How long to wait for the scorer, in milliseconds. Too short for a real model service; raise it when one is added. |
 | `ALLOW_ML_TEST_OVERRIDE` | unset | When `true`, a claim containing `"_mlStatus": "error"` skips the scorer as if it had failed. For tests only. |
@@ -67,7 +67,7 @@ These are not environment variables; they live in `phoenix_web/config/`.
 |---|---|---|
 | `allow_test_resubmission: true` | `dev.exs` | Shows the "Test upload: allow re-submission" checkbox on Manual Upload. Development only. |
 | Cloak development key | `dev.exs`, `test.exs` | A fixed, all-zero key so development and tests work without `CLOAK_KEY`. Never use it in production. |
-| Oban `batch_evaluation` queue | `config.exs` | One concurrent batch evaluation per CPU core, matching the engine's worker pool. |
+| Oban `batch_evaluation` queue | `config.exs` | One concurrent batch evaluation per CPU core, matching the engine's worker pool, and at most ten, so that full batches stay within the engine's rate limit (`ENGINE_RATE_LIMIT`). |
 | `:remote_fetcher` | `config.exs` | Scheduled fetches: download timeout (60 s), largest file (`max_file_size_bytes`, 100 MB), largest unpacked zip (`max_unzipped_bytes`, 100 MB; uploads too) and the file extensions read (`.x12`, `.edi`, `.txt`). |
 | `:config_poller` | `config.exs` | Re-reads the fetch sources and schedules every 60 seconds and updates the scheduled fetch jobs. |
 

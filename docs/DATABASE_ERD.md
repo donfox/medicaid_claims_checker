@@ -236,7 +236,9 @@ are listed with status `Not connected` and never run. ML Models have none.
 ### Ingestion and provider data
 
 - **`fetch_sources`**: where claim files are fetched from (SFTP, HTTP or
-  local). `credentials` is encrypted with the app's Cloak key.
+  local). `credentials` is encrypted with the app's Cloak key; `uri` is not,
+  so it may name a user (`sftp://user@host/...`) but a password in it is
+  refused.
 - **`fetch_schedules`**: when each source is polled.
 - **`fetched_files`**: files a source has already picked up, unique by
   source, name and SHA-256, so a re-fetched unchanged file is skipped; the

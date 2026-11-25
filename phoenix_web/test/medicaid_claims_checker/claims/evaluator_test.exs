@@ -256,6 +256,71 @@ defmodule MedicaidClaimsChecker.Claims.EvaluatorTest do
       assert reason =~ "This batch has 15001 claims; the limit is 15000."
     end
 
+    test "a rate-limited (429) chunk is sent again and the batch completes", %{bypass: bypass} do
+      create_rule!(
+        "some_rule",
+        ~s|RULE test "Test" WHEN financial.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|
+      )
+
+      calls = :counters.new(1, [])
+
+      Bypass.expect(bypass, "POST", "/api/batch-evaluate", fn conn ->
+        :counters.add(calls, 1, 1)
+
+        if :counters.get(calls, 1) == 1 do
+          conn
+          |> Plug.Conn.put_resp_header("retry-after", "60")
+          |> Plug.Conn.put_resp_content_type("application/json")
+          |> Plug.Conn.resp(429, ~s|{"error": "Rate limit exceeded"}|)
+        else
+          conn
+          |> Plug.Conn.put_resp_content_type("application/json")
+          |> Plug.Conn.resp(200, engine_response([{"LowRisk", 0, []}]))
+        end
+      end)
+
+      batch = ingest_batch!([make_claim("limited.json", 100)])
+
+      log = ExUnit.CaptureLog.capture_log(fn -> Evaluator.evaluate_batch(batch) end)
+
+      assert :counters.get(calls, 1) == 2
+      assert log =~ "Rule engine rate limit reached; sending the chunk again"
+      assert Claims.get_batch_by_batch_id(batch.batch_id).status == "completed"
+      assert hd(Claims.list_files_for_batch(batch.id)).status == "evaluated"
+    end
+
+    test "a chunk still rate-limited after three retries fails the batch", %{bypass: bypass} do
+      create_rule!(
+        "some_rule",
+        ~s|RULE test "Test" WHEN financial.claim_amount > 0 THEN REQUIRE_REVIEW "Review";|
+      )
+
+      calls = :counters.new(1, [])
+
+      Bypass.expect(bypass, "POST", "/api/batch-evaluate", fn conn ->
+        :counters.add(calls, 1, 1)
+
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.resp(429, ~s|{"error": "Rate limit exceeded"}|)
+      end)
+
+      batch = ingest_batch!([make_claim("limited.json", 100)])
+      ExUnit.CaptureLog.capture_log(fn -> Evaluator.evaluate_batch(batch) end)
+
+      assert :counters.get(calls, 1) == 4
+      assert Claims.get_batch_by_batch_id(batch.batch_id).status == "failed"
+    end
+
+    test "retry_after_ms reads whole seconds, at most 60, defaulting to 60" do
+      assert Evaluator.retry_after_ms(["5"]) == 5_000
+      assert Evaluator.retry_after_ms([" 0 "]) == 0
+      assert Evaluator.retry_after_ms(["3600"]) == 60_000
+      assert Evaluator.retry_after_ms([]) == 60_000
+      assert Evaluator.retry_after_ms(["Wed, 21 Oct 2026 07:28:00 GMT"]) == 60_000
+      assert Evaluator.retry_after_ms(["-1"]) == 60_000
+    end
+
     test "marks batch failed when engine returns error", %{bypass: bypass} do
       create_rule!(
         "some_rule",

@@ -21,4 +21,14 @@ defmodule MedicaidClaimsCheckerWeb.DevDashboardTest do
     {:ok, _view, html} = conn |> log_in_user(admin) |> live("/dev/dashboard/home")
     assert html =~ "Dashboard"
   end
+
+  # Admin links to this address so the browser's Back button works: it opens
+  # without forwarding, while the bare /dev/dashboard forwards to it.
+  test "/dev/dashboard/home opens without forwarding; the bare path forwards", %{conn: conn} do
+    {:ok, admin} = AccountsFixtures.user_fixture() |> Accounts.set_user_admin(true)
+    conn = log_in_user(conn, admin)
+    assert {:ok, _view, _html} = live(conn, "/dev/dashboard/home")
+    assert {:error, {:live_redirect, %{to: to}}} = live(conn, "/dev/dashboard")
+    assert to == "/dev/dashboard/home"
+  end
 end

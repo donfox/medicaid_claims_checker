@@ -164,7 +164,7 @@ defmodule MedicaidClaimsCheckerWeb.AdminLiveTest do
 
   test "in development the System section links to the system monitor", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/admin")
-    assert view |> element("#system-monitor a[href='/dev/dashboard']") |> has_element?()
+    assert view |> element("#system-monitor a[href='/dev/dashboard/home']") |> has_element?()
     # Same tab, so the browser's Back button returns to Admin.
     refute view |> element("#system-monitor a[target]") |> has_element?()
   end

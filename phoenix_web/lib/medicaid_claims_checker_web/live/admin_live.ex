@@ -165,7 +165,10 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive do
                 Development only. Use the browser's Back button to return.
               </p>
             </div>
-            <a href="/dev/dashboard" class="btn btn-soft">
+            <%!-- Link to /home, not the bare /dev/dashboard: that forwards to /home
+                 with a new history entry, so Back would land on it and be
+                 forwarded again, never reaching Admin. --%>
+            <a href="/dev/dashboard/home" class="btn btn-soft">
               Open system monitor
             </a>
           </div>

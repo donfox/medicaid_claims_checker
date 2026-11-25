@@ -44,7 +44,9 @@ New accounts are ordinary users. Only an admin can make another admin.
 
 In development, a **System** section has **Open system monitor**: Phoenix
 LiveDashboard at `/dev/dashboard` (memory, processes, request and database
-timings, logs), for admins only. It does not exist in a production release.
+timings, logs), for admins only. It opens in the same tab and has none of the
+app's navigation; use **← Back to Admin** at the end of its top menu to return.
+It does not exist in a production release.
 
 ## The Users table
 

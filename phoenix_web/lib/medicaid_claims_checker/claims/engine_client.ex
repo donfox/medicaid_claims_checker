@@ -42,7 +42,13 @@ defmodule MedicaidClaimsChecker.Claims.EngineClient do
   network address without TLS. Returns `:ok` or `{:error, message}`.
   """
   def check_url(url) when is_binary(url) do
-    case URI.parse(url) do
+    uri = URI.parse(url)
+
+    case %{
+      uri
+      | scheme: uri.scheme && String.downcase(uri.scheme),
+        host: uri.host && String.downcase(uri.host)
+    } do
       %URI{scheme: "https", host: host} when is_binary(host) and host != "" ->
         :ok
 

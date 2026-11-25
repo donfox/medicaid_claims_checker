@@ -8,6 +8,7 @@ defmodule MedicaidClaimsChecker.Claims.EngineClientTest do
       assert EngineClient.check_url("http://localhost:8080") == :ok
       assert EngineClient.check_url("http://127.0.0.1:8092") == :ok
       assert EngineClient.check_url("http://[::1]:8080") == :ok
+      assert EngineClient.check_url("HTTP://LocalHost:8080") == :ok
     end
 
     test "allows https to any host" do

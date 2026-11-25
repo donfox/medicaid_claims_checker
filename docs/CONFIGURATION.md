@@ -73,7 +73,7 @@ These are not environment variables; they live in `phoenix_web/config/`.
 
 ### Encryption in production
 
-Phoenix to engine is covered above: plain HTTP only on the same machine, HTTPS otherwise. Two other connections are left to the deployment:
+Phoenix to engine is covered above: plain HTTP only on the same machine, HTTPS otherwise. When the engine runs on its own host, also firewall its port so only the Phoenix host can reach it; the engine checks the shared secret but keeps no list of allowed clients. Two other connections are left to the deployment:
 
 - **Browser to Phoenix.** In production Phoenix redirects to HTTPS and sends HSTS (`force_ssl` in `config/prod.exs`), and builds `https://` links, but it listens on plain HTTP on `PORT` and holds no certificate. Put a TLS-terminating reverse proxy or load balancer in front of it, and do not expose `PORT` directly.
 - **Phoenix to the database.** No TLS is configured for the database connection. That is fine when Postgres runs on the same machine. If it runs on another host, turn on TLS for the Repo (`ssl:` options in `config/runtime.exs`) and on the database server.

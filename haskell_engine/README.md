@@ -111,6 +111,10 @@ When they run on different machines:
    If the certificate is self-signed or from an internal CA, also set
    `RULE_ENGINE_CA_CERT` to the CA file; a certificate from a public CA needs
    nothing more.
+3. Firewall the engine's port so only the Phoenix host can reach it. The
+   engine has no list of allowed clients of its own: once it listens on a
+   network address, any machine that can reach the port can try the shared
+   secret, limited only by the per-address rate limit.
 
 ### Other settings
 

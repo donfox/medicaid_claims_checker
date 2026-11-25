@@ -37,7 +37,7 @@ Read by `phoenix_web/config/runtime.exs` unless noted.
 
 | Variable | Default | What it does |
 |---|---|---|
-| `RULE_ENGINE_URL` | `http://localhost:8080` | Where the engine is. Use `https://` when the engine serves TLS. |
+| `RULE_ENGINE_URL` | `http://localhost:8080` | Where the engine is. Use `https://` when the engine serves TLS. Phoenix will not start with a plain `http://` URL to a host other than `localhost`, `127.0.0.1` or `::1`. |
 | `RULE_ENGINE_CA_CERT` | unset | CA certificate file that signed the engine's certificate, when it is not from a public CA. |
 | `SFTP_HOST`, `SFTP_USERNAME`, `SFTP_PASSWORD`, `SFTP_PORT` | unset; port `22` | Default SFTP connection for fetch sources. A source's own address and saved credentials take priority. |
 | `PORT` | `4000` | Port the web app listens on (development and production). |
@@ -70,6 +70,13 @@ These are not environment variables; they live in `phoenix_web/config/`.
 | Oban `batch_evaluation` queue | `config.exs` | One concurrent batch evaluation per CPU core, matching the engine's worker pool. |
 | `:remote_fetcher` | `config.exs` | Scheduled fetches: download timeout (60 s), largest file (`max_file_size_bytes`, 100 MB), largest unpacked zip (`max_unzipped_bytes`, 100 MB; uploads too) and the file extensions read (`.x12`, `.edi`, `.txt`). |
 | `:config_poller` | `config.exs` | Re-reads the fetch sources and schedules every 60 seconds and updates the scheduled fetch jobs. |
+
+### Encryption in production
+
+Phoenix to engine is covered above: plain HTTP only on the same machine, HTTPS otherwise. Two other connections are left to the deployment:
+
+- **Browser to Phoenix.** In production Phoenix redirects to HTTPS and sends HSTS (`force_ssl` in `config/prod.exs`), and builds `https://` links, but it listens on plain HTTP on `PORT` and holds no certificate. Put a TLS-terminating reverse proxy or load balancer in front of it, and do not expose `PORT` directly.
+- **Phoenix to the database.** No TLS is configured for the database connection. That is fine when Postgres runs on the same machine. If it runs on another host, turn on TLS for the Repo (`ssl:` options in `config/runtime.exs`) and on the database server.
 
 ## Scripts
 

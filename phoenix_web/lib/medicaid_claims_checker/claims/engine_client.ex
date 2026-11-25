@@ -33,6 +33,32 @@ defmodule MedicaidClaimsChecker.Claims.EngineClient do
     [{"Content-Type", "application/json"}, {"Authorization", "Bearer #{secret}"}]
   end
 
+  @doc """
+  Checks an engine URL before the app starts.
+
+  Plain `http://` is allowed only for a loopback host (`localhost`,
+  `127.0.0.1`, `::1`), so claim data and the shared secret never cross a
+  network unencrypted. This matches the engine, which will not listen on a
+  network address without TLS. Returns `:ok` or `{:error, message}`.
+  """
+  def check_url(url) when is_binary(url) do
+    case URI.parse(url) do
+      %URI{scheme: "https", host: host} when is_binary(host) and host != "" ->
+        :ok
+
+      %URI{scheme: "http", host: host} when host in ["localhost", "127.0.0.1", "::1"] ->
+        :ok
+
+      %URI{scheme: "http", host: host} when is_binary(host) and host != "" ->
+        {:error,
+         "RULE_ENGINE_URL=#{url} uses plain http:// to a host that is not loopback; " <>
+           "serve the engine over TLS and use https://"}
+
+      _ ->
+        {:error, "RULE_ENGINE_URL=#{url} is not an http:// or https:// URL"}
+    end
+  end
+
   @doc false
   def connect_options(timeout) do
     case Application.get_env(:medicaid_claims_checker, :rule_engine_ca_cert) do

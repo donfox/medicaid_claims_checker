@@ -9,6 +9,8 @@ defmodule MedicaidClaimsChecker.Application do
 
   @impl true
   def start(_type, _args) do
+    check_engine_url!()
+
     children = [
       MedicaidClaimsChecker.Vault,
       MedicaidClaimsCheckerWeb.Telemetry,
@@ -29,6 +31,16 @@ defmodule MedicaidClaimsChecker.Application do
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: MedicaidClaimsChecker.Supervisor]
     Supervisor.start_link(children, opts)
+  end
+
+  # Refuse to start rather than send claims to a remote engine unencrypted.
+  defp check_engine_url! do
+    url = Application.get_env(:medicaid_claims_checker, :rule_engine_url, "http://localhost:8080")
+
+    case MedicaidClaimsChecker.Claims.EngineClient.check_url(url) do
+      :ok -> :ok
+      {:error, message} -> raise message
+    end
   end
 
   # The poller reads the database outside any test's sandbox, so the test

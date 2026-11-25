@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -27,6 +28,7 @@ module Claims.Evaluator
 where
 
 import Control.Applicative ((<|>))
+import Control.DeepSeq (NFData)
 import Control.Monad ((>=>))
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Key qualified as Key
@@ -42,6 +44,7 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Time (Day, DayOfWeek (Saturday, Sunday), dayOfWeek, defaultTimeLocale, parseTimeM, toGregorian)
 import Data.Vector qualified as V
+import GHC.Generics (Generic)
 import Prelude hiding (EQ, GT, LT)
 import Claims.Syntax qualified as Syntax
 import Claims.Syntax (Action (..), CompOp (..), Path (..), Rule, RuleOutcome (..), RuleResult (..), compileRegex, resultAction, resultMatched, resultUndecided)
@@ -629,7 +632,9 @@ data EvaluationReport = EvaluationReport
     -- ^ Rules not checked because data they need is missing
   , reportOverallRisk    :: RiskLevel
   , reportSummary        :: Text
-  } deriving (Show)
+  } deriving (Show, Generic)
+
+instance NFData EvaluationReport
 
 -- | Overall risk level for a claim based on matched rules.
 data RiskLevel
@@ -637,7 +642,9 @@ data RiskLevel
   | MediumRisk    -- ^ Not currently produced; kept for the wire format
   | HighRisk      -- ^ Review requested, or a risk score >= 70
   | CriticalRisk  -- ^ Fraud flag or rejection triggered
-  deriving (Show, Eq, Ord)
+  deriving (Show, Eq, Ord, Generic)
+
+instance NFData RiskLevel
 
 -- ----------------------------------------------------------------------------
 -- Risk Calculation

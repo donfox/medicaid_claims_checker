@@ -30,6 +30,7 @@ module Claims.Syntax
   )
 where
 
+import Control.DeepSeq (NFData)
 import Data.Aeson (FromJSON (..), ToJSON (..), object, withObject, (.!=), (.:), (.:?), (.=))
 import Data.Aeson qualified as Aeson
 import Data.Aeson.KeyMap qualified as KeyMap
@@ -131,6 +132,8 @@ instance ToJSON Action
 
 instance FromJSON Action
 
+instance NFData Action
+
 -- | The result of evaluating one rule against one claim.
 data RuleResult = RuleResult
   { resultRuleName :: Text
@@ -147,6 +150,10 @@ data RuleOutcome
     -- 'resultDetails' names it.
     Undecided
   deriving (Show, Eq, Generic)
+
+instance NFData RuleOutcome
+
+instance NFData RuleResult
 
 -- | Whether the rule matched.
 resultMatched :: RuleResult -> Bool

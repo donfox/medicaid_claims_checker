@@ -29,6 +29,7 @@ module Claims.Pipeline
   )
 where
 
+import Control.DeepSeq (force)
 import Control.Exception (evaluate)
 import Data.Aeson (FromJSON, ToJSON (..), Value (..), object, withObject, (.:?), (.=))
 import Data.Aeson qualified as Aeson
@@ -44,7 +45,6 @@ import System.Environment (lookupEnv)
 import System.IO (hPutStrLn, stderr)
 import System.Timeout (timeout)
 import Claims.Evaluator (EvaluationReport (..), evaluateSimpleJson)
-import Claims.Syntax (RuleResult (..), resultMatched, resultUndecided)
 import Claims.MLClient (MLClientConfig, MLResult, getMlClientConfig, mlErrorResult, mlStubResult, scoreClaimWithMl)
 import Claims.Parser (loadRules)
 import Claims.PolicyCombiner
@@ -154,22 +154,7 @@ evaluateClaim = evaluateClaimWithin evalTimeoutMicros
 -- would happen later, while the reply is written, with no limit.
 evaluateClaimWithin :: Int -> [Rule] -> Day -> Value -> IO (Maybe EvaluationReport)
 evaluateClaimWithin limit rules today doc =
-  timeout limit $ do
-    let report = evaluateSimpleJson rules today doc
-    _ <- evaluate (forceReport report)
-    pure report
-
--- | A number that depends on every part of a report, so evaluating it
--- evaluates the report. The rule names and actions come from the parsed
--- rules and are already evaluated.
-forceReport :: EvaluationReport -> Int
-forceReport r =
-  sum [fromEnum (resultMatched x) + fromEnum (resultUndecided x) + T.length (resultDetails x) | x <- reportResults r]
-    + reportTotalRules r
-    + reportMatchedRules r
-    + reportUndecidedRules r
-    + fromEnum (reportOverallRisk r == reportOverallRisk r)
-    + T.length (reportSummary r)
+  timeout limit $ evaluate (force (evaluateSimpleJson rules today doc))
 
 -- | Why a single-claim evaluation produced no report.
 data EvaluationError

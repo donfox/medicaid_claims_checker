@@ -67,4 +67,44 @@ defmodule MedicaidClaimsChecker.Ingestion.ConfigPollerTest do
     assert job.overlap == false
     assert job.schedule == Crontab.CronExpression.Parser.parse!("*/15 * * * *")
   end
+
+  test "the poller's state holds no credentials, and a rename rebuilds the job" do
+    alias MedicaidClaimsChecker.Ingestion
+    alias MedicaidClaimsChecker.Ingestion.FetchSchedule
+
+    {:ok, source} =
+      Ingestion.create_fetch_source(%{
+        name: "with-password",
+        uri: "/tmp/none/",
+        source_type: "local",
+        credentials: %{"username" => "fetcher", "password" => "s3cret-pw"}
+      })
+
+    schedule = Repo.insert!(%FetchSchedule{fetch_source_id: source.id, interval_seconds: 900})
+
+    {pid, _log} = with_log(&start_poller/0)
+    Ecto.Adapters.SQL.Sandbox.allow(Repo, self(), pid)
+
+    with_log(fn ->
+      send(pid, :poll)
+      :sys.get_state(pid)
+    end)
+
+    state = :sys.get_state(pid)
+    assert [%{id: id}] = state.last_config
+    assert id == source.id
+    refute inspect(state, limit: :infinity, printable_limit: :infinity) =~ "s3cret-pw"
+
+    job_name = :"fetch_#{source.id}_#{schedule.id}"
+    assert {_, _, [%{name: "with-password"}]} = MedicaidClaimsChecker.Scheduler.find_job(job_name).task
+
+    {:ok, _} = Ingestion.update_fetch_source(source, %{name: "renamed"})
+
+    with_log(fn ->
+      send(pid, :poll)
+      :sys.get_state(pid)
+    end)
+
+    assert {_, _, [%{name: "renamed"}]} = MedicaidClaimsChecker.Scheduler.find_job(job_name).task
+  end
 end

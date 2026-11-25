@@ -127,6 +127,11 @@ defmodule MedicaidClaimsChecker.Ingestion.ConfigPoller do
     end
   end
 
+  # What the jobs are built from: a change here rebuilds them. Credentials are
+  # left out on purpose. Jobs do not carry them (FetchRunner decrypts them when
+  # a job runs), so a changed password needs no rebuild, and keeping them here
+  # would hold every decrypted password in this process's state, which a crash
+  # report prints in full.
   defp config_fingerprint(sources) when is_list(sources) do
     sources
     |> Enum.map(fn source ->
@@ -139,9 +144,9 @@ defmodule MedicaidClaimsChecker.Ingestion.ConfigPoller do
 
       %{
         id: source.id,
+        name: source.name,
         uri: source.uri,
         source_type: source.source_type,
-        credentials: source.credentials,
         schedules: schedules
       }
     end)

@@ -37,8 +37,8 @@ Read by `phoenix_web/config/runtime.exs` unless noted.
 
 | Variable | Default | What it does |
 |---|---|---|
-| `RULE_ENGINE_URL` | `http://localhost:8080` | Where the engine is. Use `https://` when the engine serves TLS. Phoenix will not start with a plain `http://` URL to a host other than `localhost`, `127.0.0.1` or `::1`. |
-| `RULE_ENGINE_CA_CERT` | unset | CA certificate file that signed the engine's certificate, when it is not from a public CA. |
+| `RULE_ENGINE_URL` | `http://localhost:8080` | Where the engine is: scheme, host and port only (a trailing `/` is allowed). Use `https://` when the engine serves TLS. Phoenix will not start with a plain `http://` URL to a host other than `localhost`, `127.0.0.1` or `::1`, or with a username, password, path, query or fragment in the URL. It logs the engine's address at startup. |
+| `RULE_ENGINE_CA_CERT` | unset | CA certificate file that signed the engine's certificate. When set, Phoenix accepts only certificates signed by this CA, not the public ones. Recommended in production; see [Encryption in production](#encryption-in-production). |
 | `SFTP_HOST`, `SFTP_USERNAME`, `SFTP_PASSWORD`, `SFTP_PORT` | unset; port `22` | Default SFTP connection for fetch sources. A source's own address and saved credentials take priority. |
 | `PORT` | `4000` | Port the web app listens on (development and production). |
 | `SEED_ADMIN_EMAIL`, `SEED_ADMIN_USERNAME` | `admin@example.com`, `admin` | The account the database seeds create when no admin exists. |
@@ -73,7 +73,11 @@ These are not environment variables; they live in `phoenix_web/config/`.
 
 ### Encryption in production
 
-Phoenix to engine is covered above: plain HTTP only on the same machine, HTTPS otherwise. When the engine runs on its own host, also firewall its port so only the Phoenix host can reach it; the engine checks the shared secret but keeps no list of allowed clients. Two other connections are left to the deployment:
+Phoenix to engine is covered above: plain HTTP only on the same machine, HTTPS otherwise. When the engine runs on its own host, also firewall its port so only the Phoenix host can reach it; the engine checks the shared secret but keeps no list of allowed clients.
+
+Phoenix sends the engine full claims, patient details included, and the shared secret. Phoenix checks the form of `RULE_ENGINE_URL` but cannot tell a wrong `https://` host from the right one, so a mistaken value would send that data elsewhere. To guard against this, give the engine a certificate from an internal CA and set `RULE_ENGINE_CA_CERT` to that CA. Phoenix then trusts only that CA, so a connection to any other host fails before anything is sent. With `RULE_ENGINE_CA_CERT` unset, any server with a publicly trusted certificate is accepted. The startup log line `Rule engine: ...` shows the address in use and which of the two applies.
+
+Two other connections are left to the deployment:
 
 - **Browser to Phoenix.** In production Phoenix redirects to HTTPS and sends HSTS (`force_ssl` in `config/prod.exs`), and builds `https://` links, but it listens on plain HTTP on `PORT` and holds no certificate. Put a TLS-terminating reverse proxy or load balancer in front of it, and do not expose `PORT` directly.
 - **Phoenix to the database.** No TLS is configured for the database connection. That is fine when Postgres runs on the same machine. If it runs on another host, turn on TLS for the Repo (`ssl:` options in `config/runtime.exs`) and on the database server.

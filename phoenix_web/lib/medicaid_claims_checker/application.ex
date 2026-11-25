@@ -7,6 +7,8 @@ defmodule MedicaidClaimsChecker.Application do
 
   use Application
 
+  require Logger
+
   @impl true
   def start(_type, _args) do
     check_engine_url!()
@@ -33,12 +35,13 @@ defmodule MedicaidClaimsChecker.Application do
     Supervisor.start_link(children, opts)
   end
 
-  # Refuse to start rather than send claims to a remote engine unencrypted.
+  # Refuse to start rather than send claims to a remote engine unencrypted or
+  # to a malformed URL, and log where claims will go.
   defp check_engine_url! do
     url = Application.get_env(:medicaid_claims_checker, :rule_engine_url, "http://localhost:8080")
 
     case MedicaidClaimsChecker.Claims.EngineClient.check_url(url) do
-      :ok -> :ok
+      :ok -> Logger.info(MedicaidClaimsChecker.Claims.EngineClient.describe_target())
       {:error, message} -> raise message
     end
   end

@@ -162,10 +162,10 @@ defmodule MedicaidClaimsCheckerWeb.AdminLive do
               <p class="font-semibold">System monitor</p>
               <p class="text-sm text-gray-600">
                 Phoenix LiveDashboard: memory, processes, request and database timings, logs.
-                Development only.
+                Development only. Use the browser's Back button to return.
               </p>
             </div>
-            <a href="/dev/dashboard" target="_blank" rel="noopener" class="btn btn-soft">
+            <a href="/dev/dashboard" class="btn btn-soft">
               Open system monitor
             </a>
           </div>

@@ -156,7 +156,7 @@ A classification derived from the *actions* of the matched rules, not just their
 | HighRisk | Any matched rule has `REQUIRE_REVIEW`, or a `RISK_SCORE` of 70 or more |
 | LowRisk | Anything else |
 
-The app counts HighRisk and CriticalRisk claims as flagged for BA review. `MediumRisk` is kept in the report format for stored reports but is not currently produced. A claim can trigger several rules and remain LowRisk if none of them asks for review or scores 70 or more.
+The app counts HighRisk and CriticalRisk claims as flagged for BA review. The engine has no `MediumRisk` level; the app still displays one found in an older stored report. A claim can trigger several rules and remain LowRisk if none of them asks for review or scores 70 or more.
 
 ### Rules not checked
 

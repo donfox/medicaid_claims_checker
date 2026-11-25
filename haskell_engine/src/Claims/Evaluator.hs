@@ -18,7 +18,8 @@
 -- * 'LowRisk': otherwise
 --
 -- Phoenix flags 'HighRisk' and 'CriticalRisk' claims for analyst review.
--- 'MediumRisk' is kept for the wire format but is not produced.
+-- There is no medium level: Phoenix still shows a stored @MediumRisk@, and
+-- the ML work may bring one back (docs/ML_INTEGRATION_NOTES.md).
 module Claims.Evaluator
   ( evaluateSimpleJson,
     evaluateRuleSimple,
@@ -37,6 +38,7 @@ import Data.Char (isDigit)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Containers.ListUtils (nubOrd)
+import Data.List (foldl')
 import Data.Maybe (isJust, isNothing)
 import Data.Int (Int64)
 import Data.Scientific (FPFormat (Fixed), Scientific, base10Exponent, formatScientific, toBoundedInteger)
@@ -78,7 +80,7 @@ data EvalEnv = EvalEnv
 mkEnv :: Day -> [Syntax.Binding] -> Aeson.Value -> EvalEnv
 mkEnv today bindings doc = EvalEnv lets Map.empty Map.empty [] doc doc today
   where
-    lets = foldl bind Map.empty bindings
+    lets = foldl' bind Map.empty bindings
     bind acc b = Map.insert (Syntax.bindingName b) (expand acc (Syntax.bindingField b)) acc
     expand acc ref@(Path [single]) = Map.findWithDefault ref single acc
     expand _ ref = ref
@@ -619,7 +621,6 @@ instance NFData EvaluationReport
 -- | Overall risk level for a claim based on matched rules.
 data RiskLevel
   = LowRisk       -- ^ No significant risk indicators
-  | MediumRisk    -- ^ Not currently produced; kept for the wire format
   | HighRisk      -- ^ Review requested, or a risk score >= 70
   | CriticalRisk  -- ^ Fraud flag or rejection triggered
   deriving (Show, Eq, Ord, Generic)

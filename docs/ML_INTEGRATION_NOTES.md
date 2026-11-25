@@ -64,7 +64,7 @@ Calling an outside LLM through an API is a **separate, later step**. It also dep
 
 - **Scores are not calibrated.** An LLM can return a number, but it is not a probability, and the same claim can score differently from run to run. The fixed bands (0.35 / 0.80 / 0.93) assume a calibrated score.
 - **The useful output is the explanation.** The contract has no free-text field, only `top_factors`. Under Edition 2 the LLM's reasons are the evidence a BA needs, so the contract probably needs a rationale field.
-- **Categories may fit better than a score.** For example *no concern / worth a look / needs review*. `MediumRisk` is not produced by the rules (see item 6) and is reserved: "worth a look" is a natural candidate for it.
+- **Categories may fit better than a score.** For example *no concern / worth a look / needs review*. `MediumRisk` is not produced by the rules (see item 6); since 2026-11-25 the engine's `RiskLevel` type no longer has it, but Phoenix still displays and sorts it, so "worth a look" could bring it back by adding the constructor.
 
 ## Issues to resolve before building the Python service
 

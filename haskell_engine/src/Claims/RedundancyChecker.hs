@@ -31,7 +31,7 @@ module Claims.RedundancyChecker
 where
 
 import Data.Aeson (ToJSON)
-import Data.List (nub, sort)
+import Data.List (foldl', nub, sort)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Scientific (Scientific)
@@ -296,7 +296,7 @@ canonicalCondition r = normalizePredicate (canonicalNames (ruleBindings r) (rule
 canonicalNames :: [Binding] -> Predicate -> Predicate
 canonicalNames bindings = go (Scope Map.empty 0 False)
   where
-    lets = foldl bind Map.empty bindings
+    lets = foldl' bind Map.empty bindings
     bind acc (Binding name ref) = Map.insert name (expandLet acc ref) acc
     expandLet acc ref@(Path [single]) = Map.findWithDefault ref single acc
     expandLet _ ref = ref
@@ -361,14 +361,14 @@ normalizePredicate p = case p of
      in case filtered of
           [] -> PTrue
           [x] -> x
-          (x : xs) -> foldl And x xs
+          (x : xs) -> foldl' And x xs
   Or a b ->
     let disjuncts = sort $ flattenOr (normalizePredicate a) ++ flattenOr (normalizePredicate b)
         filtered = filter (/= PFalse) disjuncts
      in case filtered of
           [] -> PFalse
           [x] -> x
-          (x : xs) -> foldl Or x xs
+          (x : xs) -> foldl' Or x xs
   Not (Not inner) -> normalizePredicate inner
   Not inner -> Not (normalizePredicate inner)
   Between f v1 v2 -> normalizePredicate (And (Compare GTE f v1) (Compare LTE f v2))

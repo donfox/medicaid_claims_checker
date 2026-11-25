@@ -143,6 +143,19 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
   # chunk and parses in microseconds. The engine's rule cache and
   # /api/compile-rules were removed for this reason in 41dcbdb (2026-10-15).
 
+  # Connecting succeeds or is refused at once on the same machine; 10 s covers
+  # an engine on another host without waiting long for one that is gone.
+  @connect_timeout_ms 10_000
+
+  # Not the engine's 30 s: that limit is per claim. The engine checks one claim
+  # per CPU core at a time, shared by every Phoenix job, so a chunk of 200 slow
+  # claims could take many times 30 s. Real claims take milliseconds, so 120 s
+  # is a safety net. A stalled engine costs one wait per batch, not per chunk:
+  # the first failed request stops the batch, which is marked failed (its
+  # claims show as not evaluated, and the duplicate check lets the same file be
+  # submitted again). Only the batch_evaluation queue waits; nothing else does.
+  @receive_timeout_ms 120_000
+
   defp call_batch_evaluate(rules_text, claims) do
     claims
     |> Enum.chunk_every(@batch_chunk_size)
@@ -150,8 +163,8 @@ defmodule MedicaidClaimsChecker.Claims.Evaluator do
       body = Jason.encode!(PayloadBuilder.build_batch_evaluate_payload(rules_text, chunk))
 
       case EngineClient.post("/api/batch-evaluate", body,
-             connect_timeout: 120_000,
-             receive_timeout: 120_000
+             connect_timeout: @connect_timeout_ms,
+             receive_timeout: @receive_timeout_ms
            ) do
         {:ok, %{status: 200, body: resp_body}} ->
           case Jason.decode(resp_body) do
